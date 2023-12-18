@@ -1,6 +1,6 @@
 import os
 import sys
-import pyperclip
+import PrismCore
 
 
 def prismInit():
@@ -16,11 +16,13 @@ def prismInit():
 	if pysideDir not in sys.path:
 		sys.path.append(pysideDir)
 
-	import PrismCore
+	pcore = PrismCore.PrismCore(app="Fusion")#, prismArgs=["noUI"])
+	pcore.setActiveStyleSheet("Fusion")
+	#Because Fusion Importing of 3D using code is basically a hack, we need to make sure as much as we can that the fusion window is in focus
+	#this means limiting the amount of qt windows we manage on top.
+	if pcore.pb:
+		pcore.pb.close()
 
-	pcore = PrismCore.PrismCore(app="Fusion")
-	#Create the state manager node
-	pcore.appPlugin.getFusionStatesNode()
 	return pcore
 
 def getPrismRoot():
