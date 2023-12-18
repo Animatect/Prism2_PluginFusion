@@ -42,7 +42,7 @@ class Prism_Fusion_Variables(object):
         self.hasQtParent = False
         self.sceneFormats = [".comp"]
         self.appSpecificFormats = self.sceneFormats
-        self.outputFormats = [".abc", ".usd", ".fbx", "ShotCam"]
+        self.outputFormats = [".abc", ".fbx", "ShotCam"]
         self.appColor = [134, 96, 166]
         self.colorButtonWithStyleSheet = True
         self.appVersionPresets = ["18"]

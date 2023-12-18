@@ -125,13 +125,6 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def tst(self):
-		print("test")
-		currentFileName = self.fusion.GetCurrentComp().GetAttrs()["COMPS_FileName"]
-		filenm = currentFileName.split("\\")[-1]
-		print(f"el nombre del archivo es: {filenm}")
-
-	@err_catcher(name=__name__)
 	def autosaveEnabled(self, origin):
 		# get autosave enabled
 		return False
@@ -613,7 +606,9 @@ class Prism_Fusion_Functions(object):
 			activetool = comp.ActiveTool()
 		except:
 			pass
-		
+		#if there is no active tool we use the note tool for the StateManager as a reference 
+		if not activetool:
+			activetool = self.getFusionStatesNode()
 		
 		#get Extension
 		ext = fileName[1].lower()
@@ -632,7 +627,7 @@ class Prism_Fusion_Functions(object):
 			if activetool is not None:
 				print("locs")
 				impnodes = [n for n in comp.GetToolList(True).values()]
-				print(impnodes)
+				#print(impnodes)
 				if len(impnodes) > 0:
 					comp.Lock()
 
@@ -647,7 +642,7 @@ class Prism_Fusion_Functions(object):
 						offset = [x-fstnx,y-fstny]
 						newx = x+(atx-x)+offset[0]
 						newy = y+(aty-y)+offset[1]
-						flow.SetPos(n, newx, newy)
+						flow.SetPos(n, newx-1, newy)
 
 					comp.Unlock()
 			##########
@@ -877,29 +872,16 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def onStateManagerOpen(self, origin):
-		origin.b_showImportStates.setStyleSheet("padding-left: 1px;padding-right: 1px;")
-		origin.b_showExportStates.setStyleSheet("padding-left: 1px;padding-right: 1px;")
-
-		origin.b_createImport.setMinimumWidth(70 * self.core.uiScaleFactor)
-		origin.b_createImport.setMaximumWidth(70 * self.core.uiScaleFactor)
-		origin.b_createImport.setMinimumHeight(0)
-		origin.b_createImport.setMaximumHeight(500 * self.core.uiScaleFactor)
-		origin.b_shotCam.setMinimumHeight(0)
-		origin.b_shotCam.setMaximumHeight(50 * self.core.uiScaleFactor)
-		origin.b_showImportStates.setMinimumWidth(30 * self.core.uiScaleFactor)
-		origin.b_showImportStates.setMaximumWidth(30 * self.core.uiScaleFactor)
-		origin.b_showExportStates.setMinimumWidth(30 * self.core.uiScaleFactor)
-		origin.b_showExportStates.setMaximumWidth(30 * self.core.uiScaleFactor)
-		origin.b_createExport.setMinimumWidth(70 * self.core.uiScaleFactor)
-		origin.b_createExport.setMaximumWidth(70 * self.core.uiScaleFactor)
-		origin.b_createRender.setMinimumWidth(70 * self.core.uiScaleFactor)
-		origin.b_createRender.setMaximumWidth(70 * self.core.uiScaleFactor)
-		origin.b_createPlayblast.setMinimumWidth(80 * self.core.uiScaleFactor)
-		origin.b_createPlayblast.setMaximumWidth(80 * self.core.uiScaleFactor)
-		origin.b_description.setMinimumWidth(35 * self.core.uiScaleFactor)
-		origin.b_description.setMaximumWidth(35 * self.core.uiScaleFactor)
-		origin.b_preview.setMinimumWidth(35 * self.core.uiScaleFactor)
-		origin.b_preview.setMaximumWidth(35 * self.core.uiScaleFactor)
+		#Remove Export and Playblast buttons and states
+		origin.b_createExport.deleteLater()
+		origin.b_createPlayblast.deleteLater()
+		sm = self.core.getStateManager()
+		removestates = ['Code', 'Export', 'Playblast']
+		for state in removestates:
+			if state in sm.stateTypes.keys():
+				del sm.stateTypes[state]
+	
+		#origin.gb_import.setStyleSheet("margin-top: 20px;")
 
 	@err_catcher(name=__name__)
 	def onStateCreated(self, origin, state, stateData):

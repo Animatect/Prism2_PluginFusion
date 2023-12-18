@@ -1,6 +1,5 @@
 import os
 import sys
-import PrismCore
 
 
 def prismInit():
@@ -15,6 +14,8 @@ def prismInit():
 
 	if pysideDir not in sys.path:
 		sys.path.append(pysideDir)
+
+	import PrismCore
 
 	pcore = PrismCore.PrismCore(app="Fusion")#, prismArgs=["noUI"])
 	pcore.setActiveStyleSheet("Fusion")
