@@ -37,7 +37,7 @@ class Prism_Fusion_Variables(object):
         self.version = "v2.0.0"
         self.pluginName = "Fusion"
         self.pluginType = "App"
-        self.appShortName = "Fusion"
+        self.appShortName = "Fus"
         self.appType = "3d"
         self.hasQtParent = False
         self.sceneFormats = [".comp"]

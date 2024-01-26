@@ -265,7 +265,6 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def openScene(self, origin, filepath, force=False):
-		print("que es lo que es con el openscene, debe ser un evento")
 		if os.path.splitext(filepath)[1] not in self.sceneFormats:
 			return False
 
@@ -625,7 +624,7 @@ class Prism_Fusion_Functions(object):
 		if result:
 			#Set the position of the imported nodes relative to the previously active tool
 			if activetool is not None:
-				print("locs")
+				#print("locs")
 				impnodes = [n for n in comp.GetToolList(True).values()]
 				#print(impnodes)
 				if len(impnodes) > 0:
@@ -635,7 +634,7 @@ class Prism_Fusion_Functions(object):
 					fstnx, fstny = flow.GetPosTable(fisrtnode).values()
 
 					for n in impnodes:
-						print("locs")
+						#print("locs")
 						atx, aty = flow.GetPosTable(activetool).values()
 						x,y  = flow.GetPosTable(n).values()
 
@@ -690,8 +689,8 @@ class Prism_Fusion_Functions(object):
 		return comp.FindTool(node["name"])
 
 	def cleanbeforeImport(self, origin):
-		print(f"origin setname: {origin.setName}")
-		print(f"origin nodes: {origin.nodes}")
+		# print(f"origin setname: {origin.setName}")
+		# print(f"origin nodes: {origin.nodes}")
 		if origin.nodes == []:
 			return
 		nodes = []

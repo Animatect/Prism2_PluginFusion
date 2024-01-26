@@ -2,7 +2,7 @@ import os
 import sys
 
 
-def prismInit():
+def prismInit(showUI=False):
 	prismRoot = getPrismRoot()
 
 	scriptDir = os.path.join(prismRoot, "Scripts")
@@ -17,7 +17,10 @@ def prismInit():
 
 	import PrismCore
 
-	pcore = PrismCore.PrismCore(app="Fusion")#, prismArgs=["noUI"])
+	if showUI:
+		pcore = PrismCore.PrismCore(app="Fusion")
+	else:
+		pcore = PrismCore.PrismCore(app="Fusion", prismArgs=["noUI"])
 	pcore.setActiveStyleSheet("Fusion")
 	#Because Fusion Importing of 3D using code is basically a hack, we need to make sure as much as we can that the fusion window is in focus
 	#this means limiting the amount of qt windows we manage on top.
