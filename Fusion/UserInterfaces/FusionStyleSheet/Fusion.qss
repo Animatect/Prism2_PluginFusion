@@ -79,7 +79,7 @@ QGroupBox::indicator
     margin-top: 20px;
     margin-bottom: 20px;
 }
-
+/*
 QCheckBox::indicator:unchecked,
 QGroupBox::indicator:unchecked
 {
@@ -142,7 +142,7 @@ QGroupBox::indicator:unchecked:disabled
 {
     image: url(:/qss_icons/rc/checkbox_unchecked_disabled.png);
 }
-
+*/
 QRadioButton
 {
     spacing: 5px;

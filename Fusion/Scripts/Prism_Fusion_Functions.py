@@ -420,6 +420,12 @@ class Prism_Fusion_Functions(object):
 
 		return stateProps
 
+	################################################
+	#                                              #
+	#                    RENDER                    #
+	#                                              #
+	################################################
+
 	@err_catcher(name=__name__)
 	def sm_render_startup(self, origin):
 		pass
@@ -443,27 +449,53 @@ class Prism_Fusion_Functions(object):
 		pass
 
 	@err_catcher(name=__name__)
-	def sm_render_preSubmit(self, origin, rSettings):
+	def rendernode_exists(self, nodename):
 		comp = self.fusion.GetCurrentComp()
-		identifier = origin.getTaskname()
-		name = f"Prism_{identifier}_RenderNode"
-		sv = comp.FindTool(name)
-		print(f"sv es {sv}")
+		sv = comp.FindTool(nodename)
 		if sv is None:
-			comp.Lock()
-			sv = comp.Saver("name")
-			comp.Unlock()
-			sv.SetAttrs({'TOOLS_Name' : name})
-			print("desde adentro")
-  
-		outputName = rSettings["outputName"]
-		sv.Clip = outputName
+			return False
+		return True
 
-		print(rSettings)
+	@err_catcher(name=__name__)
+	def get_rendernode(self, nodename):
+		comp = self.fusion.GetCurrentComp()
+		return comp.FindTool(nodename)
+
+	@err_catcher(name=__name__)
+	def create_rendernode(self, nodename):
+		comp = self.fusion.GetCurrentComp()
+		if not self.rendernode_exists(nodename):
+			comp.Lock()
+			sv = comp.Saver()
+			comp.Unlock()
+			sv.SetAttrs({'TOOLS_Name' : nodename})
+			#Move Render Node to the Right of the scene		
+		return sv
+
+	@err_catcher(name=__name__)
+	def sm_render_preSubmit(self, origin, rSettings):
+		pass
 
 	@err_catcher(name=__name__)
 	def sm_render_startLocalRender(self, origin, outputName, rSettings):
-		pass
+		comp = self.fusion.GetCurrentComp()
+		outputName = rSettings["outputName"]
+		sv = self.get_rendernode(origin.get_rendernode_name())
+		#if sv is not None
+		if sv:
+			#if sv has input
+			if sv.Input.GetConnectedOutput():
+				sv.Clip = outputName
+			else:
+				return "Result=Failed"
+		else:
+			return "Result=Failed"
+
+
+		if len(os.listdir(os.path.dirname(outputName))) > 0:
+			return "Result=Success"
+		else:
+			return "unknown error (files do not exist)"
 
 	@err_catcher(name=__name__)
 	def sm_render_undoRenderSettings(self, origin, rSettings):
