@@ -32,7 +32,7 @@ def prismInit(showUI=False):
 def getPrismRoot():
 	prismRoot = os.getenv("PRISM_ROOT")
 	if not prismRoot:
-		prismRoot = "C:/GitHub/Prism/Prism"
+		prismRoot = "C:/Program Files/Prism2"#"C:/GitHub/Prism/Prism"
 	return prismRoot
 
 def getIconPath():

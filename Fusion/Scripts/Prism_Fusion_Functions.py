@@ -444,7 +444,22 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def sm_render_preSubmit(self, origin, rSettings):
-		pass
+		comp = self.fusion.GetCurrentComp()
+		identifier = origin.getTaskname()
+		name = f"Prism_{identifier}_RenderNode"
+		sv = comp.FindTool(name)
+		print(f"sv es {sv}")
+		if sv is None:
+			comp.Lock()
+			sv = comp.Saver("name")
+			comp.Unlock()
+			sv.SetAttrs({'TOOLS_Name' : name})
+			print("desde adentro")
+  
+		outputName = rSettings["outputName"]
+		sv.Clip = outputName
+
+		print(rSettings)
 
 	@err_catcher(name=__name__)
 	def sm_render_startLocalRender(self, origin, outputName, rSettings):

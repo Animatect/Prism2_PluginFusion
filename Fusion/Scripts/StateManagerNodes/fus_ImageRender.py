@@ -105,7 +105,7 @@ class ImageRenderClass(object):
         if len(self.product_paths) < 2:
             self.w_outPath.setVisible(False)
 
-        self.mediaType = "3drenders"
+        self.mediaType = "2drenders"
         self.tasknameRequired = True
         self.outputFormats = [
             ".exr",
@@ -1113,7 +1113,7 @@ class ImageRenderClass(object):
             details["identifier"] = self.getTaskname()
             details["comment"] = self.stateManager.publishComment
 
-            if self.mediaType == "3drenders":
+            if self.mediaType == "2drenders":
                 infopath = os.path.dirname(outputPath)
             else:
                 infopath = outputPath

@@ -4,7 +4,7 @@ import sys
 
 prismRoot = os.getenv("PRISM_ROOT")
 if not prismRoot:
-	prismRoot = "C:/GitHub/Prism/Prism"
+	prismRoot = "C:/Program Files/Prism2"#"C:/GitHub/Prism/Prism"
 
 scriptDir = os.path.join(prismRoot, "Scripts")
 pysideDir = os.path.join(prismRoot, "PythonLibs", "Python3", "PySide")
@@ -32,5 +32,7 @@ import PrismCore
 pcore = PrismCore.PrismCore(app="Fusion")# ,prismArgs=["noUI"])
 
 #print(pcore.appPlugin.sceneFormats)
-
-print(pcore.sm.stateTypes.keys())
+fileName = pcore.getCurrentFileName()
+context = pcore.getScenefileData(fileName)
+print(f"filename: {fileName}, \n context: {context}")
+##print(pcore.sm.stateTypes.keys())
