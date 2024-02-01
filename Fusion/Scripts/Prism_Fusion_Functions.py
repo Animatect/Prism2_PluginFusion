@@ -624,7 +624,35 @@ class Prism_Fusion_Functions(object):
 
 	################################################
 	#                                              #
-	#                    IMPORT                    #
+	#                 IMPORTIMAGES                 #
+	#                                              #
+	################################################ 
+	@err_catcher(name=__name__)
+	def importImages(self, origin):
+		if origin.origin.getCurrentAOV():
+			print("if")
+			print(self.core)
+			print(origin)
+			print(origin.origin)
+			fString = "Please select an import option:"
+			buttons = ["Current AOV", "All AOVs", "Layout all AOVs"]
+			result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+		else:
+			result = "Current AOV"
+			print("else")
+		result
+		# if result == "Current AOV":
+		# 	self.nukeImportSource(origin)
+		# elif result == "All AOVs":
+		# 	self.nukeImportPasses(origin)
+		# elif result == "Layout all AOVs":
+		# 	self.nukeLayout(origin)
+		# else:
+		# 	return
+
+	################################################
+	#                                              #
+	#                   IMPORT3D                   #
 	#                                              #
 	################################################
 	abc_options = {

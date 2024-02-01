@@ -40,9 +40,8 @@ def openPrismStateManager():
 	if qapp == None:
 		qapp = QtWidgets.QApplication(sys.argv)
 
-	pcore = PrismInit.prismInit(True)
+	pcore = PrismInit.prismInit()
 	pcore.setActiveStyleSheet("Fusion")
-	print(f'getconfig: {pcore.prismArgs}')
 	pcore.stateManager()
 
 	qapp.exec_()
