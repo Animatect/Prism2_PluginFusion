@@ -136,6 +136,8 @@ class ImageRenderClass(object):
 			self.gb_submit.setVisible(False)
 
 		self.managerChanged(True)
+  
+		self.setupRendernode()
  
 		if stateData is not None:
 			self.loadData(stateData)
@@ -601,6 +603,7 @@ class ImageRenderClass(object):
 			self.b_setRendernode.setText("SetRenderNode")
 			self.b_setRendernode.setStyleSheet("background-color: red; color: white;")
 		else:
+			#TODO: Send Warning if render node is already set
 			self.b_setRendernode.setText(name)
 			self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
 		

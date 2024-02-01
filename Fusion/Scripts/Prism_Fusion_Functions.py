@@ -449,6 +449,56 @@ class Prism_Fusion_Functions(object):
 		pass
 
 	@err_catcher(name=__name__)
+	def posRelativeToNode(self, node, xoffset=3):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+		#check if there is selection
+		if len(comp.GetToolList(True).values()) > 0:
+			activeNode = comp.ActiveTool()
+			if not activeNode.Name == node.Name:
+				postable = flow.GetPosTable(activeNode)
+				if postable:
+					x, y = postable.values()
+					flow.SetPos(node, x + xoffset, y)
+					node.ConnectInput('Input', activeNode)
+					return True
+
+		return False
+
+	@err_catcher(name=__name__)
+	def stackNodesByType(self, nodetostack, yoffset=3, tooltype="Saver"):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+
+		origx, origy = flow.GetPosTable(nodetostack).values()
+  
+		toollist = comp.GetToolList().values()
+		
+		thresh_y_position = -float('inf')
+		upmost_node = None		
+
+		# Find the upmost node
+		for node in toollist:
+			if node.Name == nodetostack.Name:
+					continue
+			
+			if node.GetAttrs("TOOLS_RegID") == tooltype:
+				postable = flow.GetPosTable(node)
+				y = thresh_y_position
+				#check if node has a postable.
+				if postable:
+					# Get the node's position
+					x,y = postable.values()
+
+					if y > thresh_y_position:
+						thresh_y_position = y
+						upmost_node = node
+
+		if upmost_node:
+			#set pos to the leftmost or rightmost node
+			flow.SetPos(nodetostack, origx, thresh_y_position + yoffset)
+
+	@err_catcher(name=__name__)
 	def rendernode_exists(self, nodename):
 		comp = self.fusion.GetCurrentComp()
 		sv = comp.FindTool(nodename)
@@ -469,7 +519,10 @@ class Prism_Fusion_Functions(object):
 			sv = comp.Saver()
 			comp.Unlock()
 			sv.SetAttrs({'TOOLS_Name' : nodename})
-			#Move Render Node to the Right of the scene		
+			if not self.posRelativeToNode(sv):
+				#Move Render Node to the Right of the scene	
+				self.setSmNodePosition(sv, min=False, xoffset=5, ignoreNodeType="Saver")
+				self.stackNodesByType(sv)
 		return sv
 
 	@err_catcher(name=__name__)
@@ -478,6 +531,7 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def sm_render_startLocalRender(self, origin, outputName, rSettings):
+		print(rSettings)
 		comp = self.fusion.GetCurrentComp()
 		outputName = rSettings["outputName"]
 		sv = self.get_rendernode(origin.get_rendernode_name())
@@ -487,10 +541,20 @@ class Prism_Fusion_Functions(object):
 			if sv.Input.GetConnectedOutput():
 				sv.Clip = outputName
 			else:
-				return "Result=Failed"
+				return "Error (Render Node is not connected)"
 		else:
-			return "Result=Failed"
-
+			return "Error (Render Node does not exist)"
+		
+		frstart = rSettings["startFrame"]
+		frend = rSettings["endFrame"]
+		
+		if origin.chb_resOverride.isChecked():
+			wdt = origin.sp_resWidth.value()
+			Hhgt = origin.sp_resHeight.value()
+	
+			comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}','SizeType': -1, 'Width': wdt, 'Height': Hhgt})
+		else:
+			comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}'})
 
 		if len(os.listdir(os.path.dirname(outputName))) > 0:
 			return "Result=Success"
@@ -800,9 +864,8 @@ class Prism_Fusion_Functions(object):
 		extFiles = []
 		return [extFiles, []]
 
-	
 	@err_catcher(name=__name__)
-	def setSmNodePosition(self, smnode):
+	def setSmNodePosition(self, smnode, min=True, xoffset=-2, ignoreNodeType=None):
 		# Get the active composition
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
@@ -813,28 +876,54 @@ class Prism_Fusion_Functions(object):
 
 			if all_nodes:
 				# Initialize variables to track the leftmost node
-				leftmost_node = None
-				upmost_node = None
-				min_x_position = float('inf')  # Initialize with positive infinity
-				min_y_position = float('inf')  # Initialize with positive infinity
+				xmost_node, upmost_node = None, None
+				
+				thresh_x_position, thresh_y_position = 0, 0
+				if min:
+					thresh_x_position, thresh_y_position = float('inf'), float('inf')  # Initialize with positive infinity
+				else:
+					thresh_x_position, thresh_y_position = -float('inf'), float('inf')  # Initialize with negative infinity
 
 				# Iterate through all nodes
 				for node in all_nodes:
-					# Get the node's position
-					x,y = flow.GetPosTable(node).values()
+					# Skip the SM node
+					if node.Name == smnode.Name:
+						continue
 
-					# Check if the X-coordinate is smaller than the current minimum
-					if x < min_x_position:
-						min_x_position = x
-						leftmost_node = node
+					# Skip nodes with the ignoreNodeType
+					if ignoreNodeType:
+							if node.GetAttrs("TOOLS_RegID") == ignoreNodeType:
+								continue
 
-					if y < min_y_position:
-						min_y_position = y
+					
+					postable = flow.GetPosTable(node)
+					x,y = thresh_x_position, thresh_y_position
+					#check if node has a postable.
+					if postable:
+						# Get the node's position
+						x,y = postable.values()
+					
+					# Check if the X-coordinate is smaller than the current minimum or larger than the current maximum
+					xthresh, ythresh = False, False
+     
+					if min:
+						xthresh = x < thresh_x_position
+						ythresh = y < thresh_y_position
+					else:
+						xthresh = x > thresh_x_position
+						ythresh = y < thresh_y_position
+
+					if xthresh:
+						thresh_x_position = x
+						xmost_node = node
+
+					if ythresh:
+						thresh_y_position = y
 						upmost_node = node
 
-				if leftmost_node:
-					# Print the position of the leftmost node
-					flow.SetPos(smnode, min_x_position-2, min_y_position)
+				if xmost_node:
+					#set pos to the leftmost or rightmost node
+					flow.SetPos(smnode, thresh_x_position + xoffset, thresh_y_position)
 				else:
 					flow.SetPos(smnode, 0, 0)
 			else:
