@@ -471,7 +471,7 @@ class Prism_Fusion_Functions(object):
 		flow = comp.CurrentFrame.FlowView
 
 		origx, origy = flow.GetPosTable(nodetostack).values()
-  
+
 		toollist = comp.GetToolList().values()
 		
 		thresh_y_position = -float('inf')
@@ -628,7 +628,29 @@ class Prism_Fusion_Functions(object):
 	#                                              #
 	################################################ 
 	@err_catcher(name=__name__)
+	def reloadLoader(self, node, filePath, firstframe, lastframe):
+		if node.GetAttrs("TOOLS_RegID") == 'Loader':
+			node = node
+			loaderPath = filePath
+			loaderName = node.GetAttrs("TOOLS_Name")
+
+			# Rename the clipname to force reload duration
+			node.Clip = loaderPath
+			node.GlobalIn[0] = firstframe
+			node.GlobalOut[0] = lastframe
+
+			# node.Clip = loaderPath + ""
+			# node.Clip = loaderPath
+			# durationNew = node.GetAttrs("TOOLIT_Clip_Length")
+			# durationNewClean = durationNew[1]
+
+			# ClipsReaload
+			node.SetAttrs({"TOOLB_PassThrough": True})
+			node.SetAttrs({"TOOLB_PassThrough": False})
+
+	@err_catcher(name=__name__)
 	def importImages(self, origin):
+		print(origin.origin.getCurrentAOV())
 		if origin.origin.getCurrentAOV():
 			fString = "Please select an import option:"
 			buttons = ["Current AOV", "All AOVs", "Layout all AOVs"]
@@ -646,27 +668,24 @@ class Prism_Fusion_Functions(object):
 			return
 	@err_catcher(name=__name__)
 	def fusionImportSource(self, origin):
+		comp = self.fusion.GetCurrentComp()
 		sourceData = origin.compGetImportSource()
-		print(sourceData)
-		# for i in sourceData:
-		# 	filePath = i[0]
-		# 	firstFrame = i[1]
-		# 	lastFrame = i[2]
 
-		# 	node = nuke.createNode(
-		# 		"Read",
-		# 		"file \"%s\"" % filePath,
-		# 		False,
-		# 	)
-		# 	if firstFrame is not None:
-		# 		node.knob("first").setValue(firstFrame)
-		# 	if lastFrame is not None:
-		# 		node.knob("last").setValue(lastFrame)
+		for i in sourceData:
+			curfr = int(comp.CurrentTime)
+			filePath = i[0].replace("####", f"{curfr:0{4}}")
+			firstFrame = i[1]
+			lastFrame = i[2]
+
+			comp.Lock()
+			node = comp.AddTool("Loader")
+			self.reloadLoader(node, filePath, firstFrame, lastFrame)
+			comp.Unlock()
 
 	@err_catcher(name=__name__)
 	def fusionImportPasses(self, origin):
 		sourceData = origin.compGetImportPasses()
-
+		#print(sourceData)
 		# for i in sourceData:
 		# 	filePath = i[0]
 		# 	firstFrame = i[1]
@@ -711,7 +730,7 @@ class Prism_Fusion_Functions(object):
 		origin.stateManager.showMinimized()
 
 		fusion = self.fusion
-		comp = fusion.CurrentComp
+		comp = fusion.GetCurrentComp()
 		#comp.Lock()
 		flow = comp.CurrentFrame.FlowView
 		flow.Select(None)
