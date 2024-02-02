@@ -630,25 +630,63 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def importImages(self, origin):
 		if origin.origin.getCurrentAOV():
-			print("if")
-			print(self.core)
-			print(origin)
-			print(origin.origin)
 			fString = "Please select an import option:"
 			buttons = ["Current AOV", "All AOVs", "Layout all AOVs"]
 			result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 		else:
 			result = "Current AOV"
-			print("else")
-		result
-		# if result == "Current AOV":
-		# 	self.nukeImportSource(origin)
-		# elif result == "All AOVs":
-		# 	self.nukeImportPasses(origin)
+
+		if result == "Current AOV":
+			self.fusionImportSource(origin)
+		elif result == "All AOVs":
+			self.fusionImportPasses(origin)
 		# elif result == "Layout all AOVs":
-		# 	self.nukeLayout(origin)
-		# else:
-		# 	return
+		# 	self.fusionLayout(origin)
+		else:
+			return
+	@err_catcher(name=__name__)
+	def fusionImportSource(self, origin):
+		sourceData = origin.compGetImportSource()
+		print(sourceData)
+		# for i in sourceData:
+		# 	filePath = i[0]
+		# 	firstFrame = i[1]
+		# 	lastFrame = i[2]
+
+		# 	node = nuke.createNode(
+		# 		"Read",
+		# 		"file \"%s\"" % filePath,
+		# 		False,
+		# 	)
+		# 	if firstFrame is not None:
+		# 		node.knob("first").setValue(firstFrame)
+		# 	if lastFrame is not None:
+		# 		node.knob("last").setValue(lastFrame)
+
+	@err_catcher(name=__name__)
+	def fusionImportPasses(self, origin):
+		sourceData = origin.compGetImportPasses()
+
+		# for i in sourceData:
+		# 	filePath = i[0]
+		# 	firstFrame = i[1]
+		# 	lastFrame = i[2]
+
+		# 	node = nuke.createNode(
+		# 		"Read",
+		# 		"file \"%s\"" % filePath,
+		# 		False,
+		# 	)
+		# 	if firstFrame is not None:
+		# 		node.knob("first").setValue(firstFrame)
+		# 	if lastFrame is not None:
+		# 		node.knob("last").setValue(lastFrame)
+
+	@err_catcher(name=__name__)
+	def nukeLayout(self, origin):
+		msg = "This feature is disabled"
+		self.core.popup(msg)
+		return
 
 	################################################
 	#                                              #
