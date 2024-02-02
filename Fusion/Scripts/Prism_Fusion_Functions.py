@@ -626,7 +626,7 @@ class Prism_Fusion_Functions(object):
 	#                                              #
 	#                 IMPORTIMAGES                 #
 	#                                              #
-	################################################ 
+	################################################
 	@err_catcher(name=__name__)
 	def reloadLoader(self, node, filePath, firstframe, lastframe):
 		if node.GetAttrs("TOOLS_RegID") == 'Loader':
@@ -650,7 +650,11 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def importImages(self, origin):
-		print(origin.origin.getCurrentAOV())
+		print(f'origin: {origin}\norigin.origin: {origin.origin}')
+		for aov in origin.origin.getCurrentAOV():
+			val = origin.origin.getCurrentAOV()[aov]
+			print(f'{aov} : {val}')
+      
 		if origin.origin.getCurrentAOV():
 			fString = "Please select an import option:"
 			buttons = ["Current AOV", "All AOVs", "Layout all AOVs"]
@@ -675,11 +679,13 @@ class Prism_Fusion_Functions(object):
 			curfr = int(comp.CurrentTime)
 			filePath = i[0].replace("####", f"{curfr:0{4}}")
 			firstFrame = i[1]
-			lastFrame = i[2]
+			lastFrame = i[2]			
+			aovNm = os.path.dirname(filePath).split("/")[-1]
 
 			comp.Lock()
 			node = comp.AddTool("Loader")
 			self.reloadLoader(node, filePath, firstFrame, lastFrame)
+			node.SetAttrs({"TOOLS_Name": aovNm})
 			comp.Unlock()
 
 	@err_catcher(name=__name__)
