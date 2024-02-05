@@ -4,15 +4,26 @@ import re
 
 
 
-CHANNELS_TO_SKIP = {"r", "red", "g", "green", "b", "blue", "a", "alpha","SomethingThatWontMatchHopefully"}
+
 
 def get_loader_channels(tool):
 	# Get all loader channels and filter out the ones to skip
+	skip = {
+		"r", 
+		"red", 
+		"g", 
+		"green", 
+		"b", 
+		"blue", 
+		"a", 
+		"alpha",
+		"SomethingThatWontMatchHopefully"
+	}
 	source_channels = tool.Clip1.OpenEXRFormat.RedName.GetAttrs("INPIDT_ComboControl_ID")
 	all_channels = []
 
 	for channel_name in source_channels.values():
-		if channel_name not in CHANNELS_TO_SKIP:
+		if channel_name not in skip:
 			all_channels.append(channel_name)
 
 	# Sort the channel list

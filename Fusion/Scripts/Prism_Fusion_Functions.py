@@ -37,6 +37,7 @@ import sys
 import json
 import platform
 import time
+import re
 import BlackmagicFusion as bmd
 
 try:
@@ -647,10 +648,10 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def importImages(self, origin):
-		print(f'origin: {origin}\norigin.origin: {origin.origin}')
-		for aov in origin.origin.getCurrentAOV():
-			val = origin.origin.getCurrentAOV()[aov]
-			print(f'{aov} : {val}')
+		# print(f'origin: {origin}\norigin.origin: {origin.origin}')
+		# for aov in origin.origin.getCurrentAOV():
+		# 	val = origin.origin.getCurrentAOV()[aov]
+		# 	print(f'{aov} : {val}')
 
 		if origin.origin.getCurrentAOV():
 			fString = "Please select an import option:"
@@ -670,20 +671,41 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def fusionImportSource(self, origin):
 		comp = self.fusion.GetCurrentComp()
+		curfr = int(comp.CurrentTime)
 		sourceData = origin.compGetImportSource()
+		# IF IS EXR... POR IMPLEMENTAR
+		# check if the source data is interpreting the image sequence as individual images.
+		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
+		if len(image_strings) > 1:
+			imagepath = self.is_image_sequence(image_strings)
+			if imagepath:
+				filePath = imagepath.replace("####", f"{curfr:0{4}}")
+				firstFrame = 1
+				lastFrame = len(image_strings)	
+				aovNm = 'AOV'
+		else:
+			for i in sourceData:
+				filePath = i[0].replace("####", f"{curfr:0{4}}")
+				firstFrame = i[1]
+				lastFrame = i[2]			
+				aovNm = os.path.dirname(filePath).split("/")[-1]
+		
+		comp.Lock()
+		node = comp.AddTool("Loader")
+		self.reloadLoader(node, filePath, firstFrame, lastFrame)
+		node.SetAttrs({"TOOLS_Name": aovNm})
+		comp.Unlock()
 
-		for i in sourceData:
-			curfr = int(comp.CurrentTime)
-			filePath = i[0].replace("####", f"{curfr:0{4}}")
-			firstFrame = i[1]
-			lastFrame = i[2]			
-			aovNm = os.path.dirname(filePath).split("/")[-1]
+		# check for multichannels
+		channels = self.get_loader_channels(node)
+		# print("channels: ", channels)
+		if len(channels) > 0:
+			fString = "This EXR seems to have multiple channels:\n" + "\n".join(channels) + "\nDo you want to split the EXR channels into individual nodes?"
+			buttons = ["Yes", "No"]
+			result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 
-			comp.Lock()
-			node = comp.AddTool("Loader")
-			self.reloadLoader(node, filePath, firstFrame, lastFrame)
-			node.SetAttrs({"TOOLS_Name": aovNm})
-			comp.Unlock()
+			if result == "Yes":	
+				self.process_multichannel(node)
 
 	@err_catcher(name=__name__)
 	def fusionImportPasses(self, origin):
@@ -709,6 +731,153 @@ class Prism_Fusion_Functions(object):
 		msg = "This feature is disabled"
 		self.core.popup(msg)
 		return
+
+	# EXR CHANNEL MANAGEMENT #
+	@err_catcher(name=__name__)
+	def get_pattern_prefix(self, string):
+		pattern = re.compile(r'^(.+)v\d{4}\.exr$')
+		match = pattern.match(string)
+		return match.group(1) if match else None
+
+	@err_catcher(name=__name__)
+	def is_image_sequence(self, strings):
+		first_image_prefix = self.get_pattern_prefix(strings[0])
+		if all(self.get_pattern_prefix(item) == first_image_prefix for item in strings):
+			return strings[0]
+		else:
+			return None
+
+	@err_catcher(name=__name__)
+	def get_loader_channels(self, tool):
+		# Get all loader channels and filter out the ones to skip
+		skip = {			
+			"SomethingThatWontMatchHopefully".lower(),
+			"r", 
+			"red", 
+			"g", 
+			"green", 
+			"b", 
+			"blue", 
+			"a", 
+			"alpha"
+		}
+		source_channels = tool.Clip1.OpenEXRFormat.RedName.GetAttrs("INPIDT_ComboControl_ID")
+		all_channels = []
+
+		for channel_name in source_channels.values():
+			if channel_name.lower() not in skip:
+				all_channels.append(channel_name)
+
+		# Sort the channel list
+		sorted_channels = sorted(all_channels)
+
+		return sorted_channels
+
+	@err_catcher(name=__name__)
+	def get_channel_data(self,loader_channels):
+		channel_data = {}
+
+		for channel_name in loader_channels:
+			# Get prefix and channel from full channel name using regex
+			match = re.match(r"(.+)\.(.+)", channel_name)
+			if match:
+				prefix, channel = match.groups()
+
+				# Use setdefault to initialize channels if prefix is encountered for the first time
+				channels = channel_data.setdefault(prefix, [])
+
+				# Add full channel name to assigned channels of current prefix
+				channels.append(channel_name)
+
+		return channel_data
+
+	@err_catcher(name=__name__)
+	def GetLoaderClip(self, tool):
+		loader_clip = tool.Clip[self.fusion.TIME_UNDEFINED]
+		if loader_clip:        
+			return loader_clip
+		
+		print("Loader contains no clips to explore")
+		return 
+
+	@err_catcher(name=__name__)
+	def move_loaders(self,org_x_pos, org_y_pos, loaders):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+		y_pos_add = 1
+
+		for count, ldr in enumerate(loaders, start=0):
+			flow.SetPos(ldr, org_x_pos, org_y_pos + y_pos_add * count)
+
+	@err_catcher(name=__name__)
+	def process_multichannel(self, tool):
+		comp = self.fusion.GetCurrentComp()
+		loader_channels = self.get_loader_channels(tool)
+		channel_data = self.get_channel_data(loader_channels)
+		flow = comp.CurrentFrame.FlowView
+		x_pos, y_pos = flow.GetPosTable(tool).values()
+
+		loaders_list = []
+
+		comp.StartUndo()
+		comp.Lock()
+
+		# Invalid names mapping
+		invalid_names = {
+			'RedName': 'CHANNEL_NO_MATCH',
+			'GreenName': 'CHANNEL_NO_MATCH',
+			'BlueName': 'CHANNEL_NO_MATCH',
+			'AlphaName': 'CHANNEL_NO_MATCH',
+			'XName': 'CHANNEL_NO_MATCH',
+			'YName': 'CHANNEL_NO_MATCH',
+			'ZName': 'CHANNEL_NO_MATCH',
+		}
+
+		# Update the loader node channel settings
+		for prefix, channels in channel_data.items():
+			ldr = comp.Loader({'Clip': self.GetLoaderClip(tool)})
+
+			# Replace invalid EXR channel names with placeholders
+			ldr.SetAttrs({'TOOLB_NameSet': True, 'TOOLS_Name': prefix})
+			for name, placeholder in invalid_names.items():
+				setattr(ldr.Clip1.OpenEXRFormat, name, placeholder)
+
+			# Refresh the OpenEXRFormat setting using real channel name data in a 2nd stage
+			for channel_name in channels:
+				channel = re.search(r"\.([^.]+)$", channel_name).group(1).lower()
+
+				# Dictionary to map channel types to attribute names
+				channel_attributes = {
+					'r': 'RedName', 'red': 'RedName',
+					'g': 'GreenName', 'green': 'GreenName',
+					'b': 'BlueName', 'blue': 'BlueName',
+					'a': 'AlphaName', 'alpha': 'AlphaName',
+					'x': 'RedName',
+					'y': 'GreenName',
+					'z': 'BlueName',
+				}
+
+				# Handle channels using the mapping
+				if channel in channel_attributes:
+					setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[channel], channel_name)
+
+				# Handle C4D style channels
+				else:
+					my_table_of_phrases = re.split(r'\.', channel_name)
+					last_item = my_table_of_phrases[-1]
+
+					if last_item in channel_attributes:
+						setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[last_item], channel_name)
+
+			loaders_list.append(ldr)
+
+		self.move_loaders(x_pos, y_pos, loaders_list)
+
+		tool.Delete()
+		comp.Unlock()
+		comp.EndUndo()
+
+
 
 	################################################
 	#                                              #
