@@ -639,11 +639,6 @@ class Prism_Fusion_Functions(object):
 			node.GlobalIn[0] = firstframe
 			node.GlobalOut[0] = lastframe
 
-			# node.Clip = loaderPath + ""
-			# node.Clip = loaderPath
-			# durationNew = node.GetAttrs("TOOLIT_Clip_Length")
-			# durationNewClean = durationNew[1]
-
 			# ClipsReaload
 			node.SetAttrs({"TOOLB_PassThrough": True})
 			node.SetAttrs({"TOOLB_PassThrough": False})
@@ -654,7 +649,7 @@ class Prism_Fusion_Functions(object):
 		for aov in origin.origin.getCurrentAOV():
 			val = origin.origin.getCurrentAOV()[aov]
 			print(f'{aov} : {val}')
-      
+
 		if origin.origin.getCurrentAOV():
 			fString = "Please select an import option:"
 			buttons = ["Current AOV", "All AOVs", "Layout all AOVs"]
