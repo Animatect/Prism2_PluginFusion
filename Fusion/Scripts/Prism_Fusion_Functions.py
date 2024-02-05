@@ -70,7 +70,9 @@ class Prism_Fusion_Functions(object):
 		self.core.registerCallback(
 			"onStateCreated", self.onStateCreated, plugin=self.plugin
 		)
-
+		self.core.registerCallback(
+			"onStateDeleted", self.onStateDeleted, plugin=self.plugin
+		)
 		self.importHandlers = {
 			".abc": {"importFunction": self.importAlembic},
 			".fbx": {"importFunction": self.importFBX},
@@ -991,7 +993,7 @@ class Prism_Fusion_Functions(object):
 					
 					# Check if the X-coordinate is smaller than the current minimum or larger than the current maximum
 					xthresh, ythresh = False, False
-     
+
 					if min:
 						xthresh = x < thresh_x_position
 						ythresh = y < thresh_y_position
@@ -1110,3 +1112,17 @@ class Prism_Fusion_Functions(object):
 			state.b_resPresets.setStyleSheet("padding-left: 1px;padding-right: 1px;")
 		elif state.className == "Playblast":
 			state.b_resPresets.setStyleSheet("padding-left: 1px;padding-right: 1px;")
+
+	def onStateDeleted(self, origin, stateui):
+		comp = self.fusion.GetCurrentComp()
+		if stateui.className == "ImageRender":
+			node = comp.FindTool(stateui.b_setRendernode.text())
+			if node:
+				fString = "Do you want to also delete the Saver node\nassociated with this render:"
+				buttons = ["Yes", "No"]
+				result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+				if result == "Yes":
+					node.Delete()
+
+			
+		
