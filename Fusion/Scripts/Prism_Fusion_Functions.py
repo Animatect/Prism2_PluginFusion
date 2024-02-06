@@ -524,7 +524,7 @@ class Prism_Fusion_Functions(object):
 			sv.SetAttrs({'TOOLS_Name' : nodename})
 			if not self.posRelativeToNode(sv):
 				#Move Render Node to the Right of the scene	
-				self.setSmNodePosition(sv, min=False, xoffset=5, ignoreNodeType="Saver")
+				self.setSmNodePosition(sv, find_min=False, x_offset=10, ignore_node_type="Saver")
 				self.stackNodesByType(sv)
 		return sv
 
@@ -655,7 +655,7 @@ class Prism_Fusion_Functions(object):
 
 		if origin.origin.getCurrentAOV():
 			fString = "Please select an import option:"
-			buttons = ["Current AOV", "All AOVs", "Layout all AOVs"]
+			buttons = ["Current AOV", "All AOVs"]
 			result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 		else:
 			result = "Current AOV"
@@ -664,16 +664,62 @@ class Prism_Fusion_Functions(object):
 			self.fusionImportSource(origin)
 		elif result == "All AOVs":
 			self.fusionImportPasses(origin)
-		# elif result == "Layout all AOVs":
-		# 	self.fusionLayout(origin)
 		else:
 			return
+
+	@err_catcher(name=__name__)
+	def createWireless(self, tool):
+		wirelessCopy = """{
+	Tools = ordered() {
+		neverreferencednameonwirelesslink = Fuse.Wireless {
+			NameSet = true,
+			Inputs = {
+				Input = Input {
+					SourceOp = "neverreferencednameonautodomain",
+					Source = "Output",
+				},
+			},
+			ViewInfo = OperatorInfo { Pos = { -433.307, 3.35109 } },
+			Colors = { TileColor = { R = 0.92156862745098, G = 0.431372549019608, B = 0 }, }
+		},
+		neverreferencednameonautodomain = AutoDomain {
+			CtrlWZoom = false,
+			NameSet = true,
+			ViewInfo = OperatorInfo { Pos = { -561.973, 0.926849 } },
+			Colors = { TileColor = { R = 0.92156862745098, G = 0.431372549019608, B = 0 }, }
+		}
+	}
+}"""
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+		# ad = comp.AutoDomain()
+
+		pyperclip.copy(wirelessCopy)
+		comp.Paste(wirelessCopy)
+		ad = comp.FindTool("neverreferencednameonautodomain")
+		ad.SetAttrs({'TOOLS_Name': tool.Name + '_IN'})
+		wl = comp.FindTool("neverreferencednameonwirelesslink")
+		wl.SetAttrs({'TOOLS_Name': tool.Name + '_OUT'})
+		x_pos, y_pos = flow.GetPosTable(tool).values()
+
+		nodes = [ad, wl]
+		for i, node in enumerate(nodes, start=1):
+			offset = 1.5 if i == 1 else 1.3
+			flow.SetPos(node, x_pos + offset*i, y_pos)
+
+		ad.ConnectInput('Input', tool)
+
+
 	@err_catcher(name=__name__)
 	def fusionImportSource(self, origin):
 		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
 		curfr = int(comp.CurrentTime)
 		sourceData = origin.compGetImportSource()
-		# IF IS EXR... POR IMPLEMENTAR
+
+		# Check if path without version exists in a loader and if so generate a popup to update with new version... NOT IMPLEMENTED YET
+
+
 		# check if the source data is interpreting the image sequence as individual images.
 		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
 		if len(image_strings) > 1:
@@ -682,7 +728,7 @@ class Prism_Fusion_Functions(object):
 				filePath = imagepath.replace("####", f"{curfr:0{4}}")
 				firstFrame = 1
 				lastFrame = len(image_strings)	
-				aovNm = 'AOV'
+				aovNm = 'PrismLoader'
 		else:
 			for i in sourceData:
 				filePath = i[0].replace("####", f"{curfr:0{4}}")
@@ -694,18 +740,38 @@ class Prism_Fusion_Functions(object):
 		node = comp.AddTool("Loader")
 		self.reloadLoader(node, filePath, firstFrame, lastFrame)
 		node.SetAttrs({"TOOLS_Name": aovNm})
+		self.setSmNodePosition(node, x_offset = -5, y_offset = 0)
 		comp.Unlock()
 
-		# check for multichannels
-		channels = self.get_loader_channels(node)
-		# print("channels: ", channels)
-		if len(channels) > 0:
-			fString = "This EXR seems to have multiple channels:\n" + "\n".join(channels) + "\nDo you want to split the EXR channels into individual nodes?"
-			buttons = ["Yes", "No"]
-			result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+		# check if the leftmost node is a Loader to put the nodes below.
+		validtools = [t for t in comp.GetToolList(False).values() if flow.GetPosTable(t) and not t.Name == node.Name and not t.Name == 'DO_NOT_DELETE_PrismSM']
+		leftmostNode = self.find_leftmost_lower_node(flow, validtools, 0)
 
-			if result == "Yes":	
-				self.process_multichannel(node)
+		if leftmostNode.GetAttrs("TOOLS_RegID") == "Loader":
+			loaders = [l for l in comp.GetToolList(False, "Loader").values() if not l.Name == node.Name]	
+			leftmostLoader = self.find_leftmost_lower_node(flow, loaders, 2.5)
+			x_pos, y_pos = flow.GetPosTable(leftmostLoader).values()
+			flow.SetPos(node, x_pos, y_pos + 1.5)
+		
+		# IF IS EXR
+		extension = os.path.splitext(filePath)[1]
+		if extension == ".exr":
+			# check for multichannels
+			channels = self.get_loader_channels(node)
+			# print("channels: ", channels)
+			if len(channels) > 0:
+				fString = "This EXR seems to have multiple channels:\n" + "\n".join(channels) + "\nDo you want to split the EXR channels into individual nodes?"
+				buttons = ["Yes", "No"]
+				result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+
+				if result == "Yes":	
+					self.process_multichannel(node)
+					return
+
+		# create wireless
+		self.createWireless(node)
+		
+		return
 
 	@err_catcher(name=__name__)
 	def fusionImportPasses(self, origin):
@@ -727,10 +793,26 @@ class Prism_Fusion_Functions(object):
 		# 		node.knob("last").setValue(lastFrame)
 
 	@err_catcher(name=__name__)
-	def nukeLayout(self, origin):
-		msg = "This feature is disabled"
-		self.core.popup(msg)
-		return
+	def find_leftmost_lower_node(self, flow, nodes, threshold):
+		leftmost_node = None
+		downmost_node = None
+		min_x_position = float('inf')
+		max_y_position = -float('inf')
+		downmost_node_x = float('inf')
+		for n in nodes:
+			x, y = flow.GetPosTable(n).values()
+			if x < min_x_position or leftmost_node is None:
+				leftmost_node = (n)
+				min_x_position = x
+			if y > max_y_position or downmost_node is None:
+				downmost_node = (n)
+				max_y_position = y
+				downmost_node_x = x
+
+		if abs(downmost_node_x - min_x_position) < threshold:
+			return downmost_node
+
+		return leftmost_node
 
 	# EXR CHANNEL MANAGEMENT #
 	@err_catcher(name=__name__)
@@ -872,6 +954,9 @@ class Prism_Fusion_Functions(object):
 			loaders_list.append(ldr)
 
 		self.move_loaders(x_pos, y_pos, loaders_list)
+		# create IN and OUT nodes.
+		for node in loaders_list:
+			self.createWireless(node)
 
 		tool.Delete()
 		comp.Unlock()
@@ -1122,71 +1207,63 @@ class Prism_Fusion_Functions(object):
 		return [extFiles, []]
 
 	@err_catcher(name=__name__)
-	def setSmNodePosition(self, smnode, min=True, xoffset=-2, ignoreNodeType=None):
+	def find_extreme_position(self, flow, thisnode=None, all_nodes=[], ignore_node_type=None, find_min=True):
+		if find_min:
+			thresh_x_position, thresh_y_position = float('inf'), float('inf')
+		else: 
+			thresh_x_position, thresh_y_position = -float('inf'), float('inf')
+
+		extreme_node = None
+
+		for node in all_nodes:
+			if thisnode and node.Name == thisnode.Name or node.Name == 'DO_NOT_DELETE_PrismSM':
+				continue
+
+			if ignore_node_type and node.GetAttrs("TOOLS_RegID") == ignore_node_type:
+				continue
+
+			postable = flow.GetPosTable(node)
+			x, y = postable.values() if postable else (thresh_x_position, thresh_y_position)
+
+			x_thresh = x < thresh_x_position if find_min else x > thresh_x_position
+			y_thresh = y < thresh_y_position
+
+			if x_thresh:
+				thresh_x_position = x
+				extreme_node = node
+
+			if y_thresh:
+				thresh_y_position = y
+
+		return extreme_node, thresh_x_position, thresh_y_position
+
+	@err_catcher(name=__name__)
+	def set_node_position(self, flow, smnode, x, y):
+		flow.SetPos(smnode, x, y)
+
+	@err_catcher(name=__name__)
+	def setSmNodePosition(self, smnode, find_min=True, x_offset=-2, y_offset=0, ignore_node_type=None):
 		# Get the active composition
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
-		if comp:
-			# Get all nodes in the composition
-			all_nodes = comp.GetToolList(False).values()
+		if not comp:
+			# No active composition
+			return
 
-			if all_nodes:
-				# Initialize variables to track the leftmost node
-				xmost_node, upmost_node = None, None
-				
-				thresh_x_position, thresh_y_position = 0, 0
-				if min:
-					thresh_x_position, thresh_y_position = float('inf'), float('inf')  # Initialize with positive infinity
-				else:
-					thresh_x_position, thresh_y_position = -float('inf'), float('inf')  # Initialize with negative infinity
+		# Get all nodes in the composition
+		all_nodes = comp.GetToolList(False).values()
 
-				# Iterate through all nodes
-				for node in all_nodes:
-					# Skip the SM node
-					if node.Name == smnode.Name:
-						continue
+		if not all_nodes:
+			flow.SetPos(smnode, 0, 0)
+			return
 
-					# Skip nodes with the ignoreNodeType
-					if ignoreNodeType:
-							if node.GetAttrs("TOOLS_RegID") == ignoreNodeType:
-								continue
+		xmost_node, thresh_x_position, thresh_y_position = self.find_extreme_position(flow, smnode, all_nodes, ignore_node_type, find_min)
 
-					
-					postable = flow.GetPosTable(node)
-					x,y = thresh_x_position, thresh_y_position
-					#check if node has a postable.
-					if postable:
-						# Get the node's position
-						x,y = postable.values()
-					
-					# Check if the X-coordinate is smaller than the current minimum or larger than the current maximum
-					xthresh, ythresh = False, False
-
-					if min:
-						xthresh = x < thresh_x_position
-						ythresh = y < thresh_y_position
-					else:
-						xthresh = x > thresh_x_position
-						ythresh = y < thresh_y_position
-
-					if xthresh:
-						thresh_x_position = x
-						xmost_node = node
-
-					if ythresh:
-						thresh_y_position = y
-						upmost_node = node
-
-				if xmost_node:
-					#set pos to the leftmost or rightmost node
-					flow.SetPos(smnode, thresh_x_position + xoffset, thresh_y_position)
-				else:
-					flow.SetPos(smnode, 0, 0)
-			else:
-				flow.SetPos(smnode, 0, 0)
+		if xmost_node:
+			self.set_node_position(flow, smnode, thresh_x_position + x_offset, thresh_y_position + y_offset)
 		else:
-			print("No active composition.")
+			flow.SetPos(smnode, 0, 0)
 
 	@err_catcher(name=__name__)
 	def makeFusionStatesNode(self):
@@ -1223,7 +1300,7 @@ class Prism_Fusion_Functions(object):
 		if smnode == None:
 			self.makeFusionStatesNode()
 			smnode = comp.ActiveTool
-			self.setSmNodePosition(smnode)
+			self.setSmNodePosition(smnode, x_offset=-10,y_offset=-3)
 
 		return smnode
 
