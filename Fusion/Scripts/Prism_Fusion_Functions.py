@@ -38,6 +38,7 @@ import json
 import platform
 import time
 import re
+import pygetwindow as gw
 import BlackmagicFusion as bmd
 
 try:
@@ -717,9 +718,6 @@ class Prism_Fusion_Functions(object):
 		curfr = int(comp.CurrentTime)
 		sourceData = origin.compGetImportSource()
 
-		# Check if path without version exists in a loader and if so generate a popup to update with new version... NOT IMPLEMENTED YET
-
-
 		# check if the source data is interpreting the image sequence as individual images.
 		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
 		if len(image_strings) > 1:
@@ -734,8 +732,32 @@ class Prism_Fusion_Functions(object):
 				filePath = i[0].replace("####", f"{curfr:0{4}}")
 				firstFrame = i[1]
 				lastFrame = i[2]			
-				aovNm = os.path.dirname(filePath).split("/")[-1]
+				aovNm = os.path.dirname(filePath).split("/")[-1]    
 		
+		# Check if path without version exists in a loader and if so generate a popup to update with new version... NOT IMPLEMENTED YET
+		allLoaders = comp.GetToolList(False, "Loader").values()
+		updatedNodes = []
+		updatedPaths = False
+		for loader in allLoaders:	
+			loaderClipPath = loader.Clip[0]
+			if self.are_paths_equal_except_version(loaderClipPath, filePath):
+				version1 = self.extract_version(loaderClipPath)
+				version2 = self.extract_version(filePath)
+				updatedPaths = True
+
+				self.reloadLoader(loader, filePath, firstFrame, lastFrame)
+				updatedNodes.append({'name':loader.Name, 'oldv': str(version1), 'newv': str(version2)})
+		
+		# if paths were updated then we return, else we follow to create new nodes.
+		if updatedPaths:
+			fString = "The following nodes were updated:\n"
+			for node in updatedNodes:
+				fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
+			self.core.popupQuestion(fString, buttons=['ok'], icon=QMessageBox.NoIcon)
+			return
+
+
+		# if paths were not updated then we create new nodes.
 		comp.Lock()
 		node = comp.AddTool("Loader")
 		self.reloadLoader(node, filePath, firstFrame, lastFrame)
@@ -760,7 +782,7 @@ class Prism_Fusion_Functions(object):
 			channels = self.get_loader_channels(node)
 			# print("channels: ", channels)
 			if len(channels) > 0:
-				fString = "This EXR seems to have multiple channels:\n" + "\n".join(channels) + "\nDo you want to split the EXR channels into individual nodes?"
+				fString = "This EXR seems to have multiple channels:\n" + "Do you want to split the EXR channels into individual nodes?"
 				buttons = ["Yes", "No"]
 				result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 
@@ -813,6 +835,29 @@ class Prism_Fusion_Functions(object):
 			return downmost_node
 
 		return leftmost_node
+
+	@err_catcher(name=__name__)
+	def extract_version(self, filepath):
+		# Extract the version information using a regular expression
+		match = re.search(r"v(\d{4})", filepath)
+		if match:
+			return int(match.group(1))
+		else:
+			return None
+
+	@err_catcher(name=__name__)
+	def are_paths_equal_except_version(self, path1, path2):
+		# Remove the version part from the paths for exact match comparison
+		path1_without_version = re.sub(r"v\d{4}", "", path1)
+		path2_without_version = re.sub(r"v\d{4}", "", path2)
+		# Check if the non-version parts are an exact match
+		if path1_without_version == path2_without_version:
+			# Versions are the same, and non-version parts are an exact match
+			return True
+		else:
+			# Versions are the same, but non-version parts are different
+			return False
+
 
 	# EXR CHANNEL MANAGEMENT #
 	@err_catcher(name=__name__)
@@ -983,6 +1028,19 @@ class Prism_Fusion_Functions(object):
 	}
 
 	@err_catcher(name=__name__)
+	def focus_fusion_window(self):
+		window_title = "Fusion Studio"
+		try:
+			window = gw.getWindowsWithTitle(window_title)[0]
+			window.activate()
+			return True
+		except IndexError:
+			# print(f"Window with title '{window_title}' not found.")
+			return False
+
+
+ 
+	@err_catcher(name=__name__)
 	def importFormatByUI(self, origin, formatCall, filepath, global_scale, options = None, interval = 0.05):
 		origin.stateManager.showMinimized()
 
@@ -1008,6 +1066,9 @@ class Prism_Fusion_Functions(object):
 					print("Invalid option %s:" % key)
 			fusion.SetPrefs("Global.Alembic.Import", new)
 		
+		# focus on fusion window
+		isfocused = self.focus_fusion_window()
+
 		#Call the dialog
 		fusion.QueueAction("Utility_Show", {"id":formatCall})
 		time.sleep(interval)
