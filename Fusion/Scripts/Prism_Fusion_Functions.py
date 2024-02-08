@@ -673,7 +673,9 @@ class Prism_Fusion_Functions(object):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
+		# deselect all nodes
 		flow.Select()
+
 		sourceData = origin.compGetImportSource()
 		imageData = self.getImageData(comp, sourceData)
 		if imageData:
@@ -688,6 +690,7 @@ class Prism_Fusion_Functions(object):
 		splithandle = {'splitchosen': False, 'splitfirstasked': True, 'fstring': fString}
 		updatehandle = {'updatednodes': [], 'updatelog': []}
 
+		# deselect all nodes
 		flow.Select()
 
 		dataSources = origin.compGetImportPasses()
@@ -751,7 +754,8 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def processImageImport(self, comp, flow, imageData, splithandle=None, updatehandle=None):
-
+		# Do in this function the actual importing or update of the image.
+  
 		filePath = imageData['filePath']
 		firstFrame = imageData['firstFrame']
 		lastFrame = imageData['lastFrame']
@@ -761,7 +765,7 @@ class Prism_Fusion_Functions(object):
 		allLoaders = comp.GetToolList(False, "Loader").values()
 		updatedNodes = []
 		updatedPaths = False
-		for loader in allLoaders:	
+		for loader in allLoaders:
 			loaderClipPath = loader.Clip[0]
 			if self.are_paths_equal_except_version(loaderClipPath, filePath):
 				version1 = self.extract_version(loaderClipPath)
@@ -834,11 +838,13 @@ class Prism_Fusion_Functions(object):
 						splithandle['splitchosen'] = True
 					self.process_multichannel(node)
 					return
+ 
 				elif splithandle:
 					splithandle['splitchosen'] = False
 
 		# create wireless
 		self.createWireless(node)
+		flow.Select(node, True)
 		
 		return
 
@@ -957,11 +963,12 @@ class Prism_Fusion_Functions(object):
 			"b", 
 			"blue", 
 			"a", 
-			"alpha"
+			"alpha",
+			"rgb","rgb.r","rgb.g","rgb.b","rgb.a", # Mantra channels
 		}
 		source_channels = tool.Clip1.OpenEXRFormat.RedName.GetAttrs("INPIDT_ComboControl_ID")
 		all_channels = []
-
+		# print(source_channels)
 		for channel_name in source_channels.values():
 			if channel_name.lower() not in skip:
 				all_channels.append(channel_name)
@@ -1073,6 +1080,7 @@ class Prism_Fusion_Functions(object):
 		# create IN and OUT nodes.
 		for node in loaders_list:
 			self.createWireless(node)
+			flow.Select(node, True)
 
 		tool.Delete()
 		comp.Unlock()
