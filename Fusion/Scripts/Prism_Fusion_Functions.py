@@ -669,6 +669,171 @@ class Prism_Fusion_Functions(object):
 			return
 
 	@err_catcher(name=__name__)
+	def fusionImportSource(self, origin):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+
+		sourceData = origin.compGetImportSource()
+		imageData = self.getImageData(comp, sourceData)
+		if imageData:
+			self.processImageImport(comp, flow, imageData)
+
+	@err_catcher(name=__name__)
+	def fusionImportPasses(self, origin):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+
+		fString = "Some EXRs seem to have multiple channels:\n" + "Do you want to split the EXR channels into individual nodes?"
+		splithandle = {'splitchosen': False, 'splitfirstasked': True, 'fstring': fString}
+		updatehandle = {'updatednodes': [], 'updatelog': []}
+
+		dataSources = origin.compGetImportPasses()
+		for sourceData in dataSources:
+			imageData = self.getPassData(comp, sourceData)
+			self.processImageImport(comp, flow, imageData, splithandle=splithandle, updatehandle=updatehandle)
+
+		if len(updatehandle["updatelog"]) > 0:
+			fString = "The following nodes were updated:\n"
+			updatedNodes = updatehandle["updatelog"]
+			for node in updatedNodes:
+				fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
+			self.core.popupQuestion(fString, buttons=['ok'], icon=QMessageBox.NoIcon)
+			return
+
+	@err_catcher(name=__name__)
+	def returnImageDataDict(self, filePath, firstFrame, lastFrame, aovNm):
+		return {
+		'filePath': filePath, 
+		'firstFrame': firstFrame, 
+		'lastFrame': lastFrame, 
+		'aovNm': aovNm
+		}
+
+
+	@err_catcher(name=__name__)
+	def getImageData(self, comp, sourceData):
+		curfr = int(comp.CurrentTime)	
+		# check if the source data is interpreting the image sequence as individual images.
+		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
+		if len(image_strings) > 1:
+			imagepath = self.is_image_sequence(image_strings)
+			if imagepath:
+				filePath = imagepath.replace("####", f"{curfr:0{4}}")
+				firstFrame = 1
+				lastFrame = len(image_strings)	
+				aovNm = 'PrismLoader'
+
+				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm)
+		else:
+			# Break the meaningless 1 item nested array.
+			return self.getPassData(comp, sourceData[0])
+
+		msgStr = "No image sequence was loaded."
+		QMessageBox.warning(self.core.messageParent, "Prism Integration", msgStr)
+		return None
+
+	@err_catcher(name=__name__)
+	def getPassData(self, comp, sourceData):
+		curfr = int(comp.CurrentTime)
+		
+		filePath = sourceData[0].replace("####", f"{curfr:0{4}}")
+		firstFrame = sourceData[1]
+		lastFrame = sourceData[2]			
+		aovNm = os.path.dirname(filePath).split("/")[-1]
+    
+		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm)
+
+	@err_catcher(name=__name__)
+	def processImageImport(self, comp, flow, imageData, splithandle=None, updatehandle=None):
+
+		filePath = imageData['filePath']
+		firstFrame = imageData['firstFrame']
+		lastFrame = imageData['lastFrame']
+		aovNm = imageData['aovNm']
+		
+		# Check if path without version exists in a loader and if so generate a popup to update with new version.
+		allLoaders = comp.GetToolList(False, "Loader").values()
+		updatedNodes = []
+		updatedPaths = False
+		for loader in allLoaders:	
+			loaderClipPath = loader.Clip[0]
+			if self.are_paths_equal_except_version(loaderClipPath, filePath):
+				version1 = self.extract_version(loaderClipPath)
+				version2 = self.extract_version(filePath)
+				updatedPaths = True
+
+				self.reloadLoader(loader, filePath, firstFrame, lastFrame)
+				updatedNodes.append({'name':loader.Name, 'oldv': str(version1), 'newv': str(version2)})
+		
+		# if paths were updated then we return, else we follow to create new nodes.
+		if updatedPaths:
+			if updatehandle:
+				for node in updatedNodes:
+					updatehandle['updatelog'].append(node)
+				return
+			else:
+				fString = "The following nodes were updated:\n"
+				for node in updatedNodes:
+					fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
+				self.core.popupQuestion(fString, buttons=['ok'], icon=QMessageBox.NoIcon)
+				return
+
+
+		# if paths were not updated then we create new nodes.
+		comp.Lock()
+		node = comp.AddTool("Loader")
+		self.reloadLoader(node, filePath, firstFrame, lastFrame)
+		node.SetAttrs({"TOOLS_Name": aovNm})
+		self.setSmNodePosition(node, x_offset = -5, y_offset = 0)
+		comp.Unlock()
+
+		# check if the leftmost node is a Loader to put the nodes below.
+		validtools = [t for t in comp.GetToolList(False).values() if flow.GetPosTable(t) and not t.Name == node.Name and not t.Name == 'DO_NOT_DELETE_PrismSM']
+		leftmostNode = self.find_leftmost_lower_node(flow, validtools, 0)
+
+		if leftmostNode.GetAttrs("TOOLS_RegID") == "Loader":
+			loaders = [l for l in comp.GetToolList(False, "Loader").values() if not l.Name == node.Name]	
+			leftmostLoader = self.find_leftmost_lower_node(flow, loaders, 2.5)
+			x_pos, y_pos = flow.GetPosTable(leftmostLoader).values()
+			flow.SetPos(node, x_pos, y_pos + 1.5)
+		
+		# IF IS EXR
+		extension = os.path.splitext(filePath)[1]
+		if extension == ".exr":
+			# check for multichannels
+			channels = self.get_loader_channels(node)
+			# print("channels: ", channels)
+			if len(channels) > 0:
+				buttons = ["Yes", "No"]
+				# if we need to manage the plit dialog from outside and this is the first time the question is asked.
+				if splithandle and splithandle['splitfirstasked']:
+					splithandle['splitfirstasked'] = False
+					fString = splithandle['fstring']
+					result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+
+				elif splithandle and splithandle['splitchosen']:
+					result = "Yes"
+				elif splithandle and not splithandle['splitchosen']:
+					result = "No"
+
+				else:
+					fString = "This EXR seems to have multiple channels:\n" + "Do you want to split the EXR channels into individual nodes?"
+					result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+
+				if result == "Yes":
+					if splithandle:
+						splithandle['splitchosen'] = True
+					self.process_multichannel(node)
+					return
+				elif splithandle:
+					splithandle['splitchosen'] = False
+
+		# create wireless
+		self.createWireless(node)
+		
+		return
+
+	@err_catcher(name=__name__)
 	def createWireless(self, tool):
 		wirelessCopy = """{
 	Tools = ordered() {
@@ -710,109 +875,6 @@ class Prism_Fusion_Functions(object):
 
 		ad.ConnectInput('Input', tool)
 
-
-	@err_catcher(name=__name__)
-	def fusionImportSource(self, origin):
-		comp = self.fusion.GetCurrentComp()
-		flow = comp.CurrentFrame.FlowView
-		curfr = int(comp.CurrentTime)
-		sourceData = origin.compGetImportSource()
-
-		# check if the source data is interpreting the image sequence as individual images.
-		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
-		if len(image_strings) > 1:
-			imagepath = self.is_image_sequence(image_strings)
-			if imagepath:
-				filePath = imagepath.replace("####", f"{curfr:0{4}}")
-				firstFrame = 1
-				lastFrame = len(image_strings)	
-				aovNm = 'PrismLoader'
-		else:
-			for i in sourceData:
-				filePath = i[0].replace("####", f"{curfr:0{4}}")
-				firstFrame = i[1]
-				lastFrame = i[2]			
-				aovNm = os.path.dirname(filePath).split("/")[-1]    
-		
-		# Check if path without version exists in a loader and if so generate a popup to update with new version... NOT IMPLEMENTED YET
-		allLoaders = comp.GetToolList(False, "Loader").values()
-		updatedNodes = []
-		updatedPaths = False
-		for loader in allLoaders:	
-			loaderClipPath = loader.Clip[0]
-			if self.are_paths_equal_except_version(loaderClipPath, filePath):
-				version1 = self.extract_version(loaderClipPath)
-				version2 = self.extract_version(filePath)
-				updatedPaths = True
-
-				self.reloadLoader(loader, filePath, firstFrame, lastFrame)
-				updatedNodes.append({'name':loader.Name, 'oldv': str(version1), 'newv': str(version2)})
-		
-		# if paths were updated then we return, else we follow to create new nodes.
-		if updatedPaths:
-			fString = "The following nodes were updated:\n"
-			for node in updatedNodes:
-				fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
-			self.core.popupQuestion(fString, buttons=['ok'], icon=QMessageBox.NoIcon)
-			return
-
-
-		# if paths were not updated then we create new nodes.
-		comp.Lock()
-		node = comp.AddTool("Loader")
-		self.reloadLoader(node, filePath, firstFrame, lastFrame)
-		node.SetAttrs({"TOOLS_Name": aovNm})
-		self.setSmNodePosition(node, x_offset = -5, y_offset = 0)
-		comp.Unlock()
-
-		# check if the leftmost node is a Loader to put the nodes below.
-		validtools = [t for t in comp.GetToolList(False).values() if flow.GetPosTable(t) and not t.Name == node.Name and not t.Name == 'DO_NOT_DELETE_PrismSM']
-		leftmostNode = self.find_leftmost_lower_node(flow, validtools, 0)
-
-		if leftmostNode.GetAttrs("TOOLS_RegID") == "Loader":
-			loaders = [l for l in comp.GetToolList(False, "Loader").values() if not l.Name == node.Name]	
-			leftmostLoader = self.find_leftmost_lower_node(flow, loaders, 2.5)
-			x_pos, y_pos = flow.GetPosTable(leftmostLoader).values()
-			flow.SetPos(node, x_pos, y_pos + 1.5)
-		
-		# IF IS EXR
-		extension = os.path.splitext(filePath)[1]
-		if extension == ".exr":
-			# check for multichannels
-			channels = self.get_loader_channels(node)
-			# print("channels: ", channels)
-			if len(channels) > 0:
-				fString = "This EXR seems to have multiple channels:\n" + "Do you want to split the EXR channels into individual nodes?"
-				buttons = ["Yes", "No"]
-				result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
-
-				if result == "Yes":	
-					self.process_multichannel(node)
-					return
-
-		# create wireless
-		self.createWireless(node)
-		
-		return
-
-	@err_catcher(name=__name__)
-	def fusionImportPasses(self, origin):
-		sourceData = origin.compGetImportPasses()
-		#print(sourceData)
-		# for i in sourceData:
-		# 	filePath = i[0]
-		# 	firstFrame = i[1]
-		# 	lastFrame = i[2]
-
-		# 	node = nuke.createNode(
-		# 		"Read",
-		# 		"file \"%s\"" % filePath,
-		# 		False,
-		# 	)
-		# 	if firstFrame is not None:
-		# 		node.knob("first").setValue(firstFrame)
-		# 	if lastFrame is not None:
-		# 		node.knob("last").setValue(lastFrame)
 
 	@err_catcher(name=__name__)
 	def find_leftmost_lower_node(self, flow, nodes, threshold):
@@ -1039,7 +1101,7 @@ class Prism_Fusion_Functions(object):
 			return False
 
 
- 
+
 	@err_catcher(name=__name__)
 	def importFormatByUI(self, origin, formatCall, filepath, global_scale, options = None, interval = 0.05):
 		origin.stateManager.showMinimized()
