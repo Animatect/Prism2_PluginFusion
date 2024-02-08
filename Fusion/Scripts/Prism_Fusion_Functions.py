@@ -673,6 +673,7 @@ class Prism_Fusion_Functions(object):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
+		flow.Select()
 		sourceData = origin.compGetImportSource()
 		imageData = self.getImageData(comp, sourceData)
 		if imageData:
@@ -687,6 +688,8 @@ class Prism_Fusion_Functions(object):
 		splithandle = {'splitchosen': False, 'splitfirstasked': True, 'fstring': fString}
 		updatehandle = {'updatednodes': [], 'updatelog': []}
 
+		flow.Select()
+
 		dataSources = origin.compGetImportPasses()
 		for sourceData in dataSources:
 			imageData = self.getPassData(comp, sourceData)
@@ -696,7 +699,10 @@ class Prism_Fusion_Functions(object):
 			fString = "The following nodes were updated:\n"
 			updatedNodes = updatehandle["updatelog"]
 			for node in updatedNodes:
-				fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
+				if node['oldv'] != node['newv']:
+					fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
+					nodeToSelect = comp.FindTool(node['name'])
+					flow.Select(nodeToSelect, True)
 			self.core.popupQuestion(fString, buttons=['ok'], icon=QMessageBox.NoIcon)
 			return
 
@@ -774,7 +780,10 @@ class Prism_Fusion_Functions(object):
 			else:
 				fString = "The following nodes were updated:\n"
 				for node in updatedNodes:
-					fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
+					if node['oldv'] != node['newv']:
+						fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
+						nodeToSelect = comp.FindTool(node['name'])
+						flow.Select(nodeToSelect, True)
 				self.core.popupQuestion(fString, buttons=['ok'], icon=QMessageBox.NoIcon)
 				return
 
