@@ -656,7 +656,7 @@ class Prism_Fusion_Functions(object):
 
 		if origin.origin.getCurrentAOV():
 			fString = "Please select an import option:"
-			buttons = ["Current AOV", "All AOVs"]
+			buttons = ["Current AOV", "All AOVs", "Update Selected"]
 			result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 		else:
 			result = "Current AOV"
@@ -665,6 +665,8 @@ class Prism_Fusion_Functions(object):
 			self.fusionImportSource(origin)
 		elif result == "All AOVs":
 			self.fusionImportPasses(origin)
+		elif result == "Update Selected":
+			self.fusionUpdateSelectedPasses(origin)
 		else:
 			return
 
@@ -710,6 +712,48 @@ class Prism_Fusion_Functions(object):
 			return
 
 	@err_catcher(name=__name__)
+	def fusionUpdateSelectedPasses(self, origin):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+	
+		# from selection grab only loaders
+		loaders = comp.GetToolList(True, "Loader").values()
+		
+		if not loaders:
+			return
+
+		# deselect all nodes
+		flow.Select()
+
+		dataSources = origin.compGetImportPasses()
+		updatelog = []
+		for sourceData in dataSources:
+			imageData = self.getPassData(comp, sourceData)
+			updatedPaths, updatedNodes = self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'])
+			if updatedPaths:
+				for node in updatedNodes:
+					updatelog.append(node)
+				continue
+		
+		wasVersionChanged = False
+		if len(updatelog) > 0:
+			fString = "The following nodes were updated:\n"
+			allUpdatedNodes = updatelog
+			for node in allUpdatedNodes:
+				if node['oldv'] != node['newv']:
+					wasVersionChanged = True
+					fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
+					nodeToSelect = comp.FindTool(node['name'])
+					flow.Select(nodeToSelect, True)
+			if wasVersionChanged:
+				self.core.popupQuestion(fString, buttons=['ok'], icon=QMessageBox.NoIcon)
+			else:
+				self.core.popupQuestion("Nodes were updated but no version was changed", buttons=['ok'], icon=QMessageBox.NoIcon)
+			return
+		else:
+			self.core.popupQuestion("Nothing was updated", buttons=['ok'], icon=QMessageBox.NoIcon)
+
+	@err_catcher(name=__name__)
 	def returnImageDataDict(self, filePath, firstFrame, lastFrame, aovNm):
 		return {
 		'filePath': filePath, 
@@ -753,6 +797,22 @@ class Prism_Fusion_Functions(object):
 		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm)
 
 	@err_catcher(name=__name__)
+	def updateLoaders(self, Loaders, filePath, firstFrame, lastFrame):
+		updatedNodes = []
+		areUpdatedPaths = False
+		for loader in Loaders:
+			loaderClipPath = loader.Clip[0]
+			if self.are_paths_equal_except_version(loaderClipPath, filePath):
+				version1 = self.extract_version(loaderClipPath)
+				version2 = self.extract_version(filePath)
+				areUpdatedPaths = True
+
+				self.reloadLoader(loader, filePath, firstFrame, lastFrame)
+				updatedNodes.append({'name':loader.Name, 'oldv': str(version1), 'newv': str(version2)})
+
+		return areUpdatedPaths, updatedNodes
+
+	@err_catcher(name=__name__)
 	def processImageImport(self, comp, flow, imageData, splithandle=None, updatehandle=None):
 		# Do in this function the actual importing or update of the image.
   
@@ -763,24 +823,17 @@ class Prism_Fusion_Functions(object):
 		
 		# Check if path without version exists in a loader and if so generate a popup to update with new version.
 		allLoaders = comp.GetToolList(False, "Loader").values()
-		updatedNodes = []
-		updatedPaths = False
-		for loader in allLoaders:
-			loaderClipPath = loader.Clip[0]
-			if self.are_paths_equal_except_version(loaderClipPath, filePath):
-				version1 = self.extract_version(loaderClipPath)
-				version2 = self.extract_version(filePath)
-				updatedPaths = True
-
-				self.reloadLoader(loader, filePath, firstFrame, lastFrame)
-				updatedNodes.append({'name':loader.Name, 'oldv': str(version1), 'newv': str(version2)})
+		areUpdatedPaths, updatedNodes = self.updateLoaders(allLoaders, filePath, firstFrame, lastFrame)
 		
 		# if paths were updated then we return, else we follow to create new nodes.
-		if updatedPaths:
+		if areUpdatedPaths:
+			# if we are running the function on multiple AOVs:
 			if updatehandle:
 				for node in updatedNodes:
 					updatehandle['updatelog'].append(node)
 				return
+
+			# if we are running the function on a single AOV:
 			else:
 				fString = "The following nodes were updated:\n"
 				for node in updatedNodes:
