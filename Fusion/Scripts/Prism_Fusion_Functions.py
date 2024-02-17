@@ -572,10 +572,10 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def sm_render_getDeadlineParams(self, origin, dlParams, homeDir):
 		dlParams["jobInfoFile"] = os.path.join(
-			homeDir, "temp", "blender_submit_info.job"
+			homeDir, "temp", "fusion_submit_info.job"
 		)
 		dlParams["pluginInfoFile"] = os.path.join(
-			homeDir, "temp", "blender_plugin_info.job"
+			homeDir, "temp", "fusion_plugin_info.job"
 		)
 
 		dlParams["jobInfos"]["Plugin"] = "Fusion"
