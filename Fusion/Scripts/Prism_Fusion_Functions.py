@@ -451,20 +451,30 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def removeAOV(self, aovName):
 		pass
-
+	@err_catcher(name=__name__)
+	def setNodePassthrough(self, nodename, passThrough):
+		node = self.get_rendernode(nodename)
+		node.SetAttrs({"TOOLB_PassThrough": passThrough})
+     
 	@err_catcher(name=__name__)
 	def posRelativeToNode(self, node, xoffset=3):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 		#check if there is selection
 		if len(comp.GetToolList(True).values()) > 0:
-			activeNode = comp.ActiveTool()
+			try:
+				activeNode = comp.ActiveTool()
+			except:
+				activeNode = comp.GetToolList(True)[1]
 			if not activeNode.Name == node.Name:
 				postable = flow.GetPosTable(activeNode)
 				if postable:
 					x, y = postable.values()
 					flow.SetPos(node, x + xoffset, y)
-					node.ConnectInput('Input', activeNode)
+					try:
+						node.ConnectInput('Input', activeNode)
+					except:
+						pass
 					return True
 
 		return False
@@ -534,10 +544,20 @@ class Prism_Fusion_Functions(object):
 		pass
 
 	@err_catcher(name=__name__)
-	def sm_render_startLocalRender(self, origin, outputName, rSettings):
+	def getFusionImageSequencePath(self, path):
+		directory, filename = os.path.split(path)
+		name, extension = os.path.splitext(filename)
+		new_filename = f"{name}_.{extension}"
+		newPath = os.path.join(directory, new_filename)
+		return newPath
+     
+	@err_catcher(name=__name__)
+	def sm_render_startLocalRender(self, origin, outputPathOnly, outputName, rSettings):
 		print(rSettings)
 		comp = self.fusion.GetCurrentComp()
-		outputName = rSettings["outputName"]
+		# fix image sequence path for fusion
+		outputName = self.getFusionImageSequencePath(rSettings["outputName"])
+  
 		sv = self.get_rendernode(origin.get_rendernode_name())
 		#if sv is not None
 		if sv:
@@ -552,18 +572,24 @@ class Prism_Fusion_Functions(object):
 		frstart = rSettings["startFrame"]
 		frend = rSettings["endFrame"]
 		
-		if origin.chb_resOverride.isChecked():
-			wdt = origin.sp_resWidth.value()
-			Hhgt = origin.sp_resHeight.value()
-	
-			comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}','SizeType': -1, 'Width': wdt, 'Height': Hhgt})
-		else:
-			comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}'})
+		# Are we just stiing the path and version into the render nodes or are we executing a local render?
+		if outputPathOnly:
 
-		if len(os.listdir(os.path.dirname(outputName))) > 0:
 			return "Result=Success"
+
 		else:
-			return "unknown error (files do not exist)"
+			if origin.chb_resOverride.isChecked():
+				wdt = origin.sp_resWidth.value()
+				Hhgt = origin.sp_resHeight.value()
+		
+				comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}','SizeType': -1, 'Width': wdt, 'Height': Hhgt})
+			else:
+				comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}'})
+
+			if len(os.listdir(os.path.dirname(outputName))) > 0:
+				return "Result=Success"
+			else:
+				return "unknown error (files do not exist)"
 
 	@err_catcher(name=__name__)
 	def sm_render_undoRenderSettings(self, origin, rSettings):

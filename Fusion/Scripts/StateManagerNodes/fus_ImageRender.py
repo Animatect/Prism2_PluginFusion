@@ -136,8 +136,7 @@ class ImageRenderClass(object):
 		# 	self.gb_submit.setVisible(False)
 
 		# self.managerChanged(True)
-  
-		self.setupRendernode()
+		
  
 		if stateData is not None:
 			self.loadData(stateData)
@@ -162,6 +161,7 @@ class ImageRenderClass(object):
 			if context.get("task"):
 				self.setTaskname(context.get("task"))
 
+			self.setupRendernode()
 			self.updateUi()
 
 	@err_catcher(name=__name__)
@@ -280,6 +280,11 @@ class ImageRenderClass(object):
 
 		if "rendernode" in data:
 			self.setupRendernode()
+		
+		if "passtrough" in data:
+			self.setupPassThrough(data["passtrough"])
+		if "outonly" in data: 
+			self.chb_outOnly.setChecked(data["outonly"])
 
 	@err_catcher(name=__name__)
 	def connectEvents(self):
@@ -335,7 +340,10 @@ class ImageRenderClass(object):
 		# self.gb_passes.toggled.connect(self.stateManager.saveStatesToScene)
 		# self.b_addPasses.clicked.connect(self.showPasses)
 		# self.lw_passes.customContextMenuRequested.connect(self.rclickPasses)
+
 		self.b_pathLast.clicked.connect(self.showLastPathMenu)
+		self.chb_passthrough.stateChanged.connect(self.passThroughChanged)
+		self.chb_outOnly.stateChanged.connect(self.outOnlyChanged)
 		# self.lw_passes.itemDoubleClicked.connect(
 		# 	lambda x: self.core.appPlugin.sm_render_openPasses(self)
 		# )
@@ -589,6 +597,40 @@ class ImageRenderClass(object):
 			self.nameChanged(self.e_name.text())
 			self.stateManager.saveStatesToScene()
 
+ 
+	#################################
+	#								#	
+	####### RENDER NODE STUFF #######
+	#								#
+ 	#################################
+
+	@err_catcher(name=__name__)
+	def outOnlyChanged(self, checked):
+		if checked:
+			self.f_setOutputOnly.setStyleSheet("background-color: #007ACC;")
+		else:
+			self.f_setOutputOnly.setStyleSheet("")
+
+		self.stateManager.saveStatesToScene()
+ 
+	@err_catcher(name=__name__)
+	def setupPassThrough(self, isChecked):
+		self.chb_passthrough.setChecked(isChecked)
+
+	@err_catcher(name=__name__)
+	def passThroughChanged(self, checked):
+		nodename = self.get_rendernode_name()
+		if self.core.appPlugin.rendernode_exists(nodename):
+			self.core.appPlugin.setNodePassthrough(nodename, not checked)
+		else:
+			self.setupRendernode()
+
+		self.stateManager.saveStatesToScene()
+
+	@err_catcher(name=__name__)
+	def passThroughEnabled(self):		
+		self.chb_passthrough.setEnabled(self.b_setRendernode.text() != "SetRenderNode")
+
 	@err_catcher(name=__name__)
 	def get_rendernode_name(self):
 		identifier = self.getTaskname()
@@ -599,13 +641,17 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def setupRendernode(self):
 		name = self.get_rendernode_name()
-		if not self.core.appPlugin.rendernode_exists(name):
-			self.b_setRendernode.setText("SetRenderNode")
-			self.b_setRendernode.setStyleSheet("background-color: red; color: white;")
-		else:
-			#TODO: Send Warning if render node is already set
+		if self.core.appPlugin.rendernode_exists(name):
 			self.b_setRendernode.setText(name)
 			self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
+		else:
+			self.b_setRendernode.setText("SetRenderNode")
+			self.b_setRendernode.setStyleSheet("background-color: red; color: white;")
+			self.chb_passthrough.setChecked(True)
+			self.chb_passthrough.setEnabled(True)
+		
+		self.updateUi()
+
 		
  
 	@err_catcher(name=__name__)
@@ -615,6 +661,9 @@ class ImageRenderClass(object):
 			self.core.appPlugin.create_rendernode(name)
 		self.b_setRendernode.setText(name)
 		self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
+		self.chb_passthrough.setEnabled(True)			
+
+		self.updateUi()
 		self.stateManager.saveStatesToScene()
 		
 	
@@ -723,6 +772,7 @@ class ImageRenderClass(object):
 	def updateUi(self):
 		self.w_context.setHidden(not self.allowCustomContext)
 		self.refreshContext()
+		
 
 		# update Cams
 		# self.cb_cam.clear()
@@ -751,25 +801,28 @@ class ImageRenderClass(object):
 			self.w_master.setVisible(False)
 
 		# update Render Layer
-		curLayer = self.cb_renderLayer.currentText()
-		self.cb_renderLayer.clear()
+		# curLayer = self.cb_renderLayer.currentText()
+		# self.cb_renderLayer.clear()
 
-		layerList = getattr(
-			self.core.appPlugin, "sm_render_getRenderLayer", lambda x: []
-		)(self)
+		# layerList = getattr(
+		# 	self.core.appPlugin, "sm_render_getRenderLayer", lambda x: []
+		# )(self)
 
-		self.cb_renderLayer.addItems(layerList)
+		# self.cb_renderLayer.addItems(layerList)
 
-		if curLayer in layerList:
-			self.cb_renderLayer.setCurrentIndex(layerList.index(curLayer))
-		else:
-			self.cb_renderLayer.setCurrentIndex(0)
-			self.stateManager.saveStatesToScene()
+		# if curLayer in layerList:
+		# 	self.cb_renderLayer.setCurrentIndex(layerList.index(curLayer))
+		# else:
+		# 	self.cb_renderLayer.setCurrentIndex(0)
+		# 	self.stateManager.saveStatesToScene()
 
 		# self.refreshSubmitUi()
 		# getattr(self.core.appPlugin, "sm_render_refreshPasses", lambda x: None)(self)
 
 		self.nameChanged(self.e_name.text())
+
+		self.passThroughEnabled()
+  
 		return True
 
 	@err_catcher(name=__name__)
@@ -1090,6 +1143,7 @@ class ImageRenderClass(object):
 	def executeState(self, parent, useVersion="next"):
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
+		outOnly = self.chb_outOnly.isChecked()
 		if rangeType != "Expression":
 			startFrame = frames[0]
 			endFrame = frames[1]
@@ -1224,12 +1278,12 @@ class ImageRenderClass(object):
 			# 		self, rSettings["outputName"], rSettings
 			# 	)
 			result = self.core.appPlugin.sm_render_startLocalRender(
-				self, rSettings["outputName"], rSettings
+				self, outOnly, rSettings["outputName"], rSettings
 			)
 		else:
 			rSettings = self.LastRSettings
 			result = self.core.appPlugin.sm_render_startLocalRender(
-				self, rSettings["outputName"], rSettings
+				self, outOnly, rSettings["outputName"], rSettings
 			)
 			outputName = rSettings["outputName"]
 
@@ -1352,6 +1406,8 @@ class ImageRenderClass(object):
 			# "enablepasses": str(self.gb_passes.isChecked()),
 			"stateenabled": str(self.state.checkState(0)),
 			"rendernode": self.b_setRendernode.text(),
+			"passtrough": self.chb_passthrough.isChecked(),
+			"outonly": self.chb_outOnly.isChecked(),
 		}
 		self.core.callback("onStateGetSettings", self, stateProps)
 		return stateProps

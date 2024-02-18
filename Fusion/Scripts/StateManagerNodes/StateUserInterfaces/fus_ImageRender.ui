@@ -875,7 +875,7 @@
             <string>Enables or disables the render node.</string>
            </property>
            <property name="text">
-            <string>PassThrough</string>
+            <string>Active</string>
            </property>
            <property name="checked">
             <bool>true</bool>

@@ -572,7 +572,7 @@ class Ui_wg_ImageRender(object):
 #if QT_CONFIG(tooltip)
         self.chb_passthrough.setToolTip(QCoreApplication.translate("wg_ImageRender", u"Enables or disables the render node.", None))
 #endif // QT_CONFIG(tooltip)
-        self.chb_passthrough.setText(QCoreApplication.translate("wg_ImageRender", u"PassThrough", None))
+        self.chb_passthrough.setText(QCoreApplication.translate("wg_ImageRender", u"Active", None))
 #if QT_CONFIG(tooltip)
         self.f_setOutputOnly.setToolTip(QCoreApplication.translate("wg_ImageRender", u"If this checkbox is selected, executing the state won't render the node, instead it will set the correct name and version, it will also create the appropiate folders and set the path to it for easy access in the state's UI", None))
 #endif // QT_CONFIG(tooltip)
