@@ -217,51 +217,51 @@ class Prism_Fusion_Functions(object):
 			}
 		)
 
-	@err_catcher(name=__name__)
-	def updateReadNodes(self):
-		updatedNodes = []
+	# @err_catcher(name=__name__)
+	# def updateReadNodes(self):
+	# 	updatedNodes = []
 
-		selNodes = self.fusion.GetCurrentComp().GetToolList(True, "Loader")
-		if len(selNodes) == 0:
-			selNodes = self.fusion.GetCurrentComp().GetToolList(False, "Loader")
+	# 	selNodes = self.fusion.GetCurrentComp().GetToolList(True, "Loader")
+	# 	if len(selNodes) == 0:
+	# 		selNodes = self.fusion.GetCurrentComp().GetToolList(False, "Loader")
 
-		if len(selNodes):
-			comp = self.fusion.GetCurrentComp()
-			comp.StartUndo("Updating loaders")
-			for k in selNodes:
-				i = selNodes[k]
-				curPath = comp.MapPath(i.GetAttrs()["TOOLST_Clip_Name"][1])
+	# 	if len(selNodes):
+	# 		comp = self.fusion.GetCurrentComp()
+	# 		comp.StartUndo("Updating loaders")
+	# 		for k in selNodes:
+	# 			i = selNodes[k]
+	# 			curPath = comp.MapPath(i.GetAttrs()["TOOLST_Clip_Name"][1])
 
-				newPath = self.core.getLatestCompositingVersion(curPath)
+	# 			newPath = self.core.getLatestCompositingVersion(curPath)
 
-				if os.path.exists(os.path.dirname(newPath)) and not curPath.startswith(
-					os.path.dirname(newPath)
-				):
-					firstFrame = i.GetInput("GlobalIn")
-					lastFrame = i.GetInput("GlobalOut")
+	# 			if os.path.exists(os.path.dirname(newPath)) and not curPath.startswith(
+	# 				os.path.dirname(newPath)
+	# 			):
+	# 				firstFrame = i.GetInput("GlobalIn")
+	# 				lastFrame = i.GetInput("GlobalOut")
 
-					i.Clip = newPath
+	# 				i.Clip = newPath
 
-					i.GlobalOut = lastFrame
-					i.GlobalIn = firstFrame
-					i.ClipTimeStart = 0
-					i.ClipTimeEnd = lastFrame - firstFrame
-					i.HoldLastFrame = 0
+	# 				i.GlobalOut = lastFrame
+	# 				i.GlobalIn = firstFrame
+	# 				i.ClipTimeStart = 0
+	# 				i.ClipTimeEnd = lastFrame - firstFrame
+	# 				i.HoldLastFrame = 0
 
-					updatedNodes.append(i)
-			comp.EndUndo(True)
+	# 				updatedNodes.append(i)
+	# 		comp.EndUndo(True)
 
-		if len(updatedNodes) == 0:
-			QMessageBox.information(
-				self.core.messageParent, "Information", "No nodes were updated"
-			)
-		else:
-			mStr = "%s nodes were updated:\n\n" % len(updatedNodes)
-			for i in updatedNodes:
-				mStr += i.GetAttrs()["TOOLS_Name"] + "\n"
+	# 	if len(updatedNodes) == 0:
+	# 		QMessageBox.information(
+	# 			self.core.messageParent, "Information", "No nodes were updated"
+	# 		)
+	# 	else:
+	# 		mStr = "%s nodes were updated:\n\n" % len(updatedNodes)
+	# 		for i in updatedNodes:
+	# 			mStr += i.GetAttrs()["TOOLS_Name"] + "\n"
 
-			QMessageBox.information(
-				self.core.messageParent, "Information", mStr)
+	# 		QMessageBox.information(
+	# 			self.core.messageParent, "Information", mStr)
 
 	@err_catcher(name=__name__)
 	def getAppVersion(self, origin):
