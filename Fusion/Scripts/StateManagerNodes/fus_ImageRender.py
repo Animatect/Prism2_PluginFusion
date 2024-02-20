@@ -58,12 +58,16 @@ class ImageRenderClass(object):
 		self.customContext = None
 		self.allowCustomContext = False
 		self.cb_context.addItems(["From scenefile", "Custom"])
+  
+		
+		self.treeWidget = self.stateManager.tw_export
+		self.itemNames = self.getItemNames()
 
 		self.renderingStarted = False
 		self.cleanOutputdir = True
 
 		self.e_name.setText(state.text(0) + " - {identifier}")
-
+  
 		self.rangeTypes = [
 			"Scene",
 			"Shot",
@@ -161,6 +165,7 @@ class ImageRenderClass(object):
 			if context.get("task"):
 				self.setTaskname(context.get("task"))
 
+			self.setUniqueName(self.className + " - Compositing")
 			self.setupRendernode()
 			self.updateUi()
 
@@ -347,6 +352,27 @@ class ImageRenderClass(object):
 		# self.lw_passes.itemDoubleClicked.connect(
 		# 	lambda x: self.core.appPlugin.sm_render_openPasses(self)
 		# )
+
+		# self.treeWidget.itemSelectionChanged.connect(self.onTreeItemSelectionChanged)
+
+	@err_catcher(name=__name__)
+	def generateUniqueName(self, base_name, names):
+		unique_name = base_name
+		counter = 1
+		while unique_name in names:
+			unique_name = f"{base_name}_{counter}"
+			counter += 1
+		names.add(unique_name)
+		return unique_name
+
+	@err_catcher(name=__name__)
+	def setUniqueName(self, origName):
+		name = origName
+		names = self.itemNames
+		uniqueName = self.generateUniqueName(name, names)
+		self.itemNames.add(uniqueName)
+		newtaskname = uniqueName.split(" - ")[-1]
+		self.changeTaskAuto(newtaskname)
 
 	@err_catcher(name=__name__)
 	def showLastPathMenu(self, state=None):
@@ -597,12 +623,59 @@ class ImageRenderClass(object):
 			self.nameChanged(self.e_name.text())
 			self.stateManager.saveStatesToScene()
 
- 
+	@err_catcher(name=__name__)
+	def changeTaskAuto(self, identifier):
+		self.setTaskname(identifier)
+		self.nameChanged(identifier)
+		self.stateManager.saveStatesToScene()
+     
+     
 	#################################
 	#								#	
 	####### RENDER NODE STUFF #######
 	#								#
  	#################################
+	# @err_catcher(name=__name__)
+	# def onTreeItemSelectionChanged(self):
+		# 	self.setTreeItemColor("selected")
+	@err_catcher(name=__name__)
+	def getItemNamesRecursive(self, item, itemNames):
+		# Add the name of the current item
+		name = item.text(0)
+		itemNames.add(name)
+
+		# Recursively process child items
+		for i in range(item.childCount()):
+			child_item = item.child(i)
+			self.getItemNamesRecursive(child_item, itemNames)
+
+	@err_catcher(name=__name__)
+	def getItemNames(self):
+		itemNames = set()
+
+		# Iterate through the top-level items in the QTreeWidget
+		for i in range(self.treeWidget.topLevelItemCount()):
+			top_level_item = self.treeWidget.topLevelItem(i)
+			self.getItemNamesRecursive(top_level_item, itemNames)
+
+		return itemNames 
+
+	@err_catcher(name=__name__)
+	def setTreeItemColor(self, status=None):
+		widgetItem = self.state
+
+		if self.chb_outOnly.isChecked():
+			background_color = QColor("#007ACC")
+			# print(widgetItem.data(0, 1))
+		else:
+			background_color = None #QColor("#232629")
+			# print(widgetItem.data(0, 1))
+
+		if not self.chb_passthrough.isChecked() or self.b_setRendernode.text() == "SetRenderNode":
+			background_color = QColor("#FF0000")
+       
+		widgetItem.setData(0, 1, background_color)
+
 
 	@err_catcher(name=__name__)
 	def outOnlyChanged(self, checked):
@@ -611,6 +684,7 @@ class ImageRenderClass(object):
 		else:
 			self.f_setOutputOnly.setStyleSheet("")
 
+		self.setTreeItemColor()
 		self.stateManager.saveStatesToScene()
  
 	@err_catcher(name=__name__)
@@ -625,6 +699,7 @@ class ImageRenderClass(object):
 		else:
 			self.setupRendernode()
 
+		self.setTreeItemColor()
 		self.stateManager.saveStatesToScene()
 
 	@err_catcher(name=__name__)
@@ -651,6 +726,7 @@ class ImageRenderClass(object):
 			self.chb_passthrough.setEnabled(True)
 		
 		self.updateUi()
+		self.setTreeItemColor()
 
 		
  
@@ -664,6 +740,7 @@ class ImageRenderClass(object):
 		self.chb_passthrough.setEnabled(True)			
 
 		self.updateUi()
+		self.setTreeItemColor()
 		self.stateManager.saveStatesToScene()
 		
 	

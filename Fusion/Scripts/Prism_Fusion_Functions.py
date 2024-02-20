@@ -1584,6 +1584,7 @@ class Prism_Fusion_Functions(object):
 	def onStateCreated(self, origin, state, stateData):
 		if state.className == "ImageRender":
 			state.b_resPresets.setStyleSheet("padding-left: 1px;padding-right: 1px;")
+
 		elif state.className == "Playblast":
 			state.b_resPresets.setStyleSheet("padding-left: 1px;padding-right: 1px;")
 
