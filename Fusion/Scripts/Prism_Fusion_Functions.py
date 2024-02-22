@@ -543,8 +543,9 @@ class Prism_Fusion_Functions(object):
 	def sm_render_preSubmit(self, origin, rSettings):
 		pass
 
+	#Function called from MediaProducts.py to fix the output path for Fusion.
 	@err_catcher(name=__name__)
-	def getFusionImageSequencePath(self, path):
+	def sm_render_fixOutputPath(self, origin, path, singleFrame=False):
 		directory, filename = os.path.split(path)
 		name, extension = os.path.splitext(filename)
 		new_filename = f"{name}_.{extension}"
@@ -555,8 +556,6 @@ class Prism_Fusion_Functions(object):
 	def sm_render_startLocalRender(self, origin, outputPathOnly, outputName, rSettings):
 		print(rSettings)
 		comp = self.fusion.GetCurrentComp()
-		# fix image sequence path for fusion
-		outputName = self.getFusionImageSequencePath(rSettings["outputName"])
   
 		sv = self.get_rendernode(origin.get_rendernode_name())
 		#if sv is not None
