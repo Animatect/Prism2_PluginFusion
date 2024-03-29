@@ -20,6 +20,10 @@ def environment(module):
 		print("Error occurred:", e)
 		print("Command output (if available):", e.stdout)
 
-if __name__ == "__main__":
+def installThirdParty():
+	environment("PySide2")
 	environment("pyautogui")
 	environment("pyperclip")
+
+if __name__ == "__main__":
+	installThirdParty()

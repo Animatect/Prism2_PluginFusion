@@ -1,5 +1,9 @@
+
 import sys
 import PrismInit
+
+PrismInit.checkThirdParty()
+
 from PySide2 import QtCore, QtGui, QtWidgets
 
 def openProjectBrowser():

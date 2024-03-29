@@ -35,3 +35,21 @@ def getPrismRoot():
 
 def getIconPath():
 	return os.path.join(getPrismRoot(), "Scripts", "UserInterfacesPrism", "p_tray.png")
+
+def checkThirdParty():
+	import sys
+	if not sys.version_info.major == 3:
+		raise Exception("Fusion Plugin only works with python 3 up to 3.11")
+		#return
+	if sys.version_info.minor > 11:
+		raise Exception("Fusion Plugin only works with python 3.11 and lower")
+		#return
+	
+	#Check for third party
+	try:
+		import PySide2
+		import pyautogui
+		import pyperclip
+	except ImportError:
+		import InstallThirdParty
+		InstallThirdParty.installThirdParty()
