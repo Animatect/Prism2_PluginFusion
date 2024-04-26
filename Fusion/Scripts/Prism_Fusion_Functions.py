@@ -59,7 +59,8 @@ class Prism_Fusion_Functions(object):
 		self.core = core
 		self.plugin = plugin
 		self.fusion = bmd.scriptapp("Fusion")
-		self.monkeypatchedsm = None
+		self.monkeypatchedsm = None #Reference to the state manager to be used on the monkeypatched functions.
+		self.popup = None
 
 		self.core.registerCallback(
 			"onUserSettingsOpen", self.onUserSettingsOpen, plugin=self.plugin
@@ -68,7 +69,19 @@ class Prism_Fusion_Functions(object):
 			"onProjectBrowserStartup", self.onProjectBrowserStartup, plugin=self.plugin
 		)
 		self.core.registerCallback(
+			"onProjectBrowserShow", self.onProjectBrowserShow, plugin=self.plugin
+		)
+		self.core.registerCallback(
+			"onProjectBrowserCalled", self.onProjectBrowserCalled, plugin=self.plugin
+		)
+		self.core.registerCallback(
+			"onStateManagerCalled", self.onStateManagerCalled, plugin=self.plugin
+		)
+		self.core.registerCallback(
 			"onStateManagerOpen", self.onStateManagerOpen, plugin=self.plugin
+		)
+		self.core.registerCallback(
+			"onStateManagerShow", self.onStateManagerShow, plugin=self.plugin
 		)
 		self.core.registerCallback(
 			"onStateCreated", self.onStateCreated, plugin=self.plugin
@@ -80,7 +93,8 @@ class Prism_Fusion_Functions(object):
 			".abc": {"importFunction": self.importAlembic},
 			".fbx": {"importFunction": self.importFBX},
 		}
-	
+
+
 		# self.exportHandlers = {
 		# 	".abc": {"exportFunction": self.exportAlembic},
 		# 	".fbx": {"exportFunction": self.exportFBX},
@@ -1613,7 +1627,30 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def onProjectBrowserStartup(self, origin):
 		pass
+	
 
+	@err_catcher(name=__name__)
+	def onProjectBrowserShow(self, origin):
+		self.popup.close()
+
+	@err_catcher(name=__name__)
+	def onProjectBrowserCalled(self, popup):
+		#Feedback in case it takes time to open
+		try:
+			self.popup.close()
+		except:
+			pass
+		self.popup = popup
+
+	@err_catcher(name=__name__)
+	def onStateManagerCalled(self, popup):		
+		#Feedback in case it takes time to open
+		try:
+			self.popup.close()
+		except:
+			pass
+		self.popup = popup
+		
 	@err_catcher(name=__name__)
 	def onStateManagerOpen(self, origin):
 		#Remove Export and Playblast buttons and states
@@ -1633,6 +1670,10 @@ class Prism_Fusion_Functions(object):
 		self.monkeypatchedsm = origin
 		self.core.plugins.monkeyPatch(origin.rclTree, self.rclTree, self, force=True)
 		#origin.gb_import.setStyleSheet("margin-top: 20px;")
+
+	@err_catcher(name=__name__)
+	def onStateManagerShow(self, origin):
+		self.popup.close()
 
 	@err_catcher(name=__name__)
 	def onStateCreated(self, origin, state, stateData):
