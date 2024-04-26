@@ -162,11 +162,6 @@ class Prism_Fusion_Functions(object):
 			return False
 
 	@err_catcher(name=__name__)
-	def getImportPaths(self, origin):
-		prismstates = self.getFusionStatesNode()
-		return prismstates.Comments[0].split("_..._")[1]
-
-	@err_catcher(name=__name__)
 	def getFrameRange(self, origin):
 		startframe = self.fusion.GetCurrentComp().GetAttrs()["COMPN_GlobalStart"]
 		endframe = self.fusion.GetCurrentComp().GetAttrs()["COMPN_GlobalEnd"]
@@ -456,29 +451,6 @@ class Prism_Fusion_Functions(object):
 	def setNodePassthrough(self, nodename, passThrough):
 		node = self.get_rendernode(nodename)
 		node.SetAttrs({"TOOLB_PassThrough": passThrough})
-     
-	@err_catcher(name=__name__)
-	def posRelativeToNode(self, node, xoffset=3):
-		comp = self.fusion.GetCurrentComp()
-		flow = comp.CurrentFrame.FlowView
-		#check if there is selection
-		if len(comp.GetToolList(True).values()) > 0:
-			try:
-				activeNode = comp.ActiveTool()
-			except:
-				activeNode = comp.GetToolList(True)[1]
-			if not activeNode.Name == node.Name:
-				postable = flow.GetPosTable(activeNode)
-				if postable:
-					x, y = postable.values()
-					flow.SetPos(node, x + xoffset, y)
-					try:
-						node.ConnectInput('Input', activeNode)
-					except:
-						pass
-					return True
-
-		return False
 
 	@err_catcher(name=__name__)
 	def stackNodesByType(self, nodetostack, yoffset=3, tooltype="Saver"):
@@ -552,12 +524,12 @@ class Prism_Fusion_Functions(object):
 		new_filename = f"{name}_.{extension}"
 		newPath = os.path.join(directory, new_filename)
 		return newPath
-     
+
 	@err_catcher(name=__name__)
 	def sm_render_startLocalRender(self, origin, outputPathOnly, outputName, rSettings):
 		print(rSettings)
 		comp = self.fusion.GetCurrentComp()
-  
+
 		sv = self.get_rendernode(origin.get_rendernode_name())
 		#if sv is not None
 		if sv:
@@ -850,7 +822,7 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def processImageImport(self, comp, flow, imageData, splithandle=None, updatehandle=None):
 		# Do in this function the actual importing or update of the image.
-  
+
 		filePath = imageData['filePath']
 		firstFrame = imageData['firstFrame']
 		lastFrame = imageData['lastFrame']
@@ -1287,8 +1259,11 @@ class Prism_Fusion_Functions(object):
 		except:
 			pass
 		#if there is no active tool we use the note tool for the StateManager as a reference 
-		if not activetool:
-			activetool = self.getFusionStatesNode()
+		if activetool:
+			atx, aty = flow.GetPosTable(activetool).values()
+		else:
+			atx, aty = self.find_LastClickPosition()
+			
 		
 		#get Extension
 		ext = fileName[1].lower()
@@ -1303,28 +1278,25 @@ class Prism_Fusion_Functions(object):
 
 		#After import update the stateManager interface
 		if result:
-			#Set the position of the imported nodes relative to the previously active tool
-			if activetool is not None:
-				#print("locs")
-				impnodes = [n for n in comp.GetToolList(True).values()]
-				#print(impnodes)
-				if len(impnodes) > 0:
-					comp.Lock()
+			#Set the position of the imported nodes relative to the previously active tool or last click in compView
+			impnodes = [n for n in comp.GetToolList(True).values()]
+			#print(impnodes)
+			if len(impnodes) > 0:
+				comp.Lock()
 
-					fisrtnode = impnodes[0]
-					fstnx, fstny = flow.GetPosTable(fisrtnode).values()
+				fisrtnode = impnodes[0]
+				fstnx, fstny = flow.GetPosTable(fisrtnode).values()
 
-					for n in impnodes:
-						#print("locs")
-						atx, aty = flow.GetPosTable(activetool).values()
-						x,y  = flow.GetPosTable(n).values()
+				for n in impnodes:
+					#print("locs")
+					x,y  = flow.GetPosTable(n).values()
 
-						offset = [x-fstnx,y-fstny]
-						newx = x+(atx-x)+offset[0]
-						newy = y+(aty-y)+offset[1]
-						flow.SetPos(n, newx-1, newy)
+					offset = [x-fstnx,y-fstny]
+					newx = x+(atx-x)+offset[0]
+					newy = y+(aty-y)+offset[1]
+					flow.SetPos(n, newx-1, newy)
 
-					comp.Unlock()
+				comp.Unlock()
 			##########
 
 			newNodes = [n.Name for n in comp.GetToolList(True).values()]
@@ -1423,16 +1395,23 @@ class Prism_Fusion_Functions(object):
 	def sm_createRenderPressed(self, origin):
 		origin.createPressed("Render")
 
+
 	################################################
 	#                                              #
-	#        	  STATE MANAGER STUFF              #
+	#        	    NODE POSITIONING               #
 	#                                              #
 	################################################
 
+	#Get last click on comp view.
 	@err_catcher(name=__name__)
-	def sm_getExternalFiles(self, origin):
-		extFiles = []
-		return [extFiles, []]
+	def find_LastClickPosition(self):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+		posNode = comp.AddToolAction("Background")
+		x,y = flow.GetPosTable(posNode).values()
+		posNode.Delete()
+
+		return x,y
 
 	@err_catcher(name=__name__)
 	def find_extreme_position(self, flow, thisnode=None, all_nodes=[], ignore_node_type=None, find_min=True):
@@ -1469,6 +1448,7 @@ class Prism_Fusion_Functions(object):
 	def set_node_position(self, flow, smnode, x, y):
 		flow.SetPos(smnode, x, y)
 
+	#The name of this function comes for its initial use to position the "state manager node" that what used before using SetData.
 	@err_catcher(name=__name__)
 	def setSmNodePosition(self, smnode, find_min=True, x_offset=-2, y_offset=0, ignore_node_type=None):
 		# Get the active composition
@@ -1494,64 +1474,131 @@ class Prism_Fusion_Functions(object):
 			flow.SetPos(smnode, 0, 0)
 
 	@err_catcher(name=__name__)
-	def makeFusionStatesNode(self):
+	def posRelativeToNode(self, node, xoffset=3):
 		comp = self.fusion.GetCurrentComp()
-		clip = """{
-	Tools = ordered() {
-		DO_NOT_DELETE_PrismSM = Note {
-			Locked = true,
-			CtrlWZoom = false,
-			NameSet = true,
-			Inputs = {
-				Comments = Input { Value = "{\\n    \\"states\\": [\\n        {\\n            \\"statename\\": \\"publish\\",\\n            \\"comment\\": \\"\\",\\n            \\"description\\": \\"\\"\\n        }\\n    ]\\n}_..._", }
-			},
-			ViewInfo = StickyNoteInfo {
-				Pos = { 388.667, 1.30299 },
-				Flags = {
-					Expanded = true
-				},
-				Size = { 86, 16.3636 }
-			},
-			Colors = { TileColor = { R = 0.0, G = 0.0, B = 1.0 }, }
-		}
-	},
-	ActiveTool = "DO_NOT_DELETE_PrismSM"
-}"""
+		flow = comp.CurrentFrame.FlowView
+		#check if there is selection
+		if len(comp.GetToolList(True).values()) > 0:
+			try:
+				activeNode = comp.ActiveTool()
+			except:
+				activeNode = comp.GetToolList(True)[1]
+			if not activeNode.Name == node.Name:
+				postable = flow.GetPosTable(activeNode)
+				if postable:
+					x, y = postable.values()
+					flow.SetPos(node, x + xoffset, y)
+					try:
+						node.ConnectInput('Input', activeNode)
+					except:
+						pass
+					return True
 
-		pyperclip.copy(clip)
-		comp.Paste(clip)
+		return False
+
+	################################################
+	#                                              #
+	#        	  STATE MANAGER STUFF              #
+	#                                              #
+	################################################
 
 	@err_catcher(name=__name__)
-	def getFusionStatesNode(self):
-		comp = self.fusion.CurrentComp
-		smnode = comp.FindTool("DO_NOT_DELETE_PrismSM")
-		if smnode == None:
-			self.makeFusionStatesNode()
-			smnode = comp.ActiveTool
-			self.setSmNodePosition(smnode, x_offset=-10,y_offset=-3)
+	def sm_getExternalFiles(self, origin):
+		extFiles = []
+		return [extFiles, []]
 
-		return smnode
+# 	@err_catcher(name=__name__)
+# 	def makeFusionStatesNode(self):
+# 		comp = self.fusion.GetCurrentComp()
+# 		clip = """{
+# 	Tools = ordered() {
+# 		DO_NOT_DELETE_PrismSM = Note {
+# 			Locked = true,
+# 			CtrlWZoom = false,
+# 			NameSet = true,
+# 			Inputs = {
+# 				Comments = Input { Value = "{\\n    \\"states\\": [\\n        {\\n            \\"statename\\": \\"publish\\",\\n            \\"comment\\": \\"\\",\\n            \\"description\\": \\"\\"\\n        }\\n    ]\\n}_..._", }
+# 			},
+# 			ViewInfo = StickyNoteInfo {
+# 				Pos = { 388.667, 1.30299 },
+# 				Flags = {
+# 					Expanded = true
+# 				},
+# 				Size = { 86, 16.3636 }
+# 			},
+# 			Colors = { TileColor = { R = 0.0, G = 0.0, B = 1.0 }, }
+# 		}
+# 	},
+# 	ActiveTool = "DO_NOT_DELETE_PrismSM"
+# }"""
+
+# 		pyperclip.copy(clip)
+# 		comp.Paste(clip)
+	
+# 	@err_catcher(name=__name__)
+# 	def getFusionStatesNode(self):
+# 		comp = self.fusion.CurrentComp
+# 		smnode = comp.FindTool("DO_NOT_DELETE_PrismSM")
+# 		if smnode == None:
+# 			self.makeFusionStatesNode()
+# 			smnode = comp.ActiveTool
+# 			self.setSmNodePosition(smnode, x_offset=-10,y_offset=-3)
+
+# 		return smnode
+
+	@err_catcher(name=__name__)
+	def setDefaultState(self):
+		comp = self.fusion.CurrentComp
+		defaultState = """{
+    "states": [
+        {
+            "statename": "publish",
+            "comment": "",
+            "description": ""
+        }
+    ]
+}_..._
+"""
+		comp.SetData("prismstates",defaultState)
 
 	@err_catcher(name=__name__)
 	def sm_saveStates(self, origin, buf):
-		prismstates = self.getFusionStatesNode()
-		prismstates.Comments = buf + "_..._"
+		comp = self.fusion.CurrentComp
+		comp.SetData("prismstates", buf + "_..._")
+		# prismstates = self.getFusionStatesNode()
+		# prismstates.Comments = buf + "_..._"
 
 	@err_catcher(name=__name__)
 	def sm_saveImports(self, origin, importPaths):
-		prismstates = self.getFusionStatesNode()
-		prismstates.Comments[0] += importPaths.replace("\\\\", "\\")
+		comp = self.fusion.CurrentComp
+		prismdata = comp.GetData("prismstates")
+		prismdata += importPaths.replace("\\\\", "\\")
+		comp.SetData("prismstates", prismdata)
+		# prismstates = self.getFusionStatesNode()
+		# prismstates.Comments[0] += importPaths.replace("\\\\", "\\")
 
 	@err_catcher(name=__name__)
 	def sm_readStates(self, origin):
-		prismstates = self.getFusionStatesNode()
-		return prismstates.Comments[0].split("_..._")[0]
+		comp = self.fusion.CurrentComp
+		prismdata = comp.GetData("prismstates")
+		return prismdata.split("_..._")[0]
+		# prismstates = self.getFusionStatesNode()
+		# return prismstates.Comments[0].split("_..._")[0]
 
 	@err_catcher(name=__name__)
 	def sm_deleteStates(self, origin):
-		prismstates = self.getFusionStatesNode()
-		prismstates.Comments = ""
+		comp = self.fusion.CurrentComp
+		comp.SetData("prismstates","")
+		# prismstates = self.getFusionStatesNode()
+		# prismstates.Comments = ""
 
+	@err_catcher(name=__name__)
+	def getImportPaths(self, origin):
+		comp = self.fusion.CurrentComp
+		prismdata = comp.GetData("prismstates")
+		return prismdata.split("_..._")[1]
+		# prismstates = self.getFusionStatesNode()
+		# return prismstates.Comments[0].split("_..._")[1]
 
 	################################################
 	#                                              #
@@ -1577,6 +1624,11 @@ class Prism_Fusion_Functions(object):
 		for state in removestates:
 			if state in sm.stateTypes.keys():
 				del sm.stateTypes[state]
+
+		#Set State Manager Data on first open.
+		comp = self.fusion.CurrentComp
+		if comp.GetData("prismstates") == None:
+			self.setDefaultState()
 
 		self.monkeypatchedsm = origin
 		self.core.plugins.monkeyPatch(origin.rclTree, self.rclTree, self, force=True)
