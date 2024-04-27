@@ -59,8 +59,8 @@ class Prism_Fusion_Functions(object):
 		self.core = core
 		self.plugin = plugin
 		self.fusion = bmd.scriptapp("Fusion")
-		self.monkeypatchedsm = None #Reference to the state manager to be used on the monkeypatched functions.
-		self.popup = None
+		self.monkeypatchedsm = None # Reference to the state manager to be used on the monkeypatched functions.
+		self.popup = None # Reference of popUp dialog that shows before openning a window when it takes some time.
 
 		self.core.registerCallback(
 			"onUserSettingsOpen", self.onUserSettingsOpen, plugin=self.plugin
@@ -877,8 +877,12 @@ class Prism_Fusion_Functions(object):
 		# check if the leftmost node is a Loader to put the nodes below.
 		validtools = [t for t in comp.GetToolList(False).values() if flow.GetPosTable(t) and not t.Name == node.Name and not t.Name == 'DO_NOT_DELETE_PrismSM']
 		leftmostNode = self.find_leftmost_lower_node(flow, validtools, 0)
+		
+		if len(comp.GetToolList()) == 1:
+			x_pos, y_pos = self.find_LastClickPosition()
+			flow.SetPos(node, x_pos, y_pos + 1.5)
 
-		if leftmostNode.GetAttrs("TOOLS_RegID") == "Loader":
+		elif leftmostNode.GetAttrs("TOOLS_RegID") == "Loader":
 			loaders = [l for l in comp.GetToolList(False, "Loader").values() if not l.Name == node.Name]	
 			leftmostLoader = self.find_leftmost_lower_node(flow, loaders, 2.5)
 			x_pos, y_pos = flow.GetPosTable(leftmostLoader).values()
@@ -1284,16 +1288,25 @@ class Prism_Fusion_Functions(object):
 
 		#if extension is supported
 		if ext in self.importHandlers:
-			self.cleanbeforeImport(origin)
+			# Do the importing
 			result = self.importHandlers[ext]["importFunction"](impFileName, origin)
 		else:
 			self.core.popup("Format is not supported.")
 			return {"result": False, "doImport": doImport}
 
+
+		#check if there was a merge3D in the import and where was it connected to
+		newNodes = [n.Name for n in comp.GetToolList(True).values()]
+		refPosNode, positionedNodes = self.ReplaceBeforeImport(origin, newNodes)
+		self.cleanbeforeImport(origin)
+		if refPosNode:
+			atx, aty = flow.GetPosTable(refPosNode).values()
+
 		#After import update the stateManager interface
 		if result:
+			importedTools = comp.GetToolList(True).values()
 			#Set the position of the imported nodes relative to the previously active tool or last click in compView
-			impnodes = [n for n in comp.GetToolList(True).values()]
+			impnodes = [n for n in importedTools]
 			#print(impnodes)
 			if len(impnodes) > 0:
 				comp.Lock()
@@ -1302,26 +1315,37 @@ class Prism_Fusion_Functions(object):
 				fstnx, fstny = flow.GetPosTable(fisrtnode).values()
 
 				for n in impnodes:
-					#print("locs")
-					x,y  = flow.GetPosTable(n).values()
+					if not n.Name in positionedNodes:
+						x,y  = flow.GetPosTable(n).values()
 
-					offset = [x-fstnx,y-fstny]
-					newx = x+(atx-x)+offset[0]
-					newy = y+(aty-y)+offset[1]
-					flow.SetPos(n, newx-1, newy)
+						offset = [x-fstnx,y-fstny]
+						newx = x+(atx-x)+offset[0]
+						newy = y+(aty-y)+offset[1]
+						flow.SetPos(n, newx-1, newy)
 
 				comp.Unlock()
 			##########
 
-			newNodes = [n.Name for n in comp.GetToolList(True).values()]
+
 			importedNodes = []
 			for i in newNodes:
-				#if i not in existingNodes:
-				##...
-				importedNodes.append(self.getNode(i))
+				# Append sufix to objNames to identify product with unique Name
+				node = self.getObject(i)
+				newName = self.apllyProductSufix(i, origin)
+				node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
+				importedNodes.append(self.getNode(newName))
 
 			origin.setName = "Import_" + fileName[0]			
 			origin.nodes = importedNodes
+
+			# print(
+			# 	"the origin is:", origin, "\n",
+			# 	"State: ", origin.state,"\n",
+			# 	"Name: ", origin.importPath.split("_")[-2], "\n",
+			# 	"Nodes: ", origin.nodeNames, "\n",
+			# 	"importPath:", origin.importPath, "\n",
+			# 	)
+			
 			#Deseleccionar todo
 			flow.Select()
 
@@ -1355,6 +1379,12 @@ class Prism_Fusion_Functions(object):
 
 		return comp.FindTool(node["name"])
 
+	@err_catcher(name=__name__)
+	def apllyProductSufix(self, originalName, origin):
+		newName = originalName + "_" + origin.importPath.split("_")[-2]
+		return newName
+
+	@err_catcher(name=__name__)
 	def cleanbeforeImport(self, origin):
 		# print(f"origin setname: {origin.setName}")
 		# print(f"origin nodes: {origin.nodes}")
@@ -1366,6 +1396,89 @@ class Prism_Fusion_Functions(object):
 
 		self.deleteNodes(origin, nodes)
 		origin.nodes = []
+
+	@err_catcher(name=__name__)
+	def ReplaceBeforeImport(self, origin, newnodes):
+		comp = self.fusion.GetCurrentComp()
+		if origin.nodes == []:
+			return None, []
+		nodes = []
+		nodenames =[]
+		outputnodes = []
+		positionednodes = []
+		sceneNode = None
+		
+		for o in origin.nodes:
+			node = comp.FindTool(o["name"])
+			# Store Scene Node Connections
+			if node.GetAttrs("TOOLS_RegID") == "Merge3D":
+				sceneNode = node
+				connectedinputs = node.output.GetConnectedInputs()
+				if len(connectedinputs)>0:
+					for v in connectedinputs.values():
+						connectedNode = {"node":v.GetTool().Name,"input":v.Name}
+						outputnodes.append(connectedNode)
+			nodenames.append(node.Name)
+			nodes.append(node)
+		for o in newnodes:
+			newnode = comp.FindTool(o)
+			# Reconnect the scene node
+			if newnode.GetAttrs("TOOLS_RegID") == "Merge3D":
+				if len(outputnodes) > 0:
+					for outn in outputnodes:
+						tool = comp.FindTool(outn["node"])
+						tool.ConnectInput(outn["input"], newnode)
+			# Match old to new
+			oldnodename = self.apllyProductSufix(o, origin)
+			oldnode = comp.FindTool(oldnodename)
+
+			# print("oldnode: ", oldnode.Name)
+			# If there is a previous version of the same node.
+			if oldnode:
+				# idx = 1
+				# check if it has valid inputs that are not part of previous import
+				for input in oldnode.GetInputList().values():
+					# print(input.Name, idx)
+					# idx+=1
+					connectedOutput = input.GetConnectedOutput()
+					if connectedOutput:
+						inputName = input.Name
+						connectedtool = connectedOutput.GetTool()
+						# Avoid Feyframe nodes
+						if not connectedtool.GetAttrs("TOOLS_RegID") =="BezierSpline" and not newnode.GetAttrs("TOOLS_RegID") == "Merge3D":
+							# check to avoid a connection that breaks the incoming hierarchy.
+							if not connectedtool.Name in nodenames:
+								# print("input: ", inputName, " -> ctool: ", connectedtool.Name, " NewNode: ", newnode.Name)
+								newnode.ConnectInput(inputName, connectedtool)
+				# Reconnect the 3D Scene.
+				if oldnode.GetAttrs("TOOLS_RegID") == "Merge3D":
+					mergednodes = []
+					sceneinputs = [input for input in oldnode.GetInputList().values() if "SceneInput" in input.Name]
+					newsceneinputs = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
+					for input in sceneinputs:
+						connectedOutput = input.GetConnectedOutput()
+						if connectedOutput:
+							connectedtool = connectedOutput.GetTool()
+							if not connectedtool.Name in nodenames:
+								mergednodes.append(connectedtool)
+					if newnode.GetAttrs("TOOLS_RegID") == "Merge3D" and len(mergednodes) > 0:
+						newsceneinputs = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
+						for mergednode in mergednodes:
+							for input in newsceneinputs:
+								connectedOutput = input.GetConnectedOutput()
+								if not connectedOutput:
+									newnode.ConnectInput(input.Name, mergednode)
+
+				# Match position.
+				self.matchNodePos(newnode, oldnode)
+				positionednodes.append(newnode.Name)
+			
+		# Return position
+		if sceneNode:
+			return sceneNode, positionednodes
+		
+		return None, positionednodes
+
 
 	@err_catcher(name=__name__)
 	def sm_import_updateObjects(self, origin):
@@ -1461,6 +1574,13 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def set_node_position(self, flow, smnode, x, y):
 		flow.SetPos(smnode, x, y)
+
+	@err_catcher(name=__name__)
+	def matchNodePos(self, nodeTomove, nodeInPos):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+		x,y = flow.GetPosTable(nodeInPos).values()
+		self.set_node_position(flow, nodeTomove, x, y)
 
 	#The name of this function comes for its initial use to position the "state manager node" that what used before using SetData.
 	@err_catcher(name=__name__)
