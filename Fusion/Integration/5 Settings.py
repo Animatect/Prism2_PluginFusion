@@ -1,8 +1,4 @@
-# from openPrismWindows import openPrismSettings
+from CallButtons import CallButton
 if __name__ == "__main__":
-    # openPrismSettings()
-    uimanager = fu.UIManager
-    holders = uimanager.FindWindows("PrismHolder")
-    holder = holders[len(holders)]
-
-    holder.GetItems()['btn_prismsettings'].Click()
+    #uimanager = fu.UIManager
+    CallButton('btn_prismsettings')

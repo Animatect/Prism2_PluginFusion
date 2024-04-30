@@ -1787,7 +1787,6 @@ class Prism_Fusion_Functions(object):
 		
 	@err_catcher(name=__name__)
 	def onStateManagerOpen(self, origin):
-		self.smUI = origin
 		#Remove Export and Playblast buttons and states
 		origin.b_createExport.deleteLater()
 		origin.b_createPlayblast.deleteLater()
@@ -1807,13 +1806,14 @@ class Prism_Fusion_Functions(object):
 		#origin.gb_import.setStyleSheet("margin-top: 20px;")
 
 	@err_catcher(name=__name__)
-	def onStateManagerClose(self, origin):
-		self.smUI = None
-
-	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):
+		self.smUI = origin
 		self.popup.close()
 
+	@err_catcher(name=__name__)
+	def onStateManagerClose(self, origin):
+		self.smUI = None
+		
 	@err_catcher(name=__name__)
 	def onStateCreated(self, origin, state, stateData):
 		if state.className == "ImageRender":

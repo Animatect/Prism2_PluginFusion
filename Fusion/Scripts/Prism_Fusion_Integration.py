@@ -63,6 +63,7 @@ class Prism_Fusion_Integration(object):
 				"Fusion.ico",
 				"Reset Prism.py",
 				"HolderClass.py",
+				"CallButtons.py",
 			]
 		
 		if platform.system() == "Windows":

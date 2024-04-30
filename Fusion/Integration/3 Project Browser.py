@@ -1,8 +1,4 @@
-# from openPrismWindows import openProjectBrowser
+from CallButtons import CallButton
 if __name__ == "__main__":
-    # openProjectBrowser()
-    uimanager = fu.UIManager
-    holders = uimanager.FindWindows("PrismHolder")
-    holder = holders[len(holders)]
-
-    holder.GetItems()['btn_projectbrowser'].Click()
+    #uimanager = fu.UIManager
+    CallButton('btn_projectbrowser')

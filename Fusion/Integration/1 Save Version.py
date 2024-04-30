@@ -1,8 +1,4 @@
-# from openPrismWindows import runPrismSaveScene
+from CallButtons import CallButton
 if __name__ == "__main__":
-    # runPrismSaveScene()
-    uimanager = fu.UIManager
-    holders = uimanager.FindWindows("PrismHolder")
-    holder = holders[len(holders)]
-
-    holder.GetItems()['btn_saveversion'].Click()
+    #uimanager = fu.UIManager
+    CallButton('btn_saveversion')
