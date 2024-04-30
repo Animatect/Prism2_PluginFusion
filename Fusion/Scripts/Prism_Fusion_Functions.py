@@ -62,12 +62,20 @@ class Prism_Fusion_Functions(object):
 		self.monkeypatchedsm = None # Reference to the state manager to be used on the monkeypatched functions.
 		self.popup = None # Reference of popUp dialog that shows before openning a window when it takes some time.
 
+		self.saveUI = None
+		self.smUI = None
+		self.pbUI = None
+		self.prefUI = None
+
 		self.core.registerCallback(
 			"onUserSettingsOpen", self.onUserSettingsOpen, plugin=self.plugin
 		)
 		self.core.registerCallback(
 			"onProjectBrowserStartup", self.onProjectBrowserStartup, plugin=self.plugin
 		)
+		self.core.registerCallback(
+			"onProjectBrowserClose", self.onProjectBrowserClose, plugin=self.plugin
+		)		
 		self.core.registerCallback(
 			"onProjectBrowserShow", self.onProjectBrowserShow, plugin=self.plugin
 		)
@@ -79,6 +87,9 @@ class Prism_Fusion_Functions(object):
 		)
 		self.core.registerCallback(
 			"onStateManagerOpen", self.onStateManagerOpen, plugin=self.plugin
+		)
+		self.core.registerCallback(
+			"onStateManagerClose", self.onStateManagerClose, plugin=self.plugin
 		)
 		self.core.registerCallback(
 			"onStateManagerShow", self.onStateManagerShow, plugin=self.plugin
@@ -1746,12 +1757,15 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def onProjectBrowserStartup(self, origin):
-		pass
+		self.pbUI = origin
 	
 
 	@err_catcher(name=__name__)
 	def onProjectBrowserShow(self, origin):
 		self.popup.close()
+
+	def onProjectBrowserClose(self, origin):
+		self.pbUI = None
 
 	@err_catcher(name=__name__)
 	def onProjectBrowserCalled(self, popup):
@@ -1773,6 +1787,7 @@ class Prism_Fusion_Functions(object):
 		
 	@err_catcher(name=__name__)
 	def onStateManagerOpen(self, origin):
+		self.smUI = origin
 		#Remove Export and Playblast buttons and states
 		origin.b_createExport.deleteLater()
 		origin.b_createPlayblast.deleteLater()
@@ -1790,6 +1805,10 @@ class Prism_Fusion_Functions(object):
 		self.monkeypatchedsm = origin
 		self.core.plugins.monkeyPatch(origin.rclTree, self.rclTree, self, force=True)
 		#origin.gb_import.setStyleSheet("margin-top: 20px;")
+
+	@err_catcher(name=__name__)
+	def onStateManagerClose(self, origin):
+		self.smUI = None
 
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):

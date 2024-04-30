@@ -104,27 +104,6 @@
             },
         },
     },
-    Action
-    {
-        ID = "Reset_Prism",
-        Category = "Prism",
-        Name = "* Reset Prism *",
-
-        Targets =
-        {
-            Composition =
-            {
-                Execute = _Lua [=[
-                    local scriptPath = app:MapPath("Scripts:Prism/Reset Prism.py")
-                    if bmd.fileexists(scriptPath) == false then
-                        print("[Prism Error] Can't run file: " .. scriptPath)
-                    else
-                        target:RunScript(scriptPath)
-                    end
-                ]=],
-            },
-        },
-    },
     Menus
     {
         Target = "ChildFrame",
@@ -139,8 +118,6 @@
                 "3_Project_Browser{}",
                 "4_State_Manager{}",
                 "5_Settings{}",
-                "_",
-                "Reset_Prism{}",
             },
         },
     },

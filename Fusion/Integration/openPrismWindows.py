@@ -3,64 +3,98 @@ import os
 import PrismInit
 from PySide2 import QtCore, QtGui, QtWidgets
 
-def openProjectBrowser():
+def openProjectBrowser(globalpcore):
 	qapp = QtWidgets.QApplication.instance()
 	if qapp == None:
+		print("wasnonepbr")
 		qapp = QtWidgets.QApplication(sys.argv)
 
 	popup = popupNoButton("Openning Project Browser, Please wait", qapp)
-	pcore = PrismInit.prismInit()
+
+	if globalpcore:
+		print("pcore existed")
+		pcore = globalpcore
+	else:
+		print("pcore NOT existed")
+		pcore = PrismInit.prismInit()
+
 	pcore.callback(name="onProjectBrowserCalled", args=[popup])
-	pcore.setActiveStyleSheet("Fusion")
+	#
 	pcore.projectBrowser()
-
+	#
 	qapp.exec_()
 
-def runPrismSaveScene():
+def runPrismSaveScene(globalpcore):
 	qapp = QtWidgets.QApplication.instance()
 	if qapp == None:
 		qapp = QtWidgets.QApplication(sys.argv)
 
-	pcore = PrismInit.prismInit()
-	pcore.setActiveStyleSheet("Fusion")
+	if globalpcore:
+		print("pcore existed")
+		pcore = globalpcore
+	else:
+		print("pcore NOT existed")
+		pcore = PrismInit.prismInit()
+	#
 	pcore.saveScene()
-
+	#
 	qapp.exec_()
 
-def openPrismSaveWithComment():
+def openPrismSaveWithComment(globalpcore):
 	qapp = QtWidgets.QApplication.instance()
 	if qapp == None:
 		qapp = QtWidgets.QApplication(sys.argv)
 
-	pcore = PrismInit.prismInit()
-	pcore.setActiveStyleSheet("Fusion")
-	pcore.saveWithComment()
-
+	if globalpcore:
+		print("pcore existed")
+		pcore = globalpcore
+	else:
+		print("pcore NOT existed")
+		pcore = PrismInit.prismInit()
+	#
+	try:
+		pcore.saveWithComment()
+	except:
+		print("problemas")
+	#
 	qapp.exec_()
 
-def openPrismStateManager():
+def openPrismStateManager(globalpcore):
 	qapp = QtWidgets.QApplication.instance()
 	if qapp == None:
+		print("wasnone")
 		qapp = QtWidgets.QApplication(sys.argv)
 
 	
 	popup = popupNoButton("Openning State Manager, Please wait", qapp)
-	pcore = PrismInit.prismInit()
-	pcore.callback(name="onStateManagerCalled", args=[popup])
-	pcore.setActiveStyleSheet("Fusion")
-	pcore.stateManager()
+	
+	if globalpcore:
+		print("pcore existed")
+		pcore = globalpcore
+	else:
+		print("pcore NOT existed")
+		pcore = PrismInit.prismInit()
 
+	pcore.callback(name="onStateManagerCalled", args=[popup])
+	#
+	pcore.stateManager()
+	#
 	qapp.exec_()
 
-def openPrismSettings():
+def openPrismSettings(globalpcore):
 	qapp = QtWidgets.QApplication.instance()
 	if qapp == None:
 		qapp = QtWidgets.QApplication(sys.argv)
 
-	pcore = PrismInit.prismInit()
-	pcore.setActiveStyleSheet("Fusion")
+	if globalpcore:
+		print("pcore existed")
+		pcore = globalpcore
+	else:
+		print("pcore NOT existed")
+		pcore = PrismInit.prismInit()
+	#
 	pcore.prismSettings()
-
+	#
 	qapp.exec_()
 
 

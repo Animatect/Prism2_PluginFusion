@@ -50,7 +50,21 @@ class Prism_Fusion_Integration(object):
 	def __init__(self, core, plugin):
 		self.core = core
 		self.plugin = plugin
-
+		self.scripts = [
+				"1 Save Version.py",
+				"2 Save Comment.py",
+				"3 Project Browser.py",
+				"4 State Manager.py",
+				"5 Settings.py",
+				"openPrismWindows.py",
+				"PrismInit.py",
+				"InstallThirdParty.py",
+				"LoaderFromSaver.lua",
+				"Fusion.ico",
+				"Reset Prism.py",
+				"HolderClass.py",
+			]
+		
 		if platform.system() == "Windows":
 			self.examplePath = os.path.join(
 				os.environ["appdata"], "Blackmagic Design", "Fusion"
@@ -98,7 +112,7 @@ class Prism_Fusion_Integration(object):
 			addedFiles = []
 
 			# "PrismMenu.fu" add a Prism menu, but leads to freezes
-			for i in ["PrismMenu.fu"]:
+			for i in ["PrismMenu.fu", "PrismEvents.fu"]:
 				origFile = os.path.join(integrationBase, i)
 				targetFile = os.path.join(installPath, "Config", i)
 
@@ -146,18 +160,7 @@ class Prism_Fusion_Integration(object):
 			#         )
 			#         init.write(initStr)
 
-			for i in [
-				"1 Save Version.py",
-				"2 Save Comment.py",
-				"3 Project Browser.py",
-				"4 State Manager.py",
-				"5 Settings.py",
-				"openPrismWindows.py",
-				"PrismInit.py",
-				"InstallThirdParty.py",
-				"LoaderFromSaver.lua",
-				"Fusion.ico",
-			]:
+			for i in self.scripts:
 				file_name, file_extension = os.path.splitext(i)
 				origFile = os.path.join(integrationBase, i)
 				targetFile = os.path.join(installPath, "Scripts", "Prism", i)
@@ -231,9 +234,9 @@ class Prism_Fusion_Integration(object):
 	def removeIntegration(self, installPath):
 		try:
 			pFiles = []
-			# pFiles.append(
-			#     os.path.join(installPath, "Config", "PrismEvents.fu")
-			# )
+			pFiles.append(
+				os.path.join(installPath, "Config", "PrismEvents.fu")
+			)
 			pFiles.append(
 				os.path.join(installPath, "Config", "PrismMenu.fu")
 			)
@@ -242,61 +245,13 @@ class Prism_Fusion_Integration(object):
 			# )
 			# pFiles.append(os.path.join(
 			#     installPath, "Scripts", "PrismInit.scriptlib"))
-			pFiles.append(
-				os.path.join(
-					installPath, "Scripts", "Prism", "1 Save Version.py"
+			for file in self.scripts:
+				pFiles.append(
+					os.path.join(
+						installPath, "Scripts", "Prism", file
+					)
 				)
-			)
-			pFiles.append(
-				os.path.join(
-					installPath, "Scripts", "Prism", "2 Save Comment.py"
-				)
-			)
-			pFiles.append(
-				os.path.join(
-					installPath, "Scripts", "Prism", "3 Project Browser.py"
-				)
-			)
-			pFiles.append(
-				os.path.join(
-					installPath,
-					"Scripts",
-					"Prism",
-					"4 State Manager.py",
-				)
-			)
-			pFiles.append(
-				os.path.join(installPath, "Scripts", "Prism", "5 Settings.py")
-			)
-			pFiles.append(
-				os.path.join(installPath, "Scripts",
-							"Prism", "InstallThirdParty.py")
-			)
-			pFiles.append(
-				os.path.join(installPath, "Scripts",
-							"Prism", "openPrismWindows.py")
-			)
 
-			pFiles.append(
-				os.path.join(installPath, "Scripts",
-							"Prism", "PrismInit.py")
-			)
-			# pFiles.append(
-			#     os.path.join(installPath, "Scripts",
-			#                  "Prism", "sceneOpen.py")
-			# )
-			pFiles.append(
-				os.path.join(installPath, "Scripts",
-							"Prism", "LoaderFromSaver.lua")
-			)
-			# pFiles.append(
-			#     os.path.join(installPath, "Scripts",
-			#                  "Macros", "WritePrism.setting")
-			# )
-			pFiles.append(
-				os.path.join(installPath, "Scripts",
-							"Prism", "Fusion.ico")
-			)
 			for i in pFiles:
 				if os.path.exists(i):
 					os.remove(i)
