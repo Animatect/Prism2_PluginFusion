@@ -6,7 +6,7 @@
                 Execute = [[
                     comp = fusion.CurrentComp
                     if comp ~= nil then
-                        local scriptPath = app:MapPath("Scripts:Prism/sceneOpen.py")
+                        local scriptPath = app:MapPath("Scripts:Prism/ResetPrism.py")
                         if bmd.fileexists(scriptPath) == false then
                             print("[Prism Error] Can't run file: " .. scriptPath)
                         else
