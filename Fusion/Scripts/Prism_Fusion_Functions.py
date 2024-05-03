@@ -62,6 +62,8 @@ class Prism_Fusion_Functions(object):
 		self.monkeypatchedsm = None # Reference to the state manager to be used on the monkeypatched functions.
 		self.popup = None # Reference of popUp dialog that shows before openning a window when it takes some time.
 
+		self.listener = None
+		
 		self.saveUI = None
 		self.smUI = None
 		self.pbUI = None
@@ -165,7 +167,7 @@ class Prism_Fusion_Functions(object):
 			origin.startAutosaveTimer()
 
 	@err_catcher(name=__name__)
-	def getCurrentFileName(self, origin, path=True):
+	def getCurrentFileName(self, origin=None, path=True):
 		curComp = self.fusion.GetCurrentComp()
 		if curComp is None:
 			currentFileName = ""
@@ -1197,17 +1199,75 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def focus_fusion_window(self):
-		window_title = "Fusion Studio"
-		try:
-			window = gw.getWindowsWithTitle(window_title)[0]
-			window.activate()
-			return True
-		except IndexError:
-			# print(f"Window with title '{window_title}' not found.")
+		import subprocess
+		# Get all windows
+		windows = gw.getAllTitles()
+
+		# Define the pattern using a regular expression
+		pattern = r'^Fusion Studio - '
+		window_title = "Fusion Studio - ["
+
+		# Filter windows based on the pattern
+		matching_windows = [window for window in windows if re.match(pattern, window)]
+		# Focus on the first matching window
+		if matching_windows:
+			script_dir = os.path.dirname(os.path.abspath(__file__))
+			batch_file = os.path.join(script_dir, "cmdwin.bat")
+			cmdwin = subprocess.Popen(["cmd", "/c", "start", batch_file], shell=True)
+			time.sleep(1)	
+			
+			if not len(matching_windows)>1:	
+				matching_window = gw.getWindowsWithTitle(window_title)[0]
+				# print("matching_window: ", matching_window.title)
+				# matching_window.activate()
+				# time.sleep(1)
+				# print("active: ", matching_window.isActive)
+				if matching_window.isActive:
+					return True
+				else:
+					msg = f"Window with title '{window_title}' is not active.\nTry again leaving the cursor over the Fusion Window."
+					self.popup = self.core.popup(msg)
+					return False
+			else:
+				msg = f"There is more than one Window with title '{window_title}' open\nplease close one."
+				self.core.popup(msg)
+				return False
+
+		else:
+			msg = f"Window with title '{window_title}' not found."
+			self.core.popup(msg)
+			return False
+		
+		 
+
+	@err_catcher(name=__name__)
+	def doUiImport(self, fusion, formatCall, interval, filepath):
+		if self.focus_fusion_window():
+			comp = fusion.GetCurrentComp()
+			#Call the dialog
+			fusion.QueueAction("Utility_Show", {"id":formatCall})
+			time.sleep(interval)
+			pyautogui.typewrite(filepath)
+			time.sleep(interval)
+			pyautogui.press("enter")
+			pyautogui.press("enter")
+			
+			
+			# Wait until file is imported
+			elapsedtime = 0
+			while len(comp.GetToolList(True))<0 and elapsedtime < 20:
+				loopinterval = 0.1
+				elapsedtime += loopinterval
+				time.sleep(loopinterval)
+			if len(comp.GetToolList(True)) > 0:
+				return True
+			else:
+				return False
+		else:
 			return False
 
 
-
+		
 	@err_catcher(name=__name__)
 	def importFormatByUI(self, origin, formatCall, filepath, global_scale, options = None, interval = 0.05):
 		origin.stateManager.showMinimized()
@@ -1234,30 +1294,42 @@ class Prism_Fusion_Functions(object):
 					print("Invalid option %s:" % key)
 			fusion.SetPrefs("Global.Alembic.Import", new)
 		
-		# focus on fusion window
-		isfocused = self.focus_fusion_window()
+		#Warning
+		fString = "Importing this 3Dformat requires UI automation.\n\nPLEASE DO NOT USE THE MOUSE AFTER CLOSING THIS DIALOG UNTIL IMPORT IS DONE"
+		buttons = ["Continue"]
+		result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 
-		#Call the dialog
-		fusion.QueueAction("Utility_Show", {"id":formatCall})
-		time.sleep(interval)
-		pyautogui.typewrite(filepath)
-		time.sleep(interval)
-		pyautogui.press("enter")
-		pyautogui.press("enter")
-		
-		elapsedtime = 0
-		#comp.Unlock()
-		while len(comp.GetToolList(True))<0 and elapsedtime < 10:
-			loopinterval = 0.1
-			elapsedtime += loopinterval
-			time.sleep(loopinterval)
+		imported = False
+		# if result == "Save":
+		# 	filepath = self.getCurrentFileName()
+		# 	didSave = False
+		# 	if not filepath == "":
+		# 		if self.core.fileInPipeline():
+		# 			didSave = self.core.saveScene(versionUp=False)
+		# 		else:
+		# 			didSave = self.saveScene(filepath)
+		# 		if not didSave == False:
+		# 			imported = self.doUiImport(fusion, formatCall, interval, filepath)
+		# 	else:
+		# 		self.core.popup("Scene can't be saved, save a version first")
 
+		# elif result == "Save new version":
+		# 	if self.core.fileInPipeline():
+		# 		self.core.saveScene()
+		# 		imported = self.doUiImport(fusion, formatCall, interval, filepath)
+
+		# elif result == "Continue":
+		# 	imported = self.doUiImport(fusion, formatCall, interval, filepath)
+
+		# else:
+		# 	imported = False
+  
+		imported = self.doUiImport(fusion, formatCall, interval, filepath)
 		origin.stateManager.showNormal()
 
-		if len(comp.GetToolList(True)) > 0:
-			return True
-		else:
-			return False
+		return imported
+		
+
 
 
 	@err_catcher(name=__name__)
@@ -1305,16 +1377,15 @@ class Prism_Fusion_Functions(object):
 			self.core.popup("Format is not supported.")
 			return {"result": False, "doImport": doImport}
 
-
-		#check if there was a merge3D in the import and where was it connected to
-		newNodes = [n.Name for n in comp.GetToolList(True).values()]
-		refPosNode, positionedNodes = self.ReplaceBeforeImport(origin, newNodes)
-		self.cleanbeforeImport(origin)
-		if refPosNode:
-			atx, aty = flow.GetPosTable(refPosNode).values()
-
 		#After import update the stateManager interface
 		if result:
+			#check if there was a merge3D in the import and where was it connected to
+			newNodes = [n.Name for n in comp.GetToolList(True).values()]
+			refPosNode, positionedNodes = self.ReplaceBeforeImport(origin, newNodes)
+			self.cleanbeforeImport(origin)
+			if refPosNode:
+				atx, aty = flow.GetPosTable(refPosNode).values()
+	
 			importedTools = comp.GetToolList(True).values()
 			#Set the position of the imported nodes relative to the previously active tool or last click in compView
 			impnodes = [n for n in importedTools]
@@ -1421,16 +1492,17 @@ class Prism_Fusion_Functions(object):
 		
 		for o in origin.nodes:
 			node = comp.FindTool(o["name"])
-			# Store Scene Node Connections
-			if node.GetAttrs("TOOLS_RegID") == "Merge3D":
-				sceneNode = node
-				connectedinputs = node.output.GetConnectedInputs()
-				if len(connectedinputs)>0:
-					for v in connectedinputs.values():
-						connectedNode = {"node":v.GetTool().Name,"input":v.Name}
-						outputnodes.append(connectedNode)
-			nodenames.append(node.Name)
-			nodes.append(node)
+			if node:
+				# Store Scene Node Connections
+				if node.GetAttrs("TOOLS_RegID") == "Merge3D":
+					sceneNode = node
+					connectedinputs = node.output.GetConnectedInputs()
+					if len(connectedinputs)>0:
+						for v in connectedinputs.values():
+							connectedNode = {"node":v.GetTool().Name,"input":v.Name}
+							outputnodes.append(connectedNode)
+				nodenames.append(node.Name)
+				nodes.append(node)
 		for o in newnodes:
 			newnode = comp.FindTool(o)
 			# Reconnect the scene node

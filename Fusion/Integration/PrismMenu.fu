@@ -115,7 +115,7 @@
             Composition =
             {
                 Execute = _Lua [=[
-                    local scriptPath = app:MapPath("Scripts:Prism/Reset Prism.py")
+                    local scriptPath = app:MapPath("Scripts:Prism/ResetPrism.py")
                     if bmd.fileexists(scriptPath) == false then
                         print("[Prism Error] Can't run file: " .. scriptPath)
                     else

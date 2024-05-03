@@ -1,4 +1,3 @@
-from CallButtons import CallButton
+from openPrismWindows import runPrismSaveScene
 if __name__ == "__main__":
-    #uimanager = fu.UIManager
-    CallButton('btn_saveversion')
+    runPrismSaveScene()

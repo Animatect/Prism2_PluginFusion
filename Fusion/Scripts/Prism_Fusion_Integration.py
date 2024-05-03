@@ -61,7 +61,7 @@ class Prism_Fusion_Integration(object):
 				"InstallThirdParty.py",
 				"LoaderFromSaver.lua",
 				"Fusion.ico",
-				"Reset Prism.py",
+				"ResetPrism.py",
 				"HolderClass.py",
 				"CallButtons.py",
 			]
@@ -136,30 +136,31 @@ class Prism_Fusion_Integration(object):
 
 				with open(targetFile, "w") as init:
 					init.write(initStr)
+			
+			# .scriptlib Files
+			for i in ["PrismInit.scriptlib"]:
+				origFile = os.path.join(integrationBase, i)
+				targetFile = os.path.join(installPath, "Scripts", i)
 
-			# for i in ["PrismInit.scriptlib"]:
-			#     origFile = os.path.join(integrationBase, i)
-			#     targetFile = os.path.join(installPath, "Scripts", i)
+				if not os.path.exists(os.path.dirname(targetFile)):
+					os.makedirs(os.path.dirname(targetFile))
+					addedFiles.append(os.path.dirname(targetFile))
 
-			#     if not os.path.exists(os.path.dirname(targetFile)):
-			#         os.makedirs(os.path.dirname(targetFile))
-			#         addedFiles.append(os.path.dirname(targetFile))
+				if os.path.exists(targetFile):
+					os.remove(targetFile)
 
-			#     if os.path.exists(targetFile):
-			#         os.remove(targetFile)
+				shutil.copy2(origFile, targetFile)
+				addedFiles.append(targetFile)
 
-			#     shutil.copy2(origFile, targetFile)
-			#     addedFiles.append(targetFile)
+				with open(targetFile, "r") as init:
+					initStr = init.read()
 
-			#     with open(targetFile, "r") as init:
-			#         initStr = init.read()
-
-			#     with open(targetFile, "w") as init:
-			#         initStr = initStr.replace(
-			#             "PRISMROOT", '"%s"' % self.core.prismRoot.replace(
-			#                 "\\", "/")
-			#         )
-			#         init.write(initStr)
+				with open(targetFile, "w") as init:
+					initStr = initStr.replace(
+						"PRISMROOT", '"%s"' % self.core.prismRoot.replace(
+							"\\", "/")
+					)
+					init.write(initStr)
 
 			for i in self.scripts:
 				file_name, file_extension = os.path.splitext(i)
@@ -244,8 +245,8 @@ class Prism_Fusion_Integration(object):
 			# pFiles.append(
 			#     os.path.join(installPath, "Config", "PrismRenderStartEvent.fu")
 			# )
-			# pFiles.append(os.path.join(
-			#     installPath, "Scripts", "PrismInit.scriptlib"))
+			pFiles.append(os.path.join(
+			    installPath, "Scripts", "PrismInit.scriptlib"))
 			for file in self.scripts:
 				pFiles.append(
 					os.path.join(

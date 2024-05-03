@@ -12,51 +12,36 @@ def openProjectBrowser(globalpcore):
 	popup = popupNoButton("Openning Project Browser, Please wait", qapp)
 
 	if globalpcore:
-		print("pcore existed")
 		pcore = globalpcore
+		pcore.callback(name="onProjectBrowserCalled", args=[popup])
+		#
+		pcore.projectBrowser()
+		#
+		qapp.exec_()
 	else:
-		print("pcore NOT existed")
-		pcore = PrismInit.prismInit()
+		popupError()
 
-	pcore.callback(name="onProjectBrowserCalled", args=[popup])
-	#
-	pcore.projectBrowser()
-	#
-	qapp.exec_()
+	
 
-def runPrismSaveScene(globalpcore):
+def runPrismSaveScene():
 	qapp = QtWidgets.QApplication.instance()
 	if qapp == None:
 		qapp = QtWidgets.QApplication(sys.argv)
 
-	if globalpcore:
-		print("pcore existed")
-		pcore = globalpcore
-	else:
-		print("pcore NOT existed")
-		pcore = PrismInit.prismInit()
-	#
+	pcore = PrismInit.prismInit()
 	pcore.saveScene()
-	#
+	del pcore
+	
 	qapp.exec_()
 
-def openPrismSaveWithComment(globalpcore):
+def openPrismSaveWithComment():
 	qapp = QtWidgets.QApplication.instance()
 	if qapp == None:
 		qapp = QtWidgets.QApplication(sys.argv)
-
-	if globalpcore:
-		print("pcore existed")
-		pcore = globalpcore
-	else:
-		print("pcore NOT existed")
-		pcore = PrismInit.prismInit()
-	#
-	try:
-		pcore.saveWithComment()
-	except:
-		print("problemas")
-	#
+	pcore = PrismInit.prismInit()
+	pcore.saveWithComment()
+	del pcore
+	
 	qapp.exec_()
 
 def openPrismStateManager(globalpcore):
@@ -69,17 +54,15 @@ def openPrismStateManager(globalpcore):
 	popup = popupNoButton("Openning State Manager, Please wait", qapp)
 	
 	if globalpcore:
-		print("pcore existed")
 		pcore = globalpcore
+		pcore.callback(name="onStateManagerCalled", args=[popup])
+		#
+		pcore.stateManager()
+		#
+		qapp.exec_()
 	else:
-		print("pcore NOT existed")
-		pcore = PrismInit.prismInit()
+		popupError()
 
-	pcore.callback(name="onStateManagerCalled", args=[popup])
-	#
-	pcore.stateManager()
-	#
-	qapp.exec_()
 
 def openPrismSettings(globalpcore):
 	qapp = QtWidgets.QApplication.instance()
@@ -87,15 +70,30 @@ def openPrismSettings(globalpcore):
 		qapp = QtWidgets.QApplication(sys.argv)
 
 	if globalpcore:
-		print("pcore existed")
 		pcore = globalpcore
+		#
+		pcore.prismSettings()
+		#
+		qapp.exec_()
 	else:
-		print("pcore NOT existed")
-		pcore = PrismInit.prismInit()
-	#
-	pcore.prismSettings()
-	#
-	qapp.exec_()
+		popupError()
+
+def popupError():
+	error_box = QtWidgets.QMessageBox()
+	# Set the text and title of the error box
+	error_box.setText("Prism isn't propperly started!\nPlease Reset Prism from the button in the Prism Menu.")
+	error_box.setWindowTitle("Error")
+
+	# Set the icon to a critical error icon
+	error_box.setIcon(QtWidgets.QMessageBox.Critical)
+	error_box.setStandardButtons(QtWidgets.QMessageBox.Ok)
+	error_box.setDefaultButton(QtWidgets.QMessageBox.Ok)
+
+	error_box.setStyleSheet("QMessageBox { background-color: #31363b; color: white; }")
+
+
+	# Execute the error box
+	error_box.exec_()
 
 
 def popupNoButton(

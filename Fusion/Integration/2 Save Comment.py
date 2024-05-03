@@ -1,4 +1,3 @@
-from CallButtons import CallButton
+from openPrismWindows import openPrismSaveWithComment
 if __name__ == "__main__":
-    #uimanager = fu.UIManager
-    CallButton('btn_savecomment')
+    openPrismSaveWithComment()

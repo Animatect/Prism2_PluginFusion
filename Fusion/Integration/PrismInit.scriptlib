@@ -1,0 +1,11 @@
+-- if composition ~= nil then
+fusion = bmd.scriptapp("Fusion")
+if fusion:GetAttrs("FUSIONB_IsRenderNode") == false then
+	local scriptPath = app:MapPath("Scripts:Prism/ResetPrism.py")
+	if bmd.fileexists(scriptPath) == false then
+		print("[Prism Error] Can't run file: " .. scriptPath)
+	else
+		fusion:RunScript(scriptPath, {scriptlib=true})
+	end
+end
+-- end
