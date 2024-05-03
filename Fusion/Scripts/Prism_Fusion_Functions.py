@@ -59,6 +59,7 @@ class Prism_Fusion_Functions(object):
 		self.core = core
 		self.plugin = plugin
 		self.fusion = bmd.scriptapp("Fusion")
+		self.comp = None # This comp is used by the state Manager to avoid overriding the state data on wrong comps
 		self.monkeypatchedsm = None # Reference to the state manager to be used on the monkeypatched functions.
 		self.popup = None # Reference of popUp dialog that shows before openning a window when it takes some time.
 
@@ -527,17 +528,18 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def create_rendernode(self, nodename):
-		comp = self.fusion.GetCurrentComp()
-		if not self.rendernode_exists(nodename):
-			comp.Lock()
-			sv = comp.Saver()
-			comp.Unlock()
-			sv.SetAttrs({'TOOLS_Name' : nodename})
-			if not self.posRelativeToNode(sv):
-				#Move Render Node to the Right of the scene	
-				self.setSmNodePosition(sv, find_min=False, x_offset=10, ignore_node_type="Saver")
-				self.stackNodesByType(sv)
-		return sv
+		comp = self.fusion.GetCurrentComp()		
+		if self.sm_checkCorrectComp(comp):
+			if not self.rendernode_exists(nodename):
+				comp.Lock()
+				sv = comp.Saver()
+				comp.Unlock()
+				sv.SetAttrs({'TOOLS_Name' : nodename})
+				if not self.posRelativeToNode(sv):
+					#Move Render Node to the Right of the scene	
+					self.setSmNodePosition(sv, find_min=False, x_offset=10, ignore_node_type="Saver")
+					self.stackNodesByType(sv)
+			return sv
 
 	@err_catcher(name=__name__)
 	def sm_render_preSubmit(self, origin, rSettings):
@@ -555,40 +557,40 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def sm_render_startLocalRender(self, origin, outputPathOnly, outputName, rSettings):
 		print(rSettings)
-		comp = self.fusion.GetCurrentComp()
-
-		sv = self.get_rendernode(origin.get_rendernode_name())
-		#if sv is not None
-		if sv:
-			#if sv has input
-			if sv.Input.GetConnectedOutput():
-				sv.Clip = outputName
+		comp = self.fusion.GetCurrentComp()		
+		if self.sm_checkCorrectComp(comp):
+			sv = self.get_rendernode(origin.get_rendernode_name())
+			#if sv is not None
+			if sv:
+				#if sv has input
+				if sv.Input.GetConnectedOutput():
+					sv.Clip = outputName
+				else:
+					return "Error (Render Node is not connected)"
 			else:
-				return "Error (Render Node is not connected)"
-		else:
-			return "Error (Render Node does not exist)"
-		
-		frstart = rSettings["startFrame"]
-		frend = rSettings["endFrame"]
-		
-		# Are we just stiing the path and version into the render nodes or are we executing a local render?
-		if outputPathOnly:
+				return "Error (Render Node does not exist)"
+			
+			frstart = rSettings["startFrame"]
+			frend = rSettings["endFrame"]
+			
+			# Are we just stiing the path and version into the render nodes or are we executing a local render?
+			if outputPathOnly:
 
-			return "Result=Success"
-
-		else:
-			if origin.chb_resOverride.isChecked():
-				wdt = origin.sp_resWidth.value()
-				Hhgt = origin.sp_resHeight.value()
-		
-				comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}','SizeType': -1, 'Width': wdt, 'Height': Hhgt})
-			else:
-				comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}'})
-
-			if len(os.listdir(os.path.dirname(outputName))) > 0:
 				return "Result=Success"
+
 			else:
-				return "unknown error (files do not exist)"
+				if origin.chb_resOverride.isChecked():
+					wdt = origin.sp_resWidth.value()
+					Hhgt = origin.sp_resHeight.value()
+			
+					comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}','SizeType': -1, 'Width': wdt, 'Height': Hhgt})
+				else:
+					comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}'})
+
+				if len(os.listdir(os.path.dirname(outputName))) > 0:
+					return "Result=Success"
+				else:
+					return "unknown error (files do not exist)"
 
 	@err_catcher(name=__name__)
 	def sm_render_undoRenderSettings(self, origin, rSettings):
@@ -654,11 +656,12 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def deleteNodes(self, origin, handles, num=0):
 		for i in handles:
-			comp = self.fusion.CurrentComp
-			toolnm = i["name"]
-			tool = comp.FindTool(toolnm)
-			if tool:
-				tool.Delete()
+			comp = self.fusion.CurrentComp			
+			if self.sm_checkCorrectComp(comp):
+				toolnm = i["name"]
+				tool = comp.FindTool(toolnm)
+				if tool:
+					tool.Delete()
 
 	################################################
 	#                                              #
@@ -1353,92 +1356,94 @@ class Prism_Fusion_Functions(object):
 		fileName = os.path.splitext(os.path.basename(impFileName))
 		origin.setName = ""
 		result = False
-		#try to get an active tool to set a ref position
-		activetool = None
-		try:
-			activetool = comp.ActiveTool()
-		except:
-			pass
-		#if there is no active tool we use the note tool for the StateManager as a reference 
-		if activetool:
-			atx, aty = flow.GetPosTable(activetool).values()
-		else:
-			atx, aty = self.find_LastClickPosition()
+		# Check that we are not importing in a comp different than the one we started the stateManager from
+		if self.sm_checkCorrectComp(comp):
+			#try to get an active tool to set a ref position
+			activetool = None
+			try:
+				activetool = comp.ActiveTool()
+			except:
+				pass
+			#if there is no active tool we use the note tool for the StateManager as a reference 
+			if activetool:
+				atx, aty = flow.GetPosTable(activetool).values()
+			else:
+				atx, aty = self.find_LastClickPosition()
+				
 			
+			#get Extension
+			ext = fileName[1].lower()
+
+			#if extension is supported
+			if ext in self.importHandlers:
+				# Do the importing
+				result = self.importHandlers[ext]["importFunction"](impFileName, origin)
+			else:
+				self.core.popup("Format is not supported.")
+				return {"result": False, "doImport": doImport}
+
+			#After import update the stateManager interface
+			if result:
+				#check if there was a merge3D in the import and where was it connected to
+				newNodes = [n.Name for n in comp.GetToolList(True).values()]
+				refPosNode, positionedNodes = self.ReplaceBeforeImport(origin, newNodes)
+				self.cleanbeforeImport(origin)
+				if refPosNode:
+					atx, aty = flow.GetPosTable(refPosNode).values()
 		
-		#get Extension
-		ext = fileName[1].lower()
+				importedTools = comp.GetToolList(True).values()
+				#Set the position of the imported nodes relative to the previously active tool or last click in compView
+				impnodes = [n for n in importedTools]
+				#print(impnodes)
+				if len(impnodes) > 0:
+					comp.Lock()
 
-		#if extension is supported
-		if ext in self.importHandlers:
-			# Do the importing
-			result = self.importHandlers[ext]["importFunction"](impFileName, origin)
-		else:
-			self.core.popup("Format is not supported.")
-			return {"result": False, "doImport": doImport}
+					fisrtnode = impnodes[0]
+					fstnx, fstny = flow.GetPosTable(fisrtnode).values()
 
-		#After import update the stateManager interface
-		if result:
-			#check if there was a merge3D in the import and where was it connected to
-			newNodes = [n.Name for n in comp.GetToolList(True).values()]
-			refPosNode, positionedNodes = self.ReplaceBeforeImport(origin, newNodes)
-			self.cleanbeforeImport(origin)
-			if refPosNode:
-				atx, aty = flow.GetPosTable(refPosNode).values()
-	
-			importedTools = comp.GetToolList(True).values()
-			#Set the position of the imported nodes relative to the previously active tool or last click in compView
-			impnodes = [n for n in importedTools]
-			#print(impnodes)
-			if len(impnodes) > 0:
-				comp.Lock()
+					for n in impnodes:
+						if not n.Name in positionedNodes:
+							x,y  = flow.GetPosTable(n).values()
 
-				fisrtnode = impnodes[0]
-				fstnx, fstny = flow.GetPosTable(fisrtnode).values()
+							offset = [x-fstnx,y-fstny]
+							newx = x+(atx-x)+offset[0]
+							newy = y+(aty-y)+offset[1]
+							flow.SetPos(n, newx-1, newy)
 
-				for n in impnodes:
-					if not n.Name in positionedNodes:
-						x,y  = flow.GetPosTable(n).values()
-
-						offset = [x-fstnx,y-fstny]
-						newx = x+(atx-x)+offset[0]
-						newy = y+(aty-y)+offset[1]
-						flow.SetPos(n, newx-1, newy)
-
-				comp.Unlock()
-			##########
+					comp.Unlock()
+				##########
 
 
-			importedNodes = []
-			for i in newNodes:
-				# Append sufix to objNames to identify product with unique Name
-				node = self.getObject(i)
-				newName = self.apllyProductSufix(i, origin)
-				node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
-				importedNodes.append(self.getNode(newName))
+				importedNodes = []
+				for i in newNodes:
+					# Append sufix to objNames to identify product with unique Name
+					node = self.getObject(i)
+					newName = self.apllyProductSufix(i, origin)
+					node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
+					importedNodes.append(self.getNode(newName))
 
-			origin.setName = "Import_" + fileName[0]			
-			origin.nodes = importedNodes
+				origin.setName = "Import_" + fileName[0]			
+				origin.nodes = importedNodes
 
-			# print(
-			# 	"the origin is:", origin, "\n",
-			# 	"State: ", origin.state,"\n",
-			# 	"Name: ", origin.importPath.split("_")[-2], "\n",
-			# 	"Nodes: ", origin.nodeNames, "\n",
-			# 	"importPath:", origin.importPath, "\n",
-			# 	)
-			
-			#Deseleccionar todo
-			flow.Select()
+				# print(
+				# 	"the origin is:", origin, "\n",
+				# 	"State: ", origin.state,"\n",
+				# 	"Name: ", origin.importPath.split("_")[-2], "\n",
+				# 	"Nodes: ", origin.nodeNames, "\n",
+				# 	"importPath:", origin.importPath, "\n",
+				# 	)
+				
+				#Deseleccionar todo
+				flow.Select()
 
-			objs = [self.getObject(x) for x in importedNodes]
-			
-			#select nodes in comp
-			for o in objs:
-				flow.Select(o)
+				objs = [self.getObject(x) for x in importedNodes]
+				
+				#select nodes in comp
+				for o in objs:
+					flow.Select(o)
 
-			#Set result to True if we have nodes
-			result = len(importedNodes) > 0
+				#Set result to True if we have nodes
+				result = len(importedNodes) > 0
 
 		return {"result": result, "doImport": doImport}
 
@@ -1624,7 +1629,9 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def sm_createRenderPressed(self, origin):
-		origin.createPressed("Render")
+		comp = self.fusion.GetCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			origin.createPressed("Render")
 
 
 	################################################
@@ -1739,6 +1746,15 @@ class Prism_Fusion_Functions(object):
 	#        	  STATE MANAGER STUFF              #
 	#                                              #
 	################################################
+	@err_catcher(name=__name__)
+	def sm_checkCorrectComp(self, comp):
+		if self.comp.GetAttrs("COMPS_Name") == comp.GetAttrs("COMPS_Name"):
+			return True
+		else:
+			self.core.popup("""the state manager was originally oppened in another comp\n 
+			  it will now close and open again to avoid corrupting this comp's state data.""")
+			self.core.closeSM(restart=True)
+			return False
 
 	@err_catcher(name=__name__)
 	def sm_getExternalFiles(self, origin):
@@ -1787,56 +1803,52 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def setDefaultState(self):
 		comp = self.fusion.CurrentComp
-		defaultState = """{
-    "states": [
-        {
-            "statename": "publish",
-            "comment": "",
-            "description": ""
-        }
-    ]
-}_..._
-"""
-		comp.SetData("prismstates",defaultState)
+		if self.sm_checkCorrectComp(comp):
+			defaultState = """{
+		"states": [
+			{
+				"statename": "publish",
+				"comment": "",
+				"description": ""
+			}
+		]
+	}_..._
+	"""
+			comp.SetData("prismstates",defaultState)
 
 	@err_catcher(name=__name__)
 	def sm_saveStates(self, origin, buf):
 		comp = self.fusion.CurrentComp
-		comp.SetData("prismstates", buf + "_..._")
-		# prismstates = self.getFusionStatesNode()
-		# prismstates.Comments = buf + "_..._"
-
+		if self.sm_checkCorrectComp(comp):
+			comp.SetData("prismstates", buf + "_..._")
+	
 	@err_catcher(name=__name__)
 	def sm_saveImports(self, origin, importPaths):
 		comp = self.fusion.CurrentComp
-		prismdata = comp.GetData("prismstates")
-		prismdata += importPaths.replace("\\\\", "\\")
-		comp.SetData("prismstates", prismdata)
-		# prismstates = self.getFusionStatesNode()
-		# prismstates.Comments[0] += importPaths.replace("\\\\", "\\")
+		if self.sm_checkCorrectComp(comp):
+			prismdata = comp.GetData("prismstates")
+			prismdata += importPaths.replace("\\\\", "\\")
+			comp.SetData("prismstates", prismdata)
 
 	@err_catcher(name=__name__)
 	def sm_readStates(self, origin):
 		comp = self.fusion.CurrentComp
-		prismdata = comp.GetData("prismstates")
-		return prismdata.split("_..._")[0]
-		# prismstates = self.getFusionStatesNode()
-		# return prismstates.Comments[0].split("_..._")[0]
+		if self.sm_checkCorrectComp(comp):
+			prismdata = comp.GetData("prismstates")
+			return prismdata.split("_..._")[0]
 
 	@err_catcher(name=__name__)
 	def sm_deleteStates(self, origin):
 		comp = self.fusion.CurrentComp
-		comp.SetData("prismstates","")
-		# prismstates = self.getFusionStatesNode()
-		# prismstates.Comments = ""
+		if self.sm_checkCorrectComp(comp):
+			comp.SetData("prismstates","")
 
 	@err_catcher(name=__name__)
 	def getImportPaths(self, origin):
 		comp = self.fusion.CurrentComp
-		prismdata = comp.GetData("prismstates")
-		return prismdata.split("_..._")[1]
-		# prismstates = self.getFusionStatesNode()
-		# return prismstates.Comments[0].split("_..._")[1]
+		if self.sm_checkCorrectComp(comp):
+			prismdata = comp.GetData("prismstates")
+			return prismdata.split("_..._")[1]
 
 	################################################
 	#                                              #
@@ -1888,9 +1900,11 @@ class Prism_Fusion_Functions(object):
 		for state in removestates:
 			if state in sm.stateTypes.keys():
 				del sm.stateTypes[state]
-
-		#Set State Manager Data on first open.
+		
 		comp = self.fusion.CurrentComp
+		#Set the comp used when sm was oppened for reference when saving states.
+		self.comp = comp		
+		#Set State Manager Data on first open.
 		if comp.GetData("prismstates") == None:
 			self.setDefaultState()
 
