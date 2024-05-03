@@ -1490,27 +1490,47 @@ class Prism_Fusion_Functions(object):
 		positionednodes = []
 		sceneNode = None
 		
+		# We are going to collect the existing nodes and check if there is a merge3D or transform3D node that represents the entry of the scene.
 		for o in origin.nodes:
+			hasmerge = False
 			node = comp.FindTool(o["name"])
 			if node:
 				# Store Scene Node Connections
-				if node.GetAttrs("TOOLS_RegID") == "Merge3D":
-					sceneNode = node
-					connectedinputs = node.output.GetConnectedInputs()
-					if len(connectedinputs)>0:
-						for v in connectedinputs.values():
-							connectedNode = {"node":v.GetTool().Name,"input":v.Name}
-							outputnodes.append(connectedNode)
+				nodeID  = node.GetAttrs("TOOLS_RegID")
+				ismerge = nodeID == "Merge3D"
+				# We try to account for Transform3D nodes that are not standarly Named.
+				istrans3D = nodeID == "Transform3D" and "Transform3D" in node.Name
+				# If there is no merge there should be a transform3D but if there is merge transform3D is out.
+				if ismerge or istrans3D:
+					if ismerge:
+						hasmerge = True
+					if ismerge or not hasmerge:
+						outputnodes = [] # clean this variable in case there was an unaccounted node
+						sceneNode = node
+						connectedinputs = node.output.GetConnectedInputs()
+						if len(connectedinputs)>0:
+							for v in connectedinputs.values():
+								connectedNode = {"node":v.GetTool().Name,"input":v.Name}
+								outputnodes.append(connectedNode)
 				nodenames.append(node.Name)
 				nodes.append(node)
 		for o in newnodes:
 			newnode = comp.FindTool(o)
 			# Reconnect the scene node
-			if newnode.GetAttrs("TOOLS_RegID") == "Merge3D":
-				if len(outputnodes) > 0:
-					for outn in outputnodes:
-						tool = comp.FindTool(outn["node"])
-						tool.ConnectInput(outn["input"], newnode)
+			if sceneNode:
+				nodeID = newnode.GetAttrs("TOOLS_RegID")
+				sceneNID = sceneNode.GetAttrs("TOOLS_RegID")
+				if nodeID == sceneNID:
+
+					# We try to account for Transform3D nodes that are not standarly Named.
+					proceed = True
+					if nodeID == "Transform3D" and not "Transform3D" in newnode.Name:
+						proceed = False
+					
+					if proceed and len(outputnodes) > 0:
+						for outn in outputnodes:
+							tool = comp.FindTool(outn["node"])
+							tool.ConnectInput(outn["input"], newnode)
 			# Match old to new
 			oldnodename = self.apllyProductSufix(o, origin)
 			oldnode = comp.FindTool(oldnodename)
@@ -1534,24 +1554,25 @@ class Prism_Fusion_Functions(object):
 								# print("input: ", inputName, " -> ctool: ", connectedtool.Name, " NewNode: ", newnode.Name)
 								newnode.ConnectInput(inputName, connectedtool)
 				# Reconnect the 3D Scene.
-				if oldnode.GetAttrs("TOOLS_RegID") == "Merge3D":
-					mergednodes = []
-					sceneinputs = [input for input in oldnode.GetInputList().values() if "SceneInput" in input.Name]
-					newsceneinputs = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
-					for input in sceneinputs:
-						connectedOutput = input.GetConnectedOutput()
-						if connectedOutput:
-							connectedtool = connectedOutput.GetTool()
-							if not connectedtool.Name in nodenames:
-								mergednodes.append(connectedtool)
-					if newnode.GetAttrs("TOOLS_RegID") == "Merge3D" and len(mergednodes) > 0:
-						newsceneinputs = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
-						for mergednode in mergednodes:
-							for input in newsceneinputs:
+				if sceneNode:
+					if sceneNode.GetAttrs("TOOLS_RegID") == "Merge3D":
+						if oldnode.GetAttrs("TOOLS_RegID") == "Merge3D":
+							mergednodes = []
+							sceneinputs = [input for input in oldnode.GetInputList().values() if "SceneInput" in input.Name]
+							# newsceneinputs = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
+							for input in sceneinputs:
 								connectedOutput = input.GetConnectedOutput()
-								if not connectedOutput:
-									newnode.ConnectInput(input.Name, mergednode)
-
+								if connectedOutput:
+									connectedtool = connectedOutput.GetTool()
+									if not connectedtool.Name in nodenames:
+										mergednodes.append(connectedtool)
+							if newnode.GetAttrs("TOOLS_RegID") == "Merge3D" and len(mergednodes) > 0:
+								newsceneinputs = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
+								for mergednode in mergednodes:
+									for input in newsceneinputs:
+										connectedOutput = input.GetConnectedOutput()
+										if not connectedOutput:
+											newnode.ConnectInput(input.Name, mergednode)
 				# Match position.
 				self.matchNodePos(newnode, oldnode)
 				positionednodes.append(newnode.Name)
