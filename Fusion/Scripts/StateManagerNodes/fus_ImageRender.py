@@ -58,7 +58,7 @@ class ImageRenderClass(object):
 		self.customContext = None
 		self.allowCustomContext = False
 		self.cb_context.addItems(["From scenefile", "Custom"])
-  
+
 		
 		self.treeWidget = self.stateManager.tw_export
 		self.itemNames = self.getItemNames()
@@ -67,7 +67,7 @@ class ImageRenderClass(object):
 		self.cleanOutputdir = True
 
 		self.e_name.setText(state.text(0) + " - {identifier}")
-  
+
 		self.rangeTypes = [
 			"Scene",
 			"Shot",
@@ -96,7 +96,7 @@ class ImageRenderClass(object):
 
 		self.l_name.setVisible(False)
 		self.e_name.setVisible(False)
-		# self.gb_submit.setChecked(False)
+		self.gb_submit.setChecked(False)
 		self.f_renderLayer.setVisible(False)
 
 		getattr(self.core.appPlugin, "sm_render_startup", lambda x: None)(self)
@@ -134,12 +134,12 @@ class ImageRenderClass(object):
 		self.setTaskWarn(True)
 		self.nameChanged(state.text(0))
 
-		# self.cb_manager.addItems([p.pluginName for p in self.core.plugins.getRenderfarmPlugins()])
+		self.cb_manager.addItems([p.pluginName for p in self.core.plugins.getRenderfarmPlugins()])
 		self.core.callback("onStateStartup", self)
-		# if self.cb_manager.count() == 0:
-		# 	self.gb_submit.setVisible(False)
+		if self.cb_manager.count() == 0:
+			self.gb_submit.setVisible(False)
 
-		# self.managerChanged(True)
+		self.managerChanged(True)
 		
  
 		if stateData is not None:
@@ -234,37 +234,37 @@ class ImageRenderClass(object):
 			idx = self.cb_format.findText(data["outputFormat"])
 			if idx != -1:
 				self.cb_format.setCurrentIndex(idx)
-		# if "submitrender" in data:
-		# 	self.gb_submit.setChecked(eval(data["submitrender"]))
-		# if "rjmanager" in data:
-		# 	idx = self.cb_manager.findText(data["rjmanager"])
-		# 	if idx != -1:
-		# 		self.cb_manager.setCurrentIndex(idx)
-		# 	self.managerChanged(True)
-		# if "rjprio" in data:
-		# 	self.sp_rjPrio.setValue(int(data["rjprio"]))
-		# if "rjframespertask" in data:
-		# 	self.sp_rjFramesPerTask.setValue(int(data["rjframespertask"]))
-		# if "rjtimeout" in data:
-		# 	self.sp_rjTimeout.setValue(int(data["rjtimeout"]))
-		# if "rjsuspended" in data:
-		# 	self.chb_rjSuspended.setChecked(eval(data["rjsuspended"]))
-		# if "osdependencies" in data:
-		# 	self.chb_osDependencies.setChecked(eval(data["osdependencies"]))
-		# if "osupload" in data:
-		# 	self.chb_osUpload.setChecked(eval(data["osupload"]))
-		# if "ospassets" in data:
-		# 	self.chb_osPAssets.setChecked(eval(data["ospassets"]))
-		# if "osslaves" in data:
-		# 	self.e_osSlaves.setText(data["osslaves"])
-		# if "dlconcurrent" in data:
-		# 	self.sp_dlConcurrentTasks.setValue(int(data["dlconcurrent"]))
-		# if "dlgpupt" in data:
-		# 	self.sp_dlGPUpt.setValue(int(data["dlgpupt"]))
-		# 	self.gpuPtChanged()
-		# if "dlgpudevices" in data:
-		# 	self.le_dlGPUdevices.setText(data["dlgpudevices"])
-		# 	self.gpuDevicesChanged()
+		if "submitrender" in data:
+			self.gb_submit.setChecked(eval(data["submitrender"]))
+		if "rjmanager" in data:
+			idx = self.cb_manager.findText(data["rjmanager"])
+			if idx != -1:
+				self.cb_manager.setCurrentIndex(idx)
+			self.managerChanged(True)
+		if "rjprio" in data:
+			self.sp_rjPrio.setValue(int(data["rjprio"]))
+		if "rjframespertask" in data:
+			self.sp_rjFramesPerTask.setValue(int(data["rjframespertask"]))
+		if "rjtimeout" in data:
+			self.sp_rjTimeout.setValue(int(data["rjtimeout"]))
+		if "rjsuspended" in data:
+			self.chb_rjSuspended.setChecked(eval(data["rjsuspended"]))
+		if "osdependencies" in data:
+			self.chb_osDependencies.setChecked(eval(data["osdependencies"]))
+		if "osupload" in data:
+			self.chb_osUpload.setChecked(eval(data["osupload"]))
+		if "ospassets" in data:
+			self.chb_osPAssets.setChecked(eval(data["ospassets"]))
+		if "osslaves" in data:
+			self.e_osSlaves.setText(data["osslaves"])
+		if "dlconcurrent" in data:
+			self.sp_dlConcurrentTasks.setValue(int(data["dlconcurrent"]))
+		if "dlgpupt" in data:
+			self.sp_dlGPUpt.setValue(int(data["dlgpupt"]))
+			self.gpuPtChanged()
+		if "dlgpudevices" in data:
+			self.le_dlGPUdevices.setText(data["dlgpudevices"])
+			self.gpuDevicesChanged()
 		# if "enablepasses" in data:
 		# 	self.gb_passes.setChecked(eval(data["enablepasses"]))
 		if "lastexportpath" in data:
@@ -322,26 +322,26 @@ class ImageRenderClass(object):
 		self.cb_outPath.activated[str].connect(self.stateManager.saveStatesToScene)
 		self.cb_renderLayer.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_format.activated.connect(self.stateManager.saveStatesToScene)
-		# self.gb_submit.toggled.connect(self.rjToggled)
-		# self.cb_manager.activated.connect(self.managerChanged)
-		# self.sp_rjPrio.editingFinished.connect(self.stateManager.saveStatesToScene)
-		# self.sp_rjFramesPerTask.editingFinished.connect(
-		# 	self.stateManager.saveStatesToScene
-		# )
-		# self.sp_rjTimeout.editingFinished.connect(self.stateManager.saveStatesToScene)
-		# self.chb_rjSuspended.stateChanged.connect(self.stateManager.saveStatesToScene)
-		# self.chb_osDependencies.stateChanged.connect(
-		# 	self.stateManager.saveStatesToScene
-		# )
-		# self.chb_osUpload.stateChanged.connect(self.stateManager.saveStatesToScene)
-		# self.chb_osPAssets.stateChanged.connect(self.stateManager.saveStatesToScene)
-		# self.e_osSlaves.editingFinished.connect(self.stateManager.saveStatesToScene)
-		# self.b_osSlaves.clicked.connect(self.openSlaves)
-		# self.sp_dlConcurrentTasks.editingFinished.connect(
-		# 	self.stateManager.saveStatesToScene
-		# )
-		# self.sp_dlGPUpt.editingFinished.connect(self.gpuPtChanged)
-		# self.le_dlGPUdevices.editingFinished.connect(self.gpuDevicesChanged)
+		self.gb_submit.toggled.connect(self.rjToggled)
+		self.cb_manager.activated.connect(self.managerChanged)
+		self.sp_rjPrio.editingFinished.connect(self.stateManager.saveStatesToScene)
+		self.sp_rjFramesPerTask.editingFinished.connect(
+			self.stateManager.saveStatesToScene
+		)
+		self.sp_rjTimeout.editingFinished.connect(self.stateManager.saveStatesToScene)
+		self.chb_rjSuspended.stateChanged.connect(self.stateManager.saveStatesToScene)
+		self.chb_osDependencies.stateChanged.connect(
+			self.stateManager.saveStatesToScene
+		)
+		self.chb_osUpload.stateChanged.connect(self.stateManager.saveStatesToScene)
+		self.chb_osPAssets.stateChanged.connect(self.stateManager.saveStatesToScene)
+		self.e_osSlaves.editingFinished.connect(self.stateManager.saveStatesToScene)
+		self.b_osSlaves.clicked.connect(self.openSlaves)
+		self.sp_dlConcurrentTasks.editingFinished.connect(
+			self.stateManager.saveStatesToScene
+		)
+		self.sp_dlGPUpt.editingFinished.connect(self.gpuPtChanged)
+		self.le_dlGPUdevices.editingFinished.connect(self.gpuDevicesChanged)
 		# self.gb_passes.toggled.connect(self.stateManager.saveStatesToScene)
 		# self.b_addPasses.clicked.connect(self.showPasses)
 		# self.lw_passes.customContextMenuRequested.connect(self.rclickPasses)
@@ -628,13 +628,13 @@ class ImageRenderClass(object):
 		self.setTaskname(identifier)
 		self.nameChanged(identifier)
 		self.stateManager.saveStatesToScene()
-     
-     
+
+
 	#################################
 	#								#	
 	####### RENDER NODE STUFF #######
 	#								#
- 	#################################
+	#################################
 	# @err_catcher(name=__name__)
 	# def onTreeItemSelectionChanged(self):
 		# 	self.setTreeItemColor("selected")
@@ -673,7 +673,7 @@ class ImageRenderClass(object):
 
 		if not self.chb_passthrough.isChecked() or self.b_setRendernode.text() == "SetRenderNode":
 			background_color = QColor("#FF0000")
-       
+
 		widgetItem.setData(0, 1, background_color)
 
 
@@ -686,7 +686,7 @@ class ImageRenderClass(object):
 
 		self.setTreeItemColor()
 		self.stateManager.saveStatesToScene()
- 
+
 	@err_catcher(name=__name__)
 	def setupPassThrough(self, isChecked):
 		self.chb_passthrough.setChecked(isChecked)
@@ -928,18 +928,18 @@ class ImageRenderClass(object):
 
 		return context
 
-	# @err_catcher(name=__name__)
-	# def refreshSubmitUi(self):
-	# 	if not self.gb_submit.isHidden():
-	# 		if not self.gb_submit.isCheckable():
-	# 			return
+	@err_catcher(name=__name__)
+	def refreshSubmitUi(self):
+		if not self.gb_submit.isHidden():
+			if not self.gb_submit.isCheckable():
+				return
 
-	# 		submitChecked = self.gb_submit.isChecked()
-	# 		for idx in reversed(range(self.gb_submit.layout().count())):
-	# 			self.gb_submit.layout().itemAt(idx).widget().setHidden(not submitChecked)
+			submitChecked = self.gb_submit.isChecked()
+			for idx in reversed(range(self.gb_submit.layout().count())):
+				self.gb_submit.layout().itemAt(idx).widget().setHidden(not submitChecked)
 
-	# 		if submitChecked:
-	# 			self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText()).sm_render_updateUI(self)
+			if submitChecked:
+				self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText()).sm_render_updateUI(self)
 
 	@err_catcher(name=__name__)
 	def updateRange(self):
@@ -1003,45 +1003,45 @@ class ImageRenderClass(object):
 
 		return startFrame, endFrame
 
-	# @err_catcher(name=__name__)
-	# def openSlaves(self):
-	# 	if eval(os.getenv("PRISM_DEBUG", "False")):
-	# 		try:
-	# 			del sys.modules["SlaveAssignment"]
-	# 		except:
-	# 			pass
+	@err_catcher(name=__name__)
+	def openSlaves(self):
+		if eval(os.getenv("PRISM_DEBUG", "False")):
+			try:
+				del sys.modules["SlaveAssignment"]
+			except:
+				pass
 
-	# 	import SlaveAssignment
+		import SlaveAssignment
 
-	# 	self.sa = SlaveAssignment.SlaveAssignment(
-	# 		core=self.core, curSlaves=self.e_osSlaves.text()
-	# 	)
-	# 	result = self.sa.exec_()
+		self.sa = SlaveAssignment.SlaveAssignment(
+			core=self.core, curSlaves=self.e_osSlaves.text()
+		)
+		result = self.sa.exec_()
 
-	# 	if result == 1:
-	# 		selSlaves = ""
-	# 		if self.sa.rb_exclude.isChecked():
-	# 			selSlaves = "exclude "
-	# 		if self.sa.rb_all.isChecked():
-	# 			selSlaves += "All"
-	# 		elif self.sa.rb_group.isChecked():
-	# 			selSlaves += "groups: "
-	# 			for i in self.sa.activeGroups:
-	# 				selSlaves += i + ", "
+		if result == 1:
+			selSlaves = ""
+			if self.sa.rb_exclude.isChecked():
+				selSlaves = "exclude "
+			if self.sa.rb_all.isChecked():
+				selSlaves += "All"
+			elif self.sa.rb_group.isChecked():
+				selSlaves += "groups: "
+				for i in self.sa.activeGroups:
+					selSlaves += i + ", "
 
-	# 			if selSlaves.endswith(", "):
-	# 				selSlaves = selSlaves[:-2]
+				if selSlaves.endswith(", "):
+					selSlaves = selSlaves[:-2]
 
-	# 		elif self.sa.rb_custom.isChecked():
-	# 			slavesList = [x.text() for x in self.sa.lw_slaves.selectedItems()]
-	# 			for i in slavesList:
-	# 				selSlaves += i + ", "
+			elif self.sa.rb_custom.isChecked():
+				slavesList = [x.text() for x in self.sa.lw_slaves.selectedItems()]
+				for i in slavesList:
+					selSlaves += i + ", "
 
-	# 			if selSlaves.endswith(", "):
-	# 				selSlaves = selSlaves[:-2]
+				if selSlaves.endswith(", "):
+					selSlaves = selSlaves[:-2]
 
-	# 		self.e_osSlaves.setText(selSlaves)
-	# 		self.stateManager.saveStatesToScene()
+			self.e_osSlaves.setText(selSlaves)
+			self.stateManager.saveStatesToScene()
 
 	@err_catcher(name=__name__)
 	def gpuPtChanged(self):
@@ -1126,13 +1126,13 @@ class ImageRenderClass(object):
 		self.refreshSubmitUi()
 		self.stateManager.saveStatesToScene()
 
-	# @err_catcher(name=__name__)
-	# def managerChanged(self, text=None):
-	# 	plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
-	# 	if plugin:
-	# 		plugin.sm_render_managerChanged(self)
+	@err_catcher(name=__name__)
+	def managerChanged(self, text=None):
+		plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
+		if plugin:
+			plugin.sm_render_managerChanged(self)
 
-	# 	self.stateManager.saveStatesToScene()
+		self.stateManager.saveStatesToScene()
 
 	@err_catcher(name=__name__)
 	def getContextStrFromEntity(self, entity):
@@ -1175,9 +1175,9 @@ class ImageRenderClass(object):
 		if frames is None or frames == []:
 			warnings.append(["Framerange is invalid.", "", 3])
 
-		# if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
-		# 	plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
-		# 	warnings += plugin.sm_render_preExecute(self)
+		if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
+			plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
+			warnings += plugin.sm_render_preExecute(self)
 
 		warnings += self.core.appPlugin.sm_render_preExecute(self)
 
@@ -1332,31 +1332,31 @@ class ImageRenderClass(object):
 				os.makedirs(os.path.dirname(rSettings["outputName"]))
 
 			self.core.saveScene(versionUp=False, prismReq=False)
-			#If Render on the farm is selected
-			# if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
-			# 	handleMaster = "media" if self.isUsingMasterVersion() else False
-			# 	plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
-			# 	if hasattr(self, "chb_redshift") and self.chb_redshift.isChecked() and not self.w_redshift.isHidden():
-			# 		sceneDescription = "redshift"
-			# 	else:
-			# 		sceneDescription = None
+			# If Render on the farm is selected
+			if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
+				handleMaster = "media" if self.isUsingMasterVersion() else False
+				plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
+				if hasattr(self, "chb_redshift") and self.chb_redshift.isChecked() and not self.w_redshift.isHidden():
+					sceneDescription = "redshift"
+				else:
+					sceneDescription = None
 
-			# 	result = plugin.sm_render_submitJob(
-			# 		self,
-			# 		rSettings["outputName"],
-			# 		parent,
-			# 		handleMaster=handleMaster,
-			# 		details=details,
-			# 		sceneDescription=sceneDescription
-			# 	)
-			# 	updateMaster = False
-			# else:
-			# 	result = self.core.appPlugin.sm_render_startLocalRender(
-			# 		self, rSettings["outputName"], rSettings
-			# 	)
-			result = self.core.appPlugin.sm_render_startLocalRender(
-				self, outOnly, rSettings["outputName"], rSettings
-			)
+				result = plugin.sm_render_submitJob(
+					self,
+					rSettings["outputName"],
+					parent,
+					handleMaster=handleMaster,
+					details=details,
+					sceneDescription=sceneDescription
+				)
+				updateMaster = False
+			else:
+				result = self.core.appPlugin.sm_render_startLocalRender(
+					self, outOnly, rSettings["outputName"], rSettings
+				)
+			# result = self.core.appPlugin.sm_render_startLocalRender(
+			# 	self, outOnly, rSettings["outputName"], rSettings
+			# )
 		else:
 			rSettings = self.LastRSettings
 			result = self.core.appPlugin.sm_render_startLocalRender(
@@ -1466,19 +1466,19 @@ class ImageRenderClass(object):
 			"curoutputpath": self.cb_outPath.currentText(),
 			"renderlayer": str(self.cb_renderLayer.currentText()),
 			"outputFormat": str(self.cb_format.currentText()),
-			#"submitrender": str(self.gb_submit.isChecked()),
-			# "rjmanager": str(self.cb_manager.currentText()),
-			# "rjprio": self.sp_rjPrio.value(),
-			# "rjframespertask": self.sp_rjFramesPerTask.value(),
-			# "rjtimeout": self.sp_rjTimeout.value(),
-			# "rjsuspended": str(self.chb_rjSuspended.isChecked()),
-			# "osdependencies": str(self.chb_osDependencies.isChecked()),
-			# "osupload": str(self.chb_osUpload.isChecked()),
-			# "ospassets": str(self.chb_osPAssets.isChecked()),
-			# "osslaves": self.e_osSlaves.text(),
-			# "dlconcurrent": self.sp_dlConcurrentTasks.value(),
-			# "dlgpupt": self.sp_dlGPUpt.value(),
-			# "dlgpudevices": self.le_dlGPUdevices.text(),
+			"submitrender": str(self.gb_submit.isChecked()),
+			"rjmanager": str(self.cb_manager.currentText()),
+			"rjprio": self.sp_rjPrio.value(),
+			"rjframespertask": self.sp_rjFramesPerTask.value(),
+			"rjtimeout": self.sp_rjTimeout.value(),
+			"rjsuspended": str(self.chb_rjSuspended.isChecked()),
+			"osdependencies": str(self.chb_osDependencies.isChecked()),
+			"osupload": str(self.chb_osUpload.isChecked()),
+			"ospassets": str(self.chb_osPAssets.isChecked()),
+			"osslaves": self.e_osSlaves.text(),
+			"dlconcurrent": self.sp_dlConcurrentTasks.value(),
+			"dlgpupt": self.sp_dlGPUpt.value(),
+			"dlgpudevices": self.le_dlGPUdevices.text(),
 			"lastexportpath": self.l_pathLast.text().replace("\\", "/"),
 			# "enablepasses": str(self.gb_passes.isChecked()),
 			"stateenabled": str(self.state.checkState(0)),

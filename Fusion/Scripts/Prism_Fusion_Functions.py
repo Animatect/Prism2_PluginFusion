@@ -38,6 +38,7 @@ import json
 import platform
 import time
 import re
+import math
 import pygetwindow as gw
 import BlackmagicFusion as bmd
 
@@ -607,6 +608,8 @@ class Prism_Fusion_Functions(object):
 
 		dlParams["jobInfos"]["Plugin"] = "Fusion"
 		dlParams["jobInfos"]["Comment"] = "Prism-Submission-Fusion_ImageRender"
+		dlParams["pluginInfos"]["Version"] = str(math.floor(self.getAppVersion(origin)))
+
 		dlParams["pluginInfos"]["OutputFile"] = dlParams["jobInfos"]["OutputFilename0"]
 
 	@err_catcher(name=__name__)
@@ -636,22 +639,6 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def getProgramVersion(self, origin):
 		return "1.0"
-
-	@err_catcher(name=__name__)
-	def sm_render_getDeadlineSubmissionParams(self, origin, dlParams, jobOutputFile):
-		dlParams["Build"] = dlParams["build"]
-		dlParams["OutputFilePath"] = os.path.split(jobOutputFile)[0]
-		dlParams["OutputFilePrefix"] = os.path.splitext(
-			os.path.basename(jobOutputFile)
-		)[0]
-		dlParams["Renderer"] = self.getCurrentRenderer(origin)
-
-		if origin.chb_resOverride.isChecked() and "resolution" in dlParams:
-			resString = "Image"
-			dlParams[resString + "Width"] = str(origin.sp_resWidth.value())
-			dlParams[resString + "Height"] = str(origin.sp_resHeight.value())
-
-		return dlParams
 
 	@err_catcher(name=__name__)
 	def deleteNodes(self, origin, handles, num=0):
@@ -1752,7 +1739,7 @@ class Prism_Fusion_Functions(object):
 			return True
 		else:
 			self.core.popup("""the state manager was originally oppened in another comp\n 
-			  it will now close and open again to avoid corrupting this comp's state data.""")
+			it will now close and open again to avoid corrupting this comp's state data.""")
 			self.core.closeSM(restart=True)
 			return False
 
