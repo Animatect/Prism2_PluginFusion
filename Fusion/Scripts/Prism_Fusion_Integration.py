@@ -69,7 +69,7 @@ class Prism_Fusion_Integration(object):
 		self.configs = [
 			"PrismMenu.fu", 
 			"PrismDevMenu.fu",
-			"PrismEvents.fu",
+			# "PrismEvents.fu",
 		]
 		
 		if platform.system() == "Windows":
