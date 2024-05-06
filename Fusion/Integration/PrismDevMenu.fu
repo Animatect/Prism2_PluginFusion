@@ -1,0 +1,35 @@
+{
+    Action
+    {
+        ID = "1_ExecuteCode",
+        Category = "Prism",
+        Name = "Execute Code",
+
+        Targets =
+        {
+            Composition =
+            {
+                Execute = _Lua [=[
+                    local scriptPath = app:MapPath("Scripts:Prism/pdmExecuteCode.py")
+                    if bmd.fileexists(scriptPath) == false then
+                        print("[Prism Error] Can't run file: " .. scriptPath)
+                    else
+                        target:RunScript(scriptPath)
+                    end
+                ]=],
+            },
+        },
+    },
+    Menus
+    {
+        Target = "ChildFrame",
+
+        Before "Help"
+        {
+            Sub "PrismDev"
+            {
+                "1_ExecuteCode{}",
+            },
+        },
+    },
+}

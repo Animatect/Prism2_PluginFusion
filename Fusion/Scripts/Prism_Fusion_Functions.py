@@ -1854,28 +1854,33 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def onProjectBrowserShow(self, origin):
-		self.popup.close()
+		try:
+			self.popup.close()
+		except:
+			pass
 
 	def onProjectBrowserClose(self, origin):
 		self.pbUI = None
 
 	@err_catcher(name=__name__)
-	def onProjectBrowserCalled(self, popup):
+	def onProjectBrowserCalled(self, popup=None):
 		#Feedback in case it takes time to open
 		try:
 			self.popup.close()
 		except:
 			pass
-		self.popup = popup
+		if popup:
+			self.popup = popup
 
 	@err_catcher(name=__name__)
-	def onStateManagerCalled(self, popup):		
+	def onStateManagerCalled(self, popup=None):		
 		#Feedback in case it takes time to open
 		try:
 			self.popup.close()
 		except:
 			pass
-		self.popup = popup
+		if popup:
+			self.popup = popup
 		
 	@err_catcher(name=__name__)
 	def onStateManagerOpen(self, origin):
@@ -1902,7 +1907,10 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):
 		self.smUI = origin
-		self.popup.close()
+		try:
+			self.popup.close()
+		except:
+			pass
 
 	@err_catcher(name=__name__)
 	def onStateManagerClose(self, origin):

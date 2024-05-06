@@ -1218,6 +1218,7 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def executeState(self, parent, useVersion="next"):
+		# print("parent: ",parent, "\n\n\n")
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
 		outOnly = self.chb_outOnly.isChecked()
@@ -1350,6 +1351,7 @@ class ImageRenderClass(object):
 					sceneDescription=sceneDescription
 				)
 				updateMaster = False
+			# Render Locally
 			else:
 				result = self.core.appPlugin.sm_render_startLocalRender(
 					self, outOnly, rSettings["outputName"], rSettings

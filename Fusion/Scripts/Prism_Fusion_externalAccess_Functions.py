@@ -75,43 +75,50 @@ class Prism_Fusion_externalAccess_Functions(object):
 
 	@err_catcher(name=__name__)
 	def userSettings_loadUI(self, origin, tab):
-		origin.gb_bldAutoSave = QGroupBox("Auto save renderings")
+		origin.gb_bldInstallDevTools = QGroupBox("Install Prism Developer Menu With Plugin")
 		lo_bldAutoSave = QVBoxLayout()
-		origin.gb_bldAutoSave.setLayout(lo_bldAutoSave)
-		origin.gb_bldAutoSave.setCheckable(True)
-		origin.gb_bldAutoSave.setChecked(False)
+		origin.gb_bldInstallDevTools.setLayout(lo_bldAutoSave)
+		origin.gb_bldInstallDevTools.setCheckable(True)
+		origin.gb_bldInstallDevTools.setChecked(False)
 
-		origin.chb_bldRperProject = QCheckBox("use path only for current project")
+		tab.layout().addWidget(origin.gb_bldInstallDevTools)
+		# origin.gb_bldAutoSave = QGroupBox("Auto save renderings")
+		# lo_bldAutoSave = QVBoxLayout()
+		# origin.gb_bldAutoSave.setLayout(lo_bldAutoSave)
+		# origin.gb_bldAutoSave.setCheckable(True)
+		# origin.gb_bldAutoSave.setChecked(False)
 
-		w_bldAutoSavePath = QWidget()
-		lo_bldAutoSavePath = QHBoxLayout()
-		origin.le_bldAutoSavePath = QLineEdit()
-		b_bldAutoSavePath = QPushButton("...")
+		# origin.chb_bldRperProject = QCheckBox("use path only for current project")
 
-		lo_bldAutoSavePath.setContentsMargins(0, 0, 0, 0)
-		b_bldAutoSavePath.setMinimumSize(40, 0)
-		b_bldAutoSavePath.setMaximumSize(40, 1000)
-		b_bldAutoSavePath.setFocusPolicy(Qt.NoFocus)
-		b_bldAutoSavePath.setContextMenuPolicy(Qt.CustomContextMenu)
-		w_bldAutoSavePath.setLayout(lo_bldAutoSavePath)
-		lo_bldAutoSavePath.addWidget(origin.le_bldAutoSavePath)
-		lo_bldAutoSavePath.addWidget(b_bldAutoSavePath)
+		# w_bldAutoSavePath = QWidget()
+		# lo_bldAutoSavePath = QHBoxLayout()
+		# origin.le_bldAutoSavePath = QLineEdit()
+		# b_bldAutoSavePath = QPushButton("...")
 
-		lo_bldAutoSave.addWidget(origin.chb_bldRperProject)
-		lo_bldAutoSave.addWidget(w_bldAutoSavePath)
-		tab.layout().addWidget(origin.gb_bldAutoSave)
+		# lo_bldAutoSavePath.setContentsMargins(0, 0, 0, 0)
+		# b_bldAutoSavePath.setMinimumSize(40, 0)
+		# b_bldAutoSavePath.setMaximumSize(40, 1000)
+		# b_bldAutoSavePath.setFocusPolicy(Qt.NoFocus)
+		# b_bldAutoSavePath.setContextMenuPolicy(Qt.CustomContextMenu)
+		# w_bldAutoSavePath.setLayout(lo_bldAutoSavePath)
+		# lo_bldAutoSavePath.addWidget(origin.le_bldAutoSavePath)
+		# lo_bldAutoSavePath.addWidget(b_bldAutoSavePath)
 
-		if hasattr(self.core, "projectPath") and self.core.projectPath is not None:
-			origin.le_bldAutoSavePath.setText(self.core.projectPath)
+		# lo_bldAutoSave.addWidget(origin.chb_bldRperProject)
+		# lo_bldAutoSave.addWidget(w_bldAutoSavePath)
+		# tab.layout().addWidget(origin.gb_bldAutoSave)
 
-		b_bldAutoSavePath.clicked.connect(
-			lambda: origin.browse(
-				windowTitle="Select render save path", uiEdit=origin.le_bldAutoSavePath
-			)
-		)
-		b_bldAutoSavePath.customContextMenuRequested.connect(
-			lambda: self.core.openFolder(origin.le_bldAutoSavePath.text())
-		)
+		# if hasattr(self.core, "projectPath") and self.core.projectPath is not None:
+		# 	origin.le_bldAutoSavePath.setText(self.core.projectPath)
+
+		# b_bldAutoSavePath.clicked.connect(
+		# 	lambda: origin.browse(
+		# 		windowTitle="Select render save path", uiEdit=origin.le_bldAutoSavePath
+		# 	)
+		# )
+		# b_bldAutoSavePath.customContextMenuRequested.connect(
+		# 	lambda: self.core.openFolder(origin.le_bldAutoSavePath.text())
+		# )
 	
 	@err_catcher(name=__name__)
 	def userSettings_saveSettings(self, origin, settings):

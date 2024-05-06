@@ -155,6 +155,7 @@ class prismStateHolderClass(object):
 		pcore = PrismInit.prismInit()
 		pcore.setActiveStyleSheet("Fusion")
 		popup.close()
+		self.close_all_windows()
 		# Assign
 		self.pcore = pcore
 
@@ -168,3 +169,10 @@ class prismStateHolderClass(object):
 		exec(code_string)
 
 		print("finish")
+
+	def close_all_windows(self):
+		app = QtWidgets.QApplication.instance()
+		if app is not None:
+			for widget in app.topLevelWidgets():
+				if isinstance(widget, QtWidgets.QWidget):
+					widget.close()

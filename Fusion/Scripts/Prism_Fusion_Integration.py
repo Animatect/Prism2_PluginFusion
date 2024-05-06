@@ -64,7 +64,13 @@ class Prism_Fusion_Integration(object):
 				"ResetPrism.py",
 				"HolderClass.py",
 				"CallButtons.py",
+				"pdmExecuteCode.py",
 			]
+		self.configs = [
+			"PrismMenu.fu", 
+			"PrismDevMenu.fu",
+			"PrismEvents.fu",
+		]
 		
 		if platform.system() == "Windows":
 			self.examplePath = os.path.join(
@@ -113,7 +119,7 @@ class Prism_Fusion_Integration(object):
 			addedFiles = []
 
 			# "PrismMenu.fu" add a Prism menu, but leads to freezes
-			for i in ["PrismMenu.fu", "PrismEvents.fu"]:
+			for i in self.configs:
 				origFile = os.path.join(integrationBase, i)
 				targetFile = os.path.join(installPath, "Config", i)
 
@@ -236,17 +242,11 @@ class Prism_Fusion_Integration(object):
 	def removeIntegration(self, installPath):
 		try:
 			pFiles = []
-			pFiles.append(
-				os.path.join(installPath, "Config", "PrismEvents.fu")
-			)
-			pFiles.append(
-				os.path.join(installPath, "Config", "PrismMenu.fu")
-			)
-			# pFiles.append(
-			#     os.path.join(installPath, "Config", "PrismRenderStartEvent.fu")
-			# )
-			pFiles.append(os.path.join(
-			    installPath, "Scripts", "PrismInit.scriptlib"))
+			for i in self.configs:
+				pFiles.append(
+					os.path.join(installPath, "Config", i)
+				)
+			pFiles.append(os.path.join(installPath, "Scripts", "PrismInit.scriptlib"))
 			for file in self.scripts:
 				pFiles.append(
 					os.path.join(
