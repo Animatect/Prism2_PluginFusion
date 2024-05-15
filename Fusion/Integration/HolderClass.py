@@ -155,10 +155,22 @@ class prismStateHolderClass(object):
 		pcore = PrismInit.prismInit()
 		pcore.setActiveStyleSheet("Fusion")
 		popup.close()
-		self.close_all_windows()
+		self.checkForSanityMessage(qapp)
 		# Assign
 		self.pcore = pcore
 
+	# Make a test to see if windows are open.
+	def checkForSanityMessage(self,qapp):
+		appexists = False
+		if qapp is not None:
+			for widget in qapp.topLevelWidgets():
+				if isinstance(widget, QtWidgets.QMessageBox):
+					appexists = True
+					# print(widget)
+					# widget.close()
+			if appexists:
+				qapp.exec_()
+	
 	def runCodeInProcess(self):
 		print("Object Exists")
 		fusion = bmd.scriptapp("Fusion")
@@ -170,9 +182,3 @@ class prismStateHolderClass(object):
 
 		print("finish")
 
-	def close_all_windows(self):
-		app = QtWidgets.QApplication.instance()
-		if app is not None:
-			for widget in app.topLevelWidgets():
-				if isinstance(widget, QtWidgets.QWidget):
-					widget.close()

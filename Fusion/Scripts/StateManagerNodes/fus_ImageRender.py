@@ -1183,22 +1183,46 @@ class ImageRenderClass(object):
 
 		return [self.state.text(0), warnings]
 
+	#################################################
 	@err_catcher(name=__name__)
-	def getOutputName(self, useVersion="next"):
-		if self.tasknameRequired and not self.getTaskname():
+	def submitCheckPaths(self):
+		self.core.appPlugin.sm_render_CheckSubmittedPaths()
+
+	@err_catcher(name=__name__)
+	def setFarmedRange(self):
+		print("hay que poner el frame range para la farm")
+
+	@err_catcher(name=__name__)
+	def upSubmittedSaversVersions(self, parent):
+		# Before Submitting, change version of elegible Savers.
+		sm = parent
+		fileName = self.core.getCurrentFileName()
+		context = self.getCurrentContext()
+		for state in sm.states:
+			stateui = state.ui
+			if stateui.className == "ImageRender":
+				if not stateui.b_setRendernode.text() == "SetRenderNode" and stateui.chb_passthrough.isChecked():
+					#Get Output, Update UI and set infoFile.				
+					stateui.executeState(parent=parent, outOnly=True)
+
+	@err_catcher(name=__name__)
+	def getOutputName(self, useVersion="next", stateui = None):
+		if stateui == None:
+			stateui = self
+		if stateui.tasknameRequired and not stateui.getTaskname():
 			return
 
-		task = self.getTaskname()
-		extension = self.cb_format.currentText()
-		context = self.getCurrentContext()
+		task = stateui.getTaskname()
+		extension = stateui.cb_format.currentText()
+		context = stateui.getCurrentContext()
 		framePadding = ""
 
 		if "type" not in context:
 			return
 
-		singleFrame = self.cb_rangeType.currentText() == "Single Frame"
-		location = self.cb_outPath.currentText()
-		outputPathData = self.core.mediaProducts.generateMediaProductPath(
+		singleFrame = stateui.cb_rangeType.currentText() == "Single Frame"
+		location = stateui.cb_outPath.currentText()
+		outputPathData = stateui.core.mediaProducts.generateMediaProductPath(
 			entity=context,
 			task=task,
 			extension=extension,
@@ -1217,11 +1241,11 @@ class ImageRenderClass(object):
 		return outputPathData["path"], outputFolder, hVersion
 
 	@err_catcher(name=__name__)
-	def executeState(self, parent, useVersion="next"):
-		# print("parent: ",parent, "\n\n\n")
+	def executeState(self, parent, useVersion="next", outOnly=False):
+		print("parent: ",parent, "\n\n\n")
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
-		outOnly = self.chb_outOnly.isChecked()
+		outOnly = outOnly or self.chb_outOnly.isChecked()
 		if rangeType != "Expression":
 			startFrame = frames[0]
 			endFrame = frames[1]
@@ -1334,7 +1358,14 @@ class ImageRenderClass(object):
 
 			self.core.saveScene(versionUp=False, prismReq=False)
 			# If Render on the farm is selected
-			if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
+			if not self.gb_submit.isHidden() and self.gb_submit.isChecked() and not outOnly:
+				# get the Frame Range.
+				self.setFarmedRange()
+				# get new versions for all savers.
+				self.upSubmittedSaversVersions(self.stateManager)
+				# check paths and resolve path mappings.
+				self.submitCheckPaths()
+				# 
 				handleMaster = "media" if self.isUsingMasterVersion() else False
 				plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
 				if hasattr(self, "chb_redshift") and self.chb_redshift.isChecked() and not self.w_redshift.isHidden():
@@ -1350,6 +1381,8 @@ class ImageRenderClass(object):
 					details=details,
 					sceneDescription=sceneDescription
 				)
+				
+
 				updateMaster = False
 			# Render Locally
 			else:

@@ -39,6 +39,7 @@ import platform
 import time
 import re
 import math
+import ctypes
 import pygetwindow as gw
 import BlackmagicFusion as bmd
 
@@ -546,6 +547,229 @@ class Prism_Fusion_Functions(object):
 	def sm_render_preSubmit(self, origin, rSettings):
 		pass
 
+
+	###############################
+	#	REPLACE PATHS FOR SUBMIT  #
+	###############################
+	@err_catcher(name=__name__)
+	def getReplacedPaths(self, comp, filepath):
+		pathmaps = comp.GetCompPathMap(False, False)
+		pathexists = False
+		isnetworkpath = False
+		# print("Extracted substring:", filepath)
+		for k in pathmaps.keys():
+			if k in filepath:
+				index = filepath.find(k)
+
+				if index != -1:  # Check if substring exists
+					# Replace "brown" with "red"
+					new_path = filepath[:index] + pathmaps[k] + "/" + filepath[index + len(k):]
+					formatted_path = os.path.normpath(new_path)
+					# Check if the formatted path exists
+					if os.path.exists(formatted_path):
+						pathexists = True
+					# Check if path is local
+					drive_letter, _  = os.path.splitdrive(formatted_path)
+					drive_type = ctypes.windll.kernel32.GetDriveTypeW(drive_letter)
+					isnetworkpath = drive_type == 4 or formatted_path.startswith("\\\\")
+
+					return {"path":formatted_path, "valid":pathexists, "net":isnetworkpath}
+		
+		return {"path":None, "valid":pathexists, "net":isnetworkpath}
+
+	@err_catcher(name=__name__)
+	def replacePathMapsLUTFiles(self, comp):
+		oldcopy = pyperclip.paste()
+		# Input text		
+		all_OCIO_FT = comp.GetToolList(False, "OCIOFileTransform").values()
+		all_FileLUT = comp.GetToolList(False, "FileLUT").values()
+		luttools = list(all_OCIO_FT) + list(all_FileLUT)
+
+		for tool in luttools:
+			comp.Copy(tool)
+			text = pyperclip.paste()
+			# Define regular expression pattern to match the desired substring
+			pattern = r'LUTFile = Input { Value = "(.*?)"'
+
+			# Search for the pattern in the text
+			match = re.search(pattern, text)
+
+			# If a match is found, extract the substring after "Value ="
+			if match:
+				filepath = match.group(1)
+				pathinfo = self.getReplacedPaths(comp, filepath)
+				newpath = pathinfo["path"]
+				if newpath:
+					tool.LUTFile = newpath
+			else:
+				print("Pattern not found in the text.")
+		pyperclip.copy(oldcopy)
+
+	@err_catcher(name=__name__)
+	def replacePathMapsOCIOCS(self, comp):
+		oldcopy = pyperclip.paste()
+		# Input text
+		all_OCIO_CS = comp.GetToolList(False, "OCIOColorSpace").values()
+
+		for tool in all_OCIO_CS:
+			comp.Copy(tool)
+			text = pyperclip.paste()
+			# Define regular expression pattern to match the desired substring
+			pattern = r'OCIOConfig\s*=\s*Input\s*{\s*Value\s*=\s*"([^"]+)"'
+
+			# Search for the pattern in the text
+			match = re.search(pattern, text)
+
+			# If a match is found, extract the substring after "Value ="
+			if match:
+				filepath = match.group(1)
+				pathinfo = self.getReplacedPaths(comp, filepath)
+				newpath = pathinfo["path"]
+				if newpath:
+					tool.OCIOConfig = newpath
+			else:
+				print("Pattern not found in the text.")
+		pyperclip.copy(oldcopy)
+	
+	def replacePathMapsFBX(self, comp):
+		oldcopy = pyperclip.paste()
+		# Input text
+		all_fbx  = comp.GetToolList(False, "SurfaceFBXMesh").values()
+
+		for tool in all_fbx:
+			comp.Copy(tool)
+			text = pyperclip.paste()
+			# Define regular expression pattern to match the desired substring
+			pattern = r'ImportFile = Input { Value = "(.*?)", },'
+
+			# Search for the pattern in the text
+			match = re.search(pattern, text)
+			# print(match)
+
+			# If a match is found, extract the substring after "Value ="
+			if match:
+				filepath = match.group(1)
+				pathinfo = self.getReplacedPaths(comp, filepath)
+				newpath = pathinfo["path"]
+				tool.ImportFile = newpath
+			else:
+				print("Pattern not found in the text.")
+		pyperclip.copy(oldcopy)
+
+	def replacePathMapsABC(self, comp):
+		pathdata = []
+		oldcopy = pyperclip.paste()
+		# Input text
+		all_alembic  = comp.GetToolList(False, "SurfaceAlembicMesh").values()
+
+		for tool in all_alembic:
+			comp.Copy(tool)
+			text = pyperclip.paste()
+			# Define regular expression pattern to match the desired substring
+			pattern = r'Filename = Input { Value = "(.*?)", },'
+
+			# Search for the pattern in the text
+			match = re.search(pattern, text)
+			# print(match)
+
+			# If a match is found, extract the substring after "Value ="
+			if match:
+				filepath = match.group(1)
+				pathinfo = self.getReplacedPaths(comp, filepath)
+				newpath = pathinfo["path"]
+				if newpath:
+					tool.Filename = newpath
+					pathdata.append({"node": tool.Name, "path":pathinfo["path"], "valid":pathinfo["valid"], "net":pathinfo["net"]})
+			
+		pyperclip.copy(oldcopy)
+		return pathdata
+
+	@err_catcher(name=__name__)
+	def replacePathMapsbyPattern(self, comp, tool_list, regexpattern, pathInput):
+		pathdata = []
+		oldcopy = pyperclip.paste()
+
+		for tool in tool_list:
+			comp.Copy(tool)
+			text = pyperclip.paste()
+			# Define regular expression pattern to match the desired substring
+			pattern = regexpattern
+			# Search for the pattern in the text
+			match = re.search(pattern, text)
+			# print(match)
+
+			# If a match is found, extract the substring after "Value ="
+			if match:
+				filepath = match.group(1)
+				pathinfo = self.getReplacedPaths(comp, filepath)
+				newpath = pathinfo["path"]
+				if newpath:
+					setattr(tool, pathInput, newpath)
+					pathdata.append({"node": tool.Name, "path":pathinfo["path"], "valid":pathinfo["valid"], "net":pathinfo["net"]})
+			
+		pyperclip.copy(oldcopy)
+		return pathdata
+
+	@err_catcher(name=__name__)
+	def replacePathMapsIOtools(self, comp):
+		pathdata = []
+		all_loader = comp.GetToolList(False, "Loader").values()
+		all_saver  = comp.GetToolList(False, "Saver").values()
+		iotools = list(all_loader) + list(all_saver)
+		comp.Lock()
+		for tool in iotools:
+			filepath = tool.GetAttrs("TOOLST_Clip_Name")[1]
+			pathinfo = self.getReplacedPaths(comp, filepath)
+			newpath = pathinfo["path"]
+			if newpath:
+				tool.Clip = newpath			
+				pathdata.append({"node": tool.Name, "path":pathinfo["path"], "valid":pathinfo["valid"], "net":pathinfo["net"]})
+
+		comp.Unlock()
+		return pathdata
+
+	@err_catcher(name=__name__)
+	def sm_render_CheckSubmittedPaths(self):
+		comp = self.fusion.GetCurrentComp()
+		allpathdata = []
+
+		# get Paths
+		allpathdata += self.replacePathMapsIOtools(comp)
+		# self.replacePathMapsABC(comp)
+		# self.replacePathMapsFBX(comp)
+		# self.replacePathMapsOCIOCS(comp)
+		# self.replacePathMapsLUTFiles(comp)
+		all_alembic  = comp.GetToolList(False, "SurfaceAlembicMesh").values()
+		allpathdata += self.replacePathMapsbyPattern(
+			comp, all_alembic, r'Filename = Input { Value = "(.*?)", },', "Filename"
+			)
+		
+		all_fbx  = comp.GetToolList(False, "SurfaceFBXMesh").values()
+		allpathdata += self.replacePathMapsbyPattern(
+			comp, all_fbx, r'ImportFile = Input { Value = "(.*?)", },', "ImportFile"
+			)
+		
+		all_OCIO_CS = comp.GetToolList(False, "OCIOColorSpace").values()
+		allpathdata += self.replacePathMapsbyPattern(
+			comp, all_OCIO_CS, r'OCIOConfig\s*=\s*Input\s*{\s*Value\s*=\s*"([^"]+)"', "OCIOConfig"
+			)
+		
+		all_OCIO_FT = comp.GetToolList(False, "OCIOFileTransform").values()
+		all_FileLUT = comp.GetToolList(False, "FileLUT").values()
+		luttools = list(all_OCIO_FT) + list(all_FileLUT)
+		allpathdata += self.replacePathMapsbyPattern(
+			comp, luttools, r'LUTFile = Input { Value = "(.*?)"', "LUTFile"
+			)
+		
+		for pathdata in allpathdata:
+			if not pathdata["valid"]:
+				print("path: ", pathdata["path"], " in ", pathdata["node"], "does not exists")
+			if not pathdata["net"]:
+				print("path: ", pathdata["path"], " in ", pathdata["node"], "Is not a NET Path")
+			print("path: ", pathdata["path"], " in ", pathdata["node"], "was processed")
+
+	###########################
+
 	#Function called from MediaProducts.py to fix the output path for Fusion.
 	@err_catcher(name=__name__)
 	def sm_render_fixOutputPath(self, origin, path, singleFrame=False):
@@ -557,7 +781,7 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def sm_render_startLocalRender(self, origin, outputPathOnly, outputName, rSettings):
-		print(rSettings)
+		# print(rSettings)
 		comp = self.fusion.GetCurrentComp()		
 		if self.sm_checkCorrectComp(comp):
 			sv = self.get_rendernode(origin.get_rendernode_name())
@@ -571,15 +795,16 @@ class Prism_Fusion_Functions(object):
 			else:
 				return "Error (Render Node does not exist)"
 			
-			frstart = rSettings["startFrame"]
-			frend = rSettings["endFrame"]
 			
-			# Are we just stiing the path and version into the render nodes or are we executing a local render?
+			# Are we just setting the path and version into the render nodes or are we executing a local render?
 			if outputPathOnly:
 
 				return "Result=Success"
 
-			else:
+			else:				
+				frstart = rSettings["startFrame"]
+				frend = rSettings["endFrame"]
+
 				if origin.chb_resOverride.isChecked():
 					wdt = origin.sp_resWidth.value()
 					Hhgt = origin.sp_resHeight.value()
@@ -611,6 +836,7 @@ class Prism_Fusion_Functions(object):
 		dlParams["pluginInfos"]["Version"] = str(math.floor(self.getAppVersion(origin)))
 
 		dlParams["pluginInfos"]["OutputFile"] = dlParams["jobInfos"]["OutputFilename0"]
+		dlParams["pluginInfos"]["FlowFile"] = self.core.getCurrentFileName()
 
 	@err_catcher(name=__name__)
 	def getCurrentRenderer(self, origin):
@@ -643,7 +869,7 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def deleteNodes(self, origin, handles, num=0):
 		for i in handles:
-			comp = self.fusion.CurrentComp			
+			comp = self.fusion.GetCurrentComp()		
 			if self.sm_checkCorrectComp(comp):
 				toolnm = i["name"]
 				tool = comp.FindTool(toolnm)
@@ -1789,7 +2015,7 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def setDefaultState(self):
-		comp = self.fusion.CurrentComp
+		comp = self.fusion.GetCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			defaultState = """{
 		"states": [
@@ -1875,6 +2101,9 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def onStateManagerCalled(self, popup=None):		
 		#Feedback in case it takes time to open
+		comp = self.fusion.GetCurrentComp()
+		#Set the comp used when sm was oppened for reference when saving states.
+		self.comp = comp	
 		try:
 			self.popup.close()
 		except:
@@ -1893,7 +2122,8 @@ class Prism_Fusion_Functions(object):
 			if state in sm.stateTypes.keys():
 				del sm.stateTypes[state]
 		
-		comp = self.fusion.CurrentComp
+		comp = self.fusion.GetCurrentComp()
+		print(self.fusion)
 		#Set the comp used when sm was oppened for reference when saving states.
 		self.comp = comp		
 		#Set State Manager Data on first open.
@@ -1983,7 +2213,6 @@ class Prism_Fusion_Functions(object):
 			actDel.triggered.connect(sm.deleteState)
 
 			if parentState is None:
-				print("no parentstate")
 				actCopy.setEnabled(False)
 				actRename.setEnabled(False)
 				actDel.setEnabled(False)
