@@ -1,27 +1,40 @@
 import sys
 import os
 import PrismInit
-from PySide2 import QtCore, QtGui, QtWidgets
 
-def openProjectBrowser(globalpcore):
-	qapp = QtWidgets.QApplication.instance()
-	if qapp == None:
-		print("wasnonepbr")
-		qapp = QtWidgets.QApplication(sys.argv)
+from qtpy import QtCore, QtGui, QtWidgets
 
-	popup = popupNoButton("Openning Project Browser, Please wait", qapp)
 
-	if globalpcore:
-		pcore = globalpcore
+def openProjectBrowser(globalpcore=None):
+	if not globalpcore:
+		qapp = QtWidgets.QApplication.instance()
+		if qapp == None:
+			qapp = QtWidgets.QApplication(sys.argv)
+		popup = popupNoButton("Openning Project Browser, Please wait", qapp)
+
+		pcore = PrismInit.prismInit()
+
 		pcore.callback(name="onProjectBrowserCalled", args=[popup])
-		#
+
 		pcore.projectBrowser()
-		#
+		# del pcore		
 		qapp.exec_()
 	else:
-		popupError()
+		qapp = QtWidgets.QApplication.instance()
+		if qapp == None:
+			qapp = QtWidgets.QApplication(sys.argv)
 
-	
+		popup = popupNoButton("Openning Project Browser, Please wait", qapp)
+
+		if globalpcore:
+			pcore = globalpcore
+			pcore.callback(name="onProjectBrowserCalled", args=[popup])
+			#
+			pcore.projectBrowser()
+			#
+			qapp.exec_()
+		else:
+			popupError()
 
 def runPrismSaveScene():
 	qapp = QtWidgets.QApplication.instance()
@@ -44,39 +57,64 @@ def openPrismSaveWithComment():
 	
 	qapp.exec_()
 
-def openPrismStateManager(globalpcore):
-	qapp = QtWidgets.QApplication.instance()
-	if qapp == None:
-		print("wasnone")
-		qapp = QtWidgets.QApplication(sys.argv)
+def openPrismStateManager(globalpcore=None):
+	if not globalpcore:
+		print("StateManager no GlobalPcore")
+		qapp = QtWidgets.QApplication.instance()
+		if qapp == None:
+			qapp = QtWidgets.QApplication(sys.argv)
+		popup = popupNoButton("Openning State Manager, Please wait", qapp)
 
-	
-	popup = popupNoButton("Openning State Manager, Please wait", qapp)
-	
-	if globalpcore:
-		pcore = globalpcore
+		pcore = PrismInit.prismInit()
 		pcore.callback(name="onStateManagerCalled", args=[popup])
-		#
+		
 		pcore.stateManager()
-		#
+		# del pcore		
 		qapp.exec_()
 	else:
-		popupError()
+		qapp = QtWidgets.QApplication.instance()
+		if qapp == None:
+			qapp = QtWidgets.QApplication(sys.argv)
+
+		
+		popup = popupNoButton("Openning State Manager, Please wait", qapp)
+		
+		if globalpcore:
+			pcore = globalpcore
+			pcore.callback(name="onStateManagerCalled", args=[popup])
+			#
+			pcore.stateManager()
+			#
+			qapp.exec_()
+		else:
+			popupError()
 
 
-def openPrismSettings(globalpcore):
-	qapp = QtWidgets.QApplication.instance()
-	if qapp == None:
-		qapp = QtWidgets.QApplication(sys.argv)
+def openPrismSettings(globalpcore=None):
+	if not globalpcore:
+		print("ProjectBrowser no GlobalPcore")
+		qapp = QtWidgets.QApplication.instance()
+		if qapp == None:
+			qapp = QtWidgets.QApplication(sys.argv)
 
-	if globalpcore:
-		pcore = globalpcore
-		#
+		pcore = PrismInit.prismInit()
 		pcore.prismSettings()
-		#
+		del pcore
+		
 		qapp.exec_()
 	else:
-		popupError()
+		qapp = QtWidgets.QApplication.instance()
+		if qapp == None:
+			qapp = QtWidgets.QApplication(sys.argv)
+
+		if globalpcore:
+			pcore = globalpcore
+			#
+			pcore.prismSettings()
+			#
+			qapp.exec_()
+		else:
+			popupError()
 
 def popupError():
 	error_box = QtWidgets.QMessageBox()

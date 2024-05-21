@@ -41,15 +41,12 @@ import re
 import math
 import ctypes
 import pygetwindow as gw
+
 import BlackmagicFusion as bmd
 
-try:
-	from PySide2.QtCore import *
-	from PySide2.QtGui import *
-	from PySide2.QtWidgets import *
-except:
-	from PySide.QtCore import *
-	from PySide.QtGui import *
+from qtpy.QtCore import *
+from qtpy.QtGui import *
+from qtpy.QtWidgets import *
 
 import pyautogui
 import pyperclip
@@ -772,7 +769,7 @@ class Prism_Fusion_Functions(object):
 
 	#Function called from MediaProducts.py to fix the output path for Fusion.
 	@err_catcher(name=__name__)
-	def sm_render_fixOutputPath(self, origin, path, singleFrame=False):
+	def sm_render_fixOutputPath(self, origin, path, singleFrame=False, state=None):
 		directory, filename = os.path.split(path)
 		name, extension = os.path.splitext(filename)
 		new_filename = f"{name}_.{extension}"
@@ -2123,7 +2120,6 @@ class Prism_Fusion_Functions(object):
 				del sm.stateTypes[state]
 		
 		comp = self.fusion.GetCurrentComp()
-		print(self.fusion)
 		#Set the comp used when sm was oppened for reference when saving states.
 		self.comp = comp		
 		#Set State Manager Data on first open.

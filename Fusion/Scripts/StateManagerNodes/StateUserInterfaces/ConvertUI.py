@@ -5,7 +5,7 @@ import os
 def convert_ui_to_py(ui_file):
 	base_name, _ = os.path.splitext(ui_file)
 	py_file = f"{base_name}_ui.py"
-	subprocess.run(["pyside2-uic", ui_file, "-o", py_file])
+	subprocess.run(["pyside6-uic", ui_file, "-o", py_file])
 	return py_file
 
 if __name__ == "__main__":    

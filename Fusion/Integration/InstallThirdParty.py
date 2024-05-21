@@ -21,7 +21,11 @@ def environment(module):
 		print("Command output (if available):", e.stdout)
 
 def installThirdParty():
-	environment("PySide2")
+	try:
+		environment("PySide6")
+		environment("qtpy")
+	except:
+		environment("PySide2")
 	environment("pyautogui")
 	environment("pyperclip")
 

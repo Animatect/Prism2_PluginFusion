@@ -44,8 +44,8 @@ from qtpy.QtWidgets import *
 from PrismUtils.Decorators import err_catcher
 
 
-class ImageRenderClass(object):
-	className = "ImageRender"
+class NetRenderClass(object):
+	className = "NetRender"
 	listType = "Export"
 	stateCategories = {"Render": [{"label": className, "stateType": className}]}
 
@@ -94,6 +94,8 @@ class ImageRenderClass(object):
 		else:
 			self.w_renderPreset.setVisible(False)
 
+		self.w_format.setVisible(False)
+
 		self.l_name.setVisible(False)
 		self.e_name.setVisible(False)
 		self.gb_submit.setChecked(False)
@@ -118,9 +120,9 @@ class ImageRenderClass(object):
 
 		self.cb_format.addItems(self.outputFormats)
 
-		self.resolutionPresets = self.core.projects.getResolutionPresets()
-		if "Get from rendersettings" not in self.resolutionPresets:
-			self.resolutionPresets.append("Get from rendersettings")
+		# self.resolutionPresets = self.core.projects.getResolutionPresets()
+		# if "Get from rendersettings" not in self.resolutionPresets:
+		# 	self.resolutionPresets.append("Get from rendersettings")
 
 		# self.e_osSlaves.setText("All")
 
@@ -136,12 +138,8 @@ class ImageRenderClass(object):
 
 		self.cb_manager.addItems([p.pluginName for p in self.core.plugins.getRenderfarmPlugins()])
 		self.core.callback("onStateStartup", self)
-
-		#Disable Distributed rendering as it is handled by the NetRender state.
-		# if self.cb_manager.count() == 0:
-		# 	self.gb_submit.setVisible(False)
-		self.gb_submit.setVisible(False)
-		self.gb_submit.setChecked(False)
+		if self.cb_manager.count() == 0:
+			self.gb_submit.setVisible(False)
 
 		self.managerChanged(True)
 		
@@ -170,7 +168,9 @@ class ImageRenderClass(object):
 				self.setTaskname(context.get("task"))
 
 			self.setUniqueName(self.className + " - Compositing")
-			self.setupRendernode()
+
+			self.refreshSubmitUi()
+			
 			self.updateUi()
 
 	@err_catcher(name=__name__)
@@ -207,20 +207,11 @@ class ImageRenderClass(object):
 			self.sp_rangeEnd.setValue(int(data["endframe"]))
 		if "frameExpression" in data:
 			self.le_frameExpression.setText(data["frameExpression"])
-		# if "currentcam" in data:
-		#     camName = getattr(self.core.appPlugin, "getCamName", lambda x, y: "")(
-		#         self, data["currentcam"]
-		#     )
-		#     idx = self.cb_cam.findText(camName)
-		#     if idx != -1:
-		#         self.curCam = self.camlist[idx]
-		#         self.cb_cam.setCurrentIndex(idx)
-		#         self.stateManager.saveStatesToScene()
-		if "resoverride" in data:
-			res = eval(data["resoverride"])
-			self.chb_resOverride.setChecked(res[0])
-			self.sp_resWidth.setValue(res[1])
-			self.sp_resHeight.setValue(res[2])
+		# if "resoverride" in data:
+		# 	res = eval(data["resoverride"])
+		# 	self.chb_resOverride.setChecked(res[0])
+		# 	self.sp_resWidth.setValue(res[1])
+		# 	self.sp_resHeight.setValue(res[2])
 		if "masterVersion" in data:
 			idx = self.cb_master.findText(data["masterVersion"])
 			if idx != -1:
@@ -281,14 +272,6 @@ class ImageRenderClass(object):
 					0, Qt.CheckState(data["stateenabled"]),
 				)
 
-		if "rendernode" in data:
-			self.setupRendernode()
-		
-		if "passtrough" in data:
-			self.setupPassThrough(data["passtrough"])
-		if "outonly" in data: 
-			self.chb_outOnly.setChecked(data["outonly"])
-
 		self.core.callback("onStateSettingsLoaded", self, data)
 
 	@err_catcher(name=__name__)
@@ -298,7 +281,6 @@ class ImageRenderClass(object):
 		self.cb_context.activated.connect(self.onContextTypeChanged)
 		self.b_context.clicked.connect(self.selectContextClicked)
 		self.b_changeTask.clicked.connect(self.changeTask)
-		self.b_setRendernode.clicked.connect(self.setRendernode)
 		self.chb_renderPreset.stateChanged.connect(self.presetOverrideChanged)
 		self.cb_renderPreset.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_rangeType.activated.connect(self.rangeTypeChanged)
@@ -314,10 +296,10 @@ class ImageRenderClass(object):
 		self.le_frameExpression.leaveEvent = self.exprLeaveEvent
 		self.le_frameExpression.focusOutEvent = self.exprFocusOutEvent
 		# self.cb_cam.activated.connect(self.setCam)
-		self.chb_resOverride.stateChanged.connect(self.resOverrideChanged)
-		self.sp_resWidth.editingFinished.connect(self.stateManager.saveStatesToScene)
-		self.sp_resHeight.editingFinished.connect(self.stateManager.saveStatesToScene)
-		self.b_resPresets.clicked.connect(self.showResPresets)
+		# self.chb_resOverride.stateChanged.connect(self.resOverrideChanged)
+		# self.sp_resWidth.editingFinished.connect(self.stateManager.saveStatesToScene)
+		# self.sp_resHeight.editingFinished.connect(self.stateManager.saveStatesToScene)
+		# self.b_resPresets.clicked.connect(self.showResPresets)
 		self.cb_master.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_outPath.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_renderLayer.activated.connect(self.stateManager.saveStatesToScene)
@@ -347,8 +329,6 @@ class ImageRenderClass(object):
 		# self.lw_passes.customContextMenuRequested.connect(self.rclickPasses)
 
 		self.b_pathLast.clicked.connect(self.showLastPathMenu)
-		self.chb_passthrough.stateChanged.connect(self.passThroughChanged)
-		self.chb_outOnly.stateChanged.connect(self.outOnlyChanged)
 		# self.lw_passes.itemDoubleClicked.connect(
 		# 	lambda x: self.core.appPlugin.sm_render_openPasses(self)
 		# )
@@ -635,9 +615,6 @@ class ImageRenderClass(object):
 	####### RENDER NODE STUFF #######
 	#								#
 	#################################
-	# @err_catcher(name=__name__)
-	# def onTreeItemSelectionChanged(self):
-		# 	self.setTreeItemColor("selected")
 	@err_catcher(name=__name__)
 	def getItemNamesRecursive(self, item, itemNames):
 		# Add the name of the current item
@@ -659,126 +636,43 @@ class ImageRenderClass(object):
 			self.getItemNamesRecursive(top_level_item, itemNames)
 
 		return itemNames 
-
-	@err_catcher(name=__name__)
-	def setTreeItemColor(self, status=None):
-		widgetItem = self.state
-
-		if self.chb_outOnly.isChecked():
-			background_color = QColor("#007ACC")
-			# print(widgetItem.data(0, 1))
-		else:
-			background_color = None #QColor("#232629")
-			# print(widgetItem.data(0, 1))
-
-		if not self.chb_passthrough.isChecked() or self.b_setRendernode.text() == "SetRenderNode":
-			background_color = QColor("#FF0000")
-
-		widgetItem.setData(0, 1, background_color)
-
-
-	@err_catcher(name=__name__)
-	def outOnlyChanged(self, checked):
-		if checked:
-			self.f_setOutputOnly.setStyleSheet("background-color: #007ACC;")
-		else:
-			self.f_setOutputOnly.setStyleSheet("")
-
-		self.setTreeItemColor()
-		self.stateManager.saveStatesToScene()
-
-	@err_catcher(name=__name__)
-	def setupPassThrough(self, isChecked):
-		self.chb_passthrough.setChecked(isChecked)
-
-	@err_catcher(name=__name__)
-	def passThroughChanged(self, checked):
-		nodename = self.get_rendernode_name()
-		if self.core.appPlugin.rendernode_exists(nodename):
-			self.core.appPlugin.setNodePassthrough(nodename, not checked)
-		else:
-			self.setupRendernode()
-
-		self.setTreeItemColor()
-		self.stateManager.saveStatesToScene()
-
-	@err_catcher(name=__name__)
-	def passThroughEnabled(self):		
-		self.chb_passthrough.setEnabled(self.b_setRendernode.text() != "SetRenderNode")
-
-	@err_catcher(name=__name__)
-	def get_rendernode_name(self):
-		identifier = self.getTaskname()
-		name = f"Prism_{identifier}_RenderNode"
-
-		return name
 	
-	@err_catcher(name=__name__)
-	def setupRendernode(self):
-		name = self.get_rendernode_name()
-		if self.core.appPlugin.rendernode_exists(name):
-			self.b_setRendernode.setText(name)
-			self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
-		else:
-			self.b_setRendernode.setText("SetRenderNode")
-			self.b_setRendernode.setStyleSheet("background-color: red; color: white;")
-			self.chb_passthrough.setChecked(True)
-			self.chb_passthrough.setEnabled(True)
 		
-		self.updateUi()
-		self.setTreeItemColor()
-
-		
- 
-	@err_catcher(name=__name__)
-	def setRendernode(self):
-		name = self.get_rendernode_name()
-		if not self.core.appPlugin.rendernode_exists(name):
-			self.core.appPlugin.create_rendernode(name)
-		self.b_setRendernode.setText(name)
-		self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
-		self.chb_passthrough.setEnabled(True)			
-
-		self.updateUi()
-		self.setTreeItemColor()
-		self.stateManager.saveStatesToScene()
-		
-	
 	@err_catcher(name=__name__)
 	def presetOverrideChanged(self, checked):
 		self.cb_renderPreset.setEnabled(checked)
 		self.stateManager.saveStatesToScene()
 
-	@err_catcher(name=__name__)
-	def resOverrideChanged(self, checked):
-		self.sp_resWidth.setEnabled(checked)
-		self.sp_resHeight.setEnabled(checked)
-		self.b_resPresets.setEnabled(checked)
+	# @err_catcher(name=__name__)
+	# def resOverrideChanged(self, checked):
+	# 	self.sp_resWidth.setEnabled(checked)
+	# 	self.sp_resHeight.setEnabled(checked)
+	# 	self.b_resPresets.setEnabled(checked)
 
-		self.stateManager.saveStatesToScene()
+	# 	self.stateManager.saveStatesToScene()
 
-	@err_catcher(name=__name__)
-	def showResPresets(self):
-		pmenu = QMenu(self)
+	# @err_catcher(name=__name__)
+	# def showResPresets(self):
+	# 	pmenu = QMenu(self)
 
-		for preset in self.resolutionPresets:
-			pAct = QAction(preset, self)
-			res = self.getResolution(preset)
-			if not res:
-				continue
+	# 	for preset in self.resolutionPresets:
+	# 		pAct = QAction(preset, self)
+	# 		# res = self.getResolution(preset)
+	# 		if not res:
+	# 			continue
 
-			pwidth, pheight = res
+	# 		pwidth, pheight = res
 
-			pAct.triggered.connect(
-				lambda x=None, v=pwidth: self.sp_resWidth.setValue(v)
-			)
-			pAct.triggered.connect(
-				lambda x=None, v=pheight: self.sp_resHeight.setValue(v)
-			)
-			pAct.triggered.connect(lambda: self.stateManager.saveStatesToScene())
-			pmenu.addAction(pAct)
+	# 		pAct.triggered.connect(
+	# 			lambda x=None, v=pwidth: self.sp_resWidth.setValue(v)
+	# 		)
+	# 		pAct.triggered.connect(
+	# 			lambda x=None, v=pheight: self.sp_resHeight.setValue(v)
+	# 		)
+	# 		pAct.triggered.connect(lambda: self.stateManager.saveStatesToScene())
+	# 		pmenu.addAction(pAct)
 
-		pmenu.exec_(QCursor.pos())
+	# 	pmenu.exec_(QCursor.pos())
 
 	@err_catcher(name=__name__)
 	def getRangeType(self):
@@ -794,28 +688,28 @@ class ImageRenderClass(object):
 
 		return False
 
-	@err_catcher(name=__name__)
-	def getResolution(self, resolution):
-		res = None
-		if resolution == "Get from rendersettings":
-			if hasattr(self.core.appPlugin, "getResolution"):
-				res = self.core.appPlugin.getResolution()
-			else:
-				res = [1920, 1080]
-		elif resolution.startswith("Project ("):
-			res = resolution[9:-1].split("x")
-			res = [int(r) for r in res]
-		else:
-			try:
-				pwidth = int(resolution.split("x")[0])
-				pheight = int(resolution.split("x")[1])
-				res = [pwidth, pheight]
-			except:
-				res = getattr(
-					self.core.appPlugin, "evaluateResolution", lambda x: None
-				)(resolution)
+	# @err_catcher(name=__name__)
+	# def getResolution(self, resolution):
+	# 	res = None
+	# 	if resolution == "Get from rendersettings":
+	# 		if hasattr(self.core.appPlugin, "getResolution"):
+	# 			res = self.core.appPlugin.getResolution()
+	# 		else:
+	# 			res = [1920, 1080]
+	# 	elif resolution.startswith("Project ("):
+	# 		res = resolution[9:-1].split("x")
+	# 		res = [int(r) for r in res]
+	# 	else:
+	# 		try:
+	# 			pwidth = int(resolution.split("x")[0])
+	# 			pheight = int(resolution.split("x")[1])
+	# 			res = [pwidth, pheight]
+	# 		except:
+	# 			res = getattr(
+	# 				self.core.appPlugin, "evaluateResolution", lambda x: None
+	# 			)(resolution)
 
-		return res
+	# 	return res
 
 	@err_catcher(name=__name__)
 	def getMasterVersion(self):
@@ -897,8 +791,6 @@ class ImageRenderClass(object):
 		# getattr(self.core.appPlugin, "sm_render_refreshPasses", lambda x: None)(self)
 
 		self.nameChanged(self.e_name.text())
-
-		self.passThroughEnabled()
   
 		return True
 
@@ -930,16 +822,16 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def refreshSubmitUi(self):
-		if not self.gb_submit.isHidden():
-			if not self.gb_submit.isCheckable():
-				return
+		# if not self.gb_submit.isHidden():
+		# 	if not self.gb_submit.isCheckable():
+		# 		return
 
-			submitChecked = self.gb_submit.isChecked()
-			for idx in reversed(range(self.gb_submit.layout().count())):
-				self.gb_submit.layout().itemAt(idx).widget().setHidden(not submitChecked)
+		submitChecked = True#self.gb_submit.isChecked()
+		for idx in reversed(range(self.gb_submit.layout().count())):
+			self.gb_submit.layout().itemAt(idx).widget().setHidden(not submitChecked)
 
-			if submitChecked:
-				self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText()).sm_render_updateUI(self)
+		if submitChecked:
+			self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText()).sm_render_updateUI(self)
 
 	@err_catcher(name=__name__)
 	def updateRange(self):
@@ -1184,26 +1076,26 @@ class ImageRenderClass(object):
 		return [self.state.text(0), warnings]
 
 	#################################################
-	# @err_catcher(name=__name__)
-	# def submitCheckPaths(self):
-	# 	self.core.appPlugin.sm_render_CheckSubmittedPaths()
+	@err_catcher(name=__name__)
+	def submitCheckPaths(self):
+		self.core.appPlugin.sm_render_CheckSubmittedPaths()
 
-	# @err_catcher(name=__name__)
-	# def setFarmedRange(self):
-	# 	print("hay que poner el frame range para la farm")
+	@err_catcher(name=__name__)
+	def setFarmedRange(self):
+		print("hay que poner el frame range para la farm")
 
-	# @err_catcher(name=__name__)
-	# def upSubmittedSaversVersions(self, parent):
-	# 	# Before Submitting, change version of elegible Savers.
-	# 	sm = parent
-	# 	fileName = self.core.getCurrentFileName()
-	# 	context = self.getCurrentContext()
-	# 	for state in sm.states:
-	# 		stateui = state.ui
-	# 		if stateui.className == "ImageRender":
-	# 			if not stateui.b_setRendernode.text() == "SetRenderNode" and stateui.chb_passthrough.isChecked():
-	# 				#Get Output, Update UI and set infoFile.				
-	# 				stateui.executeState(parent=parent, outOnly=True)
+	@err_catcher(name=__name__)
+	def upSubmittedSaversVersions(self, parent):
+		# Before Submitting, change version of elegible Savers.
+		sm = parent
+		fileName = self.core.getCurrentFileName()
+		context = self.getCurrentContext()
+		for state in sm.states:
+			stateui = state.ui
+			if stateui.className == "ImageRender":
+				if not stateui.b_setRendernode.text() == "SetRenderNode" and stateui.chb_passthrough.isChecked():
+					#Get Output, Update UI and set infoFile.				
+					stateui.executeState(parent=parent, outOnly=True)
 
 	@err_catcher(name=__name__)
 	def getOutputName(self, useVersion="next", stateui = None):
@@ -1357,15 +1249,14 @@ class ImageRenderClass(object):
 				os.makedirs(os.path.dirname(rSettings["outputName"]))
 
 			self.core.saveScene(versionUp=False, prismReq=False)
-			#### SHOULD ALWAYS BE FALSE distribution is handled by NetRender State ####
 			# If Render on the farm is selected
 			if not self.gb_submit.isHidden() and self.gb_submit.isChecked() and not outOnly:
 				# get the Frame Range.
-				# self.setFarmedRange()
+				self.setFarmedRange()
 				# get new versions for all savers.
-				# self.upSubmittedSaversVersions(self.stateManager)
+				self.upSubmittedSaversVersions(self.stateManager)
 				# check paths and resolve path mappings.
-				# self.submitCheckPaths()
+				self.submitCheckPaths()
 				# 
 				handleMaster = "media" if self.isUsingMasterVersion() else False
 				plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
@@ -1491,13 +1382,13 @@ class ImageRenderClass(object):
 			"endframe": self.sp_rangeEnd.value(),
 			"frameExpression": self.le_frameExpression.text(),
 			# "currentcam": str(self.curCam),
-			"resoverride": str(
-				[
-					self.chb_resOverride.isChecked(),
-					self.sp_resWidth.value(),
-					self.sp_resHeight.value(),
-				]
-			),
+			# "resoverride": str(
+			# 	[
+			# 		self.chb_resOverride.isChecked(),
+			# 		self.sp_resWidth.value(),
+			# 		self.sp_resHeight.value(),
+			# 	]
+			# ),
 			"masterVersion": self.cb_master.currentText(),
 			"curoutputpath": self.cb_outPath.currentText(),
 			"renderlayer": str(self.cb_renderLayer.currentText()),
@@ -1518,9 +1409,6 @@ class ImageRenderClass(object):
 			"lastexportpath": self.l_pathLast.text().replace("\\", "/"),
 			# "enablepasses": str(self.gb_passes.isChecked()),
 			"stateenabled": str(self.state.checkState(0)),
-			"rendernode": self.b_setRendernode.text(),
-			"passtrough": self.chb_passthrough.isChecked(),
-			"outonly": self.chb_outOnly.isChecked(),
 		}
 		self.core.callback("onStateGetSettings", self, stateProps)
 		return stateProps
