@@ -138,8 +138,9 @@ class NetRenderClass(object):
 
 		self.cb_manager.addItems([p.pluginName for p in self.core.plugins.getRenderfarmPlugins()])
 		self.core.callback("onStateStartup", self)
-		if self.cb_manager.count() == 0:
-			self.gb_submit.setVisible(False)
+		# if self.cb_manager.count() == 0:
+		# 	self.gb_submit.setVisible(False)
+		self.gb_submit.setVisible(True)
 
 		self.managerChanged(True)
 		
@@ -168,6 +169,8 @@ class NetRenderClass(object):
 				self.setTaskname(context.get("task"))
 
 			self.setUniqueName(self.className + " - Compositing")
+
+			self.chb_upVersion.setChecked(True)
 
 			self.refreshSubmitUi()
 			
@@ -271,6 +274,8 @@ class NetRenderClass(object):
 				self.state.setCheckState(
 					0, Qt.CheckState(data["stateenabled"]),
 				)
+		if "stateenabled" in data:
+			self.chb_upVersion.setChecked(eval(data["upversion"]))
 
 		self.core.callback("onStateSettingsLoaded", self, data)
 
@@ -334,6 +339,7 @@ class NetRenderClass(object):
 		# )
 
 		# self.treeWidget.itemSelectionChanged.connect(self.onTreeItemSelectionChanged)
+		self.chb_upVersion.stateChanged.connect(self.stateManager.saveStatesToScene)
 
 	@err_catcher(name=__name__)
 	def generateUniqueName(self, base_name, names):
@@ -787,7 +793,7 @@ class NetRenderClass(object):
 		# 	self.cb_renderLayer.setCurrentIndex(0)
 		# 	self.stateManager.saveStatesToScene()
 
-		# self.refreshSubmitUi()
+		self.refreshSubmitUi()
 		# getattr(self.core.appPlugin, "sm_render_refreshPasses", lambda x: None)(self)
 
 		self.nameChanged(self.e_name.text())
@@ -830,8 +836,7 @@ class NetRenderClass(object):
 		for idx in reversed(range(self.gb_submit.layout().count())):
 			self.gb_submit.layout().itemAt(idx).widget().setHidden(not submitChecked)
 
-		if submitChecked:
-			self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText()).sm_render_updateUI(self)
+		self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText()).sm_render_updateUI(self)
 
 	@err_catcher(name=__name__)
 	def updateRange(self):
@@ -1081,8 +1086,8 @@ class NetRenderClass(object):
 		self.core.appPlugin.sm_render_CheckSubmittedPaths()
 
 	@err_catcher(name=__name__)
-	def setFarmedRange(self):
-		print("hay que poner el frame range para la farm")
+	def setFarmedRange(self, startFrame, endFrame):
+		self.core.appPlugin.setFrameRange(self, startFrame, endFrame)
 
 	@err_catcher(name=__name__)
 	def upSubmittedSaversVersions(self, parent):
@@ -1137,7 +1142,6 @@ class NetRenderClass(object):
 		print("parent: ",parent, "\n\n\n")
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
-		outOnly = outOnly or self.chb_outOnly.isChecked()
 		if rangeType != "Expression":
 			startFrame = frames[0]
 			endFrame = frames[1]
@@ -1154,148 +1158,151 @@ class NetRenderClass(object):
 		updateMaster = True
 		fileName = self.core.getCurrentFileName()
 		context = self.getCurrentContext()
-		if not self.renderingStarted:
-			if self.tasknameRequired and not self.getTaskname():
-				return [
-					self.state.text(0)
-					+ ": error - no identifier is given. Skipped the activation of this state."
-				]
+		# if not self.renderingStarted:
+		if self.tasknameRequired and not self.getTaskname():
+			return [
+				self.state.text(0)
+				+ ": error - no identifier is given. Skipped the activation of this state."
+			]
+		
+		outputName, outputPath, hVersion = self.getOutputName(useVersion=useVersion)
 
-			# if self.curCam is None or (
-			#     self.curCam != "Current View"
-			#     and not self.core.appPlugin.isNodeValid(self, self.curCam)
-			# ):
-			#     return [
-			#         self.state.text(0)
-			#         + ": error - no camera is selected. Skipping activation of this state."
-			#     ]
+		outLength = len(outputPath)
+		if platform.system() == "Windows" and os.getenv("PRISM_IGNORE_PATH_LENGTH") != "1" and outLength > 255:
+			return [
+				self.state.text(0)
+				+ " - error - The outputpath is longer than 255 characters (%s), which is not supported on Windows. Please shorten the outputpath by changing the comment, taskname or projectpath."
+				% outLength
+			]
 
-			outputName, outputPath, hVersion = self.getOutputName(useVersion=useVersion)
+		if not os.path.exists(os.path.dirname(outputPath)):
+			os.makedirs(os.path.dirname(outputPath))
 
-			outLength = len(outputName)
-			if platform.system() == "Windows" and os.getenv("PRISM_IGNORE_PATH_LENGTH") != "1" and outLength > 255:
-				return [
-					self.state.text(0)
-					+ " - error - The outputpath is longer than 255 characters (%s), which is not supported on Windows. Please shorten the outputpath by changing the comment, taskname or projectpath."
-					% outLength
-				]
+		details = context.copy()
+		if "filename" in details:
+			del details["filename"]
 
-			if not os.path.exists(os.path.dirname(outputPath)):
-				os.makedirs(os.path.dirname(outputPath))
+		if "extension" in details:
+			del details["extension"]
 
-			details = context.copy()
-			if "filename" in details:
-				del details["filename"]
+		details["version"] = hVersion
+		details["sourceScene"] = fileName
+		details["identifier"] = self.getTaskname()
+		details["comment"] = self.stateManager.publishComment
 
-			if "extension" in details:
-				del details["extension"]
+		if self.mediaType == "2drenders":
+			infopath = os.path.dirname(outputPath)
+		else:
+			infopath = outputPath
 
-			details["version"] = hVersion
-			details["sourceScene"] = fileName
-			details["identifier"] = self.getTaskname()
-			details["comment"] = self.stateManager.publishComment
+		self.core.saveVersionInfo(
+			filepath=infopath, details=details
+		)
 
-			if self.mediaType == "2drenders":
-				infopath = os.path.dirname(outputPath)
-			else:
-				infopath = outputPath
+		self.l_pathLast.setText(outputName)
+		self.l_pathLast.setToolTip(outputName)
+		self.stateManager.saveStatesToScene()
 
-			self.core.saveVersionInfo(
-				filepath=infopath, details=details
+		rSettings = {
+			"outputName": outputName,
+			"startFrame": startFrame,
+			"endFrame": endFrame,
+			"frames": frames,
+			"rangeType": rangeType,
+		}
+
+		if (
+			self.chb_renderPreset.isChecked()
+			and "RenderSettings" in self.stateManager.stateTypes
+		):
+			rSettings["renderSettings"] = getattr(
+				self.core.appPlugin,
+				"sm_renderSettings_getCurrentSettings",
+				lambda x: {},
+			)(self)
+			self.stateManager.stateTypes["RenderSettings"].applyPreset(
+				self.core, self.renderPresets[self.cb_renderPreset.currentText()]
 			)
 
-			self.l_pathLast.setText(outputName)
-			self.l_pathLast.setToolTip(outputName)
-			self.stateManager.saveStatesToScene()
+		self.core.appPlugin.sm_render_preSubmit(self, rSettings)
 
-			rSettings = {
-				"outputName": outputName,
-				"startFrame": startFrame,
-				"endFrame": endFrame,
-				"frames": frames,
-				"rangeType": rangeType,
-			}
+		kwargs = {
+			"state": self,
+			"scenefile": fileName,
+			"settings": rSettings,
+		}
 
-			if (
-				self.chb_renderPreset.isChecked()
-				and "RenderSettings" in self.stateManager.stateTypes
-			):
-				rSettings["renderSettings"] = getattr(
-					self.core.appPlugin,
-					"sm_renderSettings_getCurrentSettings",
-					lambda x: {},
-				)(self)
-				self.stateManager.stateTypes["RenderSettings"].applyPreset(
-					self.core, self.renderPresets[self.cb_renderPreset.currentText()]
-				)
+		result = self.core.callback("preRender", **kwargs)
+		for res in result:
+			if isinstance(res, dict) and res.get("cancel", False):
+				return [
+					self.state.text(0)
+					+ " - error - %s" % res.get("details", "preRender hook returned False")
+				]
 
-			self.core.appPlugin.sm_render_preSubmit(self, rSettings)
+		if not os.path.exists(os.path.dirname(rSettings["outputName"])):
+			os.makedirs(os.path.dirname(rSettings["outputName"]))
 
-			kwargs = {
-				"state": self,
-				"scenefile": fileName,
-				"settings": rSettings,
-			}
+		### SUBMIT TO FARM ###
 
-			result = self.core.callback("preRender", **kwargs)
-			for res in result:
-				if isinstance(res, dict) and res.get("cancel", False):
-					return [
-						self.state.text(0)
-						+ " - error - %s" % res.get("details", "preRender hook returned False")
-					]
-
-			if not os.path.exists(os.path.dirname(rSettings["outputName"])):
-				os.makedirs(os.path.dirname(rSettings["outputName"]))
-
-			self.core.saveScene(versionUp=False, prismReq=False)
-			# If Render on the farm is selected
-			if not self.gb_submit.isHidden() and self.gb_submit.isChecked() and not outOnly:
-				# get the Frame Range.
-				self.setFarmedRange()
-				# get new versions for all savers.
+		self.core.saveScene(versionUp=False, prismReq=False)
+		# If Render on the farm is selected
+		if not self.gb_submit.isHidden():
+			# get the Frame Range.
+			self.setFarmedRange(startFrame, endFrame)
+			# get new versions for all savers.
+			if self.chb_upVersion.isChecked():
 				self.upSubmittedSaversVersions(self.stateManager)
-				# check paths and resolve path mappings.
-				self.submitCheckPaths()
-				# 
-				handleMaster = "media" if self.isUsingMasterVersion() else False
-				plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
-				if hasattr(self, "chb_redshift") and self.chb_redshift.isChecked() and not self.w_redshift.isHidden():
-					sceneDescription = "redshift"
-				else:
-					sceneDescription = None
-
-				result = plugin.sm_render_submitJob(
-					self,
-					rSettings["outputName"],
-					parent,
-					handleMaster=handleMaster,
-					details=details,
-					sceneDescription=sceneDescription
-				)
-				
-
-				updateMaster = False
-			# Render Locally
 			else:
-				result = self.core.appPlugin.sm_render_startLocalRender(
-					self, outOnly, rSettings["outputName"], rSettings
+				msg = ('Are you sure you want to execute this state as a previous version?\nThis may overwrite existing files.')
+				executeprev = self.core.popupQuestion(
+					msg,
+					title="Warning",
+					buttons=["Continue", "Cancel"],
+					icon=QMessageBox.Warning,
+					escapeButton="Cancel",
 				)
+				if executeprev == "Cancel":
+					return [self.state.text(0) + " - Canceled"]
+			# check paths and resolve path mappings.
+			self.submitCheckPaths()
+			# 
+			handleMaster = "media" if self.isUsingMasterVersion() else False
+			plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
+			
+			sceneDescription = None
+
+			result = plugin.sm_render_submitJob(
+				self,
+				rSettings["outputName"],
+				parent,
+				handleMaster=handleMaster,
+				details=details,
+				sceneDescription=sceneDescription
+			)
+			
+
+			updateMaster = False
+			# Render Locally
+			# else:
+			# 	result = self.core.appPlugin.sm_render_startLocalRender(
+			# 		self, outOnly, rSettings["outputName"], rSettings
+			# 	)
 			# result = self.core.appPlugin.sm_render_startLocalRender(
 			# 	self, outOnly, rSettings["outputName"], rSettings
 			# )
-		else:
-			rSettings = self.LastRSettings
-			result = self.core.appPlugin.sm_render_startLocalRender(
-				self, outOnly, rSettings["outputName"], rSettings
-			)
-			outputName = rSettings["outputName"]
+		# else:
+		# 	rSettings = self.LastRSettings
+		# 	result = self.core.appPlugin.sm_render_startLocalRender(
+		# 		self, outOnly, rSettings["outputName"], rSettings
+		# 	)
+		# 	outputName = rSettings["outputName"]
 
 		if not self.renderingStarted:
 			self.core.appPlugin.sm_render_undoRenderSettings(self, rSettings)
 
 		if result == "publish paused":
-			return [self.state.text(0) + " - publish paused"]
+			return
 		else:
 			if updateMaster:
 				self.handleMasterVersion(outputName)
@@ -1409,6 +1416,7 @@ class NetRenderClass(object):
 			"lastexportpath": self.l_pathLast.text().replace("\\", "/"),
 			# "enablepasses": str(self.gb_passes.isChecked()),
 			"stateenabled": str(self.state.checkState(0)),
+			"upversion": str(self.chb_upVersion.isChecked()),
 		}
 		self.core.callback("onStateGetSettings", self, stateProps)
 		return stateProps

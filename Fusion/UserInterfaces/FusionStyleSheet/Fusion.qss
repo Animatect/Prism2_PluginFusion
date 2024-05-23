@@ -69,15 +69,29 @@ QCheckBox:disabled
 
 QCheckBox::indicator,
 QGroupBox::indicator
-{
+/* {
     width: 18px;
     height: 18px;
+} */
+QCheckBox::indicator {
+    color: black;
+    background-color: qlineargradient(spread:pad, x1:0, y1:0, x2:0, y2:1, stop:0 #424242, stop:1 #373737);
+    border: 1px solid #292929;
+    width: 11px;
+    height: 11px;
+    border-radius:2px;
 }
 QGroupBox::indicator
 {
     margin-left: 2px;
     margin-top: 20px;
     margin-bottom: 20px;
+}
+QHBoxLayout{
+    margin: 30px; /* Adjust this value to set the desired margin */
+}
+QSpinBox {
+    margin: 3px; /* Adjust this value to set the desired margin */
 }
 /*
 QCheckBox::indicator:unchecked,
@@ -350,9 +364,11 @@ QGroupBox {
 QGroupBox::title {
     subcontrol-origin: margin;
     subcontrol-position: top left;
-    padding-left: 0px;
+    padding: 0px;
+    background: transparent;
+    /* padding-left: 0px;
     padding-right: 0px;
-    padding-top: 10px;
+    padding-top: 10px; */
 }
 
 QAbstractScrollArea

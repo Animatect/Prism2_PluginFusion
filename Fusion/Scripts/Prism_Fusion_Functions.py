@@ -2248,6 +2248,11 @@ class Prism_Fusion_Functions(object):
 			if menuExecuteV.isEmpty():
 				menuExecuteV.setEnabled(False)
 
+			# Check if it is Image Render #
+			if parentState.ui.className != "ImageRender":
+				menuExecuteV.setEnabled(False)
+			###############################
+
 			if parentState is None or parentState.ui.className == "Folder":
 				createMenu = sm.getStateMenu(parentState=parentState)
 				rcmenu.addMenu(createMenu)

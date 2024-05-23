@@ -1304,7 +1304,7 @@ class ImageRenderClass(object):
 			details["comment"] = self.stateManager.publishComment
 
 			if self.mediaType == "2drenders":
-				infopath = os.path.dirname(outputPath)
+				infopath = outputPath#os.path.dirname(outputPath)
 			else:
 				infopath = outputPath
 
