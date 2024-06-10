@@ -28,6 +28,8 @@ def installThirdParty():
 		environment("PySide2")
 	environment("pyautogui")
 	environment("pyperclip")
+	environment("psutil")
+	environment("player")
 
 if __name__ == "__main__":
 	installThirdParty()

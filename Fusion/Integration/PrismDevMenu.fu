@@ -20,6 +20,27 @@
             },
         },
     },
+    Action
+    {
+        ID = "2_sandbox",
+        Category = "Prism",
+        Name = "Sandbox",
+
+        Targets =
+        {
+            Composition =
+            {
+                Execute = _Lua [=[
+                    local scriptPath = app:MapPath("Scripts:Prism/sandbox1.py")
+                    if bmd.fileexists(scriptPath) == false then
+                        print("[Prism Error] Can't run file: " .. scriptPath)
+                    else
+                        target:RunScript(scriptPath)
+                    end
+                ]=],
+            },
+        },
+    },
     Menus
     {
         Target = "ChildFrame",
@@ -29,6 +50,7 @@
             Sub "PrismDev"
             {
                 "1_ExecuteCode{}",
+                "2_sandbox{}",
             },
         },
     },

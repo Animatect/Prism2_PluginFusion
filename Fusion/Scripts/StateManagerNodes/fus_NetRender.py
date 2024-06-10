@@ -144,6 +144,7 @@ class NetRenderClass(object):
 
 		self.managerChanged(True)
 		
+		# self.chb_rjSuspended.setEnabled = True
  
 		if stateData is not None:
 			self.loadData(stateData)

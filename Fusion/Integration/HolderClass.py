@@ -1,9 +1,11 @@
 
-import platform
+# import platform
+# import subprocess
 import sys
-import openPrismWindows
+import os
+import time
+from datetime import datetime
 import PrismInit
-import subprocess
 import openPrismWindows as opw
 import BlackmagicFusion as bmd
 
@@ -45,6 +47,10 @@ class PrismHolderClass(object):
 					self.ui.Button({
 						'ID': 'rcip',
 						'Text': 'runCodeInProcess',
+						}),
+					self.ui.Button({
+						'ID': 'btn_lockFile',
+						'Text': 'LockFile',
 						}),
 					]),
 					#
@@ -91,6 +97,7 @@ class PrismHolderClass(object):
 		# Add your GUI element based event Handlers here:
 		self.dlg.On.Bootstrap.Clicked = self.bootstrapPrism
 		self.dlg.On.rcip.Clicked = self.runCodeInProcess
+		self.dlg.On.btn_lockFile.Clicked = self.on_btn_lockFile
 		# Prism UI Functions
 		self.dlg.On.btn_projectbrowser.Clicked = self.on_btn_projectbrowser_clicked
 		self.dlg.On.btn_saveversion.Clicked = self.on_btn_saveversion_clicked
@@ -112,6 +119,9 @@ class PrismHolderClass(object):
 	
 	def runCodeInProcess(self, ev=None):
 		global_Prism.runCodeInProcess()
+
+	def on_btn_lockFile(self, ev=None):
+		global_Prism.lockFile()
 	
 	# Add your GUI element based event functions here: ev is the event object
 	def on_btn_projectbrowser_clicked(self, ev):
@@ -144,20 +154,51 @@ class prismStateHolderClass(object):
 		self.smUI = None
 		self.pbUI = None
 		self.prefUI = None
+		self.fusion = bmd.scriptapp("Fusion")
 
 		self.createPcore()
 	
-	def createPcore(self):
+	def createPcore(self):		
 		qapp = QtWidgets.QApplication.instance()
 		if qapp == None:
 			qapp = QtWidgets.QApplication(sys.argv)
 		popup = opw.popupNoButton("Setting Up Prims Project Manager", qapp)
 		pcore = PrismInit.prismInit()
 		pcore.setActiveStyleSheet("Fusion")
+
+	# 	# It's easier to just manage the lockfiles ourselves via a loop running the PrismLoop.py process.
+	# 	self.fusion.SetData("PrismLocked", pcore.getLockScenefilesEnabled())
+	# 	#
+	
+	# 	current_time = datetime.now()
+	# 	date_time_str = self.fusion.GetData("PrismLoopTime")
+	# 	if date_time_str:
+	# 		previous_time = datetime.strptime(date_time_str, "%Y-%m-%d %H:%M:%S")
+	# 	else: # First time to set it.
+	# 		self.fusion.SetData("PrismLoopTime", current_time.strftime("%Y-%m-%d %H:%M:%S"))
+	# 		previous_time = datetime(1, 1, 1)
+	# 	print("date_time_str: ", date_time_str)
+	# 	# Calculate the elapsed time
+	# 	elapsed_time = current_time - previous_time
+	# 	seconds_passed = elapsed_time.total_seconds()
+
+	# 	if seconds_passed > 15:
+	# 		# Get the path to the timer script
+	# 		worker_script = os.path.join(self.get_script_dir(), 'PrismLoop.py')
+	# 		self.fusion.RunScript(worker_script)
+
 		popup.close()
 		self.checkForSanityMessage(qapp)
 		# Assign
 		self.pcore = pcore
+
+	def get_script_dir(self):
+		# Try to determine the script's directory
+		if hasattr(sys, 'frozen'):  # PyInstaller
+			script_dir = os.path.dirname(sys.executable)
+		else:
+			script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
+		return script_dir
 
 	# Make a test to see if windows are open.
 	def checkForSanityMessage(self,qapp):
@@ -171,6 +212,21 @@ class prismStateHolderClass(object):
 			if appexists:
 				qapp.exec_()
 	
+	# Handle Locking.
+	def lockFile(self):
+		print("locking")
+		if self.pcore.getLockScenefilesEnabled():
+			if not self.pcore.users.ensureUser():
+				return False
+			filepaths = list(self.fusion.GetData("NewComps").values())
+			for filepath in filepaths:
+				os.path.normpath(filepath)
+				if not self.pcore.fileInPipeline(filepath=filepath):
+					return False
+				self.pcore.lockScenefile(filepath)
+
+
+	# Debug Functions.
 	def runCodeInProcess(self):
 		print("Object Exists")
 		fusion = bmd.scriptapp("Fusion")

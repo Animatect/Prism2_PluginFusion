@@ -50,6 +50,8 @@ def checkThirdParty():
 		import PySide6
 		import pyautogui
 		import pyperclip
+		import psutil
+		import plyer
 	except ImportError:
 		import InstallThirdParty
 		InstallThirdParty.installThirdParty()

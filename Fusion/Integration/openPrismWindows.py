@@ -24,38 +24,65 @@ def openProjectBrowser(globalpcore=None):
 		if qapp == None:
 			qapp = QtWidgets.QApplication(sys.argv)
 
-		popup = popupNoButton("Openning Project Browser, Please wait", qapp)
-
 		if globalpcore:
-			pcore = globalpcore
-			pcore.callback(name="onProjectBrowserCalled", args=[popup])
-			#
-			pcore.projectBrowser()
-			#
-			qapp.exec_()
+			launchProjectBrowser(qapp=qapp, globalpcore=globalpcore)
 		else:
 			popupError()
 
-def runPrismSaveScene():
-	qapp = QtWidgets.QApplication.instance()
-	if qapp == None:
-		qapp = QtWidgets.QApplication(sys.argv)
+def runPrismSaveScene(globalpcore=None):
+	if not globalpcore:
+		qapp = QtWidgets.QApplication.instance()
+		if qapp == None:
+			qapp = QtWidgets.QApplication(sys.argv)
 
-	pcore = PrismInit.prismInit()
-	pcore.saveScene()
-	del pcore
-	
-	qapp.exec_()
+		pcore = PrismInit.prismInit()
+		pcore.saveScene()
+		del pcore		
+		qapp.exec_()
+	else:
+		qapp = QtWidgets.QApplication.instance()
+		if qapp == None:
+			qapp = QtWidgets.QApplication(sys.argv)
+		
+		if globalpcore:
+			pcore = globalpcore
+			if pcore.fileInPipeline():
+				pcore.saveScene()		
+				qapp.exec_()
+			else:
+				msg = "File is not in project."
+				pcore.popup(msg)
+				launchProjectBrowser(qapp=qapp, globalpcore=globalpcore)
+		else:
+			popupError()
 
-def openPrismSaveWithComment():
-	qapp = QtWidgets.QApplication.instance()
-	if qapp == None:
-		qapp = QtWidgets.QApplication(sys.argv)
-	pcore = PrismInit.prismInit()
-	pcore.saveWithComment()
-	del pcore
-	
-	qapp.exec_()
+def openPrismSaveWithComment(globalpcore=None):
+	if not globalpcore:
+		qapp = QtWidgets.QApplication.instance()
+		if qapp == None:
+			qapp = QtWidgets.QApplication(sys.argv)
+		pcore = PrismInit.prismInit()
+		pcore.saveWithComment()
+		del pcore	
+		qapp.exec_()
+	else:
+		print("globalpcore")
+		qapp = QtWidgets.QApplication.instance()
+		if qapp == None:
+			qapp = QtWidgets.QApplication(sys.argv)
+		
+		if globalpcore:
+			pcore = globalpcore
+			if pcore.fileInPipeline():
+				pcore.saveWithComment()		
+				qapp.exec_()
+			else:
+				msg = "File is not in project."
+				pcore.popup(msg)
+
+				launchProjectBrowser(qapp=qapp, globalpcore=globalpcore)
+		else:
+			popupError()
 
 def openPrismStateManager(globalpcore=None):
 	if not globalpcore:
@@ -115,6 +142,17 @@ def openPrismSettings(globalpcore=None):
 			qapp.exec_()
 		else:
 			popupError()
+
+def launchProjectBrowser(qapp=None, globalpcore=None):
+	if qapp and globalpcore:
+		popup = popupNoButton("Openning Project Browser, Please wait", qapp)
+		pcore = globalpcore
+		pcore.callback(name="onProjectBrowserCalled", args=[popup])
+		#
+		pcore.projectBrowser()
+		#
+		qapp.exec_()
+
 
 def popupError():
 	error_box = QtWidgets.QMessageBox()

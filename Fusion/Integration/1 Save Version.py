@@ -1,5 +1,6 @@
-from openPrismWindows import runPrismSaveScene
+# from openPrismWindows import runPrismSaveScene
 from PrismInit import checkThirdParty
+from CallButtons import CallButton
 if __name__ == "__main__":
     checkThirdParty()
-    runPrismSaveScene()
+    CallButton("btn_saveversion")

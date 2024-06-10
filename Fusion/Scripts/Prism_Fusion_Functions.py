@@ -163,8 +163,9 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def sceneOpen(self, origin):
-		if self.core.shouldAutosaveTimerRun():
-			origin.startAutosaveTimer()
+		# if self.core.shouldAutosaveTimerRun():
+		# 	origin.startAutosaveTimer()
+		pass
 
 	@err_catcher(name=__name__)
 	def getCurrentFileName(self, origin=None, path=True):

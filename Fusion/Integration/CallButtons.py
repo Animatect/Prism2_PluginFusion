@@ -9,19 +9,3 @@ def CallButton(clickedBtn):
         holder.GetItems()[clickedBtn].Click()
     else:
         print("no holder")
-        # launch_prismFusion_menu()
-        # holder = holders[len(holders)]
-    # buttons = [
-    #     "btn_projectbrowser",
-    #     "btn_savecomment",
-    #     "btn_statemanager",
-    #     "btn_prismsettings"
-    # ]
-    # for btn in buttons:
-    #     holder.GetItems()[btn].SetEnabled(False)
-
-    # holder.GetItems()[clickedBtn].SetEnabled(True)
-    # holder.GetItems()[clickedBtn].Click()
-
-    # for btn in buttons:
-    #     holder.GetItems()[btn].SetEnabled(True)

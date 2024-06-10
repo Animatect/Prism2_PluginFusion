@@ -1,8 +1,10 @@
 from CallButtons import CallButton
-from ResetPrism import launch_prismFusion_menu
+# from ResetPrism import launch_prismFusion_menu
 from PrismInit import checkThirdParty
-import openPrismWindows
+# import openPrismWindows
 if __name__ == "__main__":
     checkThirdParty()
-    # CallButton('btn_projectbrowser')
-    openPrismWindows.openPrismStateManager()
+    # try:
+    CallButton('btn_statemanager')
+    # except:
+    #     openPrismWindows.openPrismStateManager()

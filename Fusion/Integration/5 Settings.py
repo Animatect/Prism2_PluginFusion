@@ -4,5 +4,7 @@ from PrismInit import checkThirdParty
 import openPrismWindows
 if __name__ == "__main__":
     checkThirdParty()
-    # CallButton('btn_projectbrowser')
-    openPrismWindows.openPrismSettings()
+    try:
+        CallButton('btn_projectbrowser')
+    except:
+        openPrismWindows.openPrismSettings()

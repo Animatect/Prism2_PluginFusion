@@ -1,3 +1,5 @@
+# This file is for developers and allows execution of code in the context of an existing prism core.
+# It uses Fusion Data Attributes to set the command to be retrieved from the Holder Class which executes the command.
 
 import BlackmagicFusion as bmd
 ui = fu.UIManager

@@ -65,12 +65,18 @@ class Prism_Fusion_Integration(object):
 				"ResetPrism.py",
 				"HolderClass.py",
 				"CallButtons.py",
-				"pdmExecuteCode.py",
+				"CreateHolder.py",
 			]
+		self.devscripts = [
+				"pdmExecuteCode.py",
+				"sandbox1.py",
+		]
 		self.configs = [
-			"PrismMenu.fu", 
-			"PrismDevMenu.fu",
+			"PrismMenu.fu",
 			# "PrismEvents.fu",
+		]
+		self.devconfigs = [
+			"PrismDevMenu.fu",
 		]
 		
 		if platform.system() == "Windows":
@@ -104,6 +110,18 @@ class Prism_Fusion_Integration(object):
 		return execPath
 
 	def addIntegration(self, installPath):
+		scripts = self.scripts.copy()
+		configs = self.configs.copy()
+		# Check if we are installing devtools.
+		if self.core.ps:
+			userSettingDialog = self.core.ps.findChild(QWidget, "dlg_UserSettings")
+			if userSettingDialog:
+				if hasattr(userSettingDialog, 'gb_bldInstallDevTools'):
+					gb_bldInstallDevTools = getattr(userSettingDialog, 'gb_bldInstallDevTools')
+					# self.core.popup(str(gb_bldInstallDevTools.isChecked()))
+					if gb_bldInstallDevTools.isChecked():
+						scripts.extend(self.devscripts)
+						configs.extend(self.devconfigs)
 		try:
 			if not os.path.exists(installPath):
 				QMessageBox.warning(
@@ -120,7 +138,7 @@ class Prism_Fusion_Integration(object):
 			addedFiles = []
 
 			# "PrismMenu.fu" add a Prism menu, but leads to freezes
-			for i in self.configs:
+			for i in configs:
 				origFile = os.path.join(integrationBase, i)
 				targetFile = os.path.join(installPath, "Config", i)
 
@@ -169,7 +187,7 @@ class Prism_Fusion_Integration(object):
 					)
 					init.write(initStr)
 
-			for i in self.scripts:
+			for i in scripts:
 				file_name, file_extension = os.path.splitext(i)
 				origFile = os.path.join(integrationBase, i)
 				targetFile = os.path.join(installPath, "Scripts", "Prism", i)
@@ -247,8 +265,20 @@ class Prism_Fusion_Integration(object):
 				pFiles.append(
 					os.path.join(installPath, "Config", i)
 				)
+			for i in self.devconfigs:
+				pFiles.append(
+					os.path.join(installPath, "Config", i)
+				)
+			
 			pFiles.append(os.path.join(installPath, "Scripts", "PrismInit.scriptlib"))
+
 			for file in self.scripts:
+				pFiles.append(
+					os.path.join(
+						installPath, "Scripts", "Prism", file
+					)
+				)
+			for file in self.devscripts:
 				pFiles.append(
 					os.path.join(
 						installPath, "Scripts", "Prism", file
