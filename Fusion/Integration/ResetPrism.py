@@ -2,6 +2,10 @@ import HolderClass
 import os
 import sys
 import time
+
+package_path = os.path.normpath(THIRDPARTY)
+sys.path.append(package_path)
+
 import psutil
 from plyer import notification
 

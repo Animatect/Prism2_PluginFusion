@@ -213,6 +213,11 @@ class Prism_Fusion_Integration(object):
 							"PRISMROOT", '"%s"' % self.core.prismRoot.replace(
 								"\\", "/")
 						)
+						# get path to third party scripts
+						initStr = initStr.replace(
+							"THIRDPARTY", '"%s"' % os.path.join(os.path.dirname(__file__), 'thirdparty').replace(
+								'\\', '/')
+						)
 						init.write(initStr)
 
 			# for i in ["WritePrism.setting"]:

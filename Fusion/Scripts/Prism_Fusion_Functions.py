@@ -44,6 +44,9 @@ import pygetwindow as gw
 
 import BlackmagicFusion as bmd
 
+package_path = os.path.join(os.path.dirname(__file__), 'thirdparty')
+sys.path.append(package_path)
+
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *

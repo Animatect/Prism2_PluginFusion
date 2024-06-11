@@ -26,10 +26,10 @@ def installThirdParty():
 		environment("qtpy")
 	except:
 		environment("PySide2")
-	environment("pyautogui")
-	environment("pyperclip")
-	environment("psutil")
-	environment("player")
+	# environment("pyautogui")
+	# environment("pyperclip")
+	# environment("psutil")
+	# environment("plyer")
 
 if __name__ == "__main__":
 	installThirdParty()
