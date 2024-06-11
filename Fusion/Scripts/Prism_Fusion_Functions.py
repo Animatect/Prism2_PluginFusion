@@ -2035,7 +2035,10 @@ class Prism_Fusion_Functions(object):
 		comp = self.fusion.CurrentComp
 		if self.sm_checkCorrectComp(comp):
 			comp.SetData("prismstates", buf + "_..._")
-	
+			# create and delete a node to trigger an unsaved comp "*" visual cue in Fusion.
+			triggernode = comp.AddToolAction("Background")
+			triggernode.Delete()
+		
 	@err_catcher(name=__name__)
 	def sm_saveImports(self, origin, importPaths):
 		comp = self.fusion.CurrentComp
