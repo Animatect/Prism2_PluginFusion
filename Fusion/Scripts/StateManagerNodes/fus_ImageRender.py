@@ -1242,7 +1242,7 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def executeState(self, parent, useVersion="next", outOnly=False):
-		print("parent: ",parent, "\n\n\n")
+		# print("parent: ",parent, "\n\n\n")
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
 		outOnly = outOnly or self.chb_outOnly.isChecked()
@@ -1303,8 +1303,8 @@ class ImageRenderClass(object):
 			details["identifier"] = self.getTaskname()
 			details["comment"] = self.stateManager.publishComment
 
-			if self.mediaType == "2drenders":
-				infopath = outputPath#os.path.dirname(outputPath)
+			if self.mediaType == "3drenders":
+				infopath = os.path.dirname(outputPath)
 			else:
 				infopath = outputPath
 
