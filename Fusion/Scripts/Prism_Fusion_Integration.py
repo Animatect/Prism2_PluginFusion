@@ -66,6 +66,7 @@ class Prism_Fusion_Integration(object):
 				"HolderClass.py",
 				"CallButtons.py",
 				"CreateHolder.py",
+				"manageprismpaths.py",
 			]
 		self.devscripts = [
 				"pdmExecuteCode.py",

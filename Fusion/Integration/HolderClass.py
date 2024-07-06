@@ -9,8 +9,9 @@ import PrismInit
 import openPrismWindows as opw
 import BlackmagicFusion as bmd
 
-from PySide2 import QtCore, QtGui, QtWidgets
+import manageprismpaths
 
+from PySide2 import QtCore, QtGui, QtWidgets
 class PrismHolderClass(object):
 	def __init__(self, UIManager, fusion):
 		self.fusion = fusion

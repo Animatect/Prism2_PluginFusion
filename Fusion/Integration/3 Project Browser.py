@@ -1,5 +1,5 @@
 from CallButtons import CallButton
-from PrismInit import checkThirdParty
+# from PrismInit import checkThirdParty
 if __name__ == "__main__":
-    checkThirdParty()
+    # checkThirdParty()
     CallButton('btn_projectbrowser')

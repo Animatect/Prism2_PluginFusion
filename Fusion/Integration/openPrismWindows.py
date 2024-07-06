@@ -2,6 +2,8 @@ import sys
 import os
 import PrismInit
 
+import manageprismpaths
+
 from qtpy import QtCore, QtGui, QtWidgets
 
 

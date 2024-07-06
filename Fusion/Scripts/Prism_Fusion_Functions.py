@@ -108,6 +108,7 @@ class Prism_Fusion_Functions(object):
 		self.importHandlers = {
 			".abc": {"importFunction": self.importAlembic},
 			".fbx": {"importFunction": self.importFBX},
+			".bcam":{"importFunction": self.importBlenderCam},
 		}
 
 
@@ -1455,7 +1456,7 @@ class Prism_Fusion_Functions(object):
 			self.core.popup(msg)
 			return False
 		
-		 
+		
 
 	@err_catcher(name=__name__)
 	def doUiImport(self, fusion, formatCall, interval, filepath):
@@ -1540,7 +1541,7 @@ class Prism_Fusion_Functions(object):
 
 		# else:
 		# 	imported = False
-  
+
 		imported = self.doUiImport(fusion, formatCall, interval, filepath)
 		origin.stateManager.showNormal()
 
@@ -1556,6 +1557,11 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def importFBX(self, importPath, origin):
 		return self.importFormatByUI(origin = origin, formatCall="FBXImport", filepath=importPath,global_scale=100)
+	
+	@err_catcher(name=__name__)
+	def importBlenderCam(self, importPath, origin):
+		import MH_BlenderCam_Fusion_Importer as BcamImporter
+		BcamImporter.import_blender_camera(importPath)
 
 
 	@err_catcher(name=__name__)
@@ -1565,6 +1571,12 @@ class Prism_Fusion_Functions(object):
 	#Main Import function
 	@err_catcher(name=__name__)
 	def sm_import_importToApp(self, origin, doImport, update, impFileName):
+		# Check if a .bcam file exists, if so, prefer it over the abc, this means a Mh blender camera.
+		root, _ = os.path.splitext(impFileName)
+		new_file_path = os.path.normpath(root + '.bcam')
+		if os.path.exists(new_file_path):
+			impFileName = new_file_path
+		
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 		fileName = os.path.splitext(os.path.basename(impFileName))

@@ -1,6 +1,6 @@
 # from openPrismWindows import openPrismSaveWithComment
-from PrismInit import checkThirdParty
+# from PrismInit import checkThirdParty
 from CallButtons import CallButton
 if __name__ == "__main__":
-    checkThirdParty()
+    # checkThirdParty()
     CallButton("btn_savecomment")
