@@ -11,6 +11,7 @@ from plyer import notification
 
 def launch_prismFusion_menu():
 	print("launching")
+	timescale = 0.5
 	# Make Sure the script runs only once at startup.
 	if fusion.GetData('Prism.Startup') or fusion.GetData('Prism.Startup') == None:
 		fusion.SetData('Prism.Startup', False)
@@ -35,26 +36,32 @@ def launch_prismFusion_menu():
 			totalSteps = 5
 			winTitle = "Starting Prism"
 			step = 1
-			ProgressWinUpdate(msgwin, msgitm, winTitle, "Starting Prism...", step, totalSteps, 1)
+			ProgressWinUpdate(msgwin, msgitm, winTitle, "Starting Prism...", step, totalSteps, 1*timescale)
 			step = 2
-			ProgressWinUpdate(msgwin, msgitm, winTitle, "ResetingStartup Variable...", step, totalSteps, 1)
+			ProgressWinUpdate(msgwin, msgitm, winTitle, "ResetingStartup Variable...", step, totalSteps, 1*timescale)
 			# Make sure a comp has managed to open
 			comp = None
 			count = 0
 			step = 3
 			while comp == None or count > 10:
-				ProgressWinUpdate(msgwin, msgitm, winTitle, "Checking if a Comp is Open...", step, totalSteps, 1)
+				ProgressWinUpdate(msgwin, msgitm, winTitle, "Checking if a Comp is Open...", step, totalSteps, 1*timescale)
 				try: 
 					comp = fusion.GetCurrentComp()
+					# deselect all nodes
+					comp.CurrentFrame.FlowView.Select()
 				except:
 					comp = None
 				count += 1
 			
 			step = 4
-			ProgressWinUpdate(msgwin, msgitm, winTitle, "Checking if is Network Render Manager task...", step, totalSteps, 3)
+			progressdots = ""
+			for i in range(9):
+				ProgressWinUpdate(msgwin, msgitm, winTitle, "Checking if is Network Render Manager task" + progressdots, step, totalSteps, 0.3*timescale)
+				progressdots += "."
+				
 			# Check if the comp is rendering, chances are that this comp was oppened from the farm.
 			if not comp.IsRendering():
-				ProgressWinUpdate(msgwin, msgitm, winTitle, "is Not Rendejob...", step, totalSteps, 0.5)
+				ProgressWinUpdate(msgwin, msgitm, winTitle, "is Not Rendejob...", step, totalSteps, 0.5*timescale)
 				uimanager = fu.UIManager
 				holder = uimanager.FindWindow("PrismHolder")
 				try:
@@ -62,14 +69,14 @@ def launch_prismFusion_menu():
 				except:
 					pass
 				step = 5
-				ProgressWinUpdate(msgwin, msgitm, winTitle, "Starting Prism Core...", step, totalSteps, 1)
+				ProgressWinUpdate(msgwin, msgitm, winTitle, "Starting Prism Core...", step, totalSteps, 1*timescale)
 				msgwin.Hide()
 				# holder = HolderClass.PrismHolderClass(fu.UIManager, fusion)
 				# print("prismHolder Exited")
 				script_path = os.path.join(get_script_dir(), "CreateHolder.py")
 				fusion.RunScript(script_path)
 			else:
-				ProgressWinUpdate(msgwin, msgitm, winTitle, "is Rendejob...", step, totalSteps, 0.5)
+				ProgressWinUpdate(msgwin, msgitm, winTitle, "is Rendejob...", step, totalSteps, 0.5*timescale)
 				msgwin.Hide()
 		else:
 			fusion_popup("RenderNode Running", "Render Node is Running\nplease Close it and reset prism from the menu.")

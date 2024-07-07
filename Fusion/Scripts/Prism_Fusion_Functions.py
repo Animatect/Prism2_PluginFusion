@@ -1976,13 +1976,14 @@ class Prism_Fusion_Functions(object):
 	#                                              #
 	################################################
 	@err_catcher(name=__name__)
-	def sm_checkCorrectComp(self, comp):
+	def sm_checkCorrectComp(self, comp, displaypopup=True):
 		if self.comp.GetAttrs("COMPS_Name") == comp.GetAttrs("COMPS_Name"):
 			return True
 		else:
-			self.core.popup("""the state manager was originally oppened in another comp\n 
-			it will now close and open again to avoid corrupting this comp's state data.""")
-			self.core.closeSM(restart=True)
+			if displaypopup:
+				self.core.popup("""the state manager was originally oppened in another comp\n 
+				it will now close and open again to avoid corrupting this comp's state data.""")
+				self.core.closeSM(restart=True)
 			return False
 
 	@err_catcher(name=__name__)
@@ -2079,7 +2080,7 @@ class Prism_Fusion_Functions(object):
 	def onStateManagerCalled(self, popup=None):
 		#Feedback in case it takes time to open
 		comp = self.fusion.GetCurrentComp()
-		self.sm_checkCorrectComp(comp)
+		self.sm_checkCorrectComp(comp, displaypopup=False)
 		#Set the comp used when sm was oppened for reference when saving states.
 		self.comp = comp	
 		try:
