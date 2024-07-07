@@ -14,8 +14,11 @@ import os
 import json, re, math, sys
 import os.path as Path
 
+import BlackmagicFusion as bmd
+
 class BlenderCameraImporter():
     def __init__(self) -> None:
+        self.fusion = bmd.scriptapp("Fusion")
         self.param_types = [
         "Number",
         "Clip",
@@ -45,6 +48,7 @@ class BlenderCameraImporter():
             return data
             
     def pro_reload_camera_ainimate(self, camData):
+        comp = self.fusion.GetCurrentComp()
         comp.StartUndo("Set Camera Animation")
         
         camDict = camData['cam_animate_dict']
@@ -104,7 +108,8 @@ class BlenderCameraImporter():
 
         comp.EndUndo(True)
         
-    def load_blendercamera_transformations(self, frame, num, camNode, camDict):
+    def load_blendercamera_transformations(self, frame, num, camNode, camDict):        
+        comp = self.fusion.GetCurrentComp()
         comp.SetAttrs({"COMPN_CurrentTime": frame})
         if num == 0:
             camNode.Transform3DOp.Translate.X = comp.BezierSpline()
@@ -127,6 +132,7 @@ class BlenderCameraImporter():
         camNode.Transform3DOp.Rotate.Z[comp.CurrentTime] = camDict["rota_z"][str(frame)]
 
     def create_cam_node(self, camName):
+        comp = self.fusion.GetCurrentComp()
             #Agregamos una nueva cámara y le ponemos nombre
         result = comp.AddTool("Camera3D")
         result.SetAttrs({"TOOLS_Name": camName})

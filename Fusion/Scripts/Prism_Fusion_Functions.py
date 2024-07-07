@@ -1560,7 +1560,9 @@ class Prism_Fusion_Functions(object):
 	
 	@err_catcher(name=__name__)
 	def importBlenderCam(self, importPath, origin):
-		import MH_BlenderCam_Fusion_Importer as BcamImporter
+		from MH_BlenderCam_Fusion_Importer import BlenderCameraImporter
+		print("importPath: ", importPath)
+		BcamImporter = BlenderCameraImporter()
 		BcamImporter.import_blender_camera(importPath)
 
 
@@ -1575,6 +1577,7 @@ class Prism_Fusion_Functions(object):
 		root, _ = os.path.splitext(impFileName)
 		new_file_path = os.path.normpath(root + '.bcam')
 		if os.path.exists(new_file_path):
+			print("existe un bcam")
 			impFileName = new_file_path
 		
 		comp = self.fusion.GetCurrentComp()
@@ -1987,45 +1990,6 @@ class Prism_Fusion_Functions(object):
 		extFiles = []
 		return [extFiles, []]
 
-# 	@err_catcher(name=__name__)
-# 	def makeFusionStatesNode(self):
-# 		comp = self.fusion.GetCurrentComp()
-# 		clip = """{
-# 	Tools = ordered() {
-# 		DO_NOT_DELETE_PrismSM = Note {
-# 			Locked = true,
-# 			CtrlWZoom = false,
-# 			NameSet = true,
-# 			Inputs = {
-# 				Comments = Input { Value = "{\\n    \\"states\\": [\\n        {\\n            \\"statename\\": \\"publish\\",\\n            \\"comment\\": \\"\\",\\n            \\"description\\": \\"\\"\\n        }\\n    ]\\n}_..._", }
-# 			},
-# 			ViewInfo = StickyNoteInfo {
-# 				Pos = { 388.667, 1.30299 },
-# 				Flags = {
-# 					Expanded = true
-# 				},
-# 				Size = { 86, 16.3636 }
-# 			},
-# 			Colors = { TileColor = { R = 0.0, G = 0.0, B = 1.0 }, }
-# 		}
-# 	},
-# 	ActiveTool = "DO_NOT_DELETE_PrismSM"
-# }"""
-
-# 		pyperclip.copy(clip)
-# 		comp.Paste(clip)
-	
-# 	@err_catcher(name=__name__)
-# 	def getFusionStatesNode(self):
-# 		comp = self.fusion.CurrentComp
-# 		smnode = comp.FindTool("DO_NOT_DELETE_PrismSM")
-# 		if smnode == None:
-# 			self.makeFusionStatesNode()
-# 			smnode = comp.ActiveTool
-# 			self.setSmNodePosition(smnode, x_offset=-10,y_offset=-3)
-
-# 		return smnode
-
 	@err_catcher(name=__name__)
 	def setDefaultState(self):
 		comp = self.fusion.GetCurrentComp()
@@ -2047,9 +2011,6 @@ class Prism_Fusion_Functions(object):
 		comp = self.fusion.CurrentComp
 		if self.sm_checkCorrectComp(comp):
 			comp.SetData("prismstates", buf + "_..._")
-			# create and delete a node to trigger an unsaved comp "*" visual cue in Fusion.
-			triggernode = comp.AddToolAction("Background")
-			triggernode.Delete()
 		
 	@err_catcher(name=__name__)
 	def sm_saveImports(self, origin, importPaths):
@@ -2115,9 +2076,10 @@ class Prism_Fusion_Functions(object):
 			self.popup = popup
 
 	@err_catcher(name=__name__)
-	def onStateManagerCalled(self, popup=None):		
+	def onStateManagerCalled(self, popup=None):
 		#Feedback in case it takes time to open
 		comp = self.fusion.GetCurrentComp()
+		self.sm_checkCorrectComp(comp)
 		#Set the comp used when sm was oppened for reference when saving states.
 		self.comp = comp	
 		try:
@@ -2137,12 +2099,12 @@ class Prism_Fusion_Functions(object):
 		for state in removestates:
 			if state in sm.stateTypes.keys():
 				del sm.stateTypes[state]
-		
+
 		comp = self.fusion.GetCurrentComp()
 		#Set the comp used when sm was oppened for reference when saving states.
-		self.comp = comp		
+		self.comp = comp
 		#Set State Manager Data on first open.
-		if comp.GetData("prismstates") == None:
+		if comp.GetData("prismstates") is None:
 			self.setDefaultState()
 
 		self.monkeypatchedsm = origin
@@ -2163,10 +2125,7 @@ class Prism_Fusion_Functions(object):
 		
 	@err_catcher(name=__name__)
 	def onStateCreated(self, origin, state, stateData):
-		if state.className == "ImageRender":
-			state.b_resPresets.setStyleSheet("padding-left: 1px;padding-right: 1px;")
-
-		elif state.className == "Playblast":
+		if state.className in ["ImageRender", "Playblast"]:
 			state.b_resPresets.setStyleSheet("padding-left: 1px;padding-right: 1px;")
 
 	def onStateDeleted(self, origin, stateui):
