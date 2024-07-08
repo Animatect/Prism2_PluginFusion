@@ -125,27 +125,6 @@
             },
         },
     },
-    Action
-    {
-        ID = "install_third_party",
-        Category = "Prism",
-        Name = "* Install Third Party *",
-
-        Targets =
-        {
-            Composition =
-            {
-                Execute = _Lua [=[
-                    local scriptPath = app:MapPath("Scripts:Prism/InstallThirdParty.py")
-                    if bmd.fileexists(scriptPath) == false then
-                        print("[Prism Error] Can't run file: " .. scriptPath)
-                    else
-                        target:RunScript(scriptPath)
-                    end
-                ]=],
-            },
-        },
-    },
     Menus
     {
         Target = "ChildFrame",
@@ -162,7 +141,6 @@
                 "5_Settings{}",
                 "_",
                 "Reset_Prism{}",
-                "install_third_party{}",
             },
         },
     },

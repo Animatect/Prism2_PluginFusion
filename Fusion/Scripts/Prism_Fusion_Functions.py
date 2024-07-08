@@ -40,12 +40,13 @@ import time
 import re
 import math
 import ctypes
-import pygetwindow as gw
 
 import BlackmagicFusion as bmd
 
 package_path = os.path.join(os.path.dirname(__file__), 'thirdparty')
 sys.path.append(package_path)
+
+import pygetwindow as gw
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -1416,6 +1417,40 @@ class Prism_Fusion_Functions(object):
 		"InvCameras": True
 		# "SamplingRate": 24
 	}
+	
+	@err_catcher(name=__name__)
+	def getPythonLocation(self)-> str:
+		ospath = os.path.dirname(os.__file__)
+		path_components = os.path.split(ospath)
+		new_path = os.path.join(*path_components[:-1])
+		python_location = os.path.join(new_path, "python.exe")
+		# Construct the command as a list
+		return python_location
+
+	@err_catcher(name=__name__)
+	def create_and_run_bat(self):
+		import subprocess
+		home_dir = os.path.expanduser("~")
+		bat_file_path = os.path.join(home_dir, "tmpcmdwin.bat")
+		python_path = self.getPythonLocation()
+		package_path = os.path.join(os.path.dirname(__file__), 'thirdparty')
+
+		# Check if the batch file already exists
+		if os.path.exists(bat_file_path):
+			os.remove(bat_file_path)
+
+		bat_content = f"""@echo off
+	echo Running Python commands...
+	"{python_path}" -c "import sys; sys.path.append(r'{package_path}'); import pygetwindow as gw; gw.getWindowsWithTitle('Fusion Studio - [')[0].activate()"
+	@REM pause
+	exit
+	"""
+
+		# Create the batch file
+		with open(bat_file_path, 'w') as bat_file:
+			bat_file.write(bat_content)
+
+		return bat_file_path
 
 	@err_catcher(name=__name__)
 	def focus_fusion_window(self):
@@ -1431,10 +1466,12 @@ class Prism_Fusion_Functions(object):
 		matching_windows = [window for window in windows if re.match(pattern, window)]
 		# Focus on the first matching window
 		if matching_windows:
-			script_dir = os.path.dirname(os.path.abspath(__file__))
-			batch_file = os.path.join(script_dir, "cmdwin.bat")
+			# script_dir = os.path.dirname(os.path.abspath(__file__))
+			batch_file = self.create_and_run_bat()#os.path.join(script_dir, "cmdwin.bat")
 			cmdwin = subprocess.Popen(["cmd", "/c", "start", batch_file], shell=True)
-			time.sleep(1)	
+			time.sleep(1)
+			# Delete the batch file
+			os.remove(batch_file)
 			
 			if not len(matching_windows)>1:	
 				matching_window = gw.getWindowsWithTitle(window_title)[0]
