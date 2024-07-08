@@ -38,7 +38,13 @@ class BlenderCameraImporter():
 
     def import_blender_camera(self, filepath):
         data = self.data_ingestion(filepath)
-        self.pro_reload_camera_ainimate(data)
+        camNode = self.pro_reload_camera_ainimate(data)
+        if camNode:
+            flow = self.fusion.GetCurrentComp().CurrentFrame.FlowView
+            flow.Select()
+            flow.Select(camNode)
+        
+        return camNode
 
     def data_ingestion(self, filepath):
         recvData = os.path.normpath(filepath)
@@ -50,9 +56,9 @@ class BlenderCameraImporter():
     def pro_reload_camera_ainimate(self, camData):
         comp = self.fusion.GetCurrentComp()
         comp.StartUndo("Set Camera Animation")
-        
+
         camDict = camData['cam_animate_dict']
-        camName = camDict["name"]
+        camName = f'{camDict["name"]}_ShotCam'
         camNode = comp.FindTool(camName)
 
         ####################################################
@@ -61,7 +67,7 @@ class BlenderCameraImporter():
         if camNode is None:
             camNode = self.create_cam_node(camName)
         else:
-            #si ya hay un camnode le quitamos los Keyframes
+            # si ya hay un camnode le quitamos los Keyframes
             self.clearKeyframe(comp, camNode)
 
         #######################################################
@@ -107,6 +113,8 @@ class BlenderCameraImporter():
 
 
         comp.EndUndo(True)
+
+        return camNode
         
     def load_blendercamera_transformations(self, frame, num, camNode, camDict):        
         comp = self.fusion.GetCurrentComp()
@@ -156,11 +164,11 @@ class BlenderCameraImporter():
         for p in node.GetInputList().values():
             pName = p.Name
             pDataType = p.GetAttrs()["INPS_DataType"]
-            if pDataType not in param_types:
+            if pDataType not in self.param_types:
                 continue
             if p.GetConnectedOutput():
                 p.ConnectTo()
-        comp.EndUndo(True)
+        # comp.EndUndo(True)
 
     def pro_radian_to_degrees(self, value):
             degrees = (value * 180) / math.pi

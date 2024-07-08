@@ -63,6 +63,7 @@ class Prism_Fusion_Functions(object):
 		self.fusion = bmd.scriptapp("Fusion")
 		self.comp = None # This comp is used by the state Manager to avoid overriding the state data on wrong comps
 		self.monkeypatchedsm = None # Reference to the state manager to be used on the monkeypatched functions.
+		self.monkeypatchedimportstate = None # Reference to the importState to be used on the monkeypatched functions.
 		self.popup = None # Reference of popUp dialog that shows before openning a window when it takes some time.
 
 		self.listener = None
@@ -870,8 +871,9 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def deleteNodes(self, origin, handles, num=0):
-		for i in handles:
-			comp = self.fusion.GetCurrentComp()		
+		print("called")
+		comp = self.fusion.GetCurrentComp()	
+		for i in handles:	
 			if self.sm_checkCorrectComp(comp):
 				toolnm = i["name"]
 				tool = comp.FindTool(toolnm)
@@ -1563,7 +1565,7 @@ class Prism_Fusion_Functions(object):
 		from MH_BlenderCam_Fusion_Importer import BlenderCameraImporter
 		print("importPath: ", importPath)
 		BcamImporter = BlenderCameraImporter()
-		BcamImporter.import_blender_camera(importPath)
+		return BcamImporter.import_blender_camera(importPath)
 
 
 	@err_catcher(name=__name__)
@@ -1575,9 +1577,10 @@ class Prism_Fusion_Functions(object):
 	def sm_import_importToApp(self, origin, doImport, update, impFileName):
 		# Check if a .bcam file exists, if so, prefer it over the abc, this means a Mh blender camera.
 		root, _ = os.path.splitext(impFileName)
+		isbcam = False
 		new_file_path = os.path.normpath(root + '.bcam')
 		if os.path.exists(new_file_path):
-			print("existe un bcam")
+			isbcam = True
 			impFileName = new_file_path
 		
 		comp = self.fusion.GetCurrentComp()
@@ -1615,54 +1618,60 @@ class Prism_Fusion_Functions(object):
 			if result:
 				#check if there was a merge3D in the import and where was it connected to
 				newNodes = [n.Name for n in comp.GetToolList(True).values()]
-				refPosNode, positionedNodes = self.ReplaceBeforeImport(origin, newNodes)
-				self.cleanbeforeImport(origin)
-				if refPosNode:
-					atx, aty = flow.GetPosTable(refPosNode).values()
-		
-				importedTools = comp.GetToolList(True).values()
-				#Set the position of the imported nodes relative to the previously active tool or last click in compView
-				impnodes = [n for n in importedTools]
-				#print(impnodes)
-				if len(impnodes) > 0:
-					comp.Lock()
+				if isbcam:
+					importedNodes = []
+					importedNodes.append(self.getNode(newNodes[0]))
+					origin.setName = "Import_" + fileName[0]			
+					origin.nodes = importedNodes
+				else:
+					refPosNode, positionedNodes = self.ReplaceBeforeImport(origin, newNodes)
+					self.cleanbeforeImport(origin)
+					if refPosNode:
+						atx, aty = flow.GetPosTable(refPosNode).values()
+			
+					importedTools = comp.GetToolList(True).values()
+					#Set the position of the imported nodes relative to the previously active tool or last click in compView
+					impnodes = [n for n in importedTools]
+					#print(impnodes)
+					if len(impnodes) > 0:
+						comp.Lock()
 
-					fisrtnode = impnodes[0]
-					fstnx, fstny = flow.GetPosTable(fisrtnode).values()
+						fisrtnode = impnodes[0]
+						fstnx, fstny = flow.GetPosTable(fisrtnode).values()
 
-					for n in impnodes:
-						if not n.Name in positionedNodes:
-							x,y  = flow.GetPosTable(n).values()
+						for n in impnodes:
+							if not n.Name in positionedNodes:
+								x,y  = flow.GetPosTable(n).values()
 
-							offset = [x-fstnx,y-fstny]
-							newx = x+(atx-x)+offset[0]
-							newy = y+(aty-y)+offset[1]
-							flow.SetPos(n, newx-1, newy)
+								offset = [x-fstnx,y-fstny]
+								newx = x+(atx-x)+offset[0]
+								newy = y+(aty-y)+offset[1]
+								flow.SetPos(n, newx-1, newy)
 
-					comp.Unlock()
-				##########
+						comp.Unlock()
+					##########
 
 
-				importedNodes = []
-				for i in newNodes:
-					# Append sufix to objNames to identify product with unique Name
-					node = self.getObject(i)
-					newName = self.apllyProductSufix(i, origin)
-					node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
-					importedNodes.append(self.getNode(newName))
+					importedNodes = []
+					for i in newNodes:
+						# Append sufix to objNames to identify product with unique Name
+						node = self.getObject(i)
+						newName = self.apllyProductSufix(i, origin)
+						node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
+						importedNodes.append(self.getNode(newName))
 
-				origin.setName = "Import_" + fileName[0]			
-				origin.nodes = importedNodes
+					origin.setName = "Import_" + fileName[0]			
+					origin.nodes = importedNodes
 
-				# print(
-				# 	"the origin is:", origin, "\n",
-				# 	"State: ", origin.state,"\n",
-				# 	"Name: ", origin.importPath.split("_")[-2], "\n",
-				# 	"Nodes: ", origin.nodeNames, "\n",
-				# 	"importPath:", origin.importPath, "\n",
-				# 	)
-				
-				#Deseleccionar todo
+					# print(
+					# 	"the origin is:", origin, "\n",
+					# 	"State: ", origin.state,"\n",
+					# 	"Name: ", origin.importPath.split("_")[-2], "\n",
+					# 	"Nodes: ", origin.nodeNames, "\n",
+					# 	"importPath:", origin.importPath, "\n",
+					# 	)
+					
+					#Deseleccionar todo
 				flow.Select()
 
 				objs = [self.getObject(x) for x in importedNodes]
@@ -2139,7 +2148,8 @@ class Prism_Fusion_Functions(object):
 				result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 				if result == "Yes":
 					node.Delete()
-
+		# elif stateui.className == "ImportFile":
+			
 			
 	################################################
 	#                                              #
@@ -2151,13 +2161,17 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def rclTree(self, pos, activeList):
 		sm = self.monkeypatchedsm
-		if sm:
-			#From here the only line that changes is the commented one in "render" state.
+		if sm:			
 			rcmenu = QMenu(sm)
 			idx = sm.activeList.indexAt(pos)
 			parentState = sm.activeList.itemFromIndex(idx)
 			sm.rClickedItem = parentState
 
+			if parentState.ui.className == "ImportFile":
+				self.monkeypatchedimportstate = parentState.ui
+				self.core.plugins.monkeyPatch(parentState.ui.preDelete, self.preDelete, self, force=True)
+
+			#From here the only line that changes is the commented one in "render" state.
 			actExecute = QAction("Execute", sm)
 			actExecute.triggered.connect(lambda: sm.publish(executeState=True))
 
@@ -2250,3 +2264,37 @@ class Prism_Fusion_Functions(object):
 			rcmenu.addAction(actDel)
 
 			rcmenu.exec_(sm.activeList.mapToGlobal(pos))
+
+	@err_catcher(name=__name__)
+	def preDelete(
+		self,
+		item=None,
+		baseText="Do you also want to delete the connected objects?\n\n",
+	):
+		state = self.monkeypatchedimportstate
+		if len(state.nodes) <= 0 or state.stateMode == "ApplyCache":
+			return
+		message = baseText
+		validNodes = [
+			x for x in state.nodes if self.core.appPlugin.isNodeValid(state, x)
+		]
+		if validNodes:
+			for idx, val in enumerate(validNodes):
+				if idx > 5:
+					message += "..."
+					break
+				else:
+					message += self.core.appPlugin.getNodeName(state, val) + "\n"
+
+			if not self.core.uiAvailable:
+				action = 0
+				print("delete objects:\n\n%s" % message)
+			else:
+				msg = QMessageBox(
+					QMessageBox.Question, "Delete state", message, QMessageBox.No
+				)
+				msg.addButton("Yes", QMessageBox.YesRole)
+				msg.setParent(self.core.messageParent, Qt.Window)
+				action = msg.exec_()
+			if action == 2:
+				self.core.appPlugin.deleteNodes(state, validNodes)

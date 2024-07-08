@@ -47,11 +47,12 @@ def checkThirdParty():
 	
 	#Check for third party
 	try:
-		import PySide6
+		# import PySide6
 		# import pyautogui
 		# import pyperclip
 		# import psutil
 		# import plyer
+		pass
 	except ImportError:
 		import InstallThirdParty
 		InstallThirdParty.installThirdParty()
