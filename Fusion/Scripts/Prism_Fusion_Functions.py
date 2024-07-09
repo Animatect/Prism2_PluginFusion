@@ -2023,15 +2023,16 @@ class Prism_Fusion_Functions(object):
 	################################################
 	@err_catcher(name=__name__)
 	def sm_checkCorrectComp(self, comp, displaypopup=True):
-		if self.comp.GetAttrs("COMPS_Name") == comp.GetAttrs("COMPS_Name"):
-			return True
-		else:
-			if displaypopup:
-				self.core.popup("""the state manager was originally oppened in another comp\n 
-				it will now close and open again to avoid corrupting this comp's state data.""")
-				self.core.closeSM(restart=True)
-			return False
-
+		if self.comp:
+			if self.comp.GetAttrs("COMPS_Name") == comp.GetAttrs("COMPS_Name"):
+				return True
+			else:
+				if displaypopup:
+					self.core.popup("""the state manager was originally oppened in another comp\n 
+					it will now close and open again to avoid corrupting this comp's state data.""")
+					self.core.closeSM(restart=True)
+				return False
+		return True
 	@err_catcher(name=__name__)
 	def sm_getExternalFiles(self, origin):
 		extFiles = []
