@@ -872,7 +872,7 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def deleteNodes(self, origin, handles, num=0):
-		print("called")
+		print("estamos Deleteando")
 		comp = self.fusion.GetCurrentComp()	
 		for i in handles:	
 			if self.sm_checkCorrectComp(comp):
@@ -1633,8 +1633,7 @@ class Prism_Fusion_Functions(object):
 				activetool = comp.ActiveTool()
 			except:
 				pass
-			#if there is no active tool we use the note tool for the StateManager as a reference 
-			if activetool:
+			if activetool and not activetool.GetAttrs("TOOLS_RegID") =="BezierSpline":
 				atx, aty = flow.GetPosTable(activetool).values()
 			else:
 				atx, aty = self.find_LastClickPosition()
@@ -2334,5 +2333,8 @@ class Prism_Fusion_Functions(object):
 				msg.addButton("Yes", QMessageBox.YesRole)
 				msg.setParent(self.core.messageParent, Qt.Window)
 				action = msg.exec_()
-			if action == 2:
+				clicked_button = msg.clickedButton()
+				result = clicked_button.text()
+			# if action == 2:
+			if result == "Yes":
 				self.core.appPlugin.deleteNodes(state, validNodes)
