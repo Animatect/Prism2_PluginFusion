@@ -1147,7 +1147,8 @@ class Prism_Fusion_Functions(object):
 					if splithandle:
 						splithandle['splitchosen'] = True
 					loaders_list = self.process_multichannel(node)
-					return loaders_list[-1]
+					if len(loaders_list)>0:
+						return loaders_list[-1]
  
 				elif splithandle:
 					splithandle['splitchosen'] = False
@@ -1320,9 +1321,9 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def process_multichannel(self, tool):
 		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
 		loader_channels = self.get_loader_channels(tool)
 		channel_data = self.get_channel_data(loader_channels)
-		flow = comp.CurrentFrame.FlowView
 		x_pos, y_pos = flow.GetPosTable(tool).values()
 
 		loaders_list = []
@@ -1385,7 +1386,9 @@ class Prism_Fusion_Functions(object):
 			self.createWireless(node)
 			flow.Select(node, True)
 
-		tool.Delete()
+		if len(loaders_list)>0:
+			tool.Delete()
+		
 		comp.Unlock()
 		comp.EndUndo()
 		
