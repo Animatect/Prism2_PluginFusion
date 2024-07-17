@@ -954,7 +954,6 @@ class Prism_Fusion_Functions(object):
 	# Also get Lower Position and check if it is within the x threshold to be still on the leftmost.
 	# Update the position with every new node as the new pos.	
 		leftmostNode = self.find_leftmost_lower_node(0.5)
-		print("leftmostnode: ", leftmostNode.Name)
 	#
 
 		dataSources = origin.compGetImportPasses()
@@ -1052,7 +1051,7 @@ class Prism_Fusion_Functions(object):
 	def getPassData(self, comp, sourceData):
 		curfr = int(comp.CurrentTime)
 		
-		filePath = sourceData[0].replace("####", f"{curfr:0{4}}")
+		filePath = sourceData[0].replace(".####", "")#f"{curfr:0{4}}")
 		firstFrame = sourceData[1]
 		lastFrame = sourceData[2]			
 		aovNm = os.path.dirname(filePath).split("/")[-1]
@@ -1112,7 +1111,6 @@ class Prism_Fusion_Functions(object):
 
 
 		# if paths were not updated then we create new nodes.
-		print("newnode: ", aovNm)
 		comp.Lock()
 		node = comp.AddTool("Loader")
 		self.reloadLoader(node, filePath, firstFrame, lastFrame)

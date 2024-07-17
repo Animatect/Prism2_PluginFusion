@@ -23,16 +23,16 @@ def environment(module, nolocation=False):
 		print("Command output (if available):", e.stdout)
 
 def installThirdParty():
-	# try:
-	# 	environment("PySide6")
-	# 	environment("qtpy")
-	# except:
-	# 	environment("PySide2")
+	try:
+		environment("PySide6")
+		environment("qtpy")
+	except:
+		environment("PySide2")
 	# environment("pyautogui")
 	# environment("pyperclip")
 	# environment("psutil")
 	# environment("plyer")
-	environment("pygetwindow", nolocation=True)
+	# environment("pygetwindow", nolocation=True)
 
 if __name__ == "__main__":
 	installThirdParty()

@@ -47,7 +47,8 @@ def checkThirdParty():
 	
 	#Check for third party
 	try:
-		# import PySide6
+		import PySide6
+		import qtpy
 		# import pyautogui
 		# import pyperclip
 		# import psutil

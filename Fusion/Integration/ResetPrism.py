@@ -1,7 +1,11 @@
-import HolderClass
 import os
 import sys
 import time
+
+from PrismInit import checkThirdParty
+checkThirdParty()
+
+import HolderClass
 
 package_path = os.path.normpath(THIRDPARTY)
 sys.path.append(package_path)
