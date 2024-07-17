@@ -936,7 +936,7 @@ class Prism_Fusion_Functions(object):
 		sourceData = origin.compGetImportSource()
 		imageData = self.getImageData(comp, sourceData)
 		if imageData:
-			self.processImageImport(comp, flow, imageData)
+			self.processImageImport(imageData)
 
 	@err_catcher(name=__name__)
 	def fusionImportPasses(self, origin):
@@ -950,10 +950,18 @@ class Prism_Fusion_Functions(object):
 		# deselect all nodes
 		flow.Select()
 
+	# Get the leftmost position.
+	# Also get Lower Position and check if it is within the x threshold to be still on the leftmost.
+	# Update the position with every new node as the new pos.	
+		leftmostNode = self.find_leftmost_lower_node(0.5)
+		print("leftmostnode: ", leftmostNode.Name)
+	#
+
 		dataSources = origin.compGetImportPasses()
 		for sourceData in dataSources:
 			imageData = self.getPassData(comp, sourceData)
-			self.processImageImport(comp, flow, imageData, splithandle=splithandle, updatehandle=updatehandle)
+			leftmostNode = self.processImageImport(imageData, splithandle=splithandle, updatehandle=updatehandle, refNode=leftmostNode)
+
 
 		if len(updatehandle["updatelog"]) > 0:
 			fString = "The following nodes were updated:\n"
@@ -1068,8 +1076,10 @@ class Prism_Fusion_Functions(object):
 		return areUpdatedPaths, updatedNodes
 
 	@err_catcher(name=__name__)
-	def processImageImport(self, comp, flow, imageData, splithandle=None, updatehandle=None):
-		# Do in this function the actual importing or update of the image.
+	def processImageImport(self, imageData, splithandle=None, updatehandle=None, refNode=None):
+		# Do in this function the actual importing or update of the image.		
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
 
 		filePath = imageData['filePath']
 		firstFrame = imageData['firstFrame']
@@ -1082,11 +1092,12 @@ class Prism_Fusion_Functions(object):
 		
 		# if paths were updated then we return, else we follow to create new nodes.
 		if areUpdatedPaths:
+			print("updatepaths")
 			# if we are running the function on multiple AOVs:
 			if updatehandle:
 				for node in updatedNodes:
 					updatehandle['updatelog'].append(node)
-				return
+				return node
 
 			# if we are running the function on a single AOV:
 			else:
@@ -1097,40 +1108,29 @@ class Prism_Fusion_Functions(object):
 						nodeToSelect = comp.FindTool(node['name'])
 						flow.Select(nodeToSelect, True)
 				self.core.popupQuestion(fString, buttons=['ok'], icon=QMessageBox.NoIcon)
-				return
+				return node
 
 
 		# if paths were not updated then we create new nodes.
+		print("newnode: ", aovNm)
 		comp.Lock()
 		node = comp.AddTool("Loader")
 		self.reloadLoader(node, filePath, firstFrame, lastFrame)
 		node.SetAttrs({"TOOLS_Name": aovNm})
-		self.setSmNodePosition(node, x_offset = -5, y_offset = 0)
+		if refNode.GetAttrs('TOOLS_RegID') =='Loader':
+			self.setSmNodePosition(node, x_offset = 0, y_offset = 1, refNode=refNode)
+		else:
+			self.setSmNodePosition(node, x_offset = -5, y_offset = 0, refNode=refNode)
 		comp.Unlock()
-
-		# check if the leftmost node is a Loader to put the nodes below.
-		validtools = [t for t in comp.GetToolList(False).values() if flow.GetPosTable(t) and not t.Name == node.Name and not t.Name == 'DO_NOT_DELETE_PrismSM']
-		leftmostNode = self.find_leftmost_lower_node(flow, validtools, 0)
-		
-		if len(comp.GetToolList()) == 1:
-			x_pos, y_pos = self.find_LastClickPosition()
-			flow.SetPos(node, x_pos, y_pos + 1.5)
-
-		elif leftmostNode.GetAttrs("TOOLS_RegID") == "Loader":
-			loaders = [l for l in comp.GetToolList(False, "Loader").values() if not l.Name == node.Name]	
-			leftmostLoader = self.find_leftmost_lower_node(flow, loaders, 2.5)
-			x_pos, y_pos = flow.GetPosTable(leftmostLoader).values()
-			flow.SetPos(node, x_pos, y_pos + 1.5)
 		
 		# IF IS EXR
 		extension = os.path.splitext(filePath)[1]
 		if extension == ".exr":
 			# check for multichannels
 			channels = self.get_loader_channels(node)
-			# print("channels: ", channels)
 			if len(channels) > 0:
 				buttons = ["Yes", "No"]
-				# if we need to manage the plit dialog from outside and this is the first time the question is asked.
+				# if we need to manage the split dialog from outside and this is the first time the question is asked.
 				if splithandle and splithandle['splitfirstasked']:
 					splithandle['splitfirstasked'] = False
 					fString = splithandle['fstring']
@@ -1148,8 +1148,8 @@ class Prism_Fusion_Functions(object):
 				if result == "Yes":
 					if splithandle:
 						splithandle['splitchosen'] = True
-					self.process_multichannel(node)
-					return
+					loaders_list = self.process_multichannel(node)
+					return loaders_list[-1]
  
 				elif splithandle:
 					splithandle['splitchosen'] = False
@@ -1158,7 +1158,7 @@ class Prism_Fusion_Functions(object):
 		self.createWireless(node)
 		flow.Select(node, True)
 		
-		return
+		return node
 
 	@err_catcher(name=__name__)
 	def createWireless(self, tool):
@@ -1204,26 +1204,19 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def find_leftmost_lower_node(self, flow, nodes, threshold):
-		leftmost_node = None
-		downmost_node = None
-		min_x_position = float('inf')
-		max_y_position = -float('inf')
-		downmost_node_x = float('inf')
-		for n in nodes:
-			x, y = flow.GetPosTable(n).values()
-			if x < min_x_position or leftmost_node is None:
-				leftmost_node = (n)
-				min_x_position = x
-			if y > max_y_position or downmost_node is None:
-				downmost_node = (n)
-				max_y_position = y
-				downmost_node_x = x
+	def find_leftmost_lower_node(self, threshold):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
 
-		if abs(downmost_node_x - min_x_position) < threshold:
-			return downmost_node
+		nodes = [t for t in comp.GetToolList(False).values() if flow.GetPosTable(t) and not t.GetAttrs('TOOLS_RegID')=='Underlay']
 
-		return leftmost_node
+		leftmost = min(nodes, key=lambda p: flow.GetPosTable(p)[1])
+		downmost = max(nodes, key=lambda p: flow.GetPosTable(p)[2])
+
+		if abs(flow.GetPosTable(downmost)[1] - flow.GetPosTable(leftmost)[1]) <= threshold:
+			return downmost
+		else:
+			return leftmost
 
 	@err_catcher(name=__name__)
 	def extract_version(self, filepath):
@@ -1397,7 +1390,8 @@ class Prism_Fusion_Functions(object):
 		tool.Delete()
 		comp.Unlock()
 		comp.EndUndo()
-
+		
+		return loaders_list
 
 
 	################################################
@@ -1926,7 +1920,39 @@ class Prism_Fusion_Functions(object):
 		return x,y
 
 	@err_catcher(name=__name__)
-	def find_extreme_position(self, flow, thisnode=None, all_nodes=[], ignore_node_type=None, find_min=True):
+	def find_extreme_loader(self):
+		# Get the current composition
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView()
+
+		# Initialize variables to track the leftmost lower Loader node
+		leftmost_lower_loader = None
+		min_x = -float('inf')
+		min_y = float('inf')
+
+		# Iterate through all tools in the composition
+		for tool in comp.GetToolList().values():
+			# Check if the tool is of type "Loader"
+			if tool.GetAttrs()['TOOLS_RegID'] == 'Loader':
+				# Get the position of the Loader node
+				position = flow.GetPosTable(tool)
+				
+				if position:
+					x, y = position[1], position[2]
+					# Check if this Loader node is the leftmost lower node
+					if (y < min_y) or (y == min_y and x < min_x):
+						min_x = x
+						min_y = y
+						leftmost_lower_loader = tool
+
+		# Output the leftmost lower Loader node
+		return leftmost_lower_loader
+
+	@err_catcher(name=__name__)
+	def find_extreme_position(self, thisnode=None, ignore_node_type=None, find_min=True):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+
 		if find_min:
 			thresh_x_position, thresh_y_position = float('inf'), float('inf')
 		else: 
@@ -1934,8 +1960,10 @@ class Prism_Fusion_Functions(object):
 
 		extreme_node = None
 
+		all_nodes = comp.GetToolList(False).values()
+
 		for node in all_nodes:
-			if thisnode and node.Name == thisnode.Name or node.Name == 'DO_NOT_DELETE_PrismSM':
+			if thisnode and node.Name == thisnode.Name:
 				continue
 
 			if ignore_node_type and node.GetAttrs("TOOLS_RegID") == ignore_node_type:
@@ -1969,7 +1997,7 @@ class Prism_Fusion_Functions(object):
 
 	#The name of this function comes for its initial use to position the "state manager node" that what used before using SetData.
 	@err_catcher(name=__name__)
-	def setSmNodePosition(self, smnode, find_min=True, x_offset=-2, y_offset=0, ignore_node_type=None):
+	def setSmNodePosition(self, smnode, find_min=True, x_offset=-2, y_offset=0, ignore_node_type=None, refNode=None):
 		# Get the active composition
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
@@ -1982,12 +2010,16 @@ class Prism_Fusion_Functions(object):
 		all_nodes = comp.GetToolList(False).values()
 
 		if not all_nodes:
+			print("no hay allnodes")
 			flow.SetPos(smnode, 0, 0)
 			return
 
-		xmost_node, thresh_x_position, thresh_y_position = self.find_extreme_position(flow, smnode, all_nodes, ignore_node_type, find_min)
+		# xmost_node, thresh_x_position, thresh_y_position = self.find_extreme_position(smnode, ignore_node_type, find_min)
+		# print("xmost_node: ", xmost_node)
 
-		if xmost_node:
+		# if xmost_node:
+		if refNode:
+			thresh_x_position, thresh_y_position = postable = flow.GetPosTable(refNode).values()
 			self.set_node_position(flow, smnode, thresh_x_position + x_offset, thresh_y_position + y_offset)
 		else:
 			flow.SetPos(smnode, 0, 0)
