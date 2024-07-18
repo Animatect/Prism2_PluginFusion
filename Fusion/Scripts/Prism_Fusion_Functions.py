@@ -945,14 +945,14 @@ class Prism_Fusion_Functions(object):
 
 		fString = "Some EXRs seem to have multiple channels:\n" + "Do you want to split the EXR channels into individual nodes?"
 		splithandle = {'splitchosen': False, 'splitfirstasked': True, 'fstring': fString}
-		updatehandle = {'updatednodes': [], 'updatelog': []}
+		updatehandle:list = [] #List of updated nodes
 
 		# deselect all nodes
 		flow.Select()
 
 	# Get the leftmost position.
 	# Also get Lower Position and check if it is within the x threshold to be still on the leftmost.
-	# Update the position with every new node as the new pos.	
+	# Update the position with every new node as the new pos.
 		leftmostNode = self.find_leftmost_lower_node(0.5)
 	#
 
@@ -961,17 +961,20 @@ class Prism_Fusion_Functions(object):
 			imageData = self.getPassData(comp, sourceData)
 			leftmostNode = self.processImageImport(imageData, splithandle=splithandle, updatehandle=updatehandle, refNode=leftmostNode)
 
+		if len(updatehandle) > 0:
+			message = "The following nodes were updated:\n\n"
+			for handle in updatehandle:
+				message += f"{handle}\n"
+				flow.Select(comp.FindTool(handle.split(":")[0]), True)
+			# Display List of updated nodes.
+			self.createInformationDialog("Updated Nodes", message)
 
-		if len(updatehandle["updatelog"]) > 0:
-			fString = "The following nodes were updated:\n"
-			updatedNodes = updatehandle["updatelog"]
-			for node in updatedNodes:
-				if node['oldv'] != node['newv']:
-					fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
-					nodeToSelect = comp.FindTool(node['name'])
-					flow.Select(nodeToSelect, True)
-			self.core.popupQuestion(fString, buttons=['ok'], icon=QMessageBox.NoIcon)
-			return
+	@err_catcher(name=__name__)
+	def createInformationDialog(self, title, message):
+		msg = QMessageBox(QMessageBox.Question, title, message)
+		msg.addButton("Ok", QMessageBox.YesRole)
+		msg.setParent(self.core.messageParent, Qt.Window)
+		msg.exec_()
 
 	@err_catcher(name=__name__)
 	def fusionUpdateSelectedPasses(self, origin):
@@ -1059,56 +1062,56 @@ class Prism_Fusion_Functions(object):
 		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm)
 
 	@err_catcher(name=__name__)
-	def updateLoaders(self, Loaders, filePath, firstFrame, lastFrame):
-		updatedNodes = []
-		areUpdatedPaths = False
-		for loader in Loaders:
+	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame):
+		for loader in Loaderstocheck:
 			loaderClipPath = loader.Clip[0]
 			if self.are_paths_equal_except_version(loaderClipPath, filePath):
 				version1 = self.extract_version(loaderClipPath)
 				version2 = self.extract_version(filePath)
-				areUpdatedPaths = True
 
 				self.reloadLoader(loader, filePath, firstFrame, lastFrame)
-				updatedNodes.append({'name':loader.Name, 'oldv': str(version1), 'newv': str(version2)})
-
-		return areUpdatedPaths, updatedNodes
+				if not version1 == version2:
+					return loader, version1
+			
+		return None, ""
 
 	@err_catcher(name=__name__)
-	def processImageImport(self, imageData, splithandle=None, updatehandle=None, refNode=None):
+	def processImageImport(self, imageData, splithandle=None, updatehandle:list=[], refNode=None):
 		# Do in this function the actual importing or update of the image.		
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
 		filePath = imageData['filePath']
 		firstFrame = imageData['firstFrame']
-		lastFrame = imageData['lastFrame']
+		lastFrame = imageData['lastFrame']		
 		aovNm = imageData['aovNm']
 		
+		extension = os.path.splitext(filePath)[1]
 		# Check if path without version exists in a loader and if so generate a popup to update with new version.
 		allLoaders = comp.GetToolList(False, "Loader").values()
-		areUpdatedPaths, updatedNodes = self.updateLoaders(allLoaders, filePath, firstFrame, lastFrame)
-		
-		# if paths were updated then we return, else we follow to create new nodes.
-		if areUpdatedPaths:
-			print("updatepaths")
-			# if we are running the function on multiple AOVs:
-			if updatehandle:
-				for node in updatedNodes:
-					updatehandle['updatelog'].append(node)
-				return node
+		updatedloader, prevVersion = self.updateLoaders(allLoaders, filePath, firstFrame, lastFrame)					
 
-			# if we are running the function on a single AOV:
-			else:
-				fString = "The following nodes were updated:\n"
-				for node in updatedNodes:
-					if node['oldv'] != node['newv']:
-						fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
-						nodeToSelect = comp.FindTool(node['name'])
-						flow.Select(nodeToSelect, True)
-				self.core.popupQuestion(fString, buttons=['ok'], icon=QMessageBox.NoIcon)
-				return node
+		# If an updated node was produced.
+		if updatedloader:
+			# Update Multilayer.
+			if extension == ".exr":
+				# check for multichannels to update all plitted nodes.
+				extraloader = updatedloader
+				checkedloaders:list = [updatedloader.Name]
+				if len(self.get_loader_channels(updatedloader)) > 0:
+					while  extraloader:
+						allremainingLoaders = [t for t in allLoaders if not t.Name in checkedloaders]
+						extraloader, extraversion = self.updateLoaders(allremainingLoaders, filePath, firstFrame, lastFrame)
+						if extraloader:
+							checkedloaders.append(extraloader.Name)
 
+			# Set up update feedback Dialog message
+			version1 = prevVersion
+			version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
+			nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
+			updatehandle.append(nodemessage)
+
+			return updatedloader
 
 		# if paths were not updated then we create new nodes.
 		comp.Lock()
@@ -1122,7 +1125,6 @@ class Prism_Fusion_Functions(object):
 		comp.Unlock()
 		
 		# IF IS EXR
-		extension = os.path.splitext(filePath)[1]
 		if extension == ".exr":
 			# check for multichannels
 			channels = self.get_loader_channels(node)
@@ -1347,7 +1349,7 @@ class Prism_Fusion_Functions(object):
 			ldr = comp.Loader({'Clip': self.GetLoaderClip(tool)})
 
 			# Replace invalid EXR channel names with placeholders
-			ldr.SetAttrs({'TOOLB_NameSet': True, 'TOOLS_Name': prefix})
+			ldr.SetAttrs({'TOOLB_NameSet': True, 'TOOLS_Name': tool.Name.rsplit('_', 1)[0] + "_" + prefix})# rsplit splits from the right using in this case the first ocurrence.
 			for name, placeholder in invalid_names.items():
 				setattr(ldr.Clip1.OpenEXRFormat, name, placeholder)
 
