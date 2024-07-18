@@ -959,7 +959,10 @@ class Prism_Fusion_Functions(object):
 		dataSources = origin.compGetImportPasses()
 		for sourceData in dataSources:
 			imageData = self.getPassData(comp, sourceData)
+			# Return the last processed node.
 			leftmostNode = self.processImageImport(imageData, splithandle=splithandle, updatehandle=updatehandle, refNode=leftmostNode)
+
+		self.sort_loaders(leftmostNode, reconnectIn=True)
 
 		if len(updatehandle) > 0:
 			message = "The following nodes were updated:\n\n"
@@ -975,6 +978,52 @@ class Prism_Fusion_Functions(object):
 		msg.addButton("Ok", QMessageBox.YesRole)
 		msg.setParent(self.core.messageParent, Qt.Window)
 		msg.exec_()
+
+	@err_catcher(name=__name__)
+	def split_loader_name(self, name):
+		prefix = name.rsplit('_', 1)[0]  # everything to the left of the last "_"
+		suffix = name.rsplit('_', 1)[-1]  # everything to the right of the last "_"
+		return prefix, suffix
+
+
+
+	@err_catcher(name=__name__)
+	def sort_loaders(self, posRefNode, reconnectIn=True):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+		comp.Lock()
+		leftmostpos = flow.GetPosTable(posRefNode)[1]
+		thresh = 100
+		loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh]
+		loaderstop2bot = sorted(loaders, key=lambda ld: flow.GetPosTable(ld)[2])
+		layers = set([self.split_loader_name(ly.Name)[0] for ly in loaders])
+		sortedloaders = []
+		print(layers)
+		for ly in sorted(list(layers)):
+			lyloaders = [l for l in loaders if self.split_loader_name(l.Name)[0] == ly]
+			sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
+			sortedloaders += sorted_loader_names
+
+		# Sorting the loader names
+		lastloaderlyr = self.split_loader_name(sortedloaders[0].Name)[0]
+		newx = flow.GetPosTable(loaderstop2bot[0])[1]
+		newy = flow.GetPosTable(loaderstop2bot[0])[2]
+		for l in sortedloaders:
+			innode =  comp.FindTool(l.Name+"_IN")
+			outnode = comp.FindTool(l.Name+"_OUT")
+			if innode and reconnectIn:
+				innode.ConnectInput('Input', l)
+			lyrnm = self.split_loader_name(l.Name)[0]
+			if lyrnm != lastloaderlyr:
+				newy+=1
+			flow.SetPos(l, newx, newy)
+			if innode:
+				flow.SetPos(innode, newx+2, newy)
+			if outnode:
+				flow.SetPos(outnode, newx+3, newy)
+			newy+=1
+			lastloaderlyr = lyrnm
+		comp.Unlock()
 
 	@err_catcher(name=__name__)
 	def fusionUpdateSelectedPasses(self, origin):
