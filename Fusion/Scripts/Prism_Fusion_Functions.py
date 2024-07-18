@@ -899,11 +899,6 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def importImages(self, origin):
-		# print(f'origin: {origin}\norigin.origin: {origin.origin}')
-		# for aov in origin.origin.getCurrentAOV():
-		# 	val = origin.origin.getCurrentAOV()[aov]
-		# 	print(f'{aov} : {val}')
-
 		if origin.origin.getCurrentAOV():
 			fString = "Please select an import option:"
 			buttons = ["Current AOV", "All AOVs", "Update Selected"]
@@ -959,7 +954,11 @@ class Prism_Fusion_Functions(object):
 
 		self.sort_loaders(leftmostNode, reconnectIn=True)
 
+		# deselect all nodes
+		flow.Select()
+
 		if len(updatehandle) > 0:
+			
 			message = "The following nodes were updated:\n\n"
 			for handle in updatehandle:
 				message += f"{handle}\n"
