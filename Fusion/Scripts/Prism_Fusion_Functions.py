@@ -560,7 +560,6 @@ class Prism_Fusion_Functions(object):
 		pathmaps = comp.GetCompPathMap(False, False)
 		pathexists = False
 		isnetworkpath = False
-		# print("Extracted substring:", filepath)
 		for k in pathmaps.keys():
 			if k in filepath:
 				index = filepath.find(k)
@@ -674,7 +673,6 @@ class Prism_Fusion_Functions(object):
 
 			# Search for the pattern in the text
 			match = re.search(pattern, text)
-			# print(match)
 
 			# If a match is found, extract the substring after "Value ="
 			if match:
@@ -700,7 +698,6 @@ class Prism_Fusion_Functions(object):
 			pattern = regexpattern
 			# Search for the pattern in the text
 			match = re.search(pattern, text)
-			# print(match)
 
 			# If a match is found, extract the substring after "Value ="
 			if match:
@@ -785,7 +782,6 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def sm_render_startLocalRender(self, origin, outputPathOnly, outputName, rSettings):
-		# print(rSettings)
 		comp = self.fusion.GetCurrentComp()		
 		if self.sm_checkCorrectComp(comp):
 			sv = self.get_rendernode(origin.get_rendernode_name())
@@ -872,7 +868,6 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def deleteNodes(self, origin, handles, num=0):
-		print("estamos Deleteando")
 		comp = self.fusion.GetCurrentComp()	
 		for i in handles:	
 			if self.sm_checkCorrectComp(comp):
@@ -998,7 +993,6 @@ class Prism_Fusion_Functions(object):
 		loaderstop2bot = sorted(loaders, key=lambda ld: flow.GetPosTable(ld)[2])
 		layers = set([self.split_loader_name(ly.Name)[0] for ly in loaders])
 		sortedloaders = []
-		print(layers)
 		for ly in sorted(list(layers)):
 			lyloaders = [l for l in loaders if self.split_loader_name(l.Name)[0] == ly]
 			sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
@@ -1323,7 +1317,6 @@ class Prism_Fusion_Functions(object):
 		}
 		source_channels = tool.Clip1.OpenEXRFormat.RedName.GetAttrs("INPIDT_ComboControl_ID")
 		all_channels = []
-		# print(source_channels)
 		for channel_name in source_channels.values():
 			if channel_name.lower() not in skip:
 				all_channels.append(channel_name)
@@ -1646,7 +1639,6 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def importBlenderCam(self, importPath, origin):
 		from MH_BlenderCam_Fusion_Importer import BlenderCameraImporter
-		print("importPath: ", importPath)
 		BcamImporter = BlenderCameraImporter()
 		return BcamImporter.import_blender_camera(importPath)
 
@@ -1714,7 +1706,6 @@ class Prism_Fusion_Functions(object):
 					importedTools = comp.GetToolList(True).values()
 					#Set the position of the imported nodes relative to the previously active tool or last click in compView
 					impnodes = [n for n in importedTools]
-					#print(impnodes)
 					if len(impnodes) > 0:
 						comp.Lock()
 
@@ -1745,15 +1736,7 @@ class Prism_Fusion_Functions(object):
 					origin.setName = "Import_" + fileName[0]			
 					origin.nodes = importedNodes
 
-					# print(
-					# 	"the origin is:", origin, "\n",
-					# 	"State: ", origin.state,"\n",
-					# 	"Name: ", origin.importPath.split("_")[-2], "\n",
-					# 	"Nodes: ", origin.nodeNames, "\n",
-					# 	"importPath:", origin.importPath, "\n",
-					# 	)
-					
-					#Deseleccionar todo
+				#Deselect All
 				flow.Select()
 
 				objs = [self.getObject(x) for x in importedNodes]
@@ -1793,8 +1776,6 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def cleanbeforeImport(self, origin):
-		# print(f"origin setname: {origin.setName}")
-		# print(f"origin nodes: {origin.nodes}")
 		if origin.nodes == []:
 			return
 		nodes = []
@@ -1860,13 +1841,11 @@ class Prism_Fusion_Functions(object):
 			oldnodename = self.apllyProductSufix(o, origin)
 			oldnode = comp.FindTool(oldnodename)
 
-			# print("oldnode: ", oldnode.Name)
 			# If there is a previous version of the same node.
 			if oldnode:
 				# idx = 1
 				# check if it has valid inputs that are not part of previous import
 				for input in oldnode.GetInputList().values():
-					# print(input.Name, idx)
 					# idx+=1
 					connectedOutput = input.GetConnectedOutput()
 					if connectedOutput:
@@ -1876,7 +1855,6 @@ class Prism_Fusion_Functions(object):
 						if not connectedtool.GetAttrs("TOOLS_RegID") =="BezierSpline" and not newnode.GetAttrs("TOOLS_RegID") == "Merge3D":
 							# check to avoid a connection that breaks the incoming hierarchy.
 							if not connectedtool.Name in nodenames:
-								# print("input: ", inputName, " -> ctool: ", connectedtool.Name, " NewNode: ", newnode.Name)
 								newnode.ConnectInput(inputName, connectedtool)
 				# Reconnect the 3D Scene.
 				if sceneNode:
@@ -1915,7 +1893,6 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def sm_import_removeNameSpaces(self, origin):
-		print("removing namespaces")
 		pass
 
 	################################################
@@ -2062,12 +2039,10 @@ class Prism_Fusion_Functions(object):
 		all_nodes = comp.GetToolList(False).values()
 
 		if not all_nodes:
-			print("no hay allnodes")
 			flow.SetPos(smnode, 0, 0)
 			return
 
 		# xmost_node, thresh_x_position, thresh_y_position = self.find_extreme_position(smnode, ignore_node_type, find_min)
-		# print("xmost_node: ", xmost_node)
 
 		# if xmost_node:
 		if refNode:
