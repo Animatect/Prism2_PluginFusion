@@ -125,6 +125,27 @@
             },
         },
     },
+    Action
+    {
+        ID = "Blender_OCIO_Manager",
+        Category = "Prism",
+        Name = "Blender OCIO Manager",
+
+        Targets =
+        {
+            Composition =
+            {
+                Execute = _Lua [=[
+                    local scriptPath = app:MapPath("Scripts:Prism/BlenderOCIOmanager.py")
+                    if bmd.fileexists(scriptPath) == false then
+                        print("[Prism Error] Can't run file: " .. scriptPath)
+                    else
+                        target:RunScript(scriptPath)
+                    end
+                ]=],
+            },
+        },
+    },
     Menus
     {
         Target = "ChildFrame",
@@ -139,6 +160,9 @@
                 "3_Project_Browser{}",
                 "4_State_Manager{}",
                 "5_Settings{}",
+                "_",
+                "Blender_OCIO_Manager{}",
+                "_",
                 "_",
                 "Start_Prism{}",
             },
