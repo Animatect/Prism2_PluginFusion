@@ -1099,7 +1099,7 @@ class NetRenderClass(object):
 		for state in sm.states:
 			stateui = state.ui
 			if stateui.className == "ImageRender":
-				if not stateui.b_setRendernode.text() == "SetRenderNode" and stateui.chb_passthrough.isChecked():
+				if not stateui.b_setRendernode.text() == "SetRenderNode" and state.checkState(0) == Qt.Checked:
 					#Get Output, Update UI and set infoFile.				
 					stateui.executeState(parent=parent, outOnly=True)
 
@@ -1140,7 +1140,7 @@ class NetRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def executeState(self, parent, useVersion="next", outOnly=False):
-		print("parent: ",parent, "\n\n\n")
+		# print("parent: ",parent, "\n\n\n")
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
 		if rangeType != "Expression":
