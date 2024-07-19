@@ -11,7 +11,7 @@ package_path = os.path.normpath(THIRDPARTY)
 sys.path.append(package_path)
 
 import psutil
-from plyer import notification
+# from plyer import notification
 
 def launch_prismFusion_menu():
 	print("launching")
@@ -23,65 +23,57 @@ def launch_prismFusion_menu():
 		fusion.SetData('Prism.Startup', True)
 		print("startingup")
 		if not is_process_running("FusionRenderNode.exe"):
-			# if isFusionStarted():
-			# 	print("new Prism session")
-			# 	RegisterStartByGhostGUI()
-			# 	monitorFusionRunningProcess()
-			# else:
-			# 	print("Refresh Prism Session")
-			
-			# Start and Display the progress dialog
-			ui = fu.UIManager
-			disp = bmd.UIDispatcher(ui)
+			# ui = fu.UIManager
+			# disp = bmd.UIDispatcher(ui)
 			# Show the progress window
-			msgwin,msgitm = ProgressWinCreate(disp, ui)
+			# msgwin,msgitm = ProgressWinCreate(disp, ui)
 			# Setup Progress     
 			# How many steps does this task require
-			totalSteps = 5
-			winTitle = "Starting Prism"
-			step = 1
-			ProgressWinUpdate(msgwin, msgitm, winTitle, "Starting Prism...", step, totalSteps, 1*timescale)
-			step = 2
-			ProgressWinUpdate(msgwin, msgitm, winTitle, "ResetingStartup Variable...", step, totalSteps, 1*timescale)
+			# totalSteps = 5
+			# winTitle = "Starting Prism"
+			# step = 1
+			# ProgressWinUpdate(msgwin, msgitm, winTitle, "Starting Prism...", step, totalSteps, 1*timescale)
+			# step = 2
+			# ProgressWinUpdate(msgwin, msgitm, winTitle, "ResetingStartup Variable...", step, totalSteps, 1*timescale)
 			# Make sure a comp has managed to open
-			comp = None
-			count = 0
-			step = 3
-			while comp == None or count > 10:
-				ProgressWinUpdate(msgwin, msgitm, winTitle, "Checking if a Comp is Open...", step, totalSteps, 1*timescale)
-				try: 
-					comp = fusion.GetCurrentComp()
-					# deselect all nodes
-					comp.CurrentFrame.FlowView.Select()
-				except:
-					comp = None
-				count += 1
+			# comp = None
+			# count = 0
+			# step = 3
+			# while comp == None or count > 10:
+			# 	ProgressWinUpdate(msgwin, msgitm, winTitle, "Checking if a Comp is Open...", step, totalSteps, 1*timescale)
+			# 	try: 
+			# 		comp = fusion.GetCurrentComp()
+			# 		# deselect all nodes
+			# 		comp.CurrentFrame.FlowView.Select()
+			# 	except:
+			# 		comp = None
+			# 	count += 1
 			
-			step = 4
-			progressdots = ""
-			for i in range(9):
-				ProgressWinUpdate(msgwin, msgitm, winTitle, "Checking if is Network Render Manager task" + progressdots, step, totalSteps, 0.3*timescale)
-				progressdots += "."
+			# step = 4
+			# progressdots = ""
+			# for i in range(9):
+			# 	ProgressWinUpdate(msgwin, msgitm, winTitle, "Checking if is Network Render Manager task" + progressdots, step, totalSteps, 0.3*timescale)
+			# 	progressdots += "."
 				
 			# Check if the comp is rendering, chances are that this comp was oppened from the farm.
-			if not comp.IsRendering():
-				ProgressWinUpdate(msgwin, msgitm, winTitle, "is Not Rendejob...", step, totalSteps, 0.5*timescale)
-				uimanager = fu.UIManager
-				holder = uimanager.FindWindow("PrismHolder")
-				try:
-					holder.Close()
-				except:
-					pass
-				step = 5
-				ProgressWinUpdate(msgwin, msgitm, winTitle, "Starting Prism Core...", step, totalSteps, 1*timescale)
-				msgwin.Hide()
+			# if not comp.IsRendering():
+			# 	ProgressWinUpdate(msgwin, msgitm, winTitle, "is Not Rendejob...", step, totalSteps, 0.5*timescale)
+			# 	uimanager = fu.UIManager
+			# 	holder = uimanager.FindWindow("PrismHolder")
+			# 	try:
+			# 		holder.Close()
+			# 	except:
+			# 		pass
+			# 	step = 5
+			# 	ProgressWinUpdate(msgwin, msgitm, winTitle, "Starting Prism Core...", step, totalSteps, 1*timescale)
+			# 	msgwin.Hide()
 				# holder = HolderClass.PrismHolderClass(fu.UIManager, fusion)
 				# print("prismHolder Exited")
 				script_path = os.path.join(get_script_dir(), "CreateHolder.py")
 				fusion.RunScript(script_path)
-			else:
-				ProgressWinUpdate(msgwin, msgitm, winTitle, "is Rendejob...", step, totalSteps, 0.5*timescale)
-				msgwin.Hide()
+			# else:
+			# 	ProgressWinUpdate(msgwin, msgitm, winTitle, "is Rendejob...", step, totalSteps, 0.5*timescale)
+			# 	msgwin.Hide()
 		else:
 			fusion_popup("RenderNode Running", "Render Node is Running\nplease Close it and reset prism from the menu.")
 
