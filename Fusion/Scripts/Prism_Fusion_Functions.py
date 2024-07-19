@@ -543,7 +543,7 @@ class Prism_Fusion_Functions(object):
 				sv.SetAttrs({'TOOLS_Name' : nodename})
 				if not self.posRelativeToNode(sv):
 					#Move Render Node to the Right of the scene	
-					self.setSmNodePosition(sv, find_min=False, x_offset=10, ignore_node_type="Saver")
+					self.setNodePosition(sv, find_min=False, x_offset=10, ignore_node_type="Saver")
 					self.stackNodesByType(sv)
 			return sv
 
@@ -920,13 +920,20 @@ class Prism_Fusion_Functions(object):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
+		refNode = comp.ActiveTool # None if no active tool
+
 		# deselect all nodes
 		flow.Select()
 
 		sourceData = origin.compGetImportSource()
 		imageData = self.getImageData(comp, sourceData)
 		if imageData:
-			self.processImageImport(imageData)
+			updatehandle:list = [] # Required to return data on the updated nodes.
+			node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=refNode)
+			# deselect all nodes
+			flow.Select()
+			self.getUpdatedNodesFeedback(updatehandle)
+
 
 	@err_catcher(name=__name__)
 	def fusionImportPasses(self, origin):
@@ -956,12 +963,20 @@ class Prism_Fusion_Functions(object):
 
 		# deselect all nodes
 		flow.Select()
+		self.getUpdatedNodesFeedback(updatehandle)		
 
+	@err_catcher(name=__name__)
+	def getUpdatedNodesFeedback(self, updatehandle):
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
 		if len(updatehandle) > 0:
 			
 			message = "The following nodes were updated:\n\n"
 			for handle in updatehandle:
-				message += f"{handle}\n"
+				if ".#nochange#." in handle:
+					message += handle.split(":")[0] + ": Version didn't change\n" 
+				else:
+					message += f"{handle}\n"
 				flow.Select(comp.FindTool(handle.split(":")[0]), True)
 			# Display List of updated nodes.
 			self.createInformationDialog("Updated Nodes", message)
@@ -978,8 +993,6 @@ class Prism_Fusion_Functions(object):
 		prefix = name.rsplit('_', 1)[0]  # everything to the left of the last "_"
 		suffix = name.rsplit('_', 1)[-1]  # everything to the right of the last "_"
 		return prefix, suffix
-
-
 
 	@err_catcher(name=__name__)
 	def sort_loaders(self, posRefNode, reconnectIn=True):
@@ -1086,17 +1099,19 @@ class Prism_Fusion_Functions(object):
 				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm)
 		else:
 			# Break the meaningless 1 item nested array.
-			return self.getPassData(comp, sourceData[0])
+			return self.getPassData(comp, sourceData[0], allAOVs=False)
 
 		msgStr = "No image sequence was loaded."
 		QMessageBox.warning(self.core.messageParent, "Prism Integration", msgStr)
 		return None
 
 	@err_catcher(name=__name__)
-	def getPassData(self, comp, sourceData):
+	def getPassData(self, comp, sourceData, allAOVs=True):
 		curfr = int(comp.CurrentTime)
-		
-		filePath = sourceData[0].replace(".####", "")#f"{curfr:0{4}}")
+		if allAOVs:
+			filePath = sourceData[0].replace(".####", "")
+		else:
+			filePath = sourceData[0].replace("####", f"{curfr:0{4}}")
 		firstFrame = sourceData[1]
 		lastFrame = sourceData[2]			
 		aovNm = os.path.dirname(filePath).split("/")[-1]
@@ -1107,6 +1122,9 @@ class Prism_Fusion_Functions(object):
 	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame):
 		for loader in Loaderstocheck:
 			loaderClipPath = loader.Clip[0]
+			if filePath == loaderClipPath:
+				return loader, ".#nochange#."
+			
 			if self.are_paths_equal_except_version(loaderClipPath, filePath):
 				version1 = self.extract_version(loaderClipPath)
 				version2 = self.extract_version(filePath)
@@ -1131,8 +1149,7 @@ class Prism_Fusion_Functions(object):
 		extension = os.path.splitext(filePath)[1]
 		# Check if path without version exists in a loader and if so generate a popup to update with new version.
 		allLoaders = comp.GetToolList(False, "Loader").values()
-		updatedloader, prevVersion = self.updateLoaders(allLoaders, filePath, firstFrame, lastFrame)					
-
+		updatedloader, prevVersion = self.updateLoaders(allLoaders, filePath, firstFrame, lastFrame)
 		# If an updated node was produced.
 		if updatedloader:
 			# Update Multilayer.
@@ -1160,10 +1177,14 @@ class Prism_Fusion_Functions(object):
 		node = comp.AddTool("Loader")
 		self.reloadLoader(node, filePath, firstFrame, lastFrame)
 		node.SetAttrs({"TOOLS_Name": aovNm})
-		if refNode.GetAttrs('TOOLS_RegID') =='Loader':
-			self.setSmNodePosition(node, x_offset = 0, y_offset = 1, refNode=refNode)
+		if refNode:
+			if refNode.GetAttrs('TOOLS_RegID') =='Loader':
+				self.setNodePosition(node, x_offset = 0, y_offset = 1, refNode=refNode)
+			else:
+				self.setNodePosition(node, x_offset = -5, y_offset = 0, refNode=refNode)
 		else:
-			self.setSmNodePosition(node, x_offset = -5, y_offset = 0, refNode=refNode)
+			self.setNodePosition(node, x_offset = 0, y_offset = 0, refNode=None)
+		
 		comp.Unlock()
 		
 		# IF IS EXR
@@ -2025,7 +2046,7 @@ class Prism_Fusion_Functions(object):
 
 	#The name of this function comes for its initial use to position the "state manager node" that what used before using SetData.
 	@err_catcher(name=__name__)
-	def setSmNodePosition(self, smnode, find_min=True, x_offset=-2, y_offset=0, ignore_node_type=None, refNode=None):
+	def setNodePosition(self, node, find_min=True, x_offset=-2, y_offset=0, ignore_node_type=None, refNode=None):
 		# Get the active composition
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
@@ -2038,17 +2059,19 @@ class Prism_Fusion_Functions(object):
 		all_nodes = comp.GetToolList(False).values()
 
 		if not all_nodes:
-			flow.SetPos(smnode, 0, 0)
+			flow.SetPos(node, 0, 0)
 			return
 
-		# xmost_node, thresh_x_position, thresh_y_position = self.find_extreme_position(smnode, ignore_node_type, find_min)
+		# xmost_node, thresh_x_position, thresh_y_position = self.find_extreme_position(node, ignore_node_type, find_min)
 
 		# if xmost_node:
 		if refNode:
 			thresh_x_position, thresh_y_position = postable = flow.GetPosTable(refNode).values()
-			self.set_node_position(flow, smnode, thresh_x_position + x_offset, thresh_y_position + y_offset)
+			self.set_node_position(flow, node, thresh_x_position + x_offset, thresh_y_position + y_offset)
 		else:
-			flow.SetPos(smnode, 0, 0)
+			flow.Select()
+			x,y = self.find_LastClickPosition()
+			flow.SetPos(node, x, y)
 
 	@err_catcher(name=__name__)
 	def posRelativeToNode(self, node, xoffset=3):
