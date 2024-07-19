@@ -301,6 +301,8 @@ class ImageRenderClass(object):
 				
 		self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
 
+		self.state.setBackground(0, QColor("#365e99"))
+
 		self.core.callback("onStateSettingsLoaded", self, data)
 		
 

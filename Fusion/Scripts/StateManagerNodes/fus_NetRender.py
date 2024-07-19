@@ -278,6 +278,9 @@ class NetRenderClass(object):
 		if "stateenabled" in data:
 			self.chb_upVersion.setChecked(eval(data["upversion"]))
 
+		# Item Color #
+		self.state.setBackground(0, QColor("#429933"))
+
 		self.core.callback("onStateSettingsLoaded", self, data)
 
 	@err_catcher(name=__name__)
