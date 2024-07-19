@@ -2247,6 +2247,20 @@ class Prism_Fusion_Functions(object):
 		if state.className in ["ImageRender", "Playblast"]:
 			state.b_resPresets.setStyleSheet("padding-left: 1px;padding-right: 1px;")
 
+		if state.className == "Folder":
+			origin.tw_export.itemChanged.connect(self.sm_onfolderToggle)
+
+	@err_catcher(name=__name__)
+	def sm_onfolderToggle(self, item, column):
+		# item is the same as a state.
+		if item.ui.className == "Folder":
+			for i in range(item.childCount()):
+				curState = item.child(i)
+				if item.checkState(0) == Qt.Checked:
+					curState.setCheckState(0, Qt.Checked)
+				else:
+					curState.setCheckState(0, Qt.Unchecked)
+
 	def onStateDeleted(self, origin, stateui):
 		comp = self.fusion.GetCurrentComp()
 		if stateui.className == "ImageRender":
