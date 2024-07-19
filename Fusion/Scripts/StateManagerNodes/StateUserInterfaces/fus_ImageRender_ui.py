@@ -430,13 +430,6 @@ class Ui_wg_ImageRender(object):
 
         self.horizontalLayout_20.addWidget(self.b_setRendernode)
 
-        self.chb_passthrough = QCheckBox(self.f_rendernode)
-        self.chb_passthrough.setObjectName(u"chb_passthrough")
-        self.chb_passthrough.setChecked(True)
-        self.chb_passthrough.setTristate(False)
-
-        self.horizontalLayout_20.addWidget(self.chb_passthrough)
-
 
         self.gridLayout_2.addWidget(self.f_rendernode, 12, 0, 1, 1)
 
@@ -859,10 +852,6 @@ class Ui_wg_ImageRender(object):
         self.b_setRendernode.setToolTip(QCoreApplication.translate("wg_ImageRender", u"Set RenderNode by name or create a new one", None))
 #endif // QT_CONFIG(tooltip)
         self.b_setRendernode.setText(QCoreApplication.translate("wg_ImageRender", u"SetRenderNode", None))
-#if QT_CONFIG(tooltip)
-        self.chb_passthrough.setToolTip(QCoreApplication.translate("wg_ImageRender", u"Enables or disables the render node.", None))
-#endif // QT_CONFIG(tooltip)
-        self.chb_passthrough.setText(QCoreApplication.translate("wg_ImageRender", u"Active", None))
         self.label_6.setText(QCoreApplication.translate("wg_ImageRender", u"Format:", None))
         self.gb_submit.setTitle(QCoreApplication.translate("wg_ImageRender", u"Submit Render Job", None))
         self.l_manager.setText(QCoreApplication.translate("wg_ImageRender", u"Manager:", None))

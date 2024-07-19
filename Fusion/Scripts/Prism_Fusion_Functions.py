@@ -487,6 +487,11 @@ class Prism_Fusion_Functions(object):
 		node.SetAttrs({"TOOLB_PassThrough": passThrough})
 
 	@err_catcher(name=__name__)
+	def getNodePassthrough(self, nodename):
+		node = self.get_rendernode(nodename)
+		return not node.GetAttrs("TOOLB_PassThrough")
+
+	@err_catcher(name=__name__)
 	def stackNodesByType(self, nodetostack, yoffset=3, tooltype="Saver"):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView

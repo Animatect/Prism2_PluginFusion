@@ -169,6 +169,8 @@ class ImageRenderClass(object):
 			if context.get("task"):
 				self.setTaskname(context.get("task"))
 
+			
+			
 			self.setUniqueName(self.className + " - Compositing")
 			self.setupRendernode()
 			self.updateUi()
@@ -284,12 +286,23 @@ class ImageRenderClass(object):
 		if "rendernode" in data:
 			self.setupRendernode()
 		
-		if "passtrough" in data:
-			self.setupPassThrough(data["passtrough"])
 		if "outonly" in data: 
 			self.chb_outOnly.setChecked(data["outonly"])
 
+
+		# Setup the enabled disabled checkboxes
+		nodename = self.get_rendernode_name()
+		if self.core.appPlugin.rendernode_exists(nodename):
+			state = self.core.appPlugin.getNodePassthrough(nodename)
+			if state:
+				self.state.setCheckState(0, Qt.Checked)
+			else:
+				self.state.setCheckState(0, Qt.Unchecked)
+				
+		self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
+
 		self.core.callback("onStateSettingsLoaded", self, data)
+		
 
 	@err_catcher(name=__name__)
 	def connectEvents(self):
@@ -347,7 +360,6 @@ class ImageRenderClass(object):
 		# self.lw_passes.customContextMenuRequested.connect(self.rclickPasses)
 
 		self.b_pathLast.clicked.connect(self.showLastPathMenu)
-		self.chb_passthrough.stateChanged.connect(self.passThroughChanged)
 		self.chb_outOnly.stateChanged.connect(self.outOnlyChanged)
 		# self.lw_passes.itemDoubleClicked.connect(
 		# 	lambda x: self.core.appPlugin.sm_render_openPasses(self)
@@ -662,8 +674,6 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def setTreeItemColor(self, status=None):
-		widgetItem = self.state
-
 		if self.chb_outOnly.isChecked():
 			background_color = QColor("#007ACC")
 			# print(widgetItem.data(0, 1))
@@ -671,10 +681,7 @@ class ImageRenderClass(object):
 			background_color = None #QColor("#232629")
 			# print(widgetItem.data(0, 1))
 
-		if not self.chb_passthrough.isChecked() or self.b_setRendernode.text() == "SetRenderNode":
-			background_color = QColor("#FF0000")
-
-		widgetItem.setData(0, 1, background_color)
+		self.state.setData(0, 1, background_color)
 
 
 	@err_catcher(name=__name__)
@@ -688,23 +695,26 @@ class ImageRenderClass(object):
 		self.stateManager.saveStatesToScene()
 
 	@err_catcher(name=__name__)
-	def setupPassThrough(self, isChecked):
-		self.chb_passthrough.setChecked(isChecked)
+	def sm_handle_item_changed(self, item, column):
+		if item == self.state:
+			if item.checkState(0) == Qt.Checked:
+				print("Child Item is checked")
+				self.sm_ToggleNodeChanged(False)
+			else:
+				self.sm_ToggleNodeChanged(True)
+				print("Child Item is not checked")
 
 	@err_catcher(name=__name__)
-	def passThroughChanged(self, checked):
+	def sm_ToggleNodeChanged(self, disabled)->None:
+		# disabled = twitem.checkState(0) != Qt.Checked
 		nodename = self.get_rendernode_name()
 		if self.core.appPlugin.rendernode_exists(nodename):
-			self.core.appPlugin.setNodePassthrough(nodename, not checked)
+			self.core.appPlugin.setNodePassthrough(nodename, disabled)
 		else:
 			self.setupRendernode()
 
-		self.setTreeItemColor()
+		# self.setTreeItemColor()
 		self.stateManager.saveStatesToScene()
-
-	@err_catcher(name=__name__)
-	def passThroughEnabled(self):		
-		self.chb_passthrough.setEnabled(self.b_setRendernode.text() != "SetRenderNode")
 
 	@err_catcher(name=__name__)
 	def get_rendernode_name(self):
@@ -722,8 +732,6 @@ class ImageRenderClass(object):
 		else:
 			self.b_setRendernode.setText("SetRenderNode")
 			self.b_setRendernode.setStyleSheet("background-color: red; color: white;")
-			self.chb_passthrough.setChecked(True)
-			self.chb_passthrough.setEnabled(True)
 		
 		self.updateUi()
 		self.setTreeItemColor()
@@ -736,8 +744,7 @@ class ImageRenderClass(object):
 		if not self.core.appPlugin.rendernode_exists(name):
 			self.core.appPlugin.create_rendernode(name)
 		self.b_setRendernode.setText(name)
-		self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
-		self.chb_passthrough.setEnabled(True)			
+		self.b_setRendernode.setStyleSheet("background-color: green; color: white;")	
 
 		self.updateUi()
 		self.setTreeItemColor()
@@ -849,7 +856,6 @@ class ImageRenderClass(object):
 	def updateUi(self):
 		self.w_context.setHidden(not self.allowCustomContext)
 		self.refreshContext()
-		
 
 		# update Cams
 		# self.cb_cam.clear()
@@ -897,8 +903,6 @@ class ImageRenderClass(object):
 		# getattr(self.core.appPlugin, "sm_render_refreshPasses", lambda x: None)(self)
 
 		self.nameChanged(self.e_name.text())
-
-		self.passThroughEnabled()
   
 		return True
 
@@ -1519,7 +1523,6 @@ class ImageRenderClass(object):
 			# "enablepasses": str(self.gb_passes.isChecked()),
 			"stateenabled": str(self.state.checkState(0)),
 			"rendernode": self.b_setRendernode.text(),
-			"passtrough": self.chb_passthrough.isChecked(),
 			"outonly": self.chb_outOnly.isChecked(),
 		}
 		self.core.callback("onStateGetSettings", self, stateProps)
