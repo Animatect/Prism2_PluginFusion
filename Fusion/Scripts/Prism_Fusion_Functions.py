@@ -1046,32 +1046,18 @@ class Prism_Fusion_Functions(object):
 		flow.Select()
 
 		dataSources = origin.compGetImportPasses()
-		updatelog = []
+		updatehandle = []
 		for sourceData in dataSources:
 			imageData = self.getPassData(comp, sourceData)
-			updatedPaths, updatedNodes = self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'])
-			if updatedPaths:
-				for node in updatedNodes:
-					updatelog.append(node)
-				continue
+			updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'])
+			if updatedloader:
+				# Set up update feedback Dialog message
+				version1 = prevVersion
+				version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
+				nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
+				updatehandle.append(nodemessage)
 		
-		wasVersionChanged = False
-		if len(updatelog) > 0:
-			fString = "The following nodes were updated:\n"
-			allUpdatedNodes = updatelog
-			for node in allUpdatedNodes:
-				if node['oldv'] != node['newv']:
-					wasVersionChanged = True
-					fString += f"{node['name']}: v {node['oldv']} -> v {node['newv']}\n"
-					nodeToSelect = comp.FindTool(node['name'])
-					flow.Select(nodeToSelect, True)
-			if wasVersionChanged:
-				self.core.popupQuestion(fString, buttons=['ok'], icon=QMessageBox.NoIcon)
-			else:
-				self.core.popupQuestion("Nodes were updated but no version was changed", buttons=['ok'], icon=QMessageBox.NoIcon)
-			return
-		else:
-			self.core.popupQuestion("Nothing was updated", buttons=['ok'], icon=QMessageBox.NoIcon)
+		self.getUpdatedNodesFeedback(updatehandle)
 
 	@err_catcher(name=__name__)
 	def returnImageDataDict(self, filePath, firstFrame, lastFrame, aovNm):
