@@ -1264,6 +1264,8 @@ class Prism_Fusion_Functions(object):
 		flow = comp.CurrentFrame.FlowView
 
 		nodes = [t for t in comp.GetToolList(False).values() if flow.GetPosTable(t) and not t.GetAttrs('TOOLS_RegID')=='Underlay']
+		if len(nodes) == 0:
+			return None
 
 		leftmost = min(nodes, key=lambda p: flow.GetPosTable(p)[1])
 		downmost = max(nodes, key=lambda p: flow.GetPosTable(p)[2])

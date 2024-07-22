@@ -698,6 +698,7 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def sm_handle_item_changed(self, item, column):
+		print("")
 		if item == self.state:
 			if item.checkState(0) == Qt.Checked:
 				self.sm_ToggleNodeChanged(False)
