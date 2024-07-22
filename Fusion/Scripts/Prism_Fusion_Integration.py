@@ -68,6 +68,8 @@ class Prism_Fusion_Integration(object):
 				"CreateHolder.py",
 				"manageprismpaths.py",
 				"BlenderOCIOmanager.py",
+				"startupDialog.py",
+				"emptydialog.py",
 			]
 		self.devscripts = [
 				"pdmExecuteCode.py",
@@ -165,7 +167,7 @@ class Prism_Fusion_Integration(object):
 					init.write(initStr)
 			
 			# .scriptlib Files
-			for i in []:#["PrismInit.scriptlib"]:
+			for i in ["PrismInit.scriptlib"]:
 				origFile = os.path.join(integrationBase, i)
 				targetFile = os.path.join(installPath, "Scripts", i)
 
