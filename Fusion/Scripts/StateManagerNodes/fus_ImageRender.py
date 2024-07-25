@@ -300,7 +300,6 @@ class ImageRenderClass(object):
 				self.state.setCheckState(0, Qt.Unchecked)
 				
 		self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
-		print("connected")
 
 		self.state.setBackground(0, QColor("#365e99"))
 

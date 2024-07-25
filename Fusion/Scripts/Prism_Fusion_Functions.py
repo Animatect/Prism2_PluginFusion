@@ -2288,107 +2288,110 @@ class Prism_Fusion_Functions(object):
 		sm = self.monkeypatchedsm
 		if sm:			
 			rcmenu = QMenu(sm)
+
+            # we chack if the rclick is over a state
 			idx = sm.activeList.indexAt(pos)
 			parentState = sm.activeList.itemFromIndex(idx)
-			sm.rClickedItem = parentState
+			if parentState:
+				sm.rClickedItem = parentState
 
-			if parentState.ui.className == "ImportFile":
-				self.monkeypatchedimportstate = parentState.ui
-				self.core.plugins.monkeyPatch(parentState.ui.preDelete, self.preDelete, self, force=True)
+				if parentState.ui.className == "ImportFile":
+					self.monkeypatchedimportstate = parentState.ui
+					self.core.plugins.monkeyPatch(parentState.ui.preDelete, self.preDelete, self, force=True)
 
-			#From here the only line that changes is the commented one in "render" state.
-			actExecute = QAction("Execute", sm)
-			actExecute.triggered.connect(lambda: sm.publish(executeState=True))
+				#From here the only line that changes is the commented one in "render" state.
+				actExecute = QAction("Execute", sm)
+				actExecute.triggered.connect(lambda: sm.publish(executeState=True))
 
-			menuExecuteV = QMenu("Execute as previous version", sm)
+				menuExecuteV = QMenu("Execute as previous version", sm)
 
-			actSort = None
-			selItems = sm.getSelectedStates()
-			if len(selItems) > 1:
-				parents = []
-				for item in selItems:
-					if item.parent() not in parents:
-						parents.append(item.parent())
+				actSort = None
+				selItems = sm.getSelectedStates()
+				if len(selItems) > 1:
+					parents = []
+					for item in selItems:
+						if item.parent() not in parents:
+							parents.append(item.parent())
 
-				if len(parents) == 1:
-					actSort = QAction("Sort", sm)
-					actSort.triggered.connect(lambda: sm.sortStates(selItems))
+					if len(parents) == 1:
+						actSort = QAction("Sort", sm)
+						actSort.triggered.connect(lambda: sm.sortStates(selItems))
 
-			actCopy = QAction("Copy", sm)
-			actCopy.triggered.connect(sm.copyState)
+				actCopy = QAction("Copy", sm)
+				actCopy.triggered.connect(sm.copyState)
 
-			actPaste = QAction("Paste", sm)
-			actPaste.triggered.connect(sm.pasteStates)
+				actPaste = QAction("Paste", sm)
+				actPaste.triggered.connect(sm.pasteStates)
 
-			actRename = QAction("Rename", sm)
-			actRename.triggered.connect(sm.renameState)
+				actRename = QAction("Rename", sm)
+				actRename.triggered.connect(sm.renameState)
 
-			actDel = QAction("Delete", sm)
-			actDel.triggered.connect(sm.deleteState)
+				actDel = QAction("Delete", sm)
+				actDel.triggered.connect(sm.deleteState)
 
-			if parentState is None:
-				actCopy.setEnabled(False)
-				actRename.setEnabled(False)
-				actDel.setEnabled(False)
-				actExecute.setEnabled(False)
-				menuExecuteV.setEnabled(False)
-			elif hasattr(parentState.ui, "l_pathLast"):
-				outPath = parentState.ui.getOutputName()
-				if not outPath or not outPath[0]:
+				if parentState is None:
+					actCopy.setEnabled(False)
+					actRename.setEnabled(False)
+					actDel.setEnabled(False)
+					actExecute.setEnabled(False)
 					menuExecuteV.setEnabled(False)
-				else:
-					outPath = outPath[0]
-					if "render" in parentState.ui.className.lower():
-						# GET PATHS FROM VERSIONS IN 2DRENDERS FOLDER
-						existingVersions = sm.core.mediaProducts.getVersionsFromSameVersionStack(
-							outPath, mediaType="2drenders"
-						)
-					elif "playblast" in parentState.ui.className.lower():
-						existingVersions = sm.core.mediaProducts.getVersionsFromSameVersionStack(
-							outPath, mediaType="playblasts"
-						)
+				elif hasattr(parentState.ui, "l_pathLast"):
+					outPath = parentState.ui.getOutputName()
+					if not outPath or not outPath[0]:
+						menuExecuteV.setEnabled(False)
 					else:
-						existingVersions = sm.core.products.getVersionsFromSameVersionStack(
-							outPath
-						)
-					for version in sorted(
-						existingVersions, key=lambda x: x["version"], reverse=True
-					):
-						name = version["version"]
-						actV = QAction(name, sm)
-						actV.triggered.connect(
-							lambda y=None, v=version["version"]: sm.publish(
-								executeState=True, useVersion=v
+						outPath = outPath[0]
+						if "render" in parentState.ui.className.lower():
+							# GET PATHS FROM VERSIONS IN 2DRENDERS FOLDER
+							existingVersions = sm.core.mediaProducts.getVersionsFromSameVersionStack(
+								outPath, mediaType="2drenders"
 							)
-						)
-						menuExecuteV.addAction(actV)
+						elif "playblast" in parentState.ui.className.lower():
+							existingVersions = sm.core.mediaProducts.getVersionsFromSameVersionStack(
+								outPath, mediaType="playblasts"
+							)
+						else:
+							existingVersions = sm.core.products.getVersionsFromSameVersionStack(
+								outPath
+							)
+						for version in sorted(
+							existingVersions, key=lambda x: x["version"], reverse=True
+						):
+							name = version["version"]
+							actV = QAction(name, sm)
+							actV.triggered.connect(
+								lambda y=None, v=version["version"]: sm.publish(
+									executeState=True, useVersion=v
+								)
+							)
+							menuExecuteV.addAction(actV)
 
-			if menuExecuteV.isEmpty():
-				menuExecuteV.setEnabled(False)
+				if menuExecuteV.isEmpty():
+					menuExecuteV.setEnabled(False)
 
-			# Check if it is Image Render #
-			if parentState.ui.className != "ImageRender":
-				menuExecuteV.setEnabled(False)
-			###############################
+				# Check if it is Image Render #
+				if parentState.ui.className != "ImageRender":
+					menuExecuteV.setEnabled(False)
+				###############################
 
-			if parentState is None or parentState.ui.className == "Folder":
-				createMenu = sm.getStateMenu(parentState=parentState)
-				rcmenu.addMenu(createMenu)
+				if parentState is None or parentState.ui.className == "Folder":
+					createMenu = sm.getStateMenu(parentState=parentState)
+					rcmenu.addMenu(createMenu)
 
-			if sm.activeList == sm.tw_export:
-				if not sm.standalone:
-					rcmenu.addAction(actExecute)
-					rcmenu.addMenu(menuExecuteV)
+				if sm.activeList == sm.tw_export:
+					if not sm.standalone:
+						rcmenu.addAction(actExecute)
+						rcmenu.addMenu(menuExecuteV)
 
-			if actSort:
-				rcmenu.addAction(actSort)
+				if actSort:
+					rcmenu.addAction(actSort)
 
-			rcmenu.addAction(actCopy)
-			rcmenu.addAction(actPaste)
-			rcmenu.addAction(actRename)
-			rcmenu.addAction(actDel)
+				rcmenu.addAction(actCopy)
+				rcmenu.addAction(actPaste)
+				rcmenu.addAction(actRename)
+				rcmenu.addAction(actDel)
 
-			rcmenu.exec_(sm.activeList.mapToGlobal(pos))
+				rcmenu.exec_(sm.activeList.mapToGlobal(pos))
 
 	@err_catcher(name=__name__)
 	def preDelete(
