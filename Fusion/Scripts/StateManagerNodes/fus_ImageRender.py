@@ -59,7 +59,7 @@ class ImageRenderClass(object):
 		self.allowCustomContext = False
 		self.cb_context.addItems(["From scenefile", "Custom"])
 
-		
+
 		self.treeWidget = self.stateManager.tw_export
 		self.itemNames = self.getItemNames()
 
@@ -144,8 +144,8 @@ class ImageRenderClass(object):
 		self.gb_submit.setChecked(False)
 
 		self.managerChanged(True)
-		
- 
+
+
 		if stateData is not None:
 			self.loadData(stateData)
 		else:
@@ -169,9 +169,9 @@ class ImageRenderClass(object):
 			if context.get("task"):
 				self.setTaskname(context.get("task"))
 
-			
-			
-			self.setUniqueName(self.className + " - Compositing")
+
+
+			self.setUniqueName(f"{self.className} - Compositing")
 			self.setupRendernode()
 			self.updateUi()
 
@@ -300,6 +300,7 @@ class ImageRenderClass(object):
 				self.state.setCheckState(0, Qt.Unchecked)
 				
 		self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
+		print("connected")
 
 		self.state.setBackground(0, QColor("#365e99"))
 
@@ -698,12 +699,12 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def sm_handle_item_changed(self, item, column):
-		print("")
-		if item == self.state:
-			if item.checkState(0) == Qt.Checked:
-				self.sm_ToggleNodeChanged(False)
-			else:
-				self.sm_ToggleNodeChanged(True)
+		if(item.ui.className == "ImageRender"):
+			if item.text(column) == self.state.text(column):
+				if item.checkState(0) == Qt.Checked:
+					self.sm_ToggleNodeChanged(False)
+				else:
+					self.sm_ToggleNodeChanged(True)
 
 	@err_catcher(name=__name__)
 	def sm_ToggleNodeChanged(self, disabled)->None:
