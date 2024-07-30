@@ -636,6 +636,8 @@ class ImageRenderClass(object):
 			self.setTaskname(self.nameWin.e_item.text())
 			self.nameChanged(self.e_name.text())
 			self.stateManager.saveStatesToScene()
+			
+			self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
 
 	@err_catcher(name=__name__)
 	def changeTaskAuto(self, identifier):
@@ -859,7 +861,6 @@ class ImageRenderClass(object):
 		self.w_context.setHidden(not self.allowCustomContext)
 		self.refreshContext()
 
-		self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
 
 		# update Cams
 		# self.cb_cam.clear()
