@@ -698,6 +698,7 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def sm_handle_item_changed(self, item, column):
+		# print("ch")
 		if(item.ui.className == "ImageRender"):
 			if item.text(column) == self.state.text(column):
 				if item.checkState(0) == Qt.Checked:
@@ -857,6 +858,8 @@ class ImageRenderClass(object):
 	def updateUi(self):
 		self.w_context.setHidden(not self.allowCustomContext)
 		self.refreshContext()
+
+		self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
 
 		# update Cams
 		# self.cb_cam.clear()
