@@ -15,6 +15,8 @@ This plugin adds prism functionality to bmd Fusion:
 The plugin can be launched from the startup dialog, if this doesn´t work it can be launched from the prism menu using the *START PRISM* entry.
 This plugin has been tested in very controlled environments, any bugs found please report them as an issue in this github page.
 
+# TUTORIAL
+https://www.youtube.com/watch?v=jle7wlsMxnY
 
 # REQUIREMENTS
 This plugin has been tested with Fusion 18 but should work with any Fusion that runs python 3.9 or upwards and pyside6
