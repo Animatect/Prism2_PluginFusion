@@ -51,7 +51,7 @@ def runPrismSaveScene(globalpcore=None):
 			pcore = globalpcore
 			if pcore.fileInPipeline():
 				pcore.saveScene()		
-				qapp.exec_()
+				# qapp.exec_()
 			else:
 				msg = "File is not in project."
 				pcore.popup(msg)

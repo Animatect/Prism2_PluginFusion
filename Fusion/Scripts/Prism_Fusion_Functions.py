@@ -1960,6 +1960,7 @@ class Prism_Fusion_Functions(object):
 		posNode.Delete()
 
 		return x,y
+		# return -32768, -32768
 
 	@err_catcher(name=__name__)
 	def find_extreme_loader(self):
