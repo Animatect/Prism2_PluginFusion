@@ -52,11 +52,11 @@ class Prism_Fusion_Integration(object):
 		self.core = core
 		self.plugin = plugin
 		self.scripts = [
-				"1 Save Version.py",
-				"2 Save Comment.py",
-				"3 Project Browser.py",
-				"4 State Manager.py",
-				"5 Settings.py",
+				"Menu_SaveVersion.py",
+				"Menu_SaveComment.py",
+				"Menu_OpenProjectBrowser.py",
+				"Menu_OpenStateManager.py",
+				"Menu_OpenSettings.py",
 				"openPrismWindows.py",
 				"PrismInit.py",
 				"InstallThirdParty.py",
