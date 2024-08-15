@@ -233,9 +233,9 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def getResolution(self):
 		width = self.fusion.GetCurrentComp().GetPrefs()[
-			"Comp"]["FrameFormat"]["Height"]
-		height = self.fusion.GetCurrentComp().GetPrefs()[
 			"Comp"]["FrameFormat"]["Width"]
+		height = self.fusion.GetCurrentComp().GetPrefs()[
+			"Comp"]["FrameFormat"]["Height"]
 		return [width, height]
 
 	@err_catcher(name=__name__)
