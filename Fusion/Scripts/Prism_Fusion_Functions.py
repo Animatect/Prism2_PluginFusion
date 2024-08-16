@@ -109,6 +109,10 @@ class Prism_Fusion_Functions(object):
 		self.core.registerCallback(
 			"onStateDeleted", self.onStateDeleted, plugin=self.plugin
 		)
+		self.core.registerCallback(
+			"getIconPathForFileType", self.getIconPathForFileType, plugin=self
+			)
+		
 		self.importHandlers = {
 			".abc": {"importFunction": self.importAlembic},
 			".fbx": {"importFunction": self.importFBX},
@@ -122,6 +126,7 @@ class Prism_Fusion_Functions(object):
 		# 	".obj": {"exportFunction": self.exportObj},
 		# 	".blend": {"exportFunction": self.exportBlend},
 		# }
+
 
 	@err_catcher(name=__name__)
 	def startup(self, origin):
@@ -168,6 +173,17 @@ class Prism_Fusion_Functions(object):
 	def autosaveEnabled(self, origin):
 		# get autosave enabled
 		return False
+	
+
+    #   Adds custom icon for Fusion auto-backup files
+	@err_catcher(name=__name__)
+	def getIconPathForFileType(self, extension):
+		if extension == ".autocomp":
+			icon = os.path.join(self.pluginDirectory, "UserInterfaces", "Fusion-Autosave.ico")
+			return icon
+
+		return None
+	
 
 	@err_catcher(name=__name__)
 	def sceneOpen(self, origin):

@@ -69,6 +69,11 @@ class Prism_Fusion_externalAccess_Functions(object):
 		)
 		self.core.registerStyleSheet(ssheetPath)
 
+		self.core.registerCallback(
+			"getIconPathForFileType", self.getIconPathForFileType, plugin=self
+			)
+		
+
 	@err_catcher(name=__name__)
 	def userSettings_loadUI(self, origin, tab):
 		origin.gb_bldInstallDevTools = QGroupBox("Install Prism Developer Menu With Plugin")
@@ -180,6 +185,17 @@ class Prism_Fusion_externalAccess_Functions(object):
 		fileStr += ")"
 
 		return autobackpath, fileStr
+	
+
+    #   Adds custom icon for Fusion auto-backup files
+	@err_catcher(name=__name__)
+	def getIconPathForFileType(self, extension):
+		if extension == ".autocomp":
+			icon = os.path.join(self.pluginDirectory, "UserInterfaces", "Fusion-Autosave.ico")
+			return icon
+
+		return None
+
 
 	@err_catcher(name=__name__)
 	def copySceneFile(self, origin, origFile, targetPath, mode="copy"):
