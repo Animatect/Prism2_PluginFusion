@@ -11,10 +11,9 @@ import BlackmagicFusion as bmd
 
 import manageprismpaths
 
-try:
-    from qtpy import QtCore, QtGui, QtWidgets
-except:
-    from PySide6 import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
+
+
 class PrismHolderClass(object):
 	def __init__(self, UIManager, fusion):
 		self.fusion = fusion

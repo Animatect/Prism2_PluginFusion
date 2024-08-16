@@ -4,8 +4,7 @@ import PrismInit
 
 import manageprismpaths
 
-# from qtpy import QtCore, QtGui, QtWidgets
-from PySide6 import QtCore, QtGui, QtWidgets
+from qtpy import QtCore, QtGui, QtWidgets
 
 
 def openProjectBrowser(globalpcore=None):
