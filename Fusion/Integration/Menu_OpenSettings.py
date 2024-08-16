@@ -6,4 +6,4 @@ from CallButtons import CallButton
 import openPrismWindows
 if __name__ == "__main__":
     # checkThirdParty()
-    CallButton('btn_projectbrowser')
+    CallButton('btn_prismsettings')
