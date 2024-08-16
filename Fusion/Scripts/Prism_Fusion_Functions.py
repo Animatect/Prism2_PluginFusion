@@ -312,6 +312,187 @@ class Prism_Fusion_Functions(object):
 			pass
 
 		return True
+	
+
+	################################################
+	#                                              #
+	#                 THUMBNAIL                    #
+	#                                              #
+	################################################
+
+	@err_catcher(name=__name__)
+	def captureViewportThumbnail(self):
+		#   Make temp dir and file
+		tempDir = os.path.join(self.pluginDirectory, "Temp")
+		if not os.path.exists(tempDir):
+			os.mkdir(tempDir)
+		thumbPath = os.path.join(tempDir, "FusionThumb.jpg")
+		thumbName = os.path.basename(thumbPath).split('.')[0]
+
+		#   Get Fusion API stuff
+		comp = self.fusion.GetCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+
+		comp.Lock()
+		comp.StartUndo()
+
+		thumbSaver = None
+		origSaverList = {}
+
+		#   Get tool through logic (Selected or Saver or last)
+		thumbTool = self.findThumbnailTool(comp)
+
+		if thumbTool:
+			#   Save pass-through state of all savers
+			origSaverList = self.origSaverStates("save", comp, origSaverList)
+
+			# Add a Saver tool to the composition
+			thumbSaver = comp.AddTool("Saver", -32768, -32768, 1)
+
+			# Connect the Saver tool to the currently selected tool
+			thumbSaver.Input = thumbTool
+
+			# Set the path for the Saver tool
+			thumbSaver.Clip = os.path.join(tempDir, thumbName + ".jpg")
+
+			#   Get current frame number
+			currFrame = comp.CurrentTime
+
+			origStartFrame = comp.GetAttrs("COMPN_RenderStart")
+			origEndFrame = comp.GetAttrs("COMPN_RenderEnd")
+
+			# Temporarily set the render range to the current frame
+			comp.SetAttrs({'COMPN_RenderStart' : currFrame})
+			comp.SetAttrs({'COMPN_RenderEnd' : currFrame})
+
+			# Render the current frame
+			comp.Render()  # Trigger the render
+
+			# Restore the original render range
+			comp.SetAttrs({'COMPN_RenderStart' : origStartFrame})
+			comp.SetAttrs({'COMPN_RenderEnd' : origEndFrame})
+
+		#   Deals with the frame number suffix added by Fusion rener
+		pattern = os.path.join(tempDir, thumbName + "*.jpg")
+		renderedThumbs = glob.glob(pattern)
+
+		if renderedThumbs:
+			renderedThumb = renderedThumbs[0]  # Assuming only one matching file
+			os.rename(renderedThumb, thumbPath)
+
+		comp.EndUndo()
+		comp.Undo()
+
+		if thumbSaver:
+			try:
+				thumbSaver.Delete()
+			except:
+				pass
+
+		#   Restore pass-through state of orig savers
+		self.origSaverStates("load", comp, origSaverList)
+
+		comp.Unlock()
+
+		#   Get pixmap from Prism
+		pm = self.core.media.getPixmapFromPath(thumbPath)
+
+		#   Delete temp dir
+		if os.path.exists(tempDir):
+			shutil.rmtree(tempDir)
+
+		return pm
+
+
+	# Handle Savers pass-through state for thumb capture
+	@err_catcher(name=__name__)
+	def origSaverStates(self, mode, comp, origSaverList):
+		for tool in comp.GetToolList(False).values():
+			if self.isSaver(tool):
+				tool_name = tool.GetAttrs()["TOOLS_Name"]
+				if mode == "save":
+					# Save the current pass-through state
+					origSaverList[tool_name] = tool.GetAttrs()["TOOLB_PassThrough"]
+					# Set the tool to pass-through
+					tool.SetAttrs({"TOOLB_PassThrough": True})
+				elif mode == "load":
+					# Restore the original pass-through state
+					if tool_name in origSaverList:
+						tool.SetAttrs({"TOOLB_PassThrough": origSaverList[tool_name]})
+
+		return origSaverList
+
+
+	#   Finds the tool to use for the thumbnail in priority
+	@err_catcher(name=__name__)
+	def findThumbnailTool(self, comp):
+		# 1. Check the selected tool
+		currTool = comp.ActiveTool
+		if currTool:
+			return currTool
+
+		# 2. Check for any saver that is not pass-through
+		for tool in comp.GetToolList(False).values():
+			if self.isSaver(tool) and not self.isPassThrough(tool):
+				return tool
+
+		# 3. Check for any saver, even if pass-through
+		for tool in comp.GetToolList(False).values():
+			if self.isSaver(tool):
+				return tool
+
+		# 4. Fallback to the final tool in the flow
+		return self.getLastTool(comp) or None
+
+
+	#   Checks if tool is a Saver, or custom Saver type
+	@err_catcher(name=__name__)
+	def isSaver(self, tool):
+		# Check if tool is valid
+		if not tool:
+			return False
+		# Check if tool name is 'Saver' (should work if node is renamed)
+		if tool.GetAttrs({"TOOLS_Name"})["TOOLS_RegID"] == "Saver":
+			return True
+
+		return False
+
+
+	# Checks if tool is set to pass-through mode
+	@err_catcher(name=__name__)
+	def isPassThrough(self, tool):
+		return tool and tool.GetAttrs({"TOOLS_Name"})["TOOLB_PassThrough"]
+
+
+	#   Tries to find last tool in the flow
+	@err_catcher(name=__name__)
+	def getLastTool(self, comp):
+		try:
+			for tool in comp.GetToolList(False).values():
+				if not self.hasConnectedOutputs(tool):
+					return tool
+		except:
+			return None
+
+
+	#   Finds if tool has any outputs connected
+	@err_catcher(name=__name__)
+	def hasConnectedOutputs(self, tool):
+		if not tool:
+			return False
+
+		outputList = tool.GetOutputList()
+		for output in outputList.values():
+			if output is not None and hasattr(output, 'GetConnectedInput'):
+				# Check if the output has any connected inputs in other tools
+				try:
+					connection = output.GetConnectedInputs()
+					if connection != {}:
+						return True
+				except:
+					return False
+
+		return False
 
 	################################################
 	#                                              #
