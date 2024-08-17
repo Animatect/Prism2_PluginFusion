@@ -1365,9 +1365,9 @@ class NetRenderClass(object):
 
 		masterAction = self.cb_master.currentText()
 		if masterAction == "Set as master":
-			self.core.mediaProducts.updateMasterVersion(outputName)
+			self.core.mediaProducts.updateMasterVersion(outputName, mediaType="2drenders")
 		elif masterAction == "Add to master":
-			self.core.mediaProducts.addToMasterVersion(outputName)
+			self.core.mediaProducts.addToMasterVersion(outputName, mediaType="2drenders")
 
 	@err_catcher(name=__name__)
 	def setTaskWarn(self, warn):
