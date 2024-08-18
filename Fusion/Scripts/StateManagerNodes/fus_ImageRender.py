@@ -36,6 +36,7 @@ import os
 import sys
 import time
 import platform
+import re
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -110,13 +111,20 @@ class ImageRenderClass(object):
 
 		self.mediaType = "2drenders"
 		self.tasknameRequired = True
+
+		#	Format dict to differentiate still/movie types
 		self.outputFormats = [
-			".exr",
-			".png",
-			".jpg",
+			{"extension": ".exr", "type": "image"},
+			{"extension": ".dpx", "type": "image"},
+			{"extension": ".png", "type": "image"},
+			{"extension": ".tif", "type": "image"},
+			{"extension": ".jpg", "type": "image"},
+			{"extension": ".mov", "type": "video"},
+			{"extension": ".mxf", "type": "video"},
+			{"extension": ".avi", "type": "video"}
 		]
 
-		self.cb_format.addItems(self.outputFormats)
+		self.cb_format.addItems([formatDict["extension"] for formatDict in self.outputFormats])
 
 		self.resolutionPresets = self.core.projects.getResolutionPresets()
 		if "Get from rendersettings" not in self.resolutionPresets:
@@ -616,15 +624,18 @@ class ImageRenderClass(object):
 	def getSortKey(self):
 		return self.getTaskname()
 
+	
 	@err_catcher(name=__name__)
 	def changeTask(self):
 		from PrismUtils import PrismWidgets
+		#	Sets up popup window
 		self.nameWin = PrismWidgets.CreateItem(
 			startText=self.getTaskname(),
 			showTasks=True,
 			taskType="2d",
 			core=self.core,
-		)
+			)
+
 		self.core.parentWindow(self.nameWin)
 		self.nameWin.setWindowTitle("Change Identifier")
 		self.nameWin.l_item.setText("Identifier:")
@@ -633,11 +644,50 @@ class ImageRenderClass(object):
 		result = self.nameWin.exec_()
 
 		if result == 1:
+			#	Checks if entered name is Fusion legal
+			isLegal, errorStr = self.getFusLegalName(self.nameWin.e_item.text(), check=True)
+			if not isLegal:
+				self.core.popup(errorStr)
+				return
+
 			self.setTaskname(self.nameWin.e_item.text())
 			self.nameChanged(self.e_name.text())
 			self.stateManager.saveStatesToScene()
 			
 			self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
+
+
+	#	Fusion has strict naming for nodes.  You can only use:
+	#	Alphanumeric characters:  a-z, A-Z, 0-9,
+	#	Do not use any spaces,
+	#	Do not use special charactors,
+	#	Node name cannot start with a number.
+	@err_catcher(name=__name__)
+	def getFusLegalName(self, origName, check=False):	
+		# Check if the name starts with a number
+		if origName[0].isdigit():
+			if check:
+				return False, "Name cannot start with a number."
+			
+			return "Error: Name cannot start with a number."
+
+		# Check if the name contains only allowed characters
+		if not re.match(r'^[A-Za-z0-9_\- .]*$', origName):
+			if check:
+				return False, "Name contains invalid characters."
+			
+			return "Error: Name contains invalid characters."
+
+		# Replace desired illegal charactors with legal string placeholders
+		newName = origName.replace(' ', '_xSx_')
+		newName = newName.replace('.', '_xPx_')
+		newName = newName.replace('-', '_xHx_')
+
+		if check:
+			return True, ""
+		
+		return newName
+
 
 	@err_catcher(name=__name__)
 	def changeTaskAuto(self, identifier):
@@ -651,9 +701,11 @@ class ImageRenderClass(object):
 	####### RENDER NODE STUFF #######
 	#								#
 	#################################
+
 	# @err_catcher(name=__name__)
 	# def onTreeItemSelectionChanged(self):
 		# 	self.setTreeItemColor("selected")
+
 	@err_catcher(name=__name__)
 	def getItemNamesRecursive(self, item, itemNames):
 		# Add the name of the current item
@@ -723,10 +775,12 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def get_rendernode_name(self):
 		identifier = self.getTaskname()
-		name = f"Prism_{identifier}_RenderNode"
+		legalName = self.getFusLegalName(identifier)
+		nodeName = f"Prism_{legalName}_RenderNode"
 
-		return name
+		return nodeName
 	
+
 	@err_catcher(name=__name__)
 	def setupRendernode(self):
 		name = self.get_rendernode_name()
@@ -739,7 +793,6 @@ class ImageRenderClass(object):
 		
 		self.updateUi()
 		self.setTreeItemColor()
-
 		
  
 	@err_catcher(name=__name__)
@@ -1214,6 +1267,7 @@ class ImageRenderClass(object):
 	# 				#Get Output, Update UI and set infoFile.				
 	# 				stateui.executeState(parent=parent, outOnly=True)
 
+
 	@err_catcher(name=__name__)
 	def getOutputName(self, useVersion="next", stateui = None):
 		if stateui == None:
@@ -1221,16 +1275,26 @@ class ImageRenderClass(object):
 		if stateui.tasknameRequired and not stateui.getTaskname():
 			return
 
-		task = stateui.getTaskname()
-		extension = stateui.cb_format.currentText()
 		context = stateui.getCurrentContext()
-		framePadding = ""
 
 		if "type" not in context:
 			return
+		
+		task = stateui.getTaskname()
 
-		singleFrame = stateui.cb_rangeType.currentText() == "Single Frame"
+		#	Gets extension
+		extension = stateui.cb_format.currentText()
+		#	Gets list of ext types that are still image formats
+		imageExts = [formatDict["extension"] for formatDict in self.outputFormats if formatDict["type"] == "image"]
+		if extension in imageExts:
+			#	Adds project padding to the name if it is a image sequence
+			framePadding = "0" * self.core.framePadding
+		else:
+			#	Adds empty string if a movie format
+			framePadding = ""
+
 		location = stateui.cb_outPath.currentText()
+
 		outputPathData = stateui.core.mediaProducts.generateMediaProductPath(
 			entity=context,
 			task=task,
@@ -1239,15 +1303,16 @@ class ImageRenderClass(object):
 			comment=self.stateManager.publishComment,
 			version=useVersion if useVersion != "next" else None,
 			location=location,
-			singleFrame=singleFrame,
+			singleFrame=False,
 			returnDetails=True,
 			mediaType=self.mediaType,
-		)
+			)
 
 		outputFolder = os.path.dirname(outputPathData["path"])
 		hVersion = outputPathData["version"]
 
 		return outputPathData["path"], outputFolder, hVersion
+
 
 	@err_catcher(name=__name__)
 	def executeState(self, parent, useVersion="next", outOnly=False):
