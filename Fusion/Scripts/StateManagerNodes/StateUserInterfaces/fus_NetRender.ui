@@ -55,7 +55,6 @@
        <widget class="QLabel" name="l_class">
         <property name="font">
          <font>
-          <weight>75</weight>
           <bold>true</bold>
          </font>
         </property>
@@ -72,86 +71,51 @@
      <property name="title">
       <string>General</string>
      </property>
-     <layout class="QGridLayout" name="gridLayout_2">
-      <item row="6" column="0">
-       <widget class="QWidget" name="w_renderPreset" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout_14">
+     <layout class="QVBoxLayout" name="verticalLayout_2">
+      <item>
+       <widget class="QWidget" name="w_context" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_11">
+         <property name="leftMargin">
+          <number>9</number>
+         </property>
          <property name="topMargin">
           <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>9</number>
          </property>
          <property name="bottomMargin">
           <number>0</number>
          </property>
          <item>
-          <widget class="QLabel" name="l_renderPreset">
+          <widget class="QLabel" name="label_7">
            <property name="text">
-            <string>Rendersettings preset:</string>
+            <string>Context:</string>
            </property>
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer_7">
+          <spacer name="horizontalSpacer_5">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>40</width>
+             <width>37</width>
              <height>20</height>
             </size>
            </property>
           </spacer>
          </item>
          <item>
-          <widget class="QCheckBox" name="chb_renderPreset">
+          <widget class="QLabel" name="l_context">
            <property name="text">
             <string/>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QComboBox" name="cb_renderPreset">
-           <property name="enabled">
-            <bool>false</bool>
-           </property>
-           <property name="minimumSize">
-            <size>
-             <width>150</width>
-             <height>0</height>
-            </size>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item row="10" column="0">
-       <widget class="QWidget" name="w_format" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout_6">
-         <property name="spacing">
-          <number>0</number>
-         </property>
-         <property name="leftMargin">
-          <number>9</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>9</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="label_6">
-           <property name="text">
-            <string>Format:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_12">
+          <spacer name="horizontalSpacer_3">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -164,24 +128,21 @@
           </spacer>
          </item>
          <item>
-          <widget class="QComboBox" name="cb_format">
-           <property name="minimumSize">
-            <size>
-             <width>150</width>
-             <height>0</height>
-            </size>
+          <widget class="QPushButton" name="b_context">
+           <property name="text">
+            <string>Select</string>
            </property>
           </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="cb_context"/>
          </item>
         </layout>
        </widget>
       </item>
-      <item row="7" column="0">
-       <widget class="QWidget" name="w_master" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout_17">
-         <property name="spacing">
-          <number>0</number>
-         </property>
+      <item>
+       <widget class="QWidget" name="f_taskname" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_10">
          <property name="leftMargin">
           <number>9</number>
          </property>
@@ -195,92 +156,47 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QLabel" name="l_outPath_2">
+          <widget class="QLabel" name="label_2">
            <property name="text">
-            <string>Master Version:</string>
+            <string>Identifier:</string>
            </property>
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer_28">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
+          <widget class="QLabel" name="l_taskName">
+           <property name="sizePolicy">
+            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
+             <horstretch>0</horstretch>
+             <verstretch>0</verstretch>
+            </sizepolicy>
            </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>113</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QComboBox" name="cb_master">
-           <property name="minimumSize">
-            <size>
-             <width>150</width>
-             <height>0</height>
-            </size>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item row="9" column="0">
-       <widget class="QWidget" name="f_renderLayer" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout_5">
-         <property name="leftMargin">
-          <number>9</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>9</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="label_5">
            <property name="text">
-            <string>Render layer:</string>
+            <string/>
+           </property>
+           <property name="alignment">
+            <set>Qt::AlignCenter</set>
            </property>
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer_6">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>40</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QComboBox" name="cb_renderLayer">
+          <widget class="QPushButton" name="b_changeTask">
            <property name="enabled">
             <bool>true</bool>
            </property>
-           <property name="minimumSize">
-            <size>
-             <width>150</width>
-             <height>0</height>
-            </size>
+           <property name="focusPolicy">
+            <enum>Qt::NoFocus</enum>
+           </property>
+           <property name="text">
+            <string>change</string>
            </property>
           </widget>
          </item>
         </layout>
        </widget>
       </item>
-      <item row="8" column="0">
-       <widget class="QWidget" name="w_outPath" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout_16">
+      <item>
+       <widget class="QWidget" name="f_range" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout">
          <property name="spacing">
           <number>0</number>
          </property>
@@ -297,65 +213,14 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QLabel" name="l_outPath">
+          <widget class="QLabel" name="label_3">
            <property name="text">
-            <string>Location:</string>
+            <string>Framerange:</string>
            </property>
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer_27">
-           <property name="orientation">
-            <enum>Qt::Horizontal</enum>
-           </property>
-           <property name="sizeHint" stdset="0">
-            <size>
-             <width>113</width>
-             <height>20</height>
-            </size>
-           </property>
-          </spacer>
-         </item>
-         <item>
-          <widget class="QComboBox" name="cb_outPath">
-           <property name="minimumSize">
-            <size>
-             <width>150</width>
-             <height>0</height>
-            </size>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item row="4" column="0">
-       <widget class="QWidget" name="w_frameExpression" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout_15">
-         <property name="spacing">
-          <number>6</number>
-         </property>
-         <property name="leftMargin">
-          <number>9</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>9</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="l_frameExpression">
-           <property name="text">
-            <string>Frame expression:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_14">
+          <spacer name="horizontalSpacer_2">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -368,7 +233,7 @@
           </spacer>
          </item>
          <item>
-          <widget class="QLineEdit" name="le_frameExpression">
+          <widget class="QComboBox" name="cb_rangeType">
            <property name="minimumSize">
             <size>
              <width>150</width>
@@ -380,28 +245,7 @@
         </layout>
        </widget>
       </item>
-      <item row="5" column="0">
-       <widget class="QWidget" name="f_cam" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout_2">
-         <property name="spacing">
-          <number>0</number>
-         </property>
-         <property name="leftMargin">
-          <number>9</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>9</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-        </layout>
-       </widget>
-      </item>
-      <item row="3" column="0">
+      <item>
        <widget class="QWidget" name="w_frameRangeValues" native="true">
         <layout class="QGridLayout" name="gridLayout">
          <property name="leftMargin">
@@ -510,9 +354,133 @@
         </layout>
        </widget>
       </item>
-      <item row="2" column="0">
-       <widget class="QWidget" name="f_range" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout">
+      <item>
+       <widget class="QWidget" name="w_frameExpression" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_15">
+         <property name="spacing">
+          <number>6</number>
+         </property>
+         <property name="leftMargin">
+          <number>9</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>9</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="l_frameExpression">
+           <property name="text">
+            <string>Frame expression:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_14">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QLineEdit" name="le_frameExpression">
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="f_cam" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_2">
+         <property name="spacing">
+          <number>0</number>
+         </property>
+         <property name="leftMargin">
+          <number>9</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>9</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="w_renderPreset" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_14">
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="l_renderPreset">
+           <property name="text">
+            <string>Rendersettings preset:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_7">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QCheckBox" name="chb_renderPreset">
+           <property name="text">
+            <string/>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <widget class="QComboBox" name="cb_renderPreset">
+           <property name="enabled">
+            <bool>false</bool>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="w_master" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_17">
          <property name="spacing">
           <number>0</number>
          </property>
@@ -529,27 +497,27 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QLabel" name="label_3">
+          <widget class="QLabel" name="l_outPath_2">
            <property name="text">
-            <string>Framerange:</string>
+            <string>Master Version:</string>
            </property>
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer_2">
+          <spacer name="horizontalSpacer_28">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>40</width>
+             <width>113</width>
              <height>20</height>
             </size>
            </property>
           </spacer>
          </item>
          <item>
-          <widget class="QComboBox" name="cb_rangeType">
+          <widget class="QComboBox" name="cb_master">
            <property name="minimumSize">
             <size>
              <width>150</width>
@@ -561,9 +529,12 @@
         </layout>
        </widget>
       </item>
-      <item row="1" column="0">
-       <widget class="QWidget" name="f_taskname" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout_10">
+      <item>
+       <widget class="QWidget" name="w_outPath" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_16">
+         <property name="spacing">
+          <number>0</number>
+         </property>
          <property name="leftMargin">
           <number>9</number>
          </property>
@@ -577,88 +548,62 @@
           <number>0</number>
          </property>
          <item>
-          <widget class="QLabel" name="label_2">
+          <widget class="QLabel" name="l_outPath">
            <property name="text">
-            <string>Identifier:</string>
+            <string>Location:</string>
            </property>
           </widget>
          </item>
          <item>
-          <widget class="QLabel" name="l_taskName">
-           <property name="sizePolicy">
-            <sizepolicy hsizetype="Expanding" vsizetype="Preferred">
-             <horstretch>0</horstretch>
-             <verstretch>0</verstretch>
-            </sizepolicy>
-           </property>
-           <property name="text">
-            <string/>
-           </property>
-           <property name="alignment">
-            <set>Qt::AlignCenter</set>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <widget class="QPushButton" name="b_changeTask">
-           <property name="enabled">
-            <bool>true</bool>
-           </property>
-           <property name="focusPolicy">
-            <enum>Qt::NoFocus</enum>
-           </property>
-           <property name="text">
-            <string>change</string>
-           </property>
-          </widget>
-         </item>
-        </layout>
-       </widget>
-      </item>
-      <item row="0" column="0">
-       <widget class="QWidget" name="w_context" native="true">
-        <layout class="QHBoxLayout" name="horizontalLayout_11">
-         <property name="leftMargin">
-          <number>9</number>
-         </property>
-         <property name="topMargin">
-          <number>0</number>
-         </property>
-         <property name="rightMargin">
-          <number>9</number>
-         </property>
-         <property name="bottomMargin">
-          <number>0</number>
-         </property>
-         <item>
-          <widget class="QLabel" name="label_7">
-           <property name="text">
-            <string>Context:</string>
-           </property>
-          </widget>
-         </item>
-         <item>
-          <spacer name="horizontalSpacer_5">
+          <spacer name="horizontalSpacer_27">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
            <property name="sizeHint" stdset="0">
             <size>
-             <width>37</width>
+             <width>113</width>
              <height>20</height>
             </size>
            </property>
           </spacer>
          </item>
          <item>
-          <widget class="QLabel" name="l_context">
+          <widget class="QComboBox" name="cb_outPath">
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
+       <widget class="QWidget" name="f_renderLayer" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_5">
+         <property name="leftMargin">
+          <number>9</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>9</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="label_5">
            <property name="text">
-            <string/>
+            <string>Render layer:</string>
            </property>
           </widget>
          </item>
          <item>
-          <spacer name="horizontalSpacer_3">
+          <spacer name="horizontalSpacer_6">
            <property name="orientation">
             <enum>Qt::Horizontal</enum>
            </property>
@@ -671,19 +616,73 @@
           </spacer>
          </item>
          <item>
-          <widget class="QPushButton" name="b_context">
-           <property name="text">
-            <string>Select</string>
+          <widget class="QComboBox" name="cb_renderLayer">
+           <property name="enabled">
+            <bool>true</bool>
+           </property>
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
            </property>
           </widget>
-         </item>
-         <item>
-          <widget class="QComboBox" name="cb_context"/>
          </item>
         </layout>
        </widget>
       </item>
-      <item row="11" column="0">
+      <item>
+       <widget class="QWidget" name="w_format" native="true">
+        <layout class="QHBoxLayout" name="horizontalLayout_6">
+         <property name="spacing">
+          <number>0</number>
+         </property>
+         <property name="leftMargin">
+          <number>9</number>
+         </property>
+         <property name="topMargin">
+          <number>0</number>
+         </property>
+         <property name="rightMargin">
+          <number>9</number>
+         </property>
+         <property name="bottomMargin">
+          <number>0</number>
+         </property>
+         <item>
+          <widget class="QLabel" name="label_6">
+           <property name="text">
+            <string>Format:</string>
+           </property>
+          </widget>
+         </item>
+         <item>
+          <spacer name="horizontalSpacer_12">
+           <property name="orientation">
+            <enum>Qt::Horizontal</enum>
+           </property>
+           <property name="sizeHint" stdset="0">
+            <size>
+             <width>40</width>
+             <height>20</height>
+            </size>
+           </property>
+          </spacer>
+         </item>
+         <item>
+          <widget class="QComboBox" name="cb_format">
+           <property name="minimumSize">
+            <size>
+             <width>150</width>
+             <height>0</height>
+            </size>
+           </property>
+          </widget>
+         </item>
+        </layout>
+       </widget>
+      </item>
+      <item>
        <widget class="QWidget" name="f_updateVersion" native="true">
         <property name="toolTip">
          <string>If this checkbox is selected, executing the state won't render the node, instead it will set the correct name and version, it will also create the appropiate folders and set the path to it for easy access in the state's UI</string>
@@ -1364,7 +1363,7 @@
            <x>0</x>
            <y>0</y>
            <width>446</width>
-           <height>144</height>
+           <height>95</height>
           </rect>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_3">
