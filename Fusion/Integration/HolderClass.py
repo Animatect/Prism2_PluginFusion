@@ -165,7 +165,7 @@ class prismStateHolderClass(object):
 		qapp = QtWidgets.QApplication.instance()
 		if qapp == None:
 			qapp = QtWidgets.QApplication(sys.argv)
-		popup = opw.popupNoButton("Setting Up Prims Project Manager", qapp)
+		popup = opw.popupNoButton("Starting Prism", qapp)
 		pcore = PrismInit.prismInit()
 		pcore.setActiveStyleSheet("Fusion")
 
