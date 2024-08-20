@@ -111,7 +111,7 @@ class Prism_Fusion_Functions(object):
 		)
 		self.core.registerCallback(
 			"getIconPathForFileType", self.getIconPathForFileType, plugin=self
-			)
+		)
 		
 		self.importHandlers = {
 			".abc": {"importFunction": self.importAlembic},
@@ -978,16 +978,21 @@ class Prism_Fusion_Functions(object):
 				print("path: ", pathdata["path"], " in ", pathdata["node"], "Is not a NET Path")
 			print("path: ", pathdata["path"], " in ", pathdata["node"], "was processed")
 
+
 	###########################
 
-	#Function called from MediaProducts.py to fix the output path for Fusion.
-	@err_catcher(name=__name__)
-	def sm_render_fixOutputPath(self, origin, path, singleFrame=False, state=None):
-		directory, filename = os.path.split(path)
-		name, extension = os.path.splitext(filename)
-		new_filename = f"{name}_.{extension}"
-		newPath = os.path.join(directory, new_filename)
-		return newPath
+	#Function called from MediaProducts.py to fix the output path for Fusion.					#	TODO	Needs testing.  May not be needed
+	# @err_catcher(name=__name__)																#			with the changes in fus_Image
+	# def sm_render_fixOutputPath(self, origin, path, singleFrame=False, state=None):
+	# 	directory, filename = os.path.split(path)
+	# 	name, extension = os.path.splitext(filename)
+	# 	new_filename = f"{name}_.{extension}"
+	# 	newPath = os.path.join(directory, new_filename)
+	# 	# return newPath
+	# 	return path
+
+	##############################
+
 
 	@err_catcher(name=__name__)
 	def sm_render_startLocalRender(self, origin, outputPathOnly, outputName, rSettings):
@@ -1106,9 +1111,10 @@ class Prism_Fusion_Functions(object):
 			node.SetAttrs({"TOOLB_PassThrough": True})
 			node.SetAttrs({"TOOLB_PassThrough": False})
 
+
 	@err_catcher(name=__name__)
-	def importImages(self, origin):
-		if origin.origin.getCurrentAOV():
+	def importImages(self, mediaBrowser):
+		if mediaBrowser.origin.getCurrentAOV():
 			fString = "Please select an import option:"
 			buttons = ["Current AOV", "All AOVs", "Update Selected"]
 			result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
@@ -1116,16 +1122,17 @@ class Prism_Fusion_Functions(object):
 			result = "Current AOV"
 
 		if result == "Current AOV":
-			self.fusionImportSource(origin)
+			self.fusionImportSource(mediaBrowser)
 		elif result == "All AOVs":
-			self.fusionImportPasses(origin)
+			self.fusionImportPasses(mediaBrowser)
 		elif result == "Update Selected":
-			self.fusionUpdateSelectedPasses(origin)
+			self.fusionUpdateSelectedPasses(mediaBrowser)
 		else:
 			return
 
+
 	@err_catcher(name=__name__)
-	def fusionImportSource(self, origin):
+	def fusionImportSource(self, mediaBrowser):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
@@ -1134,7 +1141,7 @@ class Prism_Fusion_Functions(object):
 		# deselect all nodes
 		flow.Select()
 
-		sourceData = origin.compGetImportSource()
+		sourceData = mediaBrowser.compGetImportSource()
 		imageData = self.getImageData(comp, sourceData)
 		if imageData:
 			updatehandle:list = [] # Required to return data on the updated nodes.
@@ -1145,7 +1152,7 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def fusionImportPasses(self, origin):
+	def fusionImportPasses(self, mediaBrowser):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
@@ -1162,7 +1169,7 @@ class Prism_Fusion_Functions(object):
 		leftmostNode = self.find_leftmost_lower_node(0.5)
 	#
 
-		dataSources = origin.compGetImportPasses()
+		dataSources = mediaBrowser.compGetImportPasses()
 		for sourceData in dataSources:
 			imageData = self.getPassData(comp, sourceData)
 			# Return the last processed node.
@@ -1173,6 +1180,7 @@ class Prism_Fusion_Functions(object):
 		# deselect all nodes
 		flow.Select()
 		self.getUpdatedNodesFeedback(updatehandle)		
+
 
 	@err_catcher(name=__name__)
 	def getUpdatedNodesFeedback(self, updatehandle):
@@ -1190,6 +1198,7 @@ class Prism_Fusion_Functions(object):
 			# Display List of updated nodes.
 			self.createInformationDialog("Updated Nodes", message)
 
+
 	@err_catcher(name=__name__)
 	def createInformationDialog(self, title, message):
 		msg = QMessageBox(QMessageBox.Question, title, message)
@@ -1197,11 +1206,13 @@ class Prism_Fusion_Functions(object):
 		msg.setParent(self.core.messageParent, Qt.Window)
 		msg.exec_()
 
+
 	@err_catcher(name=__name__)
 	def split_loader_name(self, name):
 		prefix = name.rsplit('_', 1)[0]  # everything to the left of the last "_"
 		suffix = name.rsplit('_', 1)[-1]  # everything to the right of the last "_"
 		return prefix, suffix
+
 
 	@err_catcher(name=__name__)
 	def sort_loaders(self, posRefNode, reconnectIn=True):
@@ -1240,8 +1251,9 @@ class Prism_Fusion_Functions(object):
 			lastloaderlyr = lyrnm
 		comp.Unlock()
 
+
 	@err_catcher(name=__name__)
-	def fusionUpdateSelectedPasses(self, origin):
+	def fusionUpdateSelectedPasses(self, mediaBrowser):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 	
@@ -1254,7 +1266,7 @@ class Prism_Fusion_Functions(object):
 		# deselect all nodes
 		flow.Select()
 
-		dataSources = origin.compGetImportPasses()
+		dataSources = mediaBrowser.compGetImportPasses()
 		updatehandle = []
 		for sourceData in dataSources:
 			imageData = self.getPassData(comp, sourceData)
@@ -1267,6 +1279,7 @@ class Prism_Fusion_Functions(object):
 				updatehandle.append(nodemessage)
 		
 		self.getUpdatedNodesFeedback(updatehandle)
+
 
 	@err_catcher(name=__name__)
 	def returnImageDataDict(self, filePath, firstFrame, lastFrame, aovNm):
