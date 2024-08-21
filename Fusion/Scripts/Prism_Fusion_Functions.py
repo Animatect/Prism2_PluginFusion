@@ -1136,7 +1136,9 @@ class Prism_Fusion_Functions(object):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
-		refNode = comp.ActiveTool # None if no active tool
+		# refNode = comp.ActiveTool # None if no active tool
+		leftmostNode = self.find_leftmost_lower_node(0.5)
+		
 
 		# deselect all nodes
 		flow.Select()
@@ -1145,7 +1147,11 @@ class Prism_Fusion_Functions(object):
 		imageData = self.getImageData(comp, sourceData)
 		if imageData:
 			updatehandle:list = [] # Required to return data on the updated nodes.
-			node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=refNode)
+			node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=leftmostNode)
+			
+			if leftmostNode:
+				self.sort_loaders(leftmostNode, reconnectIn=True)
+
 			# deselect all nodes
 			flow.Select()
 			self.getUpdatedNodesFeedback(updatehandle)
@@ -1219,6 +1225,7 @@ class Prism_Fusion_Functions(object):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 		comp.Lock()
+		#Get the leftmost loader within a threshold.
 		leftmostpos = flow.GetPosTable(posRefNode)[1]
 		thresh = 100
 		loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh]
@@ -1235,6 +1242,7 @@ class Prism_Fusion_Functions(object):
 		newx = flow.GetPosTable(loaderstop2bot[0])[1]
 		newy = flow.GetPosTable(loaderstop2bot[0])[2]
 		for l in sortedloaders:
+			# we reconnect to solve an issue that creates "Ghost" connections un til comp is reoppened.
 			innode =  comp.FindTool(l.Name+"_IN")
 			outnode = comp.FindTool(l.Name+"_OUT")
 			if innode and reconnectIn:
