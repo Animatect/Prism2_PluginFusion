@@ -180,6 +180,8 @@ def popupNoButton(
 	title=None,
 	icon=None,
 	show=True,
+	centered=False,
+	large=False
 ):
 	text = str(text)
 	title = str(title or "Prism")
@@ -188,16 +190,26 @@ def popupNoButton(
 	label = QtWidgets.QLabel(text)
 	icon_label = QtWidgets.QLabel(text)
 
+	label.setStyleSheet("color: white")
+
+	if centered:
+		label.setAlignment(QtCore.Qt.AlignCenter)
+	if large:
+		label.setStyleSheet("color: white; font-size: 15px")
+
+
 	msg = QtWidgets.QDialog()
 	msg.setWindowTitle(title)
 	msg.setWindowIcon(icon)
 
 	# Set up layout
 	layout = QtWidgets.QVBoxLayout()
+	layout.addStretch()
 	layout.addWidget(label)
+	layout.addStretch()
 	msg.setLayout(layout)
 
-	label.setStyleSheet("color: white;")
+
 	msg.setMinimumWidth(200)
 	msg.setMinimumHeight(50)
 	msg.setStyleSheet("background-color: #31363b;")
