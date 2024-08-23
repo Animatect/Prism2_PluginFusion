@@ -22,10 +22,6 @@ class PrismHolderClass(object):
 		self.disp = bmd.UIDispatcher(self.ui)
 		self.pcore = None
 
-		# Set Global Variable
-		self.bootstrapPrism()
-				
-
 		self.dlg = self.disp.AddWindow(
 			{ "WindowTitle": "PrismHolder", 
 			"ID": "PrismHolder", 
@@ -108,6 +104,9 @@ class PrismHolderClass(object):
 		self.dlg.On.btn_statemanager.Clicked = self.on_btn_statemanager_clicked
 		self.dlg.On.btn_prismsettings.Clicked = self.on_btn_prismsettings_clicked
 
+		# Set Global Variable
+		self.bootstrapPrism()
+
 		# self.dlg.Show()
 		self.disp.RunLoop()
 		self.dlg.Hide()
@@ -167,7 +166,7 @@ class prismStateHolderClass(object):
 			qapp = QtWidgets.QApplication(sys.argv)
 		popup = opw.popupNoButton("Starting Prism", qapp)
 		pcore = PrismInit.prismInit()
-		pcore.setActiveStyleSheet("Fusion")
+		# pcore.setActiveStyleSheet("Fusion")
 
 	# 	# It's easier to just manage the lockfiles ourselves via a loop running the PrismLoop.py process.
 	# 	self.fusion.SetData("PrismLocked", pcore.getLockScenefilesEnabled())
@@ -191,7 +190,10 @@ class prismStateHolderClass(object):
 	# 		self.fusion.RunScript(worker_script)
 
 		popup.close()
-		self.checkForSanityMessage(qapp)
+		if pcore.pb:
+			qapp.exec_()
+		else:
+			self.checkForSanityMessage(qapp)
 		# Assign
 		self.pcore = pcore
 
@@ -205,15 +207,17 @@ class prismStateHolderClass(object):
 
 	# Make a test to see if windows are open.
 	def checkForSanityMessage(self,qapp):
-		appexists = False
+		# appexists = False
 		if qapp is not None:
 			for widget in qapp.topLevelWidgets():
 				if isinstance(widget, QtWidgets.QMessageBox):
-					appexists = True
+					# appexists = True
 					# print(widget)
+					widget.exec_()
 					# widget.close()
-			if appexists:
-				qapp.exec_()
+			# if appexists:
+			# 	# print("pffff")
+			# 	qapp.exec_()
 	
 	# Handle Locking.
 	def lockFile(self):
