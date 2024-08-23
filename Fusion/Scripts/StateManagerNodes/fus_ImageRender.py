@@ -36,6 +36,8 @@ import os
 import sys
 import time
 import platform
+import re
+import re
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -54,6 +56,7 @@ class ImageRenderClass(object):
 		self.state = state
 		self.core = core
 		self.stateManager = stateManager
+		self.fusionFuncs = self.core.appPlugin													#	ADDED - all calls to appPlugin
 		self.canSetVersion = True
 		self.customContext = None
 		self.allowCustomContext = False
@@ -99,7 +102,7 @@ class ImageRenderClass(object):
 		self.gb_submit.setChecked(False)
 		self.f_renderLayer.setVisible(False)
 
-		getattr(self.core.appPlugin, "sm_render_startup", lambda x: None)(self)
+		getattr(self.fusionFuncs, "sm_render_startup", lambda x: None)(self)
 
 		masterItems = ["Set as master", "Add to master", "Don't update master"]
 		self.cb_master.addItems(masterItems)
@@ -110,13 +113,49 @@ class ImageRenderClass(object):
 
 		self.mediaType = "2drenders"
 		self.tasknameRequired = True
-		self.outputFormats = [
-			".exr",
-			".png",
-			".jpg",
+
+		#	Format dict to differentiate still/movie types
+		self.outputFormats = [																		#	EDITED
+			{"extension": ".exr", "fuseName": "OpenEXRFormat", "type": "image"},
+			{"extension": ".dpx", "fuseName": "DPXFormat", "type": "image"},
+			{"extension": ".png", "fuseName": "PNGFormat", "type": "image"},
+			{"extension": ".tif", "fuseName": "TiffFormat", "type": "image"},
+			{"extension": ".jpg", "fuseName": "JpegFormat", "type": "image"},
+			{"extension": ".mov", "fuseName": "QuickTimeMovies", "type": "video"},
+			{"extension": ".mxf", "fuseName": "MXFFormat", "type": "video"},
+			{"extension": ".avi", "fuseName": "AVIFormat", "type": "video"}
 		]
 
-		self.cb_format.addItems(self.outputFormats)
+		#	ARCHIVED FORMATS FOR LATER USE - THESE ARE THE NAMES FUSION USES
+			# "PIXFormat": "pix",             # Alias PIX
+            # "IFFFormat": "iff",             # Amiga IFF
+            # "CineonFormat": "cin",          # Kodak Cineon
+            # "DPXFormat": "dpx",             # DPX
+            # "FusePicFormat": "fusepic",     # Fuse Pic
+            # "FlipbookFormat": "fb",         # Fusion Flipbooks
+            # "RawFormat": "raw",             # Fusion RAW Image
+            # "IFLFormat": "ifl",             # Image File List (Text File)
+            # "IPLFormat": "ipl",             # IPL
+            # "JpegFormat": "jpg",            # JPEG
+            # "Jpeg2000Format": "jp2",        # JPEG2000
+            # "MXFFormat": "mxf",             # MXF - Material Exchange Format
+            # "OpenEXRFormat": "exr",         # OpenEXR
+            # "PandoraFormat": "piyuv10",     # Pandora YUV
+            # "PNGFormat": "png",             # PNG
+            # "VPBFormat": "vpb",             # Quantel VPB
+            # "QuickTimeMovies": "mov",       # QuickTime Movie
+            # "HDRFormat": "hdr",             # Radiance
+            # "SixRNFormat": "6RN",           # Rendition
+            # "SGIFormat": "sgi",             # SGI
+            # "PICFormat": "si",              # Softimage PIC
+            # "SUNFormat": "RAS",             # SUN Raster
+            # "TargaFormat": "tga",           # Targa
+            # "TiffFormat": "tiff",           # TIFF
+            # "rlaFormat": "rla",             # Wavefront RLA
+            # "BMPFormat": "bmp",             # Windows BMP
+            # "YUVFormat": "yuv",             # YUV
+
+		self.cb_format.addItems([formatDict["extension"] for formatDict in self.outputFormats])
 
 		self.resolutionPresets = self.core.projects.getResolutionPresets()
 		if "Get from rendersettings" not in self.resolutionPresets:
@@ -210,7 +249,7 @@ class ImageRenderClass(object):
 		if "frameExpression" in data:
 			self.le_frameExpression.setText(data["frameExpression"])
 		# if "currentcam" in data:
-		#     camName = getattr(self.core.appPlugin, "getCamName", lambda x, y: "")(
+		#     camName = getattr(self.fusionFuncs, "getCamName", lambda x, y: "")(
 		#         self, data["currentcam"]
 		#     )
 		#     idx = self.cb_cam.findText(camName)
@@ -292,8 +331,8 @@ class ImageRenderClass(object):
 
 		# Setup the enabled disabled checkboxes
 		nodename = self.get_rendernode_name()
-		if self.core.appPlugin.rendernode_exists(nodename):
-			state = self.core.appPlugin.getNodePassthrough(nodename)
+		if self.fusionFuncs.rendernode_exists(nodename):
+			state = self.fusionFuncs.getNodePassthrough(nodename)
 			if state:
 				self.state.setCheckState(0, Qt.Checked)
 			else:
@@ -336,7 +375,7 @@ class ImageRenderClass(object):
 		self.cb_master.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_outPath.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_renderLayer.activated.connect(self.stateManager.saveStatesToScene)
-		self.cb_format.activated.connect(self.stateManager.saveStatesToScene)
+		self.cb_format.activated.connect(lambda: self.setRendernode())								#	EDITED
 		self.gb_submit.toggled.connect(self.rjToggled)
 		self.cb_manager.activated.connect(self.managerChanged)
 		self.sp_rjPrio.editingFinished.connect(self.stateManager.saveStatesToScene)
@@ -364,7 +403,7 @@ class ImageRenderClass(object):
 		self.b_pathLast.clicked.connect(self.showLastPathMenu)
 		self.chb_outOnly.stateChanged.connect(self.outOnlyChanged)
 		# self.lw_passes.itemDoubleClicked.connect(
-		# 	lambda x: self.core.appPlugin.sm_render_openPasses(self)
+		# 	lambda x: self.fusionFuncs.sm_render_openPasses(self)
 		# )
 
 		# self.treeWidget.itemSelectionChanged.connect(self.onTreeItemSelectionChanged)
@@ -492,7 +531,7 @@ class ImageRenderClass(object):
 				self.expressionWin.close()
 
 			self.expressionWin = QFrame()
-			ss = getattr(self.core.appPlugin, "getFrameStyleSheet", lambda x: "")(self)
+			ss = getattr(self.fusionFuncs, "getFrameStyleSheet", lambda x: "")(self)
 			self.expressionWin.setStyleSheet(
 				ss + """ .QFrame{ border: 2px solid rgb(100,100,100);} """
 			)
@@ -616,15 +655,18 @@ class ImageRenderClass(object):
 	def getSortKey(self):
 		return self.getTaskname()
 
+	
 	@err_catcher(name=__name__)
-	def changeTask(self):
+	def changeTask(self):														#	EDITED
 		from PrismUtils import PrismWidgets
+		#	Sets up popup window
 		self.nameWin = PrismWidgets.CreateItem(
 			startText=self.getTaskname(),
 			showTasks=True,
 			taskType="2d",
 			core=self.core,
-		)
+			)
+
 		self.core.parentWindow(self.nameWin)
 		self.nameWin.setWindowTitle("Change Identifier")
 		self.nameWin.l_item.setText("Identifier:")
@@ -633,11 +675,49 @@ class ImageRenderClass(object):
 		result = self.nameWin.exec_()
 
 		if result == 1:
+			#	Checks if entered name is Fusion legal
+			isLegal, errorStr = self.getFusLegalName(self.nameWin.e_item.text(), check=True)
+			if not isLegal:
+				self.core.popup(errorStr)
+				return
+
 			self.setTaskname(self.nameWin.e_item.text())
 			self.nameChanged(self.e_name.text())
 			self.stateManager.saveStatesToScene()
 			
 			self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
+
+
+	#	Fusion has strict naming for nodes.  You can only use:
+	#	Alphanumeric characters:  a-z, A-Z, 0-9,
+	#	Do not use any spaces,
+	#	Do not use special charactors,
+	#	Node name cannot start with a number.
+	@err_catcher(name=__name__)
+	def getFusLegalName(self, origName, check=False):							#	ADDED
+		# Check if the name starts with a number
+		if origName[0].isdigit():
+			if check:
+				return False, "Name cannot start with a number."
+			
+			return "Error: Name cannot start with a number."
+
+		# Check if the name contains only allowed characters
+		if not re.match(r'^[A-Za-z0-9_\- .]*$', origName):
+			if check:
+				return False, "Name contains invalid characters."
+			
+			return "Error: Name contains invalid characters."
+
+		newName = origName.replace(' ', '_')									#	EDITED
+		newName = newName.replace('.', '_')
+		newName = newName.replace('-', '_')
+
+		if check:
+			return True, ""
+		
+		return newName
+
 
 	@err_catcher(name=__name__)
 	def changeTaskAuto(self, identifier):
@@ -651,9 +731,11 @@ class ImageRenderClass(object):
 	####### RENDER NODE STUFF #######
 	#								#
 	#################################
+
 	# @err_catcher(name=__name__)
 	# def onTreeItemSelectionChanged(self):
 		# 	self.setTreeItemColor("selected")
+
 	@err_catcher(name=__name__)
 	def getItemNamesRecursive(self, item, itemNames):
 		# Add the name of the current item
@@ -712,8 +794,8 @@ class ImageRenderClass(object):
 	def sm_ToggleNodeChanged(self, disabled)->None:
 		# disabled = twitem.checkState(0) != Qt.Checked
 		nodename = self.get_rendernode_name()
-		if self.core.appPlugin.rendernode_exists(nodename):
-			self.core.appPlugin.setNodePassthrough(nodename, disabled)
+		if self.fusionFuncs.rendernode_exists(nodename):
+			self.fusionFuncs.setNodePassthrough(nodename, disabled)
 		else:
 			self.setupRendernode()
 
@@ -723,14 +805,16 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def get_rendernode_name(self):
 		identifier = self.getTaskname()
-		name = f"Prism_{identifier}_RenderNode"
+		legalName = self.getFusLegalName(identifier)
+		nodeName = f"PrSAVER_{legalName}"										#	TODO	EDITED	GOOD NAME?
 
-		return name
+		return nodeName
 	
+
 	@err_catcher(name=__name__)
 	def setupRendernode(self):
 		name = self.get_rendernode_name()
-		if self.core.appPlugin.rendernode_exists(name):
+		if self.fusionFuncs.rendernode_exists(name):
 			self.b_setRendernode.setText(name)
 			self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
 		else:
@@ -739,16 +823,17 @@ class ImageRenderClass(object):
 		
 		self.updateUi()
 		self.setTreeItemColor()
-
 		
  
 	@err_catcher(name=__name__)
 	def setRendernode(self):
 		name = self.get_rendernode_name()
-		if not self.core.appPlugin.rendernode_exists(name):
-			self.core.appPlugin.create_rendernode(name)
+		if not self.fusionFuncs.rendernode_exists(name):
+			self.fusionFuncs.create_rendernode(name)
 		self.b_setRendernode.setText(name)
-		self.b_setRendernode.setStyleSheet("background-color: green; color: white;")	
+		self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
+
+		self.configureRenderNode(name)													#	ADDED
 
 		self.updateUi()
 		self.setTreeItemColor()
@@ -809,8 +894,8 @@ class ImageRenderClass(object):
 	def getResolution(self, resolution):
 		res = None
 		if resolution == "Get from rendersettings":
-			if hasattr(self.core.appPlugin, "getResolution"):
-				res = self.core.appPlugin.getResolution()
+			if hasattr(self.fusionFuncs, "getResolution"):
+				res = self.fusionFuncs.getResolution()
 			else:
 				res = [1920, 1080]
 		elif resolution.startswith("Project ("):
@@ -823,7 +908,7 @@ class ImageRenderClass(object):
 				res = [pwidth, pheight]
 			except:
 				res = getattr(
-					self.core.appPlugin, "evaluateResolution", lambda x: None
+					self.fusionFuncs, "evaluateResolution", lambda x: None
 				)(resolution)
 
 		return res
@@ -867,8 +952,8 @@ class ImageRenderClass(object):
 		# self.camlist = camNames = []
 
 		# if not self.stateManager.standalone:
-		#     self.camlist = self.core.appPlugin.getCamNodes(self, cur=True)
-		#     camNames = [self.core.appPlugin.getCamName(self, i) for i in self.camlist]
+		#     self.camlist = self.fusionFuncs.getCamNodes(self, cur=True)
+		#     camNames = [self.fusionFuncs.getCamName(self, i) for i in self.camlist]
 
 		# self.cb_cam.addItems(camNames)
 
@@ -893,7 +978,7 @@ class ImageRenderClass(object):
 		# self.cb_renderLayer.clear()
 
 		# layerList = getattr(
-		# 	self.core.appPlugin, "sm_render_getRenderLayer", lambda x: []
+		# 	self.fusionFuncs, "sm_render_getRenderLayer", lambda x: []
 		# )(self)
 
 		# self.cb_renderLayer.addItems(layerList)
@@ -905,7 +990,7 @@ class ImageRenderClass(object):
 		# 	self.stateManager.saveStatesToScene()
 
 		# self.refreshSubmitUi()
-		# getattr(self.core.appPlugin, "sm_render_refreshPasses", lambda x: None)(self)
+		# getattr(self.fusionFuncs, "sm_render_refreshPasses", lambda x: None)(self)
 
 		self.nameChanged(self.e_name.text())
   
@@ -974,8 +1059,8 @@ class ImageRenderClass(object):
 		startFrame = None
 		endFrame = None
 		if rangeType == "Scene":
-			if hasattr(self.core.appPlugin, "getFrameRange"):
-				startFrame, endFrame = self.core.appPlugin.getFrameRange(self)
+			if hasattr(self.fusionFuncs, "getFrameRange"):
+				startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
 				startFrame = int(startFrame)
 				endFrame = int(endFrame)
 			else:
@@ -988,8 +1073,8 @@ class ImageRenderClass(object):
 				if frange:
 					startFrame, endFrame = frange
 		elif rangeType == "Single Frame":
-			if hasattr(self.core.appPlugin, "getCurrentFrame"):
-				startFrame = int(self.core.appPlugin.getCurrentFrame())
+			if hasattr(self.fusionFuncs, "getCurrentFrame"):
+				startFrame = int(self.fusionFuncs.getCurrentFrame())
 			else:
 				startFrame = 1001
 		elif rangeType == "Custom":
@@ -1065,7 +1150,7 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def showPasses(self):
 		steps = getattr(
-			self.core.appPlugin, "sm_render_getRenderPasses", lambda x: None
+			self.fusionFuncs, "sm_render_getRenderPasses", lambda x: None
 		)(self)
 
 		if steps is None or len(steps) == 0:
@@ -1101,7 +1186,7 @@ class ImageRenderClass(object):
 
 		for i in self.il.tw_steps.selectedItems():
 			if i.column() == 0:
-				self.core.appPlugin.sm_render_addRenderPass(
+				self.fusionFuncs.sm_render_addRenderPass(
 					self, passName=i.text(), steps=steps
 				)
 
@@ -1111,7 +1196,7 @@ class ImageRenderClass(object):
 	# @err_catcher(name=__name__)
 	# def rclickPasses(self, pos):
 	# 	if self.lw_passes.currentItem() is None or not getattr(
-	# 		self.core.appPlugin, "canDeleteRenderPasses", True
+	# 		self.fusionFuncs, "canDeleteRenderPasses", True
 	# 	):
 	# 		return
 
@@ -1127,7 +1212,7 @@ class ImageRenderClass(object):
 	# def deleteAOVs(self):
 	# 	items = self.lw_passes.selectedItems()
 	# 	for i in items:
-	# 		self.core.appPlugin.removeAOV(i.text())
+	# 		self.fusionFuncs.removeAOV(i.text())
 	# 	self.updateUi()
 
 	@err_catcher(name=__name__)
@@ -1170,7 +1255,7 @@ class ImageRenderClass(object):
 
 		# if self.curCam is None or (
 		#     self.curCam != "Current View"
-		#     and not self.core.appPlugin.isNodeValid(self, self.curCam)
+		#     and not self.fusionFuncs.isNodeValid(self, self.curCam)
 		# ):
 		#     warnings.append(["No camera is selected.", "", 3])
 		# elif self.curCam == "Current View":
@@ -1188,14 +1273,14 @@ class ImageRenderClass(object):
 			plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
 			warnings += plugin.sm_render_preExecute(self)
 
-		warnings += self.core.appPlugin.sm_render_preExecute(self)
+		warnings += self.fusionFuncs.sm_render_preExecute(self)
 
 		return [self.state.text(0), warnings]
 
 	#################################################
 	# @err_catcher(name=__name__)
 	# def submitCheckPaths(self):
-	# 	self.core.appPlugin.sm_render_CheckSubmittedPaths()
+	# 	self.fusionFuncs.sm_render_CheckSubmittedPaths()
 
 	# @err_catcher(name=__name__)
 	# def setFarmedRange(self):
@@ -1208,30 +1293,41 @@ class ImageRenderClass(object):
 	# 	fileName = self.core.getCurrentFileName()
 	# 	context = self.getCurrentContext()
 	# 	for state in sm.states:
-	# 		stateui = state.ui
-	# 		if stateui.className == "ImageRender":
-	# 			if not stateui.b_setRendernode.text() == "SetRenderNode" and stateui.chb_passthrough.isChecked():
+	# 		stateUI = state.ui
+	# 		if stateUI.className == "ImageRender":
+	# 			if not stateUI.b_setRendernode.text() == "SetRenderNode" and stateUI.chb_passthrough.isChecked():
 	# 				#Get Output, Update UI and set infoFile.				
-	# 				stateui.executeState(parent=parent, outOnly=True)
+	# 				stateUI.executeState(parent=parent, outOnly=True)
+
 
 	@err_catcher(name=__name__)
-	def getOutputName(self, useVersion="next", stateui = None):
-		if stateui == None:
-			stateui = self
-		if stateui.tasknameRequired and not stateui.getTaskname():
+	def getOutputName(self, useVersion="next", stateUI=None):
+		if stateUI == None:
+			stateUI = self
+		if stateUI.tasknameRequired and not stateUI.getTaskname():
 			return
 
-		task = stateui.getTaskname()
-		extension = stateui.cb_format.currentText()
-		context = stateui.getCurrentContext()
-		framePadding = ""
+		context = stateUI.getCurrentContext()
 
 		if "type" not in context:
 			return
+		
+		task = stateUI.getTaskname()
 
-		singleFrame = stateui.cb_rangeType.currentText() == "Single Frame"
-		location = stateui.cb_outPath.currentText()
-		outputPathData = stateui.core.mediaProducts.generateMediaProductPath(
+		#	Gets extension
+		extension = stateUI.cb_format.currentText()
+		#	Gets list of ext types that are still image formats
+		imageExts = [formatDict["extension"] for formatDict in self.outputFormats if formatDict["type"] == "image"]
+		if extension in imageExts:
+			#	Adds project padding to the name if it is a image sequence
+			framePadding = "0" * self.core.framePadding
+		else:
+			#	Adds empty string if a movie format
+			framePadding = ""
+
+		location = stateUI.cb_outPath.currentText()
+
+		outputPathData = stateUI.core.mediaProducts.generateMediaProductPath(
 			entity=context,
 			task=task,
 			extension=extension,
@@ -1239,15 +1335,41 @@ class ImageRenderClass(object):
 			comment=self.stateManager.publishComment,
 			version=useVersion if useVersion != "next" else None,
 			location=location,
-			singleFrame=singleFrame,
+			singleFrame=False,
 			returnDetails=True,
 			mediaType=self.mediaType,
-		)
+			)
 
 		outputFolder = os.path.dirname(outputPathData["path"])
 		hVersion = outputPathData["version"]
 
 		return outputPathData["path"], outputFolder, hVersion
+
+
+	@err_catcher(name=__name__)
+	def configureRenderNode(self, nodeName, useVersion="next", stateUI=None):				#	ADDED
+		if stateUI is None:
+			stateUI = self
+		if stateUI.tasknameRequired and not stateUI.getTaskname():
+			return
+
+		outputName, _, _ = self.getOutputName(useVersion=useVersion)
+
+		extension = stateUI.cb_format.currentText()
+		fuseName = None
+
+		try:
+			for fmt in self.outputFormats:
+				if fmt["extension"] == extension.lower():
+					fuseName = fmt["fuseName"]
+					break
+
+			self.fusionFuncs.configureRenderNode(nodeName, outputName, fuseName)
+			self.stateManager.saveStatesToScene()
+
+		except:
+			print("ERROR: Unable to config Saver")
+
 
 	@err_catcher(name=__name__)
 	def executeState(self, parent, useVersion="next", outOnly=False):
@@ -1280,7 +1402,7 @@ class ImageRenderClass(object):
 
 			# if self.curCam is None or (
 			#     self.curCam != "Current View"
-			#     and not self.core.appPlugin.isNodeValid(self, self.curCam)
+			#     and not self.fusionFuncs.isNodeValid(self, self.curCam)
 			# ):
 			#     return [
 			#         self.state.text(0)
@@ -1338,7 +1460,7 @@ class ImageRenderClass(object):
 				and "RenderSettings" in self.stateManager.stateTypes
 			):
 				rSettings["renderSettings"] = getattr(
-					self.core.appPlugin,
+					self.fusionFuncs,
 					"sm_renderSettings_getCurrentSettings",
 					lambda x: {},
 				)(self)
@@ -1346,7 +1468,7 @@ class ImageRenderClass(object):
 					self.core, self.renderPresets[self.cb_renderPreset.currentText()]
 				)
 
-			self.core.appPlugin.sm_render_preSubmit(self, rSettings)
+			self.fusionFuncs.sm_render_preSubmit(self, rSettings)
 
 			kwargs = {
 				"state": self,
@@ -1365,52 +1487,55 @@ class ImageRenderClass(object):
 			if not os.path.exists(os.path.dirname(rSettings["outputName"])):
 				os.makedirs(os.path.dirname(rSettings["outputName"]))
 
-			self.core.saveScene(versionUp=False, prismReq=False)
-			#### SHOULD ALWAYS BE FALSE distribution is handled by NetRender State ####
-			# If Render on the farm is selected
-			if not self.gb_submit.isHidden() and self.gb_submit.isChecked() and not outOnly:
-				# get the Frame Range.
-				# self.setFarmedRange()
-				# get new versions for all savers.
-				# self.upSubmittedSaversVersions(self.stateManager)
-				# check paths and resolve path mappings.
-				# self.submitCheckPaths()
-				# 
-				handleMaster = "media" if self.isUsingMasterVersion() else False
-				plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
-				if hasattr(self, "chb_redshift") and self.chb_redshift.isChecked() and not self.w_redshift.isHidden():
-					sceneDescription = "redshift"
-				else:
-					sceneDescription = None
 
-				result = plugin.sm_render_submitJob(
-					self,
-					rSettings["outputName"],
-					parent,
-					handleMaster=handleMaster,
-					details=details,
-					sceneDescription=sceneDescription
-				)
+			# self.core.saveScene(versionUp=False, prismReq=False)					#	TODO	Do we want this here, or let option in SM handle?
+
+
+			#### SHOULD ALWAYS BE FALSE distribution is handled by NetRender State ####				#	TODO NEEEED?
+
+
+			# If Render on the farm is selected
+			# if not self.gb_submit.isHidden() and self.gb_submit.isChecked() and not outOnly:
+			# 	# get the Frame Range.
+			# 	# self.setFarmedRange()
+			# 	# get new versions for all savers.
+			# 	# self.upSubmittedSaversVersions(self.stateManager)
+			# 	# check paths and resolve path mappings.
+			# 	# self.submitCheckPaths()
+			# 	# 
+			# 	handleMaster = "media" if self.isUsingMasterVersion() else False
+			# 	plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
+			# 	if hasattr(self, "chb_redshift") and self.chb_redshift.isChecked() and not self.w_redshift.isHidden():
+			# 		sceneDescription = "redshift"
+			# 	else:
+			# 		sceneDescription = None
+
+			# 	result = plugin.sm_render_submitJob(
+			# 		self,
+			# 		rSettings["outputName"],
+			# 		parent,
+			# 		handleMaster=handleMaster,
+			# 		details=details,
+			# 		sceneDescription=sceneDescription
+			# 	)
 				
 
-				updateMaster = False
+			# 	updateMaster = False
 			# Render Locally
-			else:
-				result = self.core.appPlugin.sm_render_startLocalRender(
+			# else:
+			result = self.fusionFuncs.sm_render_startLocalRender(
 					self, outOnly, rSettings["outputName"], rSettings
 				)
-			# result = self.core.appPlugin.sm_render_startLocalRender(
-			# 	self, outOnly, rSettings["outputName"], rSettings
-			# )
+
 		else:
 			rSettings = self.LastRSettings
-			result = self.core.appPlugin.sm_render_startLocalRender(
+			result = self.fusionFuncs.sm_render_startLocalRender(
 				self, outOnly, rSettings["outputName"], rSettings
 			)
 			outputName = rSettings["outputName"]
 
 		if not self.renderingStarted:
-			self.core.appPlugin.sm_render_undoRenderSettings(self, rSettings)
+			self.fusionFuncs.sm_render_undoRenderSettings(self, rSettings)
 
 		if result == "publish paused":
 			return [self.state.text(0) + " - publish paused"]
@@ -1473,7 +1598,7 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def setTaskWarn(self, warn):
-		useSS = getattr(self.core.appPlugin, "colorButtonWithStyleSheet", False)
+		useSS = getattr(self.fusionFuncs, "colorButtonWithStyleSheet", False)
 		if warn:
 			if useSS:
 				self.b_changeTask.setStyleSheet(

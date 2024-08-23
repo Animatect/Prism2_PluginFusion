@@ -994,6 +994,25 @@ class Prism_Fusion_Functions(object):
 	##############################
 
 
+	@err_catcher(name=__name__)														#	ADDED
+	def configureRenderNode(self, nodeName, outputPath, fuseName):
+
+		comp = self.fusion.GetCurrentComp()		
+		if self.sm_checkCorrectComp(comp):
+			sv = self.get_rendernode(nodeName)
+			if sv:
+				sv.Clip = outputPath
+				sv["OutputFormat"] = fuseName
+
+				if sv.Input.GetConnectedOutput():
+					sv.Clip = outputPath
+				else:
+					return "Error (Render Node is not connected)"
+			else:
+				return "Error (Render Node does not exist)"
+			
+
+
 	@err_catcher(name=__name__)
 	def sm_render_startLocalRender(self, origin, outputPathOnly, outputName, rSettings):
 		comp = self.fusion.GetCurrentComp()		
@@ -1031,6 +1050,7 @@ class Prism_Fusion_Functions(object):
 					return "Result=Success"
 				else:
 					return "unknown error (files do not exist)"
+
 
 	@err_catcher(name=__name__)
 	def sm_render_undoRenderSettings(self, origin, rSettings):
