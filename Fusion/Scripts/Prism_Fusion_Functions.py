@@ -1136,7 +1136,7 @@ class Prism_Fusion_Functions(object):
 	def importImages(self, mediaBrowser):
 		if mediaBrowser.origin.getCurrentAOV():
 			fString = "Please select an import option:"
-			buttons = ["Current AOV", "All AOVs", "Update Selected"]
+			buttons = ["Current AOV", "All AOVs", "Update Selected", "Cancel"]
 			result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 		else:
 			result = "Current AOV"
