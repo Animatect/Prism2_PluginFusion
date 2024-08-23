@@ -2,8 +2,8 @@ import os
 import sys
 import time
 
-from PrismInit import checkThirdParty
-checkThirdParty()
+# from PrismInit import checkThirdParty
+# checkThirdParty()
 
 import HolderClass
 
