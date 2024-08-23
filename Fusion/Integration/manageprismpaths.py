@@ -5,18 +5,20 @@ import platform
 startEnv = os.environ.copy()
 
 # check if python 2 or python 3 is used
-if sys.version[0] == "3":
-    pVersion = 3
-    if sys.version[2] == "7":
-        pyLibs = "Python37"
-    elif sys.version[2] == "9":
-        pyLibs = "Python39"
-    else:
-        pyLibs = "Python310"
-else:
-    pVersion = 2
-    pyLibs = "Python27"
-    
+# if sys.version[0] == "3":
+#     pVersion = 3
+#     if sys.version[2] == "7":
+#         pyLibs = "Python37"
+#     elif sys.version[2] == "9":
+#         pyLibs = "Python39"
+#     else:
+#         pyLibs = "Python310"
+# else:
+#     pVersion = 2
+#     pyLibs = "Python27"
+#Commented code is left in case python 3 versions are needed at some point.
+pyLibs = "Python3"
+
 prismRoot = PRISMROOT
 prismLibs = os.getenv("PRISM_LIBS")
 
@@ -43,6 +45,10 @@ if sys.version[0] == "3":
     py3LibPath = os.path.join(prismLibs, "PythonLibs", "Python3")
     if py3LibPath not in sys.path:
         sys.path.append(py3LibPath)
+
+    pySidePath = os.path.normpath(os.path.join(py3LibPath, "PySide"))
+    if pySidePath not in sys.path:
+        sys.path.append(pySidePath)
 
     if platform.system() == "Windows":
         sys.path.insert(0, os.path.join(py3LibPath, "win32"))
