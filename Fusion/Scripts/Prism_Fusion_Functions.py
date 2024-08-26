@@ -994,7 +994,7 @@ class Prism_Fusion_Functions(object):
 	##############################
 
 
-	@err_catcher(name=__name__)														#	ADDED
+	@err_catcher(name=__name__)
 	def configureRenderNode(self, nodeName, outputPath, fuseName):
 
 		comp = self.fusion.GetCurrentComp()		
@@ -2478,13 +2478,34 @@ class Prism_Fusion_Functions(object):
 		self.core.plugins.monkeyPatch(origin.rclTree, self.rclTree, self, force=True)
 		#origin.gb_import.setStyleSheet("margin-top: 20px;")
 
+
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):
 		self.smUI = origin
+
+		##	Resizes the StateManager Window
+		# 	Check if SM has a resize method and resize it
+		if hasattr(self.smUI, 'resize'):
+			self.smUI.resize(800, self.smUI.size().height())
+
+		#	Check if SM has a splitter resize method
+		if hasattr(self.smUI, 'splitter') and hasattr(self.smUI.splitter, 'setSizes'):
+			# Splitter position
+			splitterPos = 350
+
+			# 	Calculate the sizes for the splitter
+			height = self.smUI.splitter.size().height()
+			LeftSize = splitterPos
+			RightSize = height - splitterPos
+
+			# 	Set the sizes of the splitter areas
+			self.smUI.splitter.setSizes([LeftSize, RightSize])
+
 		try:
 			self.popup.close()
 		except:
 			pass
+
 
 	@err_catcher(name=__name__)
 	def onStateManagerClose(self, origin):
