@@ -994,7 +994,7 @@ class Prism_Fusion_Functions(object):
 	##############################
 
 
-	@err_catcher(name=__name__)														#	ADDED
+	@err_catcher(name=__name__)
 	def configureRenderNode(self, nodeName, outputPath, fuseName):
 
 		comp = self.fusion.GetCurrentComp()		
@@ -2461,6 +2461,26 @@ class Prism_Fusion_Functions(object):
 		#Remove Export and Playblast buttons and states
 		origin.b_createExport.deleteLater()
 		origin.b_createPlayblast.deleteLater()
+
+		# Create a new button
+		origin.b_renderGroup = QPushButton(origin.w_CreateExports)
+		origin.b_renderGroup.setObjectName("b_renderGroup")
+		origin.b_renderGroup.setText("RenderGroup")
+
+		# Set the size policy to expanding to make it wider
+		origin.b_renderGroup.setMaximumSize(QSize(150, 16777215))
+		sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+		origin.b_renderGroup.setSizePolicy(sizePolicy)
+
+		# Insert the new button before b_showExportStates
+		index = origin.horizontalLayout_4.indexOf(origin.b_showExportStates)
+		origin.horizontalLayout_4.insertWidget(index - 1, origin.b_renderGroup)
+
+
+		origin.b_renderGroup.clicked.connect(lambda: origin.createPressed("RenderGroup"))
+
+		# origin.createState(appStates["stateType"], parent=parent, setActive=True, **appStates.get("kwargs", {}))
+
 		sm = self.core.getStateManager()
 		removestates = ['Code', 'Export', 'Playblast']
 		for state in removestates:
@@ -2476,15 +2496,38 @@ class Prism_Fusion_Functions(object):
 
 		self.monkeypatchedsm = origin
 		self.core.plugins.monkeyPatch(origin.rclTree, self.rclTree, self, force=True)
+		self.core.plugins.monkeyPatch(origin.createPressed, self.createPressed, self, force=True)
+
 		#origin.gb_import.setStyleSheet("margin-top: 20px;")
+
 
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):
 		self.smUI = origin
+
+		##	Resizes the StateManager Window
+		# 	Check if SM has a resize method and resize it
+		if hasattr(self.smUI, 'resize'):
+			self.smUI.resize(800, self.smUI.size().height())
+
+		#	Check if SM has a splitter resize method
+		if hasattr(self.smUI, 'splitter') and hasattr(self.smUI.splitter, 'setSizes'):
+			# Splitter position
+			splitterPos = 350
+
+			# 	Calculate the sizes for the splitter
+			height = self.smUI.splitter.size().height()
+			LeftSize = splitterPos
+			RightSize = height - splitterPos
+
+			# 	Set the sizes of the splitter areas
+			self.smUI.splitter.setSizes([LeftSize, RightSize])
+
 		try:
 			self.popup.close()
 		except:
 			pass
+
 
 	@err_catcher(name=__name__)
 	def onStateManagerClose(self, origin):
@@ -2675,3 +2718,66 @@ class Prism_Fusion_Functions(object):
 			# if action == 2:
 			if result == "Yes":
 				self.core.appPlugin.deleteNodes(state, validNodes)
+
+
+	@err_catcher(name=__name__)
+	def createPressed(self, stateType, renderer=None):
+
+		#	Calls original code from stateManager.createPressed()
+		self.core.plugins.callUnpatchedFunction(self.monkeypatchedsm.createPressed, stateType, renderer=renderer)
+
+
+	############	ADDED	############
+	#vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv#
+		#	Gets patched objects
+		sm = self.monkeypatchedsm
+		origCreatePressed = sm.createPressed
+
+		#	Gets called from UI button
+		if stateType == "RenderGroup":
+			# if (
+			# 	sm.activeList == sm.tw_export
+			# 	and origCreatePressed.curSel is not None
+			# 	and origCreatePressed.curSel.ui.className == "Folder"
+			# ):
+			# 	parent = origCreatePressed.curSel
+			# else:
+			# 	parent = None
+
+			parent = None
+
+			exportStates = []
+			appStates = getattr(self.core.appPlugin, "sm_createStatePressed", lambda x, y: [])(self, stateType)
+		
+			if not isinstance(appStates, list):
+				if appStates is None:
+					return
+
+				sm.createState(appStates["stateType"], parent=parent, setActive=True, **appStates.get("kwargs", {}))
+				return
+
+			exportStates += appStates
+			for state in sm.stateTypes:
+				exportStates += getattr(sm.stateTypes[state], "stateCategories", {}).get(stateType, [])
+
+			if len(exportStates) == 1:
+				sm.createState(exportStates[0]["stateType"], parent=parent, setActive=True)
+			else:
+				menu = QMenu(sm)
+				for exportState in exportStates:
+					actSet = QAction(exportState["label"], self)
+					actSet.triggered.connect(
+						lambda x=None, st=exportState: sm.createState(st["stateType"], parent=parent, setActive=True, **st.get("kwargs", {}))
+					)
+					menu.addAction(actSet)
+
+				getattr(self.core.appPlugin, "sm_openStateFromNode", lambda x, y, stateType: None)(
+					self, menu, stateType=stateType
+				)
+
+				if not menu.isEmpty():
+					menu.exec_(QCursor.pos())
+
+			sm.activeList.setFocus()
+
+	#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^#			
