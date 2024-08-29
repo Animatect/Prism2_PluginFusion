@@ -1134,25 +1134,33 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def importImages(self, mediaBrowser):
-		if mediaBrowser.origin.getCurrentAOV():
-			fString = "Please select an import option:"
-			buttons = ["Current AOV", "All AOVs", "Update Selected", "Cancel"]
-			result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
-		else:
-			result = "Current AOV"
+		comp = self.fusion.GetCurrentComp()
+		fString = "Please select an import option:"
+		checked = comp.GetData("isprismimportchbxcheck")
+		if not checked:
+			checked = False		
 
-		if result == "Current AOV":
-			self.fusionImportSource(mediaBrowser)
+		if mediaBrowser.origin.getCurrentAOV():			
+			buttons = ["Current AOV", "All AOVs", "Update Selected", "Cancel"]
+			result, checkbox_checked = self.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=checked)
+		else:
+			buttons = ["Import Media", "Update Selected", "Cancel"]
+			result, checkbox_checked = self.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=checked)
+
+		comp.SetData("isprismimportchbxcheck", checkbox_checked)
+
+		if result == "Current AOV" or result == "Import Media":
+			self.fusionImportSource(mediaBrowser, sortnodes=not checkbox_checked)
 		elif result == "All AOVs":
-			self.fusionImportPasses(mediaBrowser)
+			self.fusionImportPasses(mediaBrowser, sortnodes=not checkbox_checked)
 		elif result == "Update Selected":
-			self.fusionUpdateSelectedPasses(mediaBrowser)
+			self.fusionUpdateSelectedPasses(mediaBrowser, sortnodes=not checkbox_checked)
 		else:
 			return
 
 
 	@err_catcher(name=__name__)
-	def fusionImportSource(self, mediaBrowser):
+	def fusionImportSource(self, mediaBrowser, sortnodes=True):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
@@ -1167,10 +1175,20 @@ class Prism_Fusion_Functions(object):
 		imageData = self.getImageData(comp, sourceData)
 		if imageData:
 			updatehandle:list = [] # Required to return data on the updated nodes.
-			node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=leftmostNode)
+			if sortnodes:
+				node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=leftmostNode, createwireless=sortnodes)
+				if not leftmostNode:
+					leftmostNode = node
+				orignodepos = flow.GetPosTable(leftmostNode)
+				flow.SetPos(leftmostNode, orignodepos[1], orignodepos[2] + 10)
+				self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
+				flow.SetPos(leftmostNode, orignodepos[1], orignodepos[2])
+					
+			else:				
+				node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=None, createwireless=sortnodes)
 			
-			if leftmostNode:
-				self.sort_loaders(leftmostNode, reconnectIn=True)
+			
+			
 
 			# deselect all nodes
 			flow.Select()
@@ -1178,7 +1196,7 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def fusionImportPasses(self, mediaBrowser):
+	def fusionImportPasses(self, mediaBrowser, sortnodes=True):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
@@ -1199,9 +1217,9 @@ class Prism_Fusion_Functions(object):
 		for sourceData in dataSources:
 			imageData = self.getPassData(comp, sourceData)
 			# Return the last processed node.
-			leftmostNode = self.processImageImport(imageData, splithandle=splithandle, updatehandle=updatehandle, refNode=leftmostNode)
-
-		self.sort_loaders(leftmostNode, reconnectIn=True)
+			leftmostNode = self.processImageImport(imageData, splithandle=splithandle, updatehandle=updatehandle, refNode=leftmostNode, createwireless=sortnodes)
+		
+		self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
 
 		# deselect all nodes
 		flow.Select()
@@ -1241,14 +1259,15 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def sort_loaders(self, posRefNode, reconnectIn=True):
+	def sort_loaders(self, posRefNode, reconnectIn=True, sortnodes=True):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 		comp.Lock()
 		#Get the leftmost loader within a threshold.
 		leftmostpos = flow.GetPosTable(posRefNode)[1]
 		thresh = 100
-		loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh]
+		# We get only the loaders within a threshold from the leftmost and who were created by prism.
+		loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh and l.GetData("isprismnode")]
 		loaderstop2bot = sorted(loaders, key=lambda ld: flow.GetPosTable(ld)[2])
 		layers = set([self.split_loader_name(ly.Name)[0] for ly in loaders])
 		sortedloaders = []
@@ -1259,29 +1278,31 @@ class Prism_Fusion_Functions(object):
 
 		# Sorting the loader names
 		lastloaderlyr = self.split_loader_name(sortedloaders[0].Name)[0]
-		newx = flow.GetPosTable(loaderstop2bot[0])[1]
-		newy = flow.GetPosTable(loaderstop2bot[0])[2]
-		for l in sortedloaders:
-			# we reconnect to solve an issue that creates "Ghost" connections un til comp is reoppened.
-			innode =  comp.FindTool(l.Name+"_IN")
-			outnode = comp.FindTool(l.Name+"_OUT")
-			if innode and reconnectIn:
-				innode.ConnectInput('Input', l)
-			lyrnm = self.split_loader_name(l.Name)[0]
-			if lyrnm != lastloaderlyr:
+		if sortnodes:
+			newx = flow.GetPosTable(loaderstop2bot[0])[1]
+			newy = flow.GetPosTable(loaderstop2bot[0])[2]
+			for l in sortedloaders:
+				# we reconnect to solve an issue that creates "Ghost" connections until comp is reoppened.
+				innode =  comp.FindTool(l.Name+"_IN")
+				outnode = comp.FindTool(l.Name+"_OUT")
+				if innode and reconnectIn:
+					innode.ConnectInput('Input', l)
+				lyrnm = self.split_loader_name(l.Name)[0]
+				# we make sure we have at least an innode for this loader created by prism.
+				if innode and innode.GetData("isprismnode"):
+					if lyrnm != lastloaderlyr:
+						newy+=1
+					flow.SetPos(l, newx, newy)
+					flow.SetPos(innode, newx+2, newy)
+					if outnode:
+						flow.SetPos(outnode, newx+3, newy)
 				newy+=1
-			flow.SetPos(l, newx, newy)
-			if innode:
-				flow.SetPos(innode, newx+2, newy)
-			if outnode:
-				flow.SetPos(outnode, newx+3, newy)
-			newy+=1
-			lastloaderlyr = lyrnm
+				lastloaderlyr = lyrnm
 		comp.Unlock()
 
 
 	@err_catcher(name=__name__)
-	def fusionUpdateSelectedPasses(self, mediaBrowser):
+	def fusionUpdateSelectedPasses(self, mediaBrowser, sortnodes=True):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 	
@@ -1372,7 +1393,7 @@ class Prism_Fusion_Functions(object):
 		return None, ""
 
 	@err_catcher(name=__name__)
-	def processImageImport(self, imageData, splithandle=None, updatehandle:list=[], refNode=None):
+	def processImageImport(self, imageData, splithandle=None, updatehandle:list=[], refNode=None, createwireless=True):
 		# Do in this function the actual importing or update of the image.		
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
@@ -1411,6 +1432,9 @@ class Prism_Fusion_Functions(object):
 		# if paths were not updated then we create new nodes.
 		comp.Lock()
 		node = comp.AddTool("Loader")
+		# Set a Prism node identifier:
+		if createwireless:
+			node.SetData("isprismnode", True)
 		self.reloadLoader(node, filePath, firstFrame, lastFrame)
 		node.SetAttrs({"TOOLS_Name": aovNm})
 		if refNode:
@@ -1447,7 +1471,7 @@ class Prism_Fusion_Functions(object):
 				if result == "Yes":
 					if splithandle:
 						splithandle['splitchosen'] = True
-					loaders_list = self.process_multichannel(node)
+					loaders_list = self.process_multichannel(node, createwireless=createwireless)
 					if len(loaders_list)>0:
 						return loaders_list[-1]
  
@@ -1455,7 +1479,8 @@ class Prism_Fusion_Functions(object):
 					splithandle['splitchosen'] = False
 
 		# create wireless
-		self.createWireless(node)
+		if createwireless:
+			self.createWireless(node)
 		flow.Select(node, True)
 		
 		return node
@@ -1494,11 +1519,13 @@ class Prism_Fusion_Functions(object):
 		wl = comp.FindTool("neverreferencednameonwirelesslink")
 		wl.SetAttrs({'TOOLS_Name': tool.Name + '_OUT'})
 		x_pos, y_pos = flow.GetPosTable(tool).values()
-
+		
 		nodes = [ad, wl]
 		for i, node in enumerate(nodes, start=1):
 			offset = 1.5 if i == 1 else 1.3
 			flow.SetPos(node, x_pos + offset*i, y_pos)
+			# Set Prism node identifier.
+			node.SetData("isprismnode", True)
 
 		ad.ConnectInput('Input', tool)
 
@@ -1621,7 +1648,7 @@ class Prism_Fusion_Functions(object):
 			flow.SetPos(ldr, org_x_pos, org_y_pos + y_pos_add * count)
 
 	@err_catcher(name=__name__)
-	def process_multichannel(self, tool):
+	def process_multichannel(self, tool, createwireless=True):
 		comp = self.fusion.GetCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 		loader_channels = self.get_loader_channels(tool)
@@ -1644,9 +1671,11 @@ class Prism_Fusion_Functions(object):
 			'ZName': 'CHANNEL_NO_MATCH',
 		}
 
-		# Update the loader node channel settings
+		# Update the loader node channel settings and create loaders
 		for prefix, channels in channel_data.items():
 			ldr = comp.Loader({'Clip': self.GetLoaderClip(tool)})
+			# Add Prism node identifier
+			ldr.SetData("isprismnode", True)
 
 			# Replace invalid EXR channel names with placeholders
 			ldr.SetAttrs({'TOOLB_NameSet': True, 'TOOLS_Name': tool.Name.rsplit('_', 1)[0] + "_" + prefix})# rsplit splits from the right using in this case the first ocurrence.
@@ -1685,7 +1714,8 @@ class Prism_Fusion_Functions(object):
 		self.move_loaders(x_pos, y_pos, loaders_list)
 		# create IN and OUT nodes.
 		for node in loaders_list:
-			self.createWireless(node)
+			if createwireless:
+				self.createWireless(node)
 			flow.Select(node, True)
 
 		if len(loaders_list)>0:
@@ -2541,8 +2571,26 @@ class Prism_Fusion_Functions(object):
 				if result == "Yes":
 					node.Delete()
 		# elif stateui.className == "ImportFile":
-			
-			
+
+	##########################################
+	#                                        #
+	################# POPUPS #################
+	#                                        #
+	##########################################	
+		
+	@err_catcher(name=__name__)
+	def popupQuestion(self, text, title=None, buttons=None, icon=None, parent=None, checked=False):
+		title = title or "Prism"
+		buttons = buttons or ["Yes", "No"]
+		parent = parent or getattr(self.core, "messageParent", None)
+
+		dialog = CustomMessageBox(text, title, buttons, parent)
+		dialog.checkbox.setChecked(checked)
+		dialog.exec_()
+
+		# Return both the clicked button text and the checkbox state
+		return dialog.clicked_button_text, dialog.checkbox_checked
+		
 	################################################
 	#                                              #
 	#        	 MONKEYPATCHED FUNCTIONS           #
@@ -2696,3 +2744,47 @@ class Prism_Fusion_Functions(object):
 			# if action == 2:
 			if result == "Yes":
 				self.core.appPlugin.deleteNodes(state, validNodes)
+
+class CustomMessageBox(QDialog):
+	def __init__(self, text, title, buttons, parent=None, checked=False):
+		super().__init__(parent)
+
+		self.setWindowTitle(title)
+		self.checkbox_checked = False
+
+		# Set up the layout
+		layout = QVBoxLayout(self)
+
+		# Add the main message text
+		label = QLabel(text)
+		layout.addWidget(label)
+
+		# Add the checkbox
+		self.checkbox = QCheckBox("Import Without Wireless/Sorting")
+		self.checkbox.setToolTip("If this option is selected, Nodes will be added on last clicked position and will not be taken into account when sorting.\nThey also will not be integrated into a wireless workflow.")
+		layout.addWidget(self.checkbox)
+
+		# Add the dialog buttons
+		self.button_box = QDialogButtonBox()
+		self.button_map = {}
+
+		# Add buttons with ActionRole to the dialog
+		for button_text in buttons:
+			role = QDialogButtonBox.ActionRole
+			button = self.button_box.addButton(button_text, role)
+			self.button_map[button] = button_text  # Map buttons to their text
+
+		# Connect button clicked signal to handler
+		self.button_box.clicked.connect(self.handle_button_clicked)
+		layout.addWidget(self.button_box)
+
+		# Set dialog layout
+		self.setLayout(layout)
+
+	def set_checkbox_checked_state(self, checked):
+		self.checkbox.setChecked(checked)
+
+	def handle_button_clicked(self, button):
+		self.checkbox_checked = self.checkbox.isChecked()
+		self.clicked_button_text = self.button_map[button]
+		self.accept()  # Close the dialog
