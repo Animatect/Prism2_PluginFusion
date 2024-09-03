@@ -12,6 +12,7 @@ from qtpy.QtCore import *  # type: ignore
 from qtpy.QtGui import *  # type: ignore
 from qtpy.QtWidgets import *  # type: ignore
 
+
 class Ui_wg_RenderGroup(object):
     def setupUi(self, wg_RenderGroup):
         if not wg_RenderGroup.objectName():
@@ -55,7 +56,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_11.addWidget(self.label_7)
 
-        self.horizontalSpacer_5 = QSpacerItem(37, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_5 = QSpacerItem(37, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_11.addItem(self.horizontalSpacer_5)
 
@@ -64,7 +65,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_11.addWidget(self.l_context)
 
-        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_11.addItem(self.horizontalSpacer_3)
 
@@ -81,6 +82,25 @@ class Ui_wg_RenderGroup(object):
 
         self.verticalLayout_2.addWidget(self.w_context)
 
+        self.f_frameRange = QHBoxLayout()
+        self.f_frameRange.setObjectName(u"f_frameRange")
+        self.f_frameRangeOverride = QVBoxLayout()
+        self.f_frameRangeOverride.setObjectName(u"f_frameRangeOverride")
+        self.chb_overrideFrameRange = QCheckBox(self.gb_RenderGroup)
+        self.chb_overrideFrameRange.setObjectName(u"chb_overrideFrameRange")
+        sizePolicy = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Fixed)
+        sizePolicy.setHorizontalStretch(0)
+        sizePolicy.setVerticalStretch(0)
+        sizePolicy.setHeightForWidth(self.chb_overrideFrameRange.sizePolicy().hasHeightForWidth())
+        self.chb_overrideFrameRange.setSizePolicy(sizePolicy)
+
+        self.f_frameRangeOverride.addWidget(self.chb_overrideFrameRange)
+
+
+        self.f_frameRange.addLayout(self.f_frameRangeOverride)
+
+        self.f_frameRangeOptions = QVBoxLayout()
+        self.f_frameRangeOptions.setObjectName(u"f_frameRangeOptions")
         self.f_range = QWidget(self.gb_RenderGroup)
         self.f_range.setObjectName(u"f_range")
         self.horizontalLayout = QHBoxLayout(self.f_range)
@@ -92,7 +112,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout.addWidget(self.label_3)
 
-        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
         self.horizontalLayout.addItem(self.horizontalSpacer_2)
 
@@ -103,20 +123,13 @@ class Ui_wg_RenderGroup(object):
         self.horizontalLayout.addWidget(self.cb_rangeType)
 
 
-        self.verticalLayout_2.addWidget(self.f_range)
+        self.f_frameRangeOptions.addWidget(self.f_range)
 
         self.w_frameRangeValues = QWidget(self.gb_RenderGroup)
         self.w_frameRangeValues.setObjectName(u"w_frameRangeValues")
         self.gridLayout = QGridLayout(self.w_frameRangeValues)
         self.gridLayout.setObjectName(u"gridLayout")
         self.gridLayout.setContentsMargins(9, 0, 9, 0)
-        self.l_rangeEnd = QLabel(self.w_frameRangeValues)
-        self.l_rangeEnd.setObjectName(u"l_rangeEnd")
-        self.l_rangeEnd.setMinimumSize(QSize(30, 0))
-        self.l_rangeEnd.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
-
-        self.gridLayout.addWidget(self.l_rangeEnd, 1, 5, 1, 1)
-
         self.sp_rangeEnd = QSpinBox(self.w_frameRangeValues)
         self.sp_rangeEnd.setObjectName(u"sp_rangeEnd")
         self.sp_rangeEnd.setMaximumSize(QSize(55, 16777215))
@@ -124,6 +137,11 @@ class Ui_wg_RenderGroup(object):
         self.sp_rangeEnd.setValue(1100)
 
         self.gridLayout.addWidget(self.sp_rangeEnd, 1, 6, 1, 1)
+
+        self.l_rangeStartInfo = QLabel(self.w_frameRangeValues)
+        self.l_rangeStartInfo.setObjectName(u"l_rangeStartInfo")
+
+        self.gridLayout.addWidget(self.l_rangeStartInfo, 0, 0, 1, 1)
 
         self.sp_rangeStart = QSpinBox(self.w_frameRangeValues)
         self.sp_rangeStart.setObjectName(u"sp_rangeStart")
@@ -136,26 +154,26 @@ class Ui_wg_RenderGroup(object):
         self.l_rangeStart = QLabel(self.w_frameRangeValues)
         self.l_rangeStart.setObjectName(u"l_rangeStart")
         self.l_rangeStart.setMinimumSize(QSize(30, 0))
-        self.l_rangeStart.setAlignment(Qt.AlignmentFlag.AlignRight|Qt.AlignmentFlag.AlignTrailing|Qt.AlignmentFlag.AlignVCenter)
 
         self.gridLayout.addWidget(self.l_rangeStart, 0, 5, 1, 1)
 
-        self.l_rangeStartInfo = QLabel(self.w_frameRangeValues)
-        self.l_rangeStartInfo.setObjectName(u"l_rangeStartInfo")
+        self.l_rangeEnd = QLabel(self.w_frameRangeValues)
+        self.l_rangeEnd.setObjectName(u"l_rangeEnd")
+        self.l_rangeEnd.setMinimumSize(QSize(30, 0))
 
-        self.gridLayout.addWidget(self.l_rangeStartInfo, 0, 0, 1, 1)
-
-        self.horizontalSpacer_13 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.gridLayout.addItem(self.horizontalSpacer_13, 0, 4, 1, 1)
+        self.gridLayout.addWidget(self.l_rangeEnd, 1, 5, 1, 1)
 
         self.l_rangeEndInfo = QLabel(self.w_frameRangeValues)
         self.l_rangeEndInfo.setObjectName(u"l_rangeEndInfo")
 
         self.gridLayout.addWidget(self.l_rangeEndInfo, 1, 0, 1, 1)
 
+        self.horizontalSpacer_13 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
-        self.verticalLayout_2.addWidget(self.w_frameRangeValues)
+        self.gridLayout.addItem(self.horizontalSpacer_13, 0, 4, 1, 1)
+
+
+        self.f_frameRangeOptions.addWidget(self.w_frameRangeValues)
 
         self.w_frameExpression = QWidget(self.gb_RenderGroup)
         self.w_frameExpression.setObjectName(u"w_frameExpression")
@@ -168,7 +186,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_15.addWidget(self.l_frameExpression)
 
-        self.horizontalSpacer_14 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_14 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_15.addItem(self.horizontalSpacer_14)
 
@@ -179,7 +197,13 @@ class Ui_wg_RenderGroup(object):
         self.horizontalLayout_15.addWidget(self.le_frameExpression)
 
 
-        self.verticalLayout_2.addWidget(self.w_frameExpression)
+        self.f_frameRangeOptions.addWidget(self.w_frameExpression)
+
+
+        self.f_frameRange.addLayout(self.f_frameRangeOptions)
+
+
+        self.verticalLayout_2.addLayout(self.f_frameRange)
 
         self.f_cam = QWidget(self.gb_RenderGroup)
         self.f_cam.setObjectName(u"f_cam")
@@ -190,34 +214,12 @@ class Ui_wg_RenderGroup(object):
 
         self.verticalLayout_2.addWidget(self.f_cam)
 
-        self.w_renderPreset = QWidget(self.gb_RenderGroup)
-        self.w_renderPreset.setObjectName(u"w_renderPreset")
-        self.horizontalLayout_14 = QHBoxLayout(self.w_renderPreset)
-        self.horizontalLayout_14.setObjectName(u"horizontalLayout_14")
-        self.horizontalLayout_14.setContentsMargins(-1, 0, -1, 0)
-        self.l_renderPreset = QLabel(self.w_renderPreset)
-        self.l_renderPreset.setObjectName(u"l_renderPreset")
+        self.f_masterVersion = QHBoxLayout()
+        self.f_masterVersion.setObjectName(u"f_masterVersion")
+        self.chb_overrideMaster = QCheckBox(self.gb_RenderGroup)
+        self.chb_overrideMaster.setObjectName(u"chb_overrideMaster")
 
-        self.horizontalLayout_14.addWidget(self.l_renderPreset)
-
-        self.horizontalSpacer_7 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.horizontalLayout_14.addItem(self.horizontalSpacer_7)
-
-        self.chb_renderPreset = QCheckBox(self.w_renderPreset)
-        self.chb_renderPreset.setObjectName(u"chb_renderPreset")
-
-        self.horizontalLayout_14.addWidget(self.chb_renderPreset)
-
-        self.cb_renderPreset = QComboBox(self.w_renderPreset)
-        self.cb_renderPreset.setObjectName(u"cb_renderPreset")
-        self.cb_renderPreset.setEnabled(False)
-        self.cb_renderPreset.setMinimumSize(QSize(150, 0))
-
-        self.horizontalLayout_14.addWidget(self.cb_renderPreset)
-
-
-        self.verticalLayout_2.addWidget(self.w_renderPreset)
+        self.f_masterVersion.addWidget(self.chb_overrideMaster)
 
         self.w_master = QWidget(self.gb_RenderGroup)
         self.w_master.setObjectName(u"w_master")
@@ -225,12 +227,12 @@ class Ui_wg_RenderGroup(object):
         self.horizontalLayout_17.setSpacing(0)
         self.horizontalLayout_17.setObjectName(u"horizontalLayout_17")
         self.horizontalLayout_17.setContentsMargins(9, 0, 9, 0)
-        self.l_outPath_2 = QLabel(self.w_master)
-        self.l_outPath_2.setObjectName(u"l_outPath_2")
+        self.l_master = QLabel(self.w_master)
+        self.l_master.setObjectName(u"l_master")
 
-        self.horizontalLayout_17.addWidget(self.l_outPath_2)
+        self.horizontalLayout_17.addWidget(self.l_master)
 
-        self.horizontalSpacer_28 = QSpacerItem(113, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_28 = QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
         self.horizontalLayout_17.addItem(self.horizontalSpacer_28)
 
@@ -241,20 +243,33 @@ class Ui_wg_RenderGroup(object):
         self.horizontalLayout_17.addWidget(self.cb_master)
 
 
-        self.verticalLayout_2.addWidget(self.w_master)
+        self.f_masterVersion.addWidget(self.w_master)
 
-        self.w_outPath = QWidget(self.gb_RenderGroup)
+
+        self.verticalLayout_2.addLayout(self.f_masterVersion)
+
+        self.w_renderLocation = QWidget(self.gb_RenderGroup)
+        self.w_renderLocation.setObjectName(u"w_renderLocation")
+        self.f_renderLocation = QHBoxLayout(self.w_renderLocation)
+        self.f_renderLocation.setObjectName(u"f_renderLocation")
+        self.f_renderLocation.setContentsMargins(0, 0, 0, 0)
+        self.chb_overrideLocation = QCheckBox(self.w_renderLocation)
+        self.chb_overrideLocation.setObjectName(u"chb_overrideLocation")
+
+        self.f_renderLocation.addWidget(self.chb_overrideLocation)
+
+        self.w_outPath = QWidget(self.w_renderLocation)
         self.w_outPath.setObjectName(u"w_outPath")
         self.horizontalLayout_16 = QHBoxLayout(self.w_outPath)
         self.horizontalLayout_16.setSpacing(0)
         self.horizontalLayout_16.setObjectName(u"horizontalLayout_16")
         self.horizontalLayout_16.setContentsMargins(9, 0, 9, 0)
-        self.l_outPath = QLabel(self.w_outPath)
-        self.l_outPath.setObjectName(u"l_outPath")
+        self.l_location = QLabel(self.w_outPath)
+        self.l_location.setObjectName(u"l_location")
 
-        self.horizontalLayout_16.addWidget(self.l_outPath)
+        self.horizontalLayout_16.addWidget(self.l_location)
 
-        self.horizontalSpacer_27 = QSpacerItem(113, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_27 = QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 
         self.horizontalLayout_16.addItem(self.horizontalSpacer_27)
 
@@ -265,7 +280,150 @@ class Ui_wg_RenderGroup(object):
         self.horizontalLayout_16.addWidget(self.cb_outPath)
 
 
-        self.verticalLayout_2.addWidget(self.w_outPath)
+        self.f_renderLocation.addWidget(self.w_outPath)
+
+
+        self.verticalLayout_2.addWidget(self.w_renderLocation)
+
+        self.w_renderScaling = QWidget(self.gb_RenderGroup)
+        self.w_renderScaling.setObjectName(u"w_renderScaling")
+        self.horizontalLayout_14 = QHBoxLayout(self.w_renderScaling)
+        self.horizontalLayout_14.setObjectName(u"horizontalLayout_14")
+        self.horizontalLayout_14.setContentsMargins(0, 0, 0, 0)
+        self.chb_overrideScaling = QCheckBox(self.w_renderScaling)
+        self.chb_overrideScaling.setObjectName(u"chb_overrideScaling")
+
+        self.horizontalLayout_14.addWidget(self.chb_overrideScaling)
+
+        self.w_scalingOptions = QHBoxLayout()
+        self.w_scalingOptions.setObjectName(u"w_scalingOptions")
+        self.w_scalingOptions.setContentsMargins(9, -1, 9, -1)
+        self.l_renderScaling = QLabel(self.w_renderScaling)
+        self.l_renderScaling.setObjectName(u"l_renderScaling")
+
+        self.w_scalingOptions.addWidget(self.l_renderScaling)
+
+        self.horizontalSpacer_7 = QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.w_scalingOptions.addItem(self.horizontalSpacer_7)
+
+        self.cb_renderScaling = QComboBox(self.w_renderScaling)
+        self.cb_renderScaling.setObjectName(u"cb_renderScaling")
+        self.cb_renderScaling.setEnabled(True)
+        self.cb_renderScaling.setMinimumSize(QSize(150, 0))
+
+        self.w_scalingOptions.addWidget(self.cb_renderScaling)
+
+
+        self.horizontalLayout_14.addLayout(self.w_scalingOptions)
+
+
+        self.verticalLayout_2.addWidget(self.w_renderScaling)
+
+        self.w_renderQuality = QWidget(self.gb_RenderGroup)
+        self.w_renderQuality.setObjectName(u"w_renderQuality")
+        self.horizontalLayout_19 = QHBoxLayout(self.w_renderQuality)
+        self.horizontalLayout_19.setObjectName(u"horizontalLayout_19")
+        self.horizontalLayout_19.setContentsMargins(0, 0, 0, 0)
+        self.chb_overrideQuality = QCheckBox(self.w_renderQuality)
+        self.chb_overrideQuality.setObjectName(u"chb_overrideQuality")
+
+        self.horizontalLayout_19.addWidget(self.chb_overrideQuality)
+
+        self.w_qualityOptions = QHBoxLayout()
+        self.w_qualityOptions.setObjectName(u"w_qualityOptions")
+        self.w_qualityOptions.setContentsMargins(9, -1, 9, -1)
+        self.l_renderQuality = QLabel(self.w_renderQuality)
+        self.l_renderQuality.setObjectName(u"l_renderQuality")
+
+        self.w_qualityOptions.addWidget(self.l_renderQuality)
+
+        self.horizontalSpacer_8 = QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.w_qualityOptions.addItem(self.horizontalSpacer_8)
+
+        self.cb_renderQuality = QComboBox(self.w_renderQuality)
+        self.cb_renderQuality.setObjectName(u"cb_renderQuality")
+        self.cb_renderQuality.setEnabled(True)
+        self.cb_renderQuality.setMinimumSize(QSize(150, 0))
+
+        self.w_qualityOptions.addWidget(self.cb_renderQuality)
+
+
+        self.horizontalLayout_19.addLayout(self.w_qualityOptions)
+
+
+        self.verticalLayout_2.addWidget(self.w_renderQuality)
+
+        self.w_renderMB = QWidget(self.gb_RenderGroup)
+        self.w_renderMB.setObjectName(u"w_renderMB")
+        self.horizontalLayout_20 = QHBoxLayout(self.w_renderMB)
+        self.horizontalLayout_20.setObjectName(u"horizontalLayout_20")
+        self.horizontalLayout_20.setContentsMargins(0, 0, 0, 0)
+        self.chb_overrideRenderMB = QCheckBox(self.w_renderMB)
+        self.chb_overrideRenderMB.setObjectName(u"chb_overrideRenderMB")
+
+        self.horizontalLayout_20.addWidget(self.chb_overrideRenderMB)
+
+        self.w_renderMbOptions = QHBoxLayout()
+        self.w_renderMbOptions.setObjectName(u"w_renderMbOptions")
+        self.w_renderMbOptions.setContentsMargins(9, -1, 9, -1)
+        self.l_renderMB = QLabel(self.w_renderMB)
+        self.l_renderMB.setObjectName(u"l_renderMB")
+
+        self.w_renderMbOptions.addWidget(self.l_renderMB)
+
+        self.horizontalSpacer_9 = QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.w_renderMbOptions.addItem(self.horizontalSpacer_9)
+
+        self.cb_renderMB = QComboBox(self.w_renderMB)
+        self.cb_renderMB.setObjectName(u"cb_renderMB")
+        self.cb_renderMB.setEnabled(True)
+        self.cb_renderMB.setMinimumSize(QSize(150, 0))
+
+        self.w_renderMbOptions.addWidget(self.cb_renderMB)
+
+
+        self.horizontalLayout_20.addLayout(self.w_renderMbOptions)
+
+
+        self.verticalLayout_2.addWidget(self.w_renderMB)
+
+        self.w_useProxy = QWidget(self.gb_RenderGroup)
+        self.w_useProxy.setObjectName(u"w_useProxy")
+        self.horizontalLayout_32 = QHBoxLayout(self.w_useProxy)
+        self.horizontalLayout_32.setObjectName(u"horizontalLayout_32")
+        self.horizontalLayout_32.setContentsMargins(0, 0, 0, 0)
+        self.chb_overrideProxy = QCheckBox(self.w_useProxy)
+        self.chb_overrideProxy.setObjectName(u"chb_overrideProxy")
+
+        self.horizontalLayout_32.addWidget(self.chb_overrideProxy)
+
+        self.w_proxyOptions = QHBoxLayout()
+        self.w_proxyOptions.setObjectName(u"w_proxyOptions")
+        self.w_proxyOptions.setContentsMargins(9, -1, 9, -1)
+        self.l_renderProxy = QLabel(self.w_useProxy)
+        self.l_renderProxy.setObjectName(u"l_renderProxy")
+
+        self.w_proxyOptions.addWidget(self.l_renderProxy)
+
+        self.horizontalSpacer_10 = QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.w_proxyOptions.addItem(self.horizontalSpacer_10)
+
+        self.cb_renderProxy = QComboBox(self.w_useProxy)
+        self.cb_renderProxy.setObjectName(u"cb_renderProxy")
+        self.cb_renderProxy.setEnabled(True)
+        self.cb_renderProxy.setMinimumSize(QSize(150, 0))
+
+        self.w_proxyOptions.addWidget(self.cb_renderProxy)
+
+
+        self.horizontalLayout_32.addLayout(self.w_proxyOptions)
+
+
+        self.verticalLayout_2.addWidget(self.w_useProxy)
 
 
         self.verticalLayout.addWidget(self.gb_RenderGroup)
@@ -274,23 +432,23 @@ class Ui_wg_RenderGroup(object):
         self.w_renderStates.setObjectName(u"w_renderStates")
         self.lo_addRenderState = QHBoxLayout()
         self.lo_addRenderState.setObjectName(u"lo_addRenderState")
-        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.lo_addRenderState.addItem(self.horizontalSpacer_4)
 
         self.b_addRenderState = QPushButton(wg_RenderGroup)
         self.b_addRenderState.setObjectName(u"b_addRenderState")
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Fixed)
-        sizePolicy.setHorizontalStretch(0)
-        sizePolicy.setVerticalStretch(0)
-        sizePolicy.setHeightForWidth(self.b_addRenderState.sizePolicy().hasHeightForWidth())
-        self.b_addRenderState.setSizePolicy(sizePolicy)
+        sizePolicy1 = QSizePolicy(QSizePolicy.Fixed, QSizePolicy.Fixed)
+        sizePolicy1.setHorizontalStretch(0)
+        sizePolicy1.setVerticalStretch(0)
+        sizePolicy1.setHeightForWidth(self.b_addRenderState.sizePolicy().hasHeightForWidth())
+        self.b_addRenderState.setSizePolicy(sizePolicy1)
         self.b_addRenderState.setMinimumSize(QSize(200, 0))
         self.b_addRenderState.setIconSize(QSize(16, 16))
 
         self.lo_addRenderState.addWidget(self.b_addRenderState)
 
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.lo_addRenderState.addItem(self.horizontalSpacer)
 
@@ -299,16 +457,20 @@ class Ui_wg_RenderGroup(object):
 
         self.tw_renderStates = QListWidget(wg_RenderGroup)
         self.tw_renderStates.setObjectName(u"tw_renderStates")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
-        sizePolicy1.setHorizontalStretch(0)
-        sizePolicy1.setVerticalStretch(0)
-        sizePolicy1.setHeightForWidth(self.tw_renderStates.sizePolicy().hasHeightForWidth())
-        self.tw_renderStates.setSizePolicy(sizePolicy1)
+        sizePolicy2 = QSizePolicy(QSizePolicy.Minimum, QSizePolicy.Expanding)
+        sizePolicy2.setHorizontalStretch(0)
+        sizePolicy2.setVerticalStretch(0)
+        sizePolicy2.setHeightForWidth(self.tw_renderStates.sizePolicy().hasHeightForWidth())
+        self.tw_renderStates.setSizePolicy(sizePolicy2)
 
         self.w_renderStates.addWidget(self.tw_renderStates)
 
 
         self.verticalLayout.addLayout(self.w_renderStates)
+
+        self.verticalSpacer = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Minimum)
+
+        self.verticalLayout.addItem(self.verticalSpacer)
 
         self.gb_submit = QGroupBox(wg_RenderGroup)
         self.gb_submit.setObjectName(u"gb_submit")
@@ -327,7 +489,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_13.addWidget(self.l_manager)
 
-        self.horizontalSpacer_19 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_19 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_13.addItem(self.horizontalSpacer_19)
 
@@ -350,7 +512,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_21.addWidget(self.l_rjPrio)
 
-        self.horizontalSpacer_16 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_16 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_21.addItem(self.horizontalSpacer_16)
 
@@ -374,7 +536,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_22.addWidget(self.label_15)
 
-        self.horizontalSpacer_17 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_17 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_22.addItem(self.horizontalSpacer_17)
 
@@ -398,7 +560,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_28.addWidget(self.l_rjTimeout)
 
-        self.horizontalSpacer_23 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_23 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_28.addItem(self.horizontalSpacer_23)
 
@@ -423,7 +585,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_26.addWidget(self.label_18)
 
-        self.horizontalSpacer_20 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_20 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_26.addItem(self.horizontalSpacer_20)
 
@@ -446,7 +608,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_27.addWidget(self.label_19)
 
-        self.horizontalSpacer_22 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_22 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_27.addItem(self.horizontalSpacer_22)
 
@@ -469,7 +631,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_23.addWidget(self.label_16)
 
-        self.horizontalSpacer_18 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_18 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_23.addItem(self.horizontalSpacer_18)
 
@@ -492,7 +654,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_24.addWidget(self.label_17)
 
-        self.horizontalSpacer_21 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_21 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_24.addItem(self.horizontalSpacer_21)
 
@@ -518,7 +680,7 @@ class Ui_wg_RenderGroup(object):
         self.b_osSlaves = QPushButton(self.gb_osSlaves)
         self.b_osSlaves.setObjectName(u"b_osSlaves")
         self.b_osSlaves.setMaximumSize(QSize(25, 16777215))
-        self.b_osSlaves.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.b_osSlaves.setFocusPolicy(Qt.NoFocus)
 
         self.horizontalLayout_25.addWidget(self.b_osSlaves)
 
@@ -535,7 +697,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_29.addWidget(self.l_dlConcurrentTasks)
 
-        self.horizontalSpacer_24 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_24 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_29.addItem(self.horizontalSpacer_24)
 
@@ -560,7 +722,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_30.addWidget(self.l_dlGPUpt)
 
-        self.horizontalSpacer_25 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_25 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_30.addItem(self.horizontalSpacer_25)
 
@@ -585,7 +747,7 @@ class Ui_wg_RenderGroup(object):
 
         self.horizontalLayout_31.addWidget(self.l_dlGPUdevices)
 
-        self.horizontalSpacer_26 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_26 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_31.addItem(self.horizontalSpacer_26)
 
@@ -601,52 +763,14 @@ class Ui_wg_RenderGroup(object):
 
         self.verticalLayout.addWidget(self.gb_submit)
 
-        self.gb_previous = QGroupBox(wg_RenderGroup)
-        self.gb_previous.setObjectName(u"gb_previous")
-        self.gb_previous.setCheckable(False)
-        self.gb_previous.setChecked(False)
-        self.horizontalLayout_18 = QHBoxLayout(self.gb_previous)
-        self.horizontalLayout_18.setObjectName(u"horizontalLayout_18")
-        self.horizontalLayout_18.setContentsMargins(9, 9, 9, 9)
-        self.scrollArea = QScrollArea(self.gb_previous)
-        self.scrollArea.setObjectName(u"scrollArea")
-        self.scrollArea.setWidgetResizable(True)
-        self.scrollAreaWidgetContents = QWidget()
-        self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 446, 69))
-        self.verticalLayout_3 = QVBoxLayout(self.scrollAreaWidgetContents)
-        self.verticalLayout_3.setObjectName(u"verticalLayout_3")
-        self.l_pathLast = QLabel(self.scrollAreaWidgetContents)
-        self.l_pathLast.setObjectName(u"l_pathLast")
-
-        self.verticalLayout_3.addWidget(self.l_pathLast)
-
-        self.scrollArea.setWidget(self.scrollAreaWidgetContents)
-
-        self.horizontalLayout_18.addWidget(self.scrollArea)
-
-        self.b_pathLast = QToolButton(self.gb_previous)
-        self.b_pathLast.setObjectName(u"b_pathLast")
-        self.b_pathLast.setEnabled(True)
-        self.b_pathLast.setArrowType(Qt.ArrowType.DownArrow)
-
-        self.horizontalLayout_18.addWidget(self.b_pathLast)
-
-
-        self.verticalLayout.addWidget(self.gb_previous)
-
         QWidget.setTabOrder(self.e_name, self.b_context)
         QWidget.setTabOrder(self.b_context, self.cb_context)
         QWidget.setTabOrder(self.cb_context, self.cb_rangeType)
         QWidget.setTabOrder(self.cb_rangeType, self.sp_rangeStart)
         QWidget.setTabOrder(self.sp_rangeStart, self.sp_rangeEnd)
         QWidget.setTabOrder(self.sp_rangeEnd, self.le_frameExpression)
-        QWidget.setTabOrder(self.le_frameExpression, self.chb_renderPreset)
-        QWidget.setTabOrder(self.chb_renderPreset, self.cb_renderPreset)
-        QWidget.setTabOrder(self.cb_renderPreset, self.cb_master)
+        QWidget.setTabOrder(self.le_frameExpression, self.cb_master)
         QWidget.setTabOrder(self.cb_master, self.cb_outPath)
-        QWidget.setTabOrder(self.cb_outPath, self.scrollArea)
-        QWidget.setTabOrder(self.scrollArea, self.b_pathLast)
 
         self.retranslateUi(wg_RenderGroup)
 
@@ -656,20 +780,29 @@ class Ui_wg_RenderGroup(object):
     def retranslateUi(self, wg_RenderGroup):
         wg_RenderGroup.setWindowTitle(QCoreApplication.translate("wg_RenderGroup", u"RenderGroup", None))
         self.l_class.setText(QCoreApplication.translate("wg_RenderGroup", u"RenderGroup:        ", None))
-        self.gb_RenderGroup.setTitle(QCoreApplication.translate("wg_RenderGroup", u"General", None))
+        self.gb_RenderGroup.setTitle(QCoreApplication.translate("wg_RenderGroup", u"State Overrides", None))
         self.label_7.setText(QCoreApplication.translate("wg_RenderGroup", u"Context:", None))
         self.l_context.setText("")
         self.b_context.setText(QCoreApplication.translate("wg_RenderGroup", u"Select", None))
+        self.chb_overrideFrameRange.setText("")
         self.label_3.setText(QCoreApplication.translate("wg_RenderGroup", u"Framerange:", None))
-        self.l_rangeEnd.setText(QCoreApplication.translate("wg_RenderGroup", u"1100", None))
-        self.l_rangeStart.setText(QCoreApplication.translate("wg_RenderGroup", u"1001", None))
         self.l_rangeStartInfo.setText(QCoreApplication.translate("wg_RenderGroup", u"Start:", None))
+        self.l_rangeStart.setText(QCoreApplication.translate("wg_RenderGroup", u"1001", None))
+        self.l_rangeEnd.setText(QCoreApplication.translate("wg_RenderGroup", u"1100", None))
         self.l_rangeEndInfo.setText(QCoreApplication.translate("wg_RenderGroup", u"End:", None))
         self.l_frameExpression.setText(QCoreApplication.translate("wg_RenderGroup", u"Frame expression:", None))
-        self.l_renderPreset.setText(QCoreApplication.translate("wg_RenderGroup", u"Rendersettings preset:", None))
-        self.chb_renderPreset.setText("")
-        self.l_outPath_2.setText(QCoreApplication.translate("wg_RenderGroup", u"Master Version:", None))
-        self.l_outPath.setText(QCoreApplication.translate("wg_RenderGroup", u"Location:", None))
+        self.chb_overrideMaster.setText("")
+        self.l_master.setText(QCoreApplication.translate("wg_RenderGroup", u"Master Version:", None))
+        self.chb_overrideLocation.setText("")
+        self.l_location.setText(QCoreApplication.translate("wg_RenderGroup", u"Location:", None))
+        self.chb_overrideScaling.setText("")
+        self.l_renderScaling.setText(QCoreApplication.translate("wg_RenderGroup", u"Scaling % ", None))
+        self.chb_overrideQuality.setText("")
+        self.l_renderQuality.setText(QCoreApplication.translate("wg_RenderGroup", u"Hi Quality:", None))
+        self.chb_overrideRenderMB.setText("")
+        self.l_renderMB.setText(QCoreApplication.translate("wg_RenderGroup", u"Motion Blur:", None))
+        self.chb_overrideProxy.setText("")
+        self.l_renderProxy.setText(QCoreApplication.translate("wg_RenderGroup", u"Proxies:", None))
         self.b_addRenderState.setText(QCoreApplication.translate("wg_RenderGroup", u"Add Render State", None))
         self.gb_submit.setTitle(QCoreApplication.translate("wg_RenderGroup", u"Submit Render Job", None))
         self.l_manager.setText(QCoreApplication.translate("wg_RenderGroup", u"Manager:", None))
@@ -690,8 +823,5 @@ class Ui_wg_RenderGroup(object):
         self.l_dlGPUpt.setText(QCoreApplication.translate("wg_RenderGroup", u"GPUs Per Task:", None))
         self.l_dlGPUdevices.setText(QCoreApplication.translate("wg_RenderGroup", u"Select GPU Devices:", None))
         self.le_dlGPUdevices.setPlaceholderText(QCoreApplication.translate("wg_RenderGroup", u"Enter Valid GPU Device Id(s)", None))
-        self.gb_previous.setTitle(QCoreApplication.translate("wg_RenderGroup", u"Previous render", None))
-        self.l_pathLast.setText(QCoreApplication.translate("wg_RenderGroup", u"None", None))
-        self.b_pathLast.setText(QCoreApplication.translate("wg_RenderGroup", u"...", None))
     # retranslateUi
 
