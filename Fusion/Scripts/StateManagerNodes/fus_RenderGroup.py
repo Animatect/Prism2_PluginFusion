@@ -55,10 +55,11 @@ class RenderGroupClass(object):
 		self.state = state
 		self.core = core
 		self.stateManager = stateManager
-		self.fusionFuncs = self.core.appPlugin													#	ADDED - all calls to appPlugin
+		self.fusionFuncs = self.core.appPlugin
 		self.canSetVersion = True
 		self.customContext = None
 		self.allowCustomContext = False
+		self.mediaType = "2drenders"
 		self.cb_context.addItems(["From scenefile", "Custom"])
 		
 		self.treeWidget = self.stateManager.tw_export
@@ -67,103 +68,13 @@ class RenderGroupClass(object):
 		self.renderingStarted = False
 		self.cleanOutputdir = True
 
-		self.e_name.setText(state.text(0) + " - {identifier}")
-
-		self.rangeTypes = [
-			"Scene",
-			"Shot",
-			"Single Frame",
-			"Custom",
-			"Expression",
-		]
-		self.cb_rangeType.addItems(self.rangeTypes)
-		for idx, rtype in enumerate(self.rangeTypes):
-			self.cb_rangeType.setItemData(
-				idx, self.stateManager.getFrameRangeTypeToolTip(rtype), Qt.ToolTipRole
-			)
-		self.w_frameExpression.setToolTip(
-			self.stateManager.getFrameRangeTypeToolTip("ExpressionField")
-		)
-
-		self.renderPresets = (
-			self.stateManager.stateTypes["RenderSettings"].getPresets(self.core)
-			if "RenderSettings" in self.stateManager.stateTypes
-			else {}
-		)
-		if self.renderPresets:
-			self.cb_renderPreset.addItems(self.renderPresets.keys())
-		else:
-			self.w_renderPreset.setVisible(False)
-
-#		self.w_format.setVisible(False)
-
-		# self.l_name.setVisible(False)
 		self.e_name.setVisible(True)
-		self.gb_submit.setChecked(False)
-#		self.f_renderLayer.setVisible(False)
+
+		self.populateCombos()
 
 		getattr(self.fusionFuncs, "sm_render_startup", lambda x: None)(self)
 
-		masterItems = ["Set as master", "Add to master", "Don't update master"]
-		self.cb_master.addItems(masterItems)
-		self.product_paths = self.core.paths.getRenderProductBasePaths()
-		self.cb_outPath.addItems(list(self.product_paths.keys()))
-		if len(self.product_paths) < 2:
-			self.w_outPath.setVisible(False)
-
-		self.mediaType = "2drenders"
 		self.tasknameRequired = True
-
-		#	Format dict to differentiate still/movie types
-		# self.outputFormats = [																		#	EDITED
-		# 	{"extension": ".exr", "fuseName": "OpenEXRFormat", "type": "image"},
-		# 	{"extension": ".dpx", "fuseName": "DPXFormat", "type": "image"},
-		# 	{"extension": ".png", "fuseName": "PNGFormat", "type": "image"},
-		# 	{"extension": ".tif", "fuseName": "TiffFormat", "type": "image"},
-		# 	{"extension": ".jpg", "fuseName": "JpegFormat", "type": "image"},
-		# 	{"extension": ".mov", "fuseName": "QuickTimeMovies", "type": "video"},
-		# 	{"extension": ".mxf", "fuseName": "MXFFormat", "type": "video"},
-		# 	{"extension": ".avi", "fuseName": "AVIFormat", "type": "video"}
-		# ]
-
-		#	ARCHIVED FORMATS FOR LATER USE - THESE ARE THE NAMES FUSION USES
-			# "PIXFormat": "pix",             # Alias PIX
-            # "IFFFormat": "iff",             # Amiga IFF
-            # "CineonFormat": "cin",          # Kodak Cineon
-            # "DPXFormat": "dpx",             # DPX
-            # "FusePicFormat": "fusepic",     # Fuse Pic
-            # "FlipbookFormat": "fb",         # Fusion Flipbooks
-            # "RawFormat": "raw",             # Fusion RAW Image
-            # "IFLFormat": "ifl",             # Image File List (Text File)
-            # "IPLFormat": "ipl",             # IPL
-            # "JpegFormat": "jpg",            # JPEG
-            # "Jpeg2000Format": "jp2",        # JPEG2000
-            # "MXFFormat": "mxf",             # MXF - Material Exchange Format
-            # "OpenEXRFormat": "exr",         # OpenEXR
-            # "PandoraFormat": "piyuv10",     # Pandora YUV
-            # "PNGFormat": "png",             # PNG
-            # "VPBFormat": "vpb",             # Quantel VPB
-            # "QuickTimeMovies": "mov",       # QuickTime Movie
-            # "HDRFormat": "hdr",             # Radiance
-            # "SixRNFormat": "6RN",           # Rendition
-            # "SGIFormat": "sgi",             # SGI
-            # "PICFormat": "si",              # Softimage PIC
-            # "SUNFormat": "RAS",             # SUN Raster
-            # "TargaFormat": "tga",           # Targa
-            # "TiffFormat": "tiff",           # TIFF
-            # "rlaFormat": "rla",             # Wavefront RLA
-            # "BMPFormat": "bmp",             # Windows BMP
-            # "YUVFormat": "yuv",             # YUV
-
-#		self.cb_format.addItems([formatDict["extension"] for formatDict in self.outputFormats])
-
-		# self.resolutionPresets = self.core.projects.getResolutionPresets()
-		# if "Get from rendersettings" not in self.resolutionPresets:
-		# 	self.resolutionPresets.append("Get from rendersettings")
-
-		# self.e_osSlaves.setText("All")
-
-		self.connectEvents()
 
 #		self.oldPalette = self.b_changeTask.palette()
 		self.warnPalette = QPalette()
@@ -173,6 +84,8 @@ class RenderGroupClass(object):
 		self.setTaskWarn(True)
 		self.nameChanged(state.text(0))
 
+		#	Render Farm
+		self.gb_submit.setChecked(False)
 		self.cb_manager.addItems([p.pluginName for p in self.core.plugins.getRenderfarmPlugins()])
 		self.core.callback("onStateStartup", self)
 
@@ -182,10 +95,12 @@ class RenderGroupClass(object):
 
 		self.managerChanged(True)
 		
-		# self.chb_rjSuspended.setEnabled = True
 
+		#	Load Existing State Data
 		if stateData is not None:
 			self.loadData(stateData)
+
+		#	Set Defaults for New State	
 		else:
 			context = self.getCurrentContext()
 			if context.get("type") == "asset":
@@ -206,14 +121,122 @@ class RenderGroupClass(object):
 
 			if context.get("task"):
 				self.setTaskname(context.get("task"))
+				self.e_name.setText(context.get("task"))
 
-			self.setUniqueName(self.className + " - Compositing")
+			self.chb_overrideFrameRange.setChecked(False)										#	TODO SET DEFAULTS
 
+			# self.setUniqueName(self.className + " - Compositing")
 #			self.chb_upVersion.setChecked(True)
 
-			self.refreshSubmitUi()
-			
-			self.updateUi()
+
+		self.connectEvents()
+		self.setToolTips()
+		self.refreshSubmitUi()
+		self.updateUi()
+
+
+	@err_catcher(name=__name__)
+	def populateCombos(self):															#	TODO	ADD SAVE FOR ADDTL OPTIONS
+
+		#	Frame Range
+		self.rangeTypes = [
+			"Scene",
+			"Shot",
+			"Single Frame",
+			"Custom",
+			"Expression",
+		]
+		self.cb_rangeType.addItems(self.rangeTypes)
+		for idx, rtype in enumerate(self.rangeTypes):
+			self.cb_rangeType.setItemData(
+				idx, self.stateManager.getFrameRangeTypeToolTip(rtype), Qt.ToolTipRole
+			)
+
+		#	Handle Master
+		masterItems = ["Force Set as Master", "Force Add to master", "Force Don't update master"]
+		self.cb_master.addItems(masterItems)
+
+		self.product_paths = self.core.paths.getRenderProductBasePaths()
+		self.cb_outPath.addItems(list(self.product_paths.keys()))
+		if len(self.product_paths) < 2:
+			self.useLocation = False
+			self.w_renderLocation.setHidden(True)
+		else:
+			self.useLocation = True
+
+		#	Render Scaling
+		renderScalings = [
+			"25",
+			"50",
+			"75",
+			"100",
+			"125",
+			"150",
+			"200"
+			]
+
+		self.cb_renderScaling.addItems(renderScalings)
+		tempIdx = self.cb_renderScaling.findText("100")
+		self.cb_renderScaling.setCurrentIndex(tempIdx)
+
+		qualOptions = ["Use Scene", "Force HiQ", "Force LowQ"]
+		self.cb_renderQuality.addItems(qualOptions)
+
+		motionBlurOptions = ["Use Scene", "Force Use MB", "Force No MB"]
+		self.cb_renderMB.addItems(motionBlurOptions)
+
+		proxyOptions = ["Use Scene", "Force Proxies Off", "Force Proxies On"]
+		self.cb_renderProxy.addItems(proxyOptions)
+
+
+	@err_catcher(name=__name__)
+	def setToolTips(self):															#	TODO	ADD TOOLTIPS
+
+		tip = "Name of RenderGroup.\nThis does not affect the render filenaming"
+		self.l_class.setToolTip(tip)
+		self.e_name.setToolTip(tip)
+
+		tip = "These options will override the options in each State rendered with this RenderGroup."
+		self.gb_RenderGroup.setToolTip(tip)
+
+		tip = "Override Framerange."
+		self.chb_overrideFrameRange.setToolTip(tip)
+		self.label_3.setToolTip(tip)
+
+		tip = "Override Master Version setting."
+		self.chb_overrideMaster.setToolTip(tip)
+		self.l_master.setToolTip(tip)
+		self.cb_master.setToolTip(tip)
+
+		tip = "Override Render Location setting."
+		self.chb_overrideLocation.setToolTip(tip)
+		self.l_location.setToolTip(tip)
+		self.cb_outPath.setToolTip(tip)
+
+		tip = "Scale Render Resolution of Comp."
+		self.chb_overrideScaling.setToolTip(tip)
+		self.l_renderScaling.setToolTip(tip)
+		self.cb_renderScaling.setToolTip(tip)
+
+		tip = "Override HiQ (High Quality) setting of Comp."
+		self.chb_overrideQuality.setToolTip(tip)
+		self.l_renderQuality.setToolTip(tip)
+		self.cb_renderQuality.setToolTip(tip)
+
+		tip = "Override MB (Motion Blur) setting of Comp."
+		self.chb_overrideRenderMB.setToolTip(tip)
+		self.l_renderMB.setToolTip(tip)
+		self.cb_renderMB.setToolTip(tip)
+
+		tip = "Override Prx (Proxy) setting of Comp."
+		self.chb_overrideProxy.setToolTip(tip)
+		self.l_renderProxy.setToolTip(tip)
+		self.cb_renderProxy.setToolTip(tip)
+
+		self.w_frameExpression.setToolTip(
+			self.stateManager.getFrameRangeTypeToolTip("ExpressionField")
+			)
+
 
 	@err_catcher(name=__name__)
 	def loadData(self, data):
@@ -228,16 +251,47 @@ class RenderGroupClass(object):
 
 		if "stateName" in data:
 			self.e_name.setText(data["stateName"])
-		elif "statename" in data:
-			self.e_name.setText(data["statename"] + " - {identifier}")
-		if "renderpresetoverride" in data:
-			res = eval(data["renderpresetoverride"])
-			self.chb_renderPreset.setChecked(res)
-		if "currentrenderpreset" in data:
-			idx = self.cb_renderPreset.findText(data["currentrenderpreset"])
+		# elif "statename" in data:
+		# 	self.e_name.setText(data["statename"] + " - {identifier}")
+
+		if "overrideFrameRange" in data:
+			self.chb_overrideFrameRange.setChecked(data["overrideFrameRange"])
+		if "overrideMaster" in data:
+			self.chb_overrideMaster.setChecked(data["overrideMaster"])
+		if "ovrMasterOption" in data:
+			idx = self.cb_master.findText(data["ovrMasterOption"])
 			if idx != -1:
-				self.cb_renderPreset.setCurrentIndex(idx)
-				self.stateManager.saveStatesToScene()
+				self.cb_master.setCurrentIndex(idx)
+		if "overrideLocation" in data:
+			self.chb_overrideLocation.setChecked(data["overrideLocation"])
+		if "ovrLocOption" in data:
+			idx = self.cb_outPath.findText(data["ovrLocOption"])
+			if idx != -1:
+				self.cb_outPath.setCurrentIndex(idx)
+		if "overrideScaling" in data:
+			self.chb_overrideScaling.setChecked(data["overrideScaling"])
+		if "ovrScaleOption" in data:
+			idx = self.cb_renderScaling.findText(data["ovrScaleOption"])
+			if idx != -1:
+				self.cb_renderScaling.setCurrentIndex(idx)
+		if "overrideHiQ" in data:
+			self.chb_overrideQuality.setChecked(data["overrideHiQ"])
+		if "ovrHiQOption" in data:
+			idx = self.cb_renderQuality.findText(data["ovrHiQOption"])
+			if idx != -1:
+				self.cb_renderQuality.setCurrentIndex(idx)
+		if "overrideMB" in data:
+			self.chb_overrideRenderMB.setChecked(data["overrideMB"])
+		if "ovrMBOption" in data:
+			idx = self.cb_renderMB.findText(data["ovrMBOption"])
+			if idx != -1:
+				self.cb_renderMB.setCurrentIndex(idx)
+		if "overrideProxy" in data:
+			self.chb_overrideProxy.setChecked(data["overrideProxy"])
+		if "ovrProxyOption" in data:
+			idx = self.cb_renderProxy.findText(data["ovrProxyOption"])
+			if idx != -1:
+				self.cb_renderProxy.setCurrentIndex(idx)
 		if "rangeType" in data:
 			idx = self.cb_rangeType.findText(data["rangeType"])
 			if idx != -1:
@@ -249,28 +303,18 @@ class RenderGroupClass(object):
 			self.sp_rangeEnd.setValue(int(data["endframe"]))
 		if "frameExpression" in data:
 			self.le_frameExpression.setText(data["frameExpression"])
-		# if "resoverride" in data:
-		# 	res = eval(data["resoverride"])
-		# 	self.chb_resOverride.setChecked(res[0])
-		# 	self.sp_resWidth.setValue(res[1])
-		# 	self.sp_resHeight.setValue(res[2])
-		if "masterVersion" in data:
-			idx = self.cb_master.findText(data["masterVersion"])
-			if idx != -1:
-				self.cb_master.setCurrentIndex(idx)
 		if "curoutputpath" in data:
 			idx = self.cb_outPath.findText(data["curoutputpath"])
 			if idx != -1:
 				self.cb_outPath.setCurrentIndex(idx)
-		if "renderlayer" in data:
-			idx = self.cb_renderLayer.findText(data["renderlayer"])
-			if idx != -1:
-				self.cb_renderLayer.setCurrentIndex(idx)
-				self.stateManager.saveStatesToScene()
-		if "outputFormat" in data:
-			idx = self.cb_format.findText(data["outputFormat"])
-			if idx != -1:
-				self.cb_format.setCurrentIndex(idx)
+
+		if "renderStates" in data:
+			# Clear any existing items in the list
+			self.tw_renderStates.clear()
+			# Populate State List
+			for state in data["renderStates"]:
+				self.tw_renderStates.addItem(state)
+
 		if "submitrender" in data:
 			self.gb_submit.setChecked(eval(data["submitrender"]))
 		if "rjmanager" in data:
@@ -302,12 +346,10 @@ class RenderGroupClass(object):
 		if "dlgpudevices" in data:
 			self.le_dlGPUdevices.setText(data["dlgpudevices"])
 			self.gpuDevicesChanged()
-		# if "enablepasses" in data:
-		# 	self.gb_passes.setChecked(eval(data["enablepasses"]))
-		if "lastexportpath" in data:
-			lePath = self.core.fixPath(data["lastexportpath"])
-			self.l_pathLast.setText(lePath)
-			self.l_pathLast.setToolTip(lePath)
+		# if "lastexportpath" in data:
+		# 	lePath = self.core.fixPath(data["lastexportpath"])
+		# 	self.l_pathLast.setText(lePath)
+		# 	self.l_pathLast.setToolTip(lePath)
 		if "stateenabled" in data:
 			if type(data["stateenabled"]) == int:
 				self.state.setCheckState(
@@ -321,139 +363,87 @@ class RenderGroupClass(object):
 
 		self.core.callback("onStateSettingsLoaded", self, data)
 
+
 	@err_catcher(name=__name__)
 	def connectEvents(self):
 		self.e_name.textChanged.connect(self.nameChanged)
 		self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
-		self.cb_context.activated.connect(self.onContextTypeChanged)
-		self.b_context.clicked.connect(self.selectContextClicked)
-		# self.b_changeTask.clicked.connect(self.changeTask)
-		self.chb_renderPreset.stateChanged.connect(self.presetOverrideChanged)
-		self.cb_renderPreset.activated.connect(self.stateManager.saveStatesToScene)
+
+		self.chb_overrideFrameRange.toggled.connect(lambda: self.updateUi())
+		self.chb_overrideMaster.toggled.connect(lambda: self.updateUi())
+		self.chb_overrideLocation.toggled.connect(lambda: self.updateUi())
+		self.chb_overrideScaling.toggled.connect(lambda: self.updateUi())
+		self.chb_overrideQuality.toggled.connect(lambda: self.updateUi())
+		self.chb_overrideRenderMB.toggled.connect(lambda: self.updateUi())
+		self.chb_overrideProxy.toggled.connect(lambda: self.updateUi())
 		self.cb_rangeType.activated.connect(self.rangeTypeChanged)
 		self.sp_rangeStart.editingFinished.connect(self.startChanged)
 		self.sp_rangeEnd.editingFinished.connect(self.endChanged)
 		self.le_frameExpression.textChanged.connect(self.frameExpressionChanged)
 		self.le_frameExpression.editingFinished.connect(
 			self.stateManager.saveStatesToScene
-		)
+			)
 		self.le_frameExpression.setMouseTracking(True)
 		self.le_frameExpression.origMoveEvent = self.le_frameExpression.mouseMoveEvent
 		self.le_frameExpression.mouseMoveEvent = self.exprMoveEvent
 		self.le_frameExpression.leaveEvent = self.exprLeaveEvent
 		self.le_frameExpression.focusOutEvent = self.exprFocusOutEvent
-		# self.cb_cam.activated.connect(self.setCam)
-		# self.chb_resOverride.stateChanged.connect(self.resOverrideChanged)
-		# self.sp_resWidth.editingFinished.connect(self.stateManager.saveStatesToScene)
-		# self.sp_resHeight.editingFinished.connect(self.stateManager.saveStatesToScene)
-		# self.b_resPresets.clicked.connect(self.showResPresets)
+
 		self.cb_master.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_outPath.activated.connect(self.stateManager.saveStatesToScene)
-		# self.cb_renderLayer.activated.connect(self.stateManager.saveStatesToScene)
-		# self.cb_format.activated.connect(lambda: self.setRendernode())								#	EDITED
+
 		self.b_addRenderState.clicked.connect(self.addRenderState)
 		self.gb_submit.toggled.connect(self.rjToggled)
 		self.cb_manager.activated.connect(self.managerChanged)
 		self.sp_rjPrio.editingFinished.connect(self.stateManager.saveStatesToScene)
 		self.sp_rjFramesPerTask.editingFinished.connect(
 			self.stateManager.saveStatesToScene
-		)
+			)
 		self.sp_rjTimeout.editingFinished.connect(self.stateManager.saveStatesToScene)
 		self.chb_rjSuspended.stateChanged.connect(self.stateManager.saveStatesToScene)
 		self.chb_osDependencies.stateChanged.connect(
 			self.stateManager.saveStatesToScene
-		)
+			)
 		self.chb_osUpload.stateChanged.connect(self.stateManager.saveStatesToScene)
 		self.chb_osPAssets.stateChanged.connect(self.stateManager.saveStatesToScene)
 		self.e_osSlaves.editingFinished.connect(self.stateManager.saveStatesToScene)
 		self.b_osSlaves.clicked.connect(self.openSlaves)
 		self.sp_dlConcurrentTasks.editingFinished.connect(
 			self.stateManager.saveStatesToScene
-		)
+			)
 		self.sp_dlGPUpt.editingFinished.connect(self.gpuPtChanged)
 		self.le_dlGPUdevices.editingFinished.connect(self.gpuDevicesChanged)
-		# self.gb_passes.toggled.connect(self.stateManager.saveStatesToScene)
-		# self.b_addPasses.clicked.connect(self.showPasses)
-		# self.lw_passes.customContextMenuRequested.connect(self.rclickPasses)
 
-		self.b_pathLast.clicked.connect(self.showLastPathMenu)
-		# self.lw_passes.itemDoubleClicked.connect(
-		# 	lambda x: self.fusionFuncs.sm_render_openPasses(self)
-		# )
+		#	Adds RCL menu to RenderStates list
+		self.tw_renderStates.setContextMenuPolicy(Qt.CustomContextMenu)
+		self.tw_renderStates.customContextMenuRequested.connect(self.renderStatesRclMenu)
+
+
 
 		# self.treeWidget.itemSelectionChanged.connect(self.onTreeItemSelectionChanged)
-		# self.chb_upVersion.stateChanged.connect(self.stateManager.saveStatesToScene)
+		# self.chb_upVersion.stateChanged.connect(self.stateManager.saveStatesToScene)					#	TODO	LOOK AT SUBMIT LAST VERSION
 
-	@err_catcher(name=__name__)
-	def generateUniqueName(self, base_name, names):
-		unique_name = base_name
-		counter = 1
-		while unique_name in names:
-			unique_name = f"{base_name}_{counter}"
-			counter += 1
-		names.add(unique_name)
-		return unique_name
 
-	@err_catcher(name=__name__)
-	def setUniqueName(self, origName):
-		name = origName
-		names = self.itemNames
-		uniqueName = self.generateUniqueName(name, names)
-		self.itemNames.add(uniqueName)
-		newtaskname = uniqueName.split(" - ")[-1]
-		self.changeTaskAuto(newtaskname)
 
-	@err_catcher(name=__name__)
-	def showLastPathMenu(self, state=None):
-		path = self.l_pathLast.text()
-		if path == "None":
-			return
 
-		menu = QMenu(self)
+	# @err_catcher(name=__name__)															#	TODO	NEEDED??
+	# def selectContextClicked(self, state=None):
+	# 	self.dlg_entity = self.stateManager.entityDlg(self)
+	# 	data = self.getCurrentContext()
+	# 	self.dlg_entity.w_entities.navigate(data)
+	# 	self.dlg_entity.entitySelected.connect(lambda x: self.setCustomContext(x))
+	# 	self.dlg_entity.show()
 
-		act_open = QAction("Play", self)
-		act_open.triggered.connect(lambda: self.core.media.playMediaInExternalPlayer(path))
-		menu.addAction(act_open)
+	# @err_catcher(name=__name__)															#	TODO	NEEDED??
+	# def setCustomContext(self, context):
+	# 	self.customContext = context
+	# 	self.refreshContext()
+	# 	self.stateManager.saveStatesToScene()
 
-		act_open = QAction("Open in Media Browser", self)
-		act_open.triggered.connect(lambda: self.openInMediaBrowser(path))
-		menu.addAction(act_open)
-
-		act_open = QAction("Open in explorer", self)
-		act_open.triggered.connect(lambda: self.core.openFolder(path))
-		menu.addAction(act_open)
-
-		act_copy = QAction("Copy", self)
-		act_copy.triggered.connect(lambda: self.core.copyToClipboard(path, file=True))
-		menu.addAction(act_copy)
-
-		menu.exec_(QCursor.pos())
-
-	@err_catcher(name=__name__)
-	def openInMediaBrowser(self, path):
-		self.core.projectBrowser()
-		self.core.pb.showTab("Media")
-		data = self.core.paths.getRenderProductData(path)
-		self.core.pb.mediaBrowser.showRender(entity=data, identifier=data.get("identifier"), version=data.get("version"))
-
-	@err_catcher(name=__name__)
-	def selectContextClicked(self, state=None):
-		self.dlg_entity = self.stateManager.entityDlg(self)
-		data = self.getCurrentContext()
-		self.dlg_entity.w_entities.navigate(data)
-		self.dlg_entity.entitySelected.connect(lambda x: self.setCustomContext(x))
-		self.dlg_entity.show()
-
-	@err_catcher(name=__name__)
-	def setCustomContext(self, context):
-		self.customContext = context
-		self.refreshContext()
-		self.stateManager.saveStatesToScene()
-
-	@err_catcher(name=__name__)
-	def onContextTypeChanged(self, state):
-		self.refreshContext()
-		self.stateManager.saveStatesToScene()
+	# @err_catcher(name=__name__)															#	TODO	NEEDED??
+	# def onContextTypeChanged(self, state):
+	# 	self.refreshContext()
+	# 	self.stateManager.saveStatesToScene()
 
 	@err_catcher(name=__name__)
 	def rangeTypeChanged(self, state):
@@ -549,11 +539,6 @@ class RenderGroupClass(object):
 		if hasattr(self, "expressionWin") and self.expressionWin.isVisible():
 			self.expressionWin.close()
 
-	# @err_catcher(name=__name__)
-	# def setCam(self, index):
-	#     self.curCam = self.camlist[index]
-	#     self.stateManager.saveStatesToScene()
-
 	@err_catcher(name=__name__)
 	def nameChanged(self, text):
 		text = self.e_name.text()
@@ -581,25 +566,27 @@ class RenderGroupClass(object):
 				name = text.format(**context)
 		except Exception:
 			name = text
+		name = "RENDERGROUP - " + name
 
 		if self.state.text(0).endswith(" - disabled"):
 			name += " - disabled"
 
 		self.state.setText(0, name)
 
-	@err_catcher(name=__name__)
-	def getFormat(self):
-		self.cb_format.currentText()
 
-	@err_catcher(name=__name__)
-	def setFormat(self, fmt):
-		idx = self.cb_format.findText(fmt)
-		if idx != -1:
-			self.cb_format.setCurrentIndex(idx)
-			self.stateManager.saveStatesToScene()
-			return True
+	# @err_catcher(name=__name__)															#	TODO	NEEDED??
+	# def getFormat(self):
+	# 	self.cb_format.currentText()
 
-		return False
+	# @err_catcher(name=__name__)															#	TODO	NEEDED??
+	# def setFormat(self, fmt):
+	# 	idx = self.cb_format.findText(fmt)
+	# 	if idx != -1:
+	# 		self.cb_format.setCurrentIndex(idx)
+	# 		self.stateManager.saveStatesToScene()
+	# 		return True
+
+	# 	return False
 
 	@err_catcher(name=__name__)
 	def getContextType(self):
@@ -616,14 +603,14 @@ class RenderGroupClass(object):
 
 		return False
 
-	@err_catcher(name=__name__)
+	@err_catcher(name=__name__)															#	TODO	NEEDED??
 	def getTaskname(self):
 		# taskName = self.l_taskName.text()
 		# return taskName
 		pass
 
 
-	@err_catcher(name=__name__)
+	@err_catcher(name=__name__)															#	TODO	NEEDED??
 	def setTaskname(self, taskname):
 		# self.l_taskName.setText(taskname)
 		# self.setTaskWarn(not bool(taskname))
@@ -632,13 +619,13 @@ class RenderGroupClass(object):
 		pass
 
 
-	@err_catcher(name=__name__)
-	def getSortKey(self):
-		return self.getTaskname()
+	# @err_catcher(name=__name__)															#	TODO	NEEDED??
+	# def getSortKey(self):
+	# 	return self.getTaskname()
 
 
 	@err_catcher(name=__name__)
-	def changeTask(self):															#	EDITED
+	def changeTask(self):
 		from PrismUtils import PrismWidgets
 		#	Sets up popup window
 		self.nameWin = PrismWidgets.CreateItem(
@@ -670,35 +657,35 @@ class RenderGroupClass(object):
 																								#			BUT NOT HERE.  IS THAT CORRECT?
 
 
-	#	Fusion has strict naming for nodes.  You can only use:
-	#	Alphanumeric characters:  a-z, A-Z, 0-9,
-	#	Do not use any spaces,
-	#	Do not use special charactors,
-	#	Node name cannot start with a number.
-	@err_catcher(name=__name__)
-	def getFusLegalName(self, origName, check=False):						#	ADDED
-		# Check if the name starts with a number
-		if origName[0].isdigit():
-			if check:
-				return False, "Name cannot start with a number."
+	# #	Fusion has strict naming for nodes.  You can only use:															#	TODO	NEEDED??
+	# #	Alphanumeric characters:  a-z, A-Z, 0-9,
+	# #	Do not use any spaces,
+	# #	Do not use special charactors,
+	# #	Node name cannot start with a number.
+	# @err_catcher(name=__name__)
+	# def getFusLegalName(self, origName, check=False):						#	ADDED
+	# 	# Check if the name starts with a number
+	# 	if origName[0].isdigit():
+	# 		if check:
+	# 			return False, "Name cannot start with a number."
 			
-			return "Error: Name cannot start with a number."
+	# 		return "Error: Name cannot start with a number."
 
-		# Check if the name contains only allowed characters
-		if not re.match(r'^[A-Za-z0-9_\- .]*$', origName):
-			if check:
-				return False, "Name contains invalid characters."
+	# 	# Check if the name contains only allowed characters
+	# 	if not re.match(r'^[A-Za-z0-9_\- .]*$', origName):
+	# 		if check:
+	# 			return False, "Name contains invalid characters."
 			
-			return "Error: Name contains invalid characters."
+	# 		return "Error: Name contains invalid characters."
 
-		newName = origName.replace(' ', '_')									#	EDITED
-		newName = newName.replace('.', '_')
-		newName = newName.replace('-', '_')
+	# 	newName = origName.replace(' ', '_')									#	EDITED
+	# 	newName = newName.replace('.', '_')
+	# 	newName = newName.replace('-', '_')
 
-		if check:
-			return True, ""
+	# 	if check:
+	# 		return True, ""
 		
-		return newName
+	# 	return newName
 
 
 	@err_catcher(name=__name__)
@@ -735,42 +722,7 @@ class RenderGroupClass(object):
 
 		return itemNames 
 	
-		
-	@err_catcher(name=__name__)
-	def presetOverrideChanged(self, checked):
-		self.cb_renderPreset.setEnabled(checked)
-		self.stateManager.saveStatesToScene()
 
-	# @err_catcher(name=__name__)
-	# def resOverrideChanged(self, checked):
-	# 	self.sp_resWidth.setEnabled(checked)
-	# 	self.sp_resHeight.setEnabled(checked)
-	# 	self.b_resPresets.setEnabled(checked)
-
-	# 	self.stateManager.saveStatesToScene()
-
-	# @err_catcher(name=__name__)
-	# def showResPresets(self):
-	# 	pmenu = QMenu(self)
-
-	# 	for preset in self.resolutionPresets:
-	# 		pAct = QAction(preset, self)
-	# 		# res = self.getResolution(preset)
-	# 		if not res:
-	# 			continue
-
-	# 		pwidth, pheight = res
-
-	# 		pAct.triggered.connect(
-	# 			lambda x=None, v=pwidth: self.sp_resWidth.setValue(v)
-	# 		)
-	# 		pAct.triggered.connect(
-	# 			lambda x=None, v=pheight: self.sp_resHeight.setValue(v)
-	# 		)
-	# 		pAct.triggered.connect(lambda: self.stateManager.saveStatesToScene())
-	# 		pmenu.addAction(pAct)
-
-	# 	pmenu.exec_(QCursor.pos())
 
 	@err_catcher(name=__name__)
 	def getRangeType(self):
@@ -787,7 +739,7 @@ class RenderGroupClass(object):
 		return False
 
 	# @err_catcher(name=__name__)
-	# def getResolution(self, resolution):
+	# def getResolution(self, resolution):															#	TODO	NEEDED??
 	# 	res = None
 	# 	if resolution == "Get from rendersettings":
 	# 		if hasattr(self.fusionFuncs, "getResolution"):
@@ -838,10 +790,47 @@ class RenderGroupClass(object):
 		return False
 
 
+	@err_catcher(name=__name__)
+	def renderStatesRclMenu(self, pos):
+		# Find the item at the clicked position
+		clickedItem = self.tw_renderStates.itemAt(pos)
+		
+		# Create the rcl menu
+		menu = QMenu(self.tw_renderStates)
+		
+		# If clicked on a State
+		if clickedItem:
+			removeAct = QAction("Remove State", self.tw_renderStates)
+			menu.addAction(removeAct)
+			removeAct.triggered.connect(lambda: self.removeState(clickedItem))
+		#	If clicked on empty area of list
+		else:
+			removeAllAct = QAction("Remove All States", self.tw_renderStates)
+			menu.addAction(removeAllAct)
+			removeAllAct.triggered.connect(self.removeAllStates)
+		
+		# Show the menu at the cursor position
+		menu.exec_(self.tw_renderStates.viewport().mapToGlobal(pos))
+
+
+	@err_catcher(name=__name__)
+	def removeState(self, item):
+		#	Removes item from list
+		row = self.tw_renderStates.row(item)
+		self.tw_renderStates.takeItem(row)
+		self.stateManager.saveStatesToScene()
+
+
+	@err_catcher(name=__name__)
+	def removeAllStates(self):
+		#	Clears list
+		self.tw_renderStates.clear()
+		self.stateManager.saveStatesToScene()
+
+
 
 	@err_catcher(name=__name__)
 	def addRenderState(self):
-
 		import ItemList
 
 		allStates = self.getItemNames()
@@ -864,17 +853,17 @@ class RenderGroupClass(object):
 		if result != 1:
 			return False
 		
-		# Clear existing items in the QListWidget
+		# Clear existing items
 		self.tw_renderStates.clear()
 
-		# Add selected items from `tw_steps` to the `QListWidget`
+		# Add selected items to the States list
 		for i in self.selStatesUI.tw_steps.selectedItems():
 			if i.column() == 0:  # Ensure we are working with the correct column
 				list_item = QListWidgetItem(i.text())  # Create a list widget item with the selected text
-				self.tw_renderStates.addItem(list_item)  # Add the item to the QListWidget
+				self.tw_renderStates.addItem(list_item)  # Add the item
 
-				self.updateUi()
-				self.stateManager.saveStatesToScene()
+		self.updateUi()
+		self.stateManager.saveStatesToScene()
 
 
 
@@ -883,56 +872,26 @@ class RenderGroupClass(object):
 	def updateUi(self):
 		self.w_context.setHidden(not self.allowCustomContext)
 		self.refreshContext()
-		
-
-		# update Cams
-		# self.cb_cam.clear()
-		# self.camlist = camNames = []
-
-		# if not self.stateManager.standalone:
-		#     self.camlist = self.fusionFuncs.getCamNodes(self, cur=True)
-		#     camNames = [self.fusionFuncs.getCamName(self, i) for i in self.camlist]
-
-		# self.cb_cam.addItems(camNames)
-
-		# if self.curCam in self.camlist:
-		#     self.cb_cam.setCurrentIndex(self.camlist.index(self.curCam))
-		# else:
-		#     self.cb_cam.setCurrentIndex(0)
-		#     if len(self.camlist) > 0:
-		#         self.curCam = self.camlist[0]
-		#     else:
-		#         self.curCam = None
-
-		#     self.stateManager.saveStatesToScene()
-
-		self.updateRange()
 
 		if not self.core.mediaProducts.getUseMaster():
 			self.w_master.setVisible(False)
-
-		# update Render Layer
-		# curLayer = self.cb_renderLayer.currentText()
-		# self.cb_renderLayer.clear()
-
-		# layerList = getattr(
-		# 	self.fusionFuncs, "sm_render_getRenderLayer", lambda x: []
-		# )(self)
-
-		# self.cb_renderLayer.addItems(layerList)
-
-		# if curLayer in layerList:
-		# 	self.cb_renderLayer.setCurrentIndex(layerList.index(curLayer))
-		# else:
-		# 	self.cb_renderLayer.setCurrentIndex(0)
-		# 	self.stateManager.saveStatesToScene()
+		else:
+			self.updateMasterOvr()
 
 		self.refreshSubmitUi()
-		# getattr(self.fusionFuncs, "sm_render_refreshPasses", lambda x: None)(self)
-
 		self.nameChanged(self.e_name.text())
 
+		self.updateRange()
+		self.updateLocationOvr()
+		self.updateScalingOvr()
+		self.updateHiQOvr()
+		self.updateMbOvr()
+		self.updateProxyOvr()
+
+		self.stateManager.saveStatesToScene()
+
 		return True
+	
 
 	@err_catcher(name=__name__)
 	def refreshContext(self):
@@ -972,6 +931,108 @@ class RenderGroupClass(object):
 
 			if submitChecked:
 				self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText()).sm_render_updateUI(self)
+		
+
+	@err_catcher(name=__name__)
+	def updateFrameRangeOvr(self):
+		isEnabled = self.chb_overrideFrameRange.isChecked()
+
+		# UI elements to update
+		uiElements = [
+			self.cb_rangeType,
+			self.w_frameRangeValues,
+			self.w_frameExpression
+		]
+		
+		# Iterate over each UI element and set its hidden state
+		for element in uiElements:
+			element.setHidden(not isEnabled)
+
+
+	@err_catcher(name=__name__)
+	def updateMasterOvr(self):
+		isEnabled = self.chb_overrideMaster.isChecked()
+
+		# UI elements to update
+		uiElements = [
+			self.cb_master
+		]
+		
+		# Iterate over each UI element and set its hidden state
+		for element in uiElements:
+			element.setHidden(not isEnabled)
+
+
+	@err_catcher(name=__name__)
+	def updateLocationOvr(self):
+		isEnabled = self.chb_overrideLocation.isChecked()
+
+		if self.useLocation:
+			# UI elements to update
+			uiElements = [
+				self.cb_outPath
+			]
+			
+			# Iterate over each UI element and set its hidden state
+			for element in uiElements:
+				element.setHidden(not isEnabled)
+
+
+	@err_catcher(name=__name__)
+	def updateScalingOvr(self):
+		isEnabled = self.chb_overrideScaling.isChecked()
+
+		# UI elements to update
+		uiElements = [
+			self.cb_renderScaling
+		]
+		
+		# Iterate over each UI element and set its hidden state
+		for element in uiElements:
+			element.setHidden(not isEnabled)
+
+
+	@err_catcher(name=__name__)
+	def updateHiQOvr(self):
+		isEnabled = self.chb_overrideQuality.isChecked()
+
+		# UI elements to update
+		uiElements = [
+			self.cb_renderQuality
+		]
+		
+		# Iterate over each UI element and set its hidden state
+		for element in uiElements:
+			element.setHidden(not isEnabled)
+
+
+	@err_catcher(name=__name__)
+	def updateMbOvr(self):
+		isEnabled = self.chb_overrideRenderMB.isChecked()
+
+		# UI elements to update
+		uiElements = [
+			self.cb_renderMB
+		]
+		
+		# Iterate over each UI element and set its hidden state
+		for element in uiElements:
+			element.setHidden(not isEnabled)
+
+
+	@err_catcher(name=__name__)
+	def updateProxyOvr(self):
+		isEnabled = self.chb_overrideProxy.isChecked()
+
+		# UI elements to update
+		uiElements = [
+			self.cb_renderProxy
+		]
+		
+		# Iterate over each UI element and set its hidden state
+		for element in uiElements:
+			element.setHidden(not isEnabled)
+
 
 	@err_catcher(name=__name__)
 	def updateRange(self):
@@ -991,6 +1052,9 @@ class RenderGroupClass(object):
 			end = str(int(frange[1])) if frange[1] is not None else "-"
 			self.l_rangeStart.setText(start)
 			self.l_rangeEnd.setText(end)
+
+		self.updateFrameRangeOvr()
+
 
 	@err_catcher(name=__name__)
 	def getFrameRange(self, rangeType):
@@ -1085,51 +1149,51 @@ class RenderGroupClass(object):
 		self.w_dlGPUpt.setEnabled(self.le_dlGPUdevices.text() == "")
 		self.stateManager.saveStatesToScene()
 
-	@err_catcher(name=__name__)
-	def showPasses(self):
-		steps = getattr(
-			self.fusionFuncs, "sm_render_getRenderPasses", lambda x: None
-		)(self)
+	# @err_catcher(name=__name__)
+	# def showPasses(self):															#	TODO	NEEDED??
+	# 	steps = getattr(
+	# 		self.fusionFuncs, "sm_render_getRenderPasses", lambda x: None
+	# 	)(self)
 
-		if steps is None or len(steps) == 0:
-			return False
+	# 	if steps is None or len(steps) == 0:
+	# 		return False
 
-		if self.core.isStr(steps):
-			steps = eval(steps)
+	# 	if self.core.isStr(steps):
+	# 		steps = eval(steps)
 
-		if eval(os.getenv("PRISM_DEBUG", "False")):
-			try:
-				del sys.modules["ItemList"]
-			except:
-				pass
+	# 	if eval(os.getenv("PRISM_DEBUG", "False")):
+	# 		try:
+	# 			del sys.modules["ItemList"]
+	# 		except:
+	# 			pass
 
-		import ItemList
+	# 	import ItemList
 
-		self.il = ItemList.ItemList(core=self.core)
-		self.il.setWindowTitle("Select Passes")
-		self.core.parentWindow(self.il)
-		self.il.tw_steps.doubleClicked.connect(self.il.accept)
-		self.il.tw_steps.horizontalHeaderItem(0).setText("Name")
-		self.il.tw_steps.setColumnHidden(1, True)
-		for i in sorted(steps, key=lambda s: s.lower()):
-			rc = self.il.tw_steps.rowCount()
-			self.il.tw_steps.insertRow(rc)
-			item1 = QTableWidgetItem(i)
-			self.il.tw_steps.setItem(rc, 0, item1)
+	# 	self.il = ItemList.ItemList(core=self.core)
+	# 	self.il.setWindowTitle("Select Passes")
+	# 	self.core.parentWindow(self.il)
+	# 	self.il.tw_steps.doubleClicked.connect(self.il.accept)
+	# 	self.il.tw_steps.horizontalHeaderItem(0).setText("Name")
+	# 	self.il.tw_steps.setColumnHidden(1, True)
+	# 	for i in sorted(steps, key=lambda s: s.lower()):
+	# 		rc = self.il.tw_steps.rowCount()
+	# 		self.il.tw_steps.insertRow(rc)
+	# 		item1 = QTableWidgetItem(i)
+	# 		self.il.tw_steps.setItem(rc, 0, item1)
 
-		result = self.il.exec_()
+	# 	result = self.il.exec_()
 
-		if result != 1:
-			return False
+	# 	if result != 1:
+	# 		return False
 
-		for i in self.il.tw_steps.selectedItems():
-			if i.column() == 0:
-				self.fusionFuncs.sm_render_addRenderPass(
-					self, passName=i.text(), steps=steps
-				)
+	# 	for i in self.il.tw_steps.selectedItems():
+	# 		if i.column() == 0:
+	# 			self.fusionFuncs.sm_render_addRenderPass(
+	# 				self, passName=i.text(), steps=steps
+	# 			)
 
-		self.updateUi()
-		self.stateManager.saveStatesToScene()
+	# 	self.updateUi()
+	# 	self.stateManager.saveStatesToScene()
 
 	# @err_catcher(name=__name__)
 	# def rclickPasses(self, pos):
@@ -1188,16 +1252,28 @@ class RenderGroupClass(object):
 
 		self.updateUi()
 
-		if self.tasknameRequired and not self.getTaskname():
-			warnings.append(["No identifier is given.", "", 3])
+		# if self.tasknameRequired and not self.getTaskname():						#	TODO Change to looking at States from list
+		# 	warnings.append(["No identifier is given.", "", 3])
 
-		# if self.curCam is None or (
-		#     self.curCam != "Current View"
-		#     and not self.fusionFuncs.isNodeValid(self, self.curCam)
-		# ):
-		#     warnings.append(["No camera is selected.", "", 3])
-		# elif self.curCam == "Current View":
-		#     warnings.append(["No camera is selected.", "", 2])
+		#	TODO	Get StateNames from list
+
+		#	TODO	Get Saver from each State
+
+		#	TODO	Save current context
+
+		#	TODO	Config Savers based on selected States
+			#	Config Savers mute state (unmute all in list, and mute all not in list)	
+			# 	Update selected Savers versions / names
+			#	
+
+		#	TODO 	apply all overrides to context
+
+		#	TODO	Maybe save .comp to temp file
+
+		#	TODO	Render comp
+
+		#	TODO 	Return comp to original state.
+
 
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
@@ -1224,285 +1300,286 @@ class RenderGroupClass(object):
 	def setFarmedRange(self, startFrame, endFrame):
 		self.fusionFuncs.setFrameRange(self, startFrame, endFrame)
 
-	@err_catcher(name=__name__)
-	def upSubmittedSaversVersions(self, parent):
-		# Before Submitting, change version of elegible Savers.
-		sm = parent
-		fileName = self.core.getCurrentFileName()
-		context = self.getCurrentContext()
-		for state in sm.states:
-			stateui = state.ui
-			if stateui.className == "ImageRender":
-				if not stateui.b_setRendernode.text() == "SetRenderNode" and state.checkState(0) == Qt.Checked:
-					#Get Output, Update UI and set infoFile.				
-					stateui.executeState(parent=parent, outOnly=True)
-
-	@err_catcher(name=__name__)
-	def getOutputName(self, useVersion="next", stateui = None):
-		if stateui == None:
-			stateui = self
-		if stateui.tasknameRequired and not stateui.getTaskname():
-			return
-
-		task = stateui.getTaskname()
-		extension = stateui.cb_format.currentText()
-		context = stateui.getCurrentContext()
-		framePadding = ""
-
-		if "type" not in context:
-			return
-
-		singleFrame = stateui.cb_rangeType.currentText() == "Single Frame"
-		location = stateui.cb_outPath.currentText()
-		outputPathData = stateui.core.mediaProducts.generateMediaProductPath(
-			entity=context,
-			task=task,
-			extension=extension,
-			framePadding=framePadding,
-			comment=self.stateManager.publishComment,
-			version=useVersion if useVersion != "next" else None,
-			location=location,
-			singleFrame=singleFrame,
-			returnDetails=True,
-			mediaType=self.mediaType,
-		)
-
-		outputFolder = os.path.dirname(outputPathData["path"])
-		hVersion = outputPathData["version"]
-
-		return outputPathData["path"], outputFolder, hVersion
+	# @err_catcher(name=__name__)																#	TODO	NEEDED??
+	# def upSubmittedSaversVersions(self, parent):
+	# 	# Before Submitting, change version of elegible Savers.
+	# 	sm = parent
+	# 	fileName = self.core.getCurrentFileName()
+	# 	context = self.getCurrentContext()
+	# 	for state in sm.states:
+	# 		stateui = state.ui
+	# 		if stateui.className == "ImageRender":
+	# 			if not stateui.b_setRendernode.text() == "SetRenderNode" and state.checkState(0) == Qt.Checked:
+	# 				#Get Output, Update UI and set infoFile.				
+	# 				stateui.executeState(parent=parent, outOnly=True)
 
 
-	@err_catcher(name=__name__)
-	def configureRenderNode(self, nodeName, useVersion="next", stateUI=None):				#	ADDED
-		if stateUI is None:
-			stateUI = self
-		if stateUI.tasknameRequired and not stateUI.getTaskname():
-			return
+	# @err_catcher(name=__name__)															#	TODO	NEEDED??
+	# def getOutputName(self, useVersion="next", stateui = None):
+	# 	if stateui == None:
+	# 		stateui = self
+	# 	if stateui.tasknameRequired and not stateui.getTaskname():
+	# 		return
 
-		outputName, _, _ = self.getOutputName(useVersion=useVersion)
+	# 	task = stateui.getTaskname()
+	# 	extension = stateui.cb_format.currentText()
+	# 	context = stateui.getCurrentContext()
+	# 	framePadding = ""
 
-		extension = stateUI.cb_format.currentText()
-		fuseName = None
+	# 	if "type" not in context:
+	# 		return
 
-		try:
-			for fmt in self.outputFormats:
-				if fmt["extension"] == extension.lower():
-					fuseName = fmt["fuseName"]
-					break
+	# 	singleFrame = stateui.cb_rangeType.currentText() == "Single Frame"
+	# 	location = stateui.cb_outPath.currentText()
+	# 	outputPathData = stateui.core.mediaProducts.generateMediaProductPath(
+	# 		entity=context,
+	# 		task=task,
+	# 		extension=extension,
+	# 		framePadding=framePadding,
+	# 		comment=self.stateManager.publishComment,
+	# 		version=useVersion if useVersion != "next" else None,
+	# 		location=location,
+	# 		singleFrame=singleFrame,
+	# 		returnDetails=True,
+	# 		mediaType=self.mediaType,
+	# 	)
 
-			self.fusionFuncs.configureRenderNode(nodeName, outputName, fuseName)
-			self.stateManager.saveStatesToScene()
+	# 	outputFolder = os.path.dirname(outputPathData["path"])
+	# 	hVersion = outputPathData["version"]
 
-		except:
-			print("ERROR: Unable to config Saver")
+	# 	return outputPathData["path"], outputFolder, hVersion
+
+
+	# @err_catcher(name=__name__)
+	# def configureRenderNode(self, nodeName, useVersion="next", stateUI=None):															#	TODO	NEEDED??
+	# 	if stateUI is None:
+	# 		stateUI = self
+	# 	if stateUI.tasknameRequired and not stateUI.getTaskname():
+	# 		return
+
+	# 	outputName, _, _ = self.getOutputName(useVersion=useVersion)
+
+	# 	extension = stateUI.cb_format.currentText()
+	# 	fuseName = None
+
+	# 	try:
+	# 		for fmt in self.outputFormats:
+	# 			if fmt["extension"] == extension.lower():
+	# 				fuseName = fmt["fuseName"]
+	# 				break
+
+	# 		self.fusionFuncs.configureRenderNode(nodeName, outputName, fuseName)
+	# 		self.stateManager.saveStatesToScene()
+
+	# 	except:
+	# 		print("ERROR: Unable to config Saver")
 
 
 	@err_catcher(name=__name__)
 	def executeState(self, parent, useVersion="next", outOnly=False):
 		# if render manager plugins were detected.
 		if self.cb_manager.count() > 0:
-			# print("parent: ",parent, "\n\n\n")
-			rangeType = self.cb_rangeType.currentText()
-			frames = self.getFrameRange(rangeType)
-			if rangeType != "Expression":
-				startFrame = frames[0]
-				endFrame = frames[1]
-			else:
-				startFrame = None
-				endFrame = None
+			hasRenderManger = True
 
-			if frames is None or frames == [] or frames[0] is None:
-				return [self.state.text(0) + ": error - Framerange is invalid"]
+		sumbitToFarm = self.gb_submit.isChecked()
 
-			if rangeType == "Single Frame":
-				endFrame = startFrame
+		if sumbitToFarm and not hasRenderManger:
+			return [self.state.text(0) + " - error - There are no Render Manager plugins installed"]
 
-			updateMaster = True
-			fileName = self.core.getCurrentFileName()
-			context = self.getCurrentContext()
-			# if not self.renderingStarted:
-			if self.tasknameRequired and not self.getTaskname():
-				return [
-					self.state.text(0)
-					+ ": error - no identifier is given. Skipped the activation of this state."
-				]
+		if not sumbitToFarm:
+
+
+
+			result = self.fusionFuncs.sm_render_startLocalGroupRender(self, outputPathOnly=False, outputName="", rSettings="")
+
 			
-			outputName, outputPath, hVersion = self.getOutputName(useVersion=useVersion)
+		# rangeType = self.cb_rangeType.currentText()
+		# frames = self.getFrameRange(rangeType)
+		# if rangeType != "Expression":
+		# 	startFrame = frames[0]
+		# 	endFrame = frames[1]
+		# else:
+		# 	startFrame = None
+		# 	endFrame = None
 
-			outLength = len(outputPath)
-			if platform.system() == "Windows" and os.getenv("PRISM_IGNORE_PATH_LENGTH") != "1" and outLength > 255:
-				return [
-					self.state.text(0)
-					+ " - error - The outputpath is longer than 255 characters (%s), which is not supported on Windows. Please shorten the outputpath by changing the comment, taskname or projectpath."
-					% outLength
-				]
+		# if frames is None or frames == [] or frames[0] is None:
+		# 	return [self.state.text(0) + ": error - Framerange is invalid"]
 
-			if not os.path.exists(os.path.dirname(outputPath)):
-				os.makedirs(os.path.dirname(outputPath))
+		# if rangeType == "Single Frame":
+		# 	endFrame = startFrame
 
-			details = context.copy()
-			if "filename" in details:
-				del details["filename"]
+		# updateMaster = True
+		# fileName = self.core.getCurrentFileName()
+		# context = self.getCurrentContext()
+		# # if not self.renderingStarted:
+		# # if self.tasknameRequired and not self.getTaskname():										#	TODO  Look at States from list
+		# # 	return [
+		# # 		self.state.text(0)
+		# # 		+ ": error - no identifier is given. Skipped the activation of this state."
+		# # 	]
+		
+		# outputName, outputPath, hVersion = self.getOutputName(useVersion=useVersion)
 
-			if "extension" in details:
-				del details["extension"]
+		# outLength = len(outputPath)
+		# if platform.system() == "Windows" and os.getenv("PRISM_IGNORE_PATH_LENGTH") != "1" and outLength > 255:
+		# 	return [
+		# 		self.state.text(0)
+		# 		+ " - error - The outputpath is longer than 255 characters (%s), which is not supported on Windows. Please shorten the outputpath by changing the comment, taskname or projectpath."
+		# 		% outLength
+		# 	]
 
-			details["version"] = hVersion
-			details["sourceScene"] = fileName
-			details["identifier"] = self.getTaskname()
-			details["comment"] = self.stateManager.publishComment
+		# if not os.path.exists(os.path.dirname(outputPath)):
+		# 	os.makedirs(os.path.dirname(outputPath))
 
-			if self.mediaType == "2drenders":
-				infopath = os.path.dirname(outputPath)
-			else:
-				infopath = outputPath
+		# details = context.copy()
+		# if "filename" in details:
+		# 	del details["filename"]
 
-			self.core.saveVersionInfo(
-				filepath=infopath, details=details
-			)
+		# if "extension" in details:
+		# 	del details["extension"]
 
-			self.l_pathLast.setText(outputName)
-			self.l_pathLast.setToolTip(outputName)
-			self.stateManager.saveStatesToScene()
+		# details["version"] = hVersion
+		# details["sourceScene"] = fileName
+		# details["identifier"] = self.getTaskname()
+		# details["comment"] = self.stateManager.publishComment
 
-			rSettings = {
-				"outputName": outputName,
-				"startFrame": startFrame,
-				"endFrame": endFrame,
-				"frames": frames,
-				"rangeType": rangeType,
-			}
+		# if self.mediaType == "2drenders":
+		# 	infopath = os.path.dirname(outputPath)
+		# else:
+		# 	infopath = outputPath
 
-			if (
-				self.chb_renderPreset.isChecked()
-				and "RenderSettings" in self.stateManager.stateTypes
-			):
-				rSettings["renderSettings"] = getattr(
-					self.fusionFuncs,
-					"sm_renderSettings_getCurrentSettings",
-					lambda x: {},
-				)(self)
-				self.stateManager.stateTypes["RenderSettings"].applyPreset(
-					self.core, self.renderPresets[self.cb_renderPreset.currentText()]
-				)
+		# self.core.saveVersionInfo(
+		# 	filepath=infopath, details=details
+		# )
 
-			self.fusionFuncs.sm_render_preSubmit(self, rSettings)
+		# self.l_pathLast.setText(outputName)
+		# self.l_pathLast.setToolTip(outputName)
+		# self.stateManager.saveStatesToScene()
 
-			kwargs = {
-				"state": self,
-				"scenefile": fileName,
-				"settings": rSettings,
-			}
+		# rSettings = {
+		# 	"outputName": outputName,
+		# 	"startFrame": startFrame,
+		# 	"endFrame": endFrame,
+		# 	"frames": frames,
+		# 	"rangeType": rangeType,
+		# }
 
-			result = self.core.callback("preRender", **kwargs)
-			for res in result:
-				if isinstance(res, dict) and res.get("cancel", False):
-					return [
-						self.state.text(0)
-						+ " - error - %s" % res.get("details", "preRender hook returned False")
-					]
 
-			if not os.path.exists(os.path.dirname(rSettings["outputName"])):
-				os.makedirs(os.path.dirname(rSettings["outputName"]))
+		# self.fusionFuncs.sm_render_preSubmit(self, rSettings)
 
-			### SUBMIT TO FARM ###
+		# kwargs = {
+		# 	"state": self,
+		# 	"scenefile": fileName,
+		# 	"settings": rSettings,
+		# }
 
-			self.core.saveScene(versionUp=False, prismReq=False)				#	DO WE WANT THIS HARDCODED or USE SM PREF
-			# If Render on the farm is selected
-			if not self.gb_submit.isHidden():
-				# get the Frame Range.
-				self.setFarmedRange(startFrame, endFrame)
-				# get new versions for all savers.
-				# if self.chb_upVersion.isChecked():
-				# 	self.upSubmittedSaversVersions(self.stateManager)
+		# result = self.core.callback("preRender", **kwargs)
+		# for res in result:
+		# 	if isinstance(res, dict) and res.get("cancel", False):
+		# 		return [
+		# 			self.state.text(0)
+		# 			+ " - error - %s" % res.get("details", "preRender hook returned False")
+		# 		]
 
-				if 0 == 1:
-					pass				#	TODO
+		# if not os.path.exists(os.path.dirname(rSettings["outputName"])):
+		# 	os.makedirs(os.path.dirname(rSettings["outputName"]))
 
-				else:
-					msg = ('Are you sure you want to execute this state as a previous version?\nThis may overwrite existing files.')
-					executeprev = self.core.popupQuestion(
-						msg,
-						title="Warning",
-						buttons=["Continue", "Cancel"],
-						icon=QMessageBox.Warning,
-						escapeButton="Cancel",
-					)
-					if executeprev == "Cancel":
-						return [self.state.text(0) + " - Canceled"]
-				# check paths and resolve path mappings.
-				self.submitCheckPaths()
-				# 
-				handleMaster = "media" if self.isUsingMasterVersion() else False
-				plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
-				
-				sceneDescription = None
+		# ### SUBMIT TO FARM ###
 
-				result = plugin.sm_render_submitJob(
-					self,
-					rSettings["outputName"],
-					parent,
-					handleMaster=handleMaster,
-					details=details,
-					sceneDescription=sceneDescription
-				)
-				
+		# # self.core.saveScene(versionUp=False, prismReq=False)				#	DO WE WANT THIS HARDCODED or USE SM PREF
+		# # # If Render on the farm is selected
+		# # if not self.gb_submit.isHidden():
+		# # 	# get the Frame Range.
+		# # 	self.setFarmedRange(startFrame, endFrame)
+		# # 	# get new versions for all savers.
+		# # 	# if self.chb_upVersion.isChecked():
+		# # 	# 	self.upSubmittedSaversVersions(self.stateManager)
 
-				updateMaster = False
-				# Render Locally
-				# else:
-				# 	result = self.fusionFuncs.sm_render_startLocalRender(
-				# 		self, outOnly, rSettings["outputName"], rSettings
-				# 	)
-				# result = self.fusionFuncs.sm_render_startLocalRender(
-				# 	self, outOnly, rSettings["outputName"], rSettings
-				# )
-			# else:
-			# 	rSettings = self.LastRSettings
-			# 	result = self.fusionFuncs.sm_render_startLocalRender(
-			# 		self, outOnly, rSettings["outputName"], rSettings
-			# 	)
-			# 	outputName = rSettings["outputName"]
+		# # 	if 0 == 1:
+		# # 		pass												#	TODO ???
 
-			if not self.renderingStarted:
-				self.fusionFuncs.sm_render_undoRenderSettings(self, rSettings)
+		# # 	else:
+		# # 		msg = ('Are you sure you want to execute this state as a previous version?\nThis may overwrite existing files.')
+		# # 		executeprev = self.core.popupQuestion(
+		# # 			msg,
+		# # 			title="Warning",
+		# # 			buttons=["Continue", "Cancel"],
+		# # 			icon=QMessageBox.Warning,
+		# # 			escapeButton="Cancel",
+		# # 		)
+		# # 		if executeprev == "Cancel":
+		# # 			return [self.state.text(0) + " - Canceled"]
+		# # 	# check paths and resolve path mappings.
+		# # 	self.submitCheckPaths()
+		# # 	# 
+		# # 	handleMaster = "media" if self.isUsingMasterVersion() else False
+		# # 	plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
+			
+		# # 	sceneDescription = None
 
-			if result == "publish paused":
-				return
-			else:
-				if updateMaster:
-					self.handleMasterVersion(outputName)
+		# # 	result = plugin.sm_render_submitJob(
+		# # 		self,
+		# # 		rSettings["outputName"],
+		# # 		parent,
+		# # 		handleMaster=handleMaster,
+		# # 		details=details,
+		# # 		sceneDescription=sceneDescription
+		# # 	)
+			
 
-				kwargs = {
-					"state": self,
-					"scenefile": fileName,
-					"settings": rSettings,
-					"result": result,
-				}
+		# # 	updateMaster = False
+		# # 	# Render Locally
+		# # 	# else:
+		# # 	# 	result = self.fusionFuncs.sm_render_startLocalRender(
+		# # 	# 		self, outOnly, rSettings["outputName"], rSettings
+		# # 	# 	)
+		# # 	# result = self.fusionFuncs.sm_render_startLocalRender(
+		# # 	# 	self, outOnly, rSettings["outputName"], rSettings
+		# # 	# )
+		# # # else:
+		# # # 	rSettings = self.LastRSettings
+		# # # 	result = self.fusionFuncs.sm_render_startLocalRender(
+		# # # 		self, outOnly, rSettings["outputName"], rSettings
+		# # # 	)
+		# # # 	outputName = rSettings["outputName"]
 
-				self.core.callback("postRender", **kwargs)
+		# # if not self.renderingStarted:
+		# # 	self.fusionFuncs.sm_render_undoRenderSettings(self, rSettings)
 
-				if "Result=Success" in result:
-					return [self.state.text(0) + " - success"]
-				else:
-					erStr = "%s ERROR - sm_default_imageRenderPublish %s:\n%s" % (
-						time.strftime("%d/%m/%y %X"),
-						self.core.version,
-						result,
-					)
-					if not result.startswith("Execute Canceled: "):
-						if result == "unknown error (files do not exist)":
-							QMessageBox.warning(
-								self.core.messageParent,
-								"Warning",
-								"No files were created during the rendering. If you think this is a Prism bug please report it in the forum:\nwww.prism-pipeline.com/forum/\nor write a mail to contact@prism-pipeline.com",
-							)
-						else:
-							self.core.writeErrorLog(erStr)
-					return [self.state.text(0) + " - error - " + result]
-		else:
-			return [self.state.text(0) + " - error - " + "No Render Manager Plugin was found"]
+		# # if result == "publish paused":
+		# # 	return
+		# # else:
+		# # 	if updateMaster:
+		# # 		self.handleMasterVersion(outputName)
+
+		# # 	kwargs = {
+		# # 		"state": self,
+		# # 		"scenefile": fileName,
+		# # 		"settings": rSettings,
+		# # 		"result": result,
+		# # 	}
+
+		# # 	self.core.callback("postRender", **kwargs)
+
+		# # 	if "Result=Success" in result:
+		# # 		return [self.state.text(0) + " - success"]
+		# # 	else:
+		# # 		erStr = "%s ERROR - sm_default_imageRenderPublish %s:\n%s" % (
+		# # 			time.strftime("%d/%m/%y %X"),
+		# # 			self.core.version,
+		# # 			result,
+		# # 		)
+		# # 		if not result.startswith("Execute Canceled: "):
+		# # 			if result == "unknown error (files do not exist)":
+		# # 				QMessageBox.warning(
+		# # 					self.core.messageParent,
+		# # 					"Warning",
+		# # 					"No files were created during the rendering. If you think this is a Prism bug please report it in the forum:\nwww.prism-pipeline.com/forum/\nor write a mail to contact@prism-pipeline.com",
+		# # 				)
+		# # 			else:
+		# # 				self.core.writeErrorLog(erStr)
+		# # 		return [self.state.text(0) + " - error - " + result]
+
 
 
 	@err_catcher(name=__name__)
@@ -1555,24 +1632,32 @@ class RenderGroupClass(object):
 			"contextType": self.getContextType(),
 			"customContext": self.customContext,
 			"taskname": self.getTaskname(),
-			"renderpresetoverride": str(self.chb_renderPreset.isChecked()),
-			"currentrenderpreset": self.cb_renderPreset.currentText(),
+
+			"overrideFrameRange": self.chb_overrideFrameRange.isChecked(),
 			"rangeType": str(self.cb_rangeType.currentText()),
 			"startframe": self.sp_rangeStart.value(),
 			"endframe": self.sp_rangeEnd.value(),
 			"frameExpression": self.le_frameExpression.text(),
-			# "currentcam": str(self.curCam),
-			# "resoverride": str(
-			# 	[
-			# 		self.chb_resOverride.isChecked(),
-			# 		self.sp_resWidth.value(),
-			# 		self.sp_resHeight.value(),
-			# 	]
-			# ),
-			"masterVersion": self.cb_master.currentText(),
+
+			"overrideMaster": self.chb_overrideMaster.isChecked(),
+			"ovrMasterOption": self.cb_master.currentText(),
+
+			"overrideLocation": self.chb_overrideLocation.isChecked(),
+			"ovrLocOption": self.cb_outPath.currentText(),
+
+			"overrideScaling": self.chb_overrideScaling.isChecked(),
+			"ovrScaleOption": self.cb_renderScaling.currentText(),
+
+			"overrideHiQ": self.chb_overrideQuality.isChecked(),
+			"ovrHiQOption": self.cb_renderQuality.currentText(),
+
+			"overrideMB": self.chb_overrideRenderMB.isChecked(),
+			"ovrMBOption": self.cb_renderMB.currentText(),
+
+			"overrideProxy": self.chb_overrideProxy.isChecked(),
+			"ovrProxyOption": self.cb_renderProxy.currentText(),
+
 			"curoutputpath": self.cb_outPath.currentText(),
-#			"renderlayer": str(self.cb_renderLayer.currentText()),
-			# "outputFormat": str(self.cb_format.currentText()),
 			"submitrender": str(self.gb_submit.isChecked()),
 			"rjmanager": str(self.cb_manager.currentText()),
 			"rjprio": self.sp_rjPrio.value(),
@@ -1586,10 +1671,9 @@ class RenderGroupClass(object):
 			"dlconcurrent": self.sp_dlConcurrentTasks.value(),
 			"dlgpupt": self.sp_dlGPUpt.value(),
 			"dlgpudevices": self.le_dlGPUdevices.text(),
-			"lastexportpath": self.l_pathLast.text().replace("\\", "/"),
-			# "enablepasses": str(self.gb_passes.isChecked()),
 			"stateenabled": str(self.state.checkState(0)),
 			# "upversion": str(self.chb_upVersion.isChecked()),
+        	"renderStates": [self.tw_renderStates.item(i).text() for i in range(self.tw_renderStates.count())]
 		}
 		self.core.callback("onStateGetSettings", self, stateProps)
 		return stateProps
