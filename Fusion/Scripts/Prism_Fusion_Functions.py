@@ -1052,6 +1052,51 @@ class Prism_Fusion_Functions(object):
 					return "unknown error (files do not exist)"
 
 
+
+	@err_catcher(name=__name__)
+	def sm_render_startLocalGroupRender(self, origin, outputPathOnly, outputName, rSettings):
+		comp = self.fusion.GetCurrentComp()	
+
+		comp.Render({"Wait": True})
+
+
+		# if self.sm_checkCorrectComp(comp):
+		# 	sv = self.get_rendernode(origin.get_rendernode_name())
+		# 	#if sv is not None
+		# 	if sv:
+		# 		#if sv has input
+		# 		if sv.Input.GetConnectedOutput():
+		# 			sv.Clip = outputName
+		# 		else:
+		# 			return "Error (Render Node is not connected)"
+		# 	else:
+		# 		return "Error (Render Node does not exist)"
+			
+			
+		# 	# Are we just setting the path and version into the render nodes or are we executing a local render?
+		# 	if outputPathOnly:
+
+		# 		return "Result=Success"
+
+		# 	else:				
+		# 		frstart = rSettings["startFrame"]
+		# 		frend = rSettings["endFrame"]
+
+		# 		if origin.chb_resOverride.isChecked():
+		# 			wdt = origin.sp_resWidth.value()
+		# 			Hhgt = origin.sp_resHeight.value()
+			
+		# 			comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}','SizeType': -1, 'Width': wdt, 'Height': Hhgt})
+		# 		else:
+		# 			comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}'})
+
+		# 		if len(os.listdir(os.path.dirname(outputName))) > 0:
+		# 			return "Result=Success"
+		# 		else:
+		# 			return "unknown error (files do not exist)"
+				
+
+
 	@err_catcher(name=__name__)
 	def sm_render_undoRenderSettings(self, origin, rSettings):
 		pass
@@ -2476,8 +2521,7 @@ class Prism_Fusion_Functions(object):
 		index = origin.horizontalLayout_4.indexOf(origin.b_showExportStates)
 		origin.horizontalLayout_4.insertWidget(index - 1, origin.b_renderGroup)
 
-
-		origin.b_renderGroup.clicked.connect(lambda: origin.createPressed("RenderGroup"))
+		origin.b_renderGroup.clicked.connect(lambda: self.addRenderGroup(origin))
 
 		# origin.createState(appStates["stateType"], parent=parent, setActive=True, **appStates.get("kwargs", {}))
 
@@ -2496,7 +2540,6 @@ class Prism_Fusion_Functions(object):
 
 		self.monkeypatchedsm = origin
 		self.core.plugins.monkeyPatch(origin.rclTree, self.rclTree, self, force=True)
-		self.core.plugins.monkeyPatch(origin.createPressed, self.createPressed, self, force=True)
 
 		#origin.gb_import.setStyleSheet("margin-top: 20px;")
 
@@ -2552,6 +2595,7 @@ class Prism_Fusion_Functions(object):
 				else:
 					curState.setCheckState(0, Qt.Unchecked)
 
+	@err_catcher(name=__name__)
 	def onStateDeleted(self, origin, stateui):
 		comp = self.fusion.GetCurrentComp()
 		if stateui.className == "ImageRender":
@@ -2564,6 +2608,12 @@ class Prism_Fusion_Functions(object):
 					node.Delete()
 		# elif stateui.className == "ImportFile":
 			
+
+	@err_catcher(name=__name__)
+	def addRenderGroup(self, origin):
+		origin.createState("RenderGroup")
+
+
 			
 	################################################
 	#                                              #
@@ -2578,7 +2628,7 @@ class Prism_Fusion_Functions(object):
 		if sm:			
 			rcmenu = QMenu(sm)
 
-            # we chack if the rclick is over a state
+            # we check if the rclick is over a state
 			idx = sm.activeList.indexAt(pos)
 			parentState = sm.activeList.itemFromIndex(idx)
 			if parentState:
@@ -2718,66 +2768,3 @@ class Prism_Fusion_Functions(object):
 			# if action == 2:
 			if result == "Yes":
 				self.core.appPlugin.deleteNodes(state, validNodes)
-
-
-	@err_catcher(name=__name__)
-	def createPressed(self, stateType, renderer=None):
-
-		#	Calls original code from stateManager.createPressed()
-		self.core.plugins.callUnpatchedFunction(self.monkeypatchedsm.createPressed, stateType, renderer=renderer)
-
-
-	############	ADDED	############
-	#vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv#
-		#	Gets patched objects
-		sm = self.monkeypatchedsm
-		origCreatePressed = sm.createPressed
-
-		#	Gets called from UI button
-		if stateType == "RenderGroup":
-			# if (
-			# 	sm.activeList == sm.tw_export
-			# 	and origCreatePressed.curSel is not None
-			# 	and origCreatePressed.curSel.ui.className == "Folder"
-			# ):
-			# 	parent = origCreatePressed.curSel
-			# else:
-			# 	parent = None
-
-			parent = None
-
-			exportStates = []
-			appStates = getattr(self.core.appPlugin, "sm_createStatePressed", lambda x, y: [])(self, stateType)
-		
-			if not isinstance(appStates, list):
-				if appStates is None:
-					return
-
-				sm.createState(appStates["stateType"], parent=parent, setActive=True, **appStates.get("kwargs", {}))
-				return
-
-			exportStates += appStates
-			for state in sm.stateTypes:
-				exportStates += getattr(sm.stateTypes[state], "stateCategories", {}).get(stateType, [])
-
-			if len(exportStates) == 1:
-				sm.createState(exportStates[0]["stateType"], parent=parent, setActive=True)
-			else:
-				menu = QMenu(sm)
-				for exportState in exportStates:
-					actSet = QAction(exportState["label"], self)
-					actSet.triggered.connect(
-						lambda x=None, st=exportState: sm.createState(st["stateType"], parent=parent, setActive=True, **st.get("kwargs", {}))
-					)
-					menu.addAction(actSet)
-
-				getattr(self.core.appPlugin, "sm_openStateFromNode", lambda x, y, stateType: None)(
-					self, menu, stateType=stateType
-				)
-
-				if not menu.isEmpty():
-					menu.exec_(QCursor.pos())
-
-			sm.activeList.setFocus()
-
-	#^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^#			
