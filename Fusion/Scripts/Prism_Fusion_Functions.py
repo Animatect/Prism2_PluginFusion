@@ -1172,7 +1172,6 @@ class Prism_Fusion_Functions(object):
 		flow.Select()
 
 		sourceData = mediaBrowser.compGetImportSource()
-		print("sourceData: \n", sourceData, "\n\n")
 		imageData = self.getImageData(comp, sourceData)
 		if imageData:
 			updatehandle:list = [] # Required to return data on the updated nodes.
@@ -1180,10 +1179,7 @@ class Prism_Fusion_Functions(object):
 				node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=leftmostNode, createwireless=sortnodes)
 				if not leftmostNode:
 					leftmostNode = node
-				orignodepos = flow.GetPosTable(leftmostNode)
-				# flow.SetPos(leftmostNode, orignodepos[1], orignodepos[2] + 10)
 				self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
-				# flow.SetPos(leftmostNode, orignodepos[1], orignodepos[2])
 					
 			else:				
 				node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=None, createwireless=sortnodes)
@@ -1266,6 +1262,7 @@ class Prism_Fusion_Functions(object):
 		comp.Lock()
 		#Get the leftmost loader within a threshold.
 		leftmostpos = flow.GetPosTable(posRefNode)[1]
+		bottommostpos = flow.GetPosTable(posRefNode)[2]
 		thresh = 100
 		# We get only the loaders within a threshold from the leftmost and who were created by prism.
 		loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh and l.GetData("isprismnode")]
@@ -1276,12 +1273,17 @@ class Prism_Fusion_Functions(object):
 			lyloaders = [l for l in loaders if self.split_loader_name(l.Name)[0] == ly]
 			sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
 			sortedloaders += sorted_loader_names
+		# if refNode is not part of nodes to sort we move the nodes down so they don't overlap it.
+		refInNodes = any(ldr.Name == posRefNode.Name for ldr in sortedloaders)
 
 		# Sorting the loader names
 		lastloaderlyr = self.split_loader_name(sortedloaders[0].Name)[0]
 		if sortnodes:
-			newx = flow.GetPosTable(loaderstop2bot[0])[1]
+			newx = leftmostpos#flow.GetPosTable(loaderstop2bot[0])[1]
 			newy = flow.GetPosTable(loaderstop2bot[0])[2]
+			if not refInNodes:
+				newy = bottommostpos + 1.5
+			
 			for l in sortedloaders:
 				# we reconnect to solve an issue that creates "Ghost" connections until comp is reoppened.
 				innode =  comp.FindTool(l.Name+"_IN")
@@ -1289,7 +1291,6 @@ class Prism_Fusion_Functions(object):
 				if innode and reconnectIn:
 					innode.ConnectInput('Input', l)
 				lyrnm = self.split_loader_name(l.Name)[0]
-				print("lyrnm: ", lyrnm)
 				# we make sure we have at least an innode for this loader created by prism.
 				if innode and innode.GetData("isprismnode"):
 					if lyrnm != lastloaderlyr:
