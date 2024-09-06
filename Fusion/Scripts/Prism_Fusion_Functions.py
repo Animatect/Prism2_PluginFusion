@@ -1172,6 +1172,7 @@ class Prism_Fusion_Functions(object):
 		flow.Select()
 
 		sourceData = mediaBrowser.compGetImportSource()
+		print("sourceData: \n", sourceData, "\n\n")
 		imageData = self.getImageData(comp, sourceData)
 		if imageData:
 			updatehandle:list = [] # Required to return data on the updated nodes.
@@ -1180,9 +1181,9 @@ class Prism_Fusion_Functions(object):
 				if not leftmostNode:
 					leftmostNode = node
 				orignodepos = flow.GetPosTable(leftmostNode)
-				flow.SetPos(leftmostNode, orignodepos[1], orignodepos[2] + 10)
+				# flow.SetPos(leftmostNode, orignodepos[1], orignodepos[2] + 10)
 				self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
-				flow.SetPos(leftmostNode, orignodepos[1], orignodepos[2])
+				# flow.SetPos(leftmostNode, orignodepos[1], orignodepos[2])
 					
 			else:				
 				node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=None, createwireless=sortnodes)
@@ -1288,6 +1289,7 @@ class Prism_Fusion_Functions(object):
 				if innode and reconnectIn:
 					innode.ConnectInput('Input', l)
 				lyrnm = self.split_loader_name(l.Name)[0]
+				print("lyrnm: ", lyrnm)
 				# we make sure we have at least an innode for this loader created by prism.
 				if innode and innode.GetData("isprismnode"):
 					if lyrnm != lastloaderlyr:
@@ -1331,12 +1333,13 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def returnImageDataDict(self, filePath, firstFrame, lastFrame, aovNm):
+	def returnImageDataDict(self, filePath, firstFrame, lastFrame, aovNm, layerNm):
 		return {
 		'filePath': filePath, 
 		'firstFrame': firstFrame, 
 		'lastFrame': lastFrame, 
-		'aovNm': aovNm
+		'aovNm': aovNm,
+		'layerNm': layerNm
 		}
 
 
@@ -1352,8 +1355,9 @@ class Prism_Fusion_Functions(object):
 				firstFrame = 1
 				lastFrame = len(image_strings)	
 				aovNm = 'PrismLoader'
+				layerNm = 'PrismMedia'
 
-				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm)
+				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm)
 		else:
 			# Break the meaningless 1 item nested array.
 			return self.getPassData(comp, sourceData[0], allAOVs=False)
@@ -1372,8 +1376,9 @@ class Prism_Fusion_Functions(object):
 		firstFrame = sourceData[1]
 		lastFrame = sourceData[2]			
 		aovNm = os.path.dirname(filePath).split("/")[-1]
+		layerNm = os.path.dirname(filePath).split("/")[-3]
     
-		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm)
+		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm)
 
 	@err_catcher(name=__name__)
 	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame):
@@ -1402,6 +1407,7 @@ class Prism_Fusion_Functions(object):
 		firstFrame = imageData['firstFrame']
 		lastFrame = imageData['lastFrame']		
 		aovNm = imageData['aovNm']
+		layerNm = imageData['layerNm']
 		
 		extension = os.path.splitext(filePath)[1]
 		# Check if path without version exists in a loader and if so generate a popup to update with new version.
@@ -1436,7 +1442,7 @@ class Prism_Fusion_Functions(object):
 		if createwireless:
 			node.SetData("isprismnode", True)
 		self.reloadLoader(node, filePath, firstFrame, lastFrame)
-		node.SetAttrs({"TOOLS_Name": aovNm})
+		node.SetAttrs({"TOOLS_Name": layerNm + "_" + aovNm})
 		if refNode:
 			if refNode.GetAttrs('TOOLS_RegID') =='Loader':
 				self.setNodePosition(node, x_offset = 0, y_offset = 1, refNode=refNode)
