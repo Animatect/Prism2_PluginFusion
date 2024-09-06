@@ -1277,30 +1277,31 @@ class Prism_Fusion_Functions(object):
 		refInNodes = any(ldr.Name == posRefNode.Name for ldr in sortedloaders)
 
 		# Sorting the loader names
-		lastloaderlyr = self.split_loader_name(sortedloaders[0].Name)[0]
-		if sortnodes:
-			newx = leftmostpos#flow.GetPosTable(loaderstop2bot[0])[1]
-			newy = flow.GetPosTable(loaderstop2bot[0])[2]
-			if not refInNodes:
-				newy = bottommostpos + 1.5
-			
-			for l in sortedloaders:
-				# we reconnect to solve an issue that creates "Ghost" connections until comp is reoppened.
-				innode =  comp.FindTool(l.Name+"_IN")
-				outnode = comp.FindTool(l.Name+"_OUT")
-				if innode and reconnectIn:
-					innode.ConnectInput('Input', l)
-				lyrnm = self.split_loader_name(l.Name)[0]
-				# we make sure we have at least an innode for this loader created by prism.
-				if innode and innode.GetData("isprismnode"):
-					if lyrnm != lastloaderlyr:
-						newy+=1
-					flow.SetPos(l, newx, newy)
-					flow.SetPos(innode, newx+2, newy)
-					if outnode:
-						flow.SetPos(outnode, newx+3, newy)
-				newy+=1
-				lastloaderlyr = lyrnm
+		if len(sortedloaders) > 0:
+			lastloaderlyr = self.split_loader_name(sortedloaders[0].Name)[0]
+			if sortnodes:
+				newx = leftmostpos#flow.GetPosTable(loaderstop2bot[0])[1]
+				newy = flow.GetPosTable(loaderstop2bot[0])[2]
+				if not refInNodes:
+					newy = bottommostpos + 1.5
+				
+				for l in sortedloaders:
+					# we reconnect to solve an issue that creates "Ghost" connections until comp is reoppened.
+					innode =  comp.FindTool(l.Name+"_IN")
+					outnode = comp.FindTool(l.Name+"_OUT")
+					if innode and reconnectIn:
+						innode.ConnectInput('Input', l)
+					lyrnm = self.split_loader_name(l.Name)[0]
+					# we make sure we have at least an innode for this loader created by prism.
+					if innode and innode.GetData("isprismnode"):
+						if lyrnm != lastloaderlyr:
+							newy+=1
+						flow.SetPos(l, newx, newy)
+						flow.SetPos(innode, newx+2, newy)
+						if outnode:
+							flow.SetPos(outnode, newx+3, newy)
+					newy+=1
+					lastloaderlyr = lyrnm
 		comp.Unlock()
 
 
