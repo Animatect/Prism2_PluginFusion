@@ -59,6 +59,7 @@ import pyperclip
 from PrismUtils.Decorators import err_catcher as err_catcher
 
 
+
 class Prism_Fusion_Functions(object):
 	def __init__(self, core, plugin):
 		self.core = core
@@ -423,21 +424,33 @@ class Prism_Fusion_Functions(object):
 	# Handle Savers pass-through state for thumb capture
 	@err_catcher(name=__name__)
 	def origSaverStates(self, mode, comp, origSaverList):
-		for tool in comp.GetToolList(False).values():
-			if self.isSaver(tool):
-				tool_name = tool.GetAttrs()["TOOLS_Name"]
-				if mode == "save":
-					# Save the current pass-through state
-					origSaverList[tool_name] = tool.GetAttrs()["TOOLB_PassThrough"]
-					# Set the tool to pass-through
-					tool.SetAttrs({"TOOLB_PassThrough": True})
-				elif mode == "load":
-					# Restore the original pass-through state
-					if tool_name in origSaverList:
-						tool.SetAttrs({"TOOLB_PassThrough": origSaverList[tool_name]})
+		saverList = self.getSaverList(comp)
+		for tool in saverList:
+			toolName = tool.GetAttrs()["TOOLS_Name"]
+			if mode == "save":
+				# Save the current pass-through state
+				origSaverList[toolName] = tool.GetAttrs()["TOOLB_PassThrough"]
+				# Set the tool to pass-through
+				tool.SetAttrs({"TOOLB_PassThrough": True})
+			elif mode == "load":
+				# Restore the original pass-through state
+				if toolName in origSaverList:
+					tool.SetAttrs({"TOOLB_PassThrough": origSaverList[toolName]})
 
 		return origSaverList
 
+
+	# Get list of all Savers
+	@err_catcher(name=__name__)
+	def getSaverList(self, comp):
+
+		saverList = []
+		for tool in comp.GetToolList(False).values():
+			if self.isSaver(tool):
+				saverList.append(tool)
+
+		return saverList
+	
 
 	#   Finds the tool to use for the thumbnail in priority
 	@err_catcher(name=__name__)
@@ -685,10 +698,12 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def removeAOV(self, aovName):
 		pass
+
 	@err_catcher(name=__name__)
 	def setNodePassthrough(self, nodename, passThrough):
 		node = self.get_rendernode(nodename)
 		node.SetAttrs({"TOOLB_PassThrough": passThrough})
+
 
 	@err_catcher(name=__name__)
 	def getNodePassthrough(self, nodename):
@@ -755,6 +770,7 @@ class Prism_Fusion_Functions(object):
 					self.setNodePosition(sv, find_min=False, x_offset=10, ignore_node_type="Saver")
 					self.stackNodesByType(sv)
 			return sv
+
 
 	@err_catcher(name=__name__)
 	def sm_render_preSubmit(self, origin, rSettings):
@@ -995,14 +1011,15 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def configureRenderNode(self, nodeName, outputPath, fuseName):
+	def configureRenderNode(self, nodeName, outputPath, fuseName=None):
 
 		comp = self.fusion.GetCurrentComp()		
 		if self.sm_checkCorrectComp(comp):
 			sv = self.get_rendernode(nodeName)
 			if sv:
 				sv.Clip = outputPath
-				sv["OutputFormat"] = fuseName
+				if fuseName:
+					sv["OutputFormat"] = fuseName
 
 				if sv.Input.GetConnectedOutput():
 					sv.Clip = outputPath
@@ -1010,7 +1027,63 @@ class Prism_Fusion_Functions(object):
 					return "Error (Render Node is not connected)"
 			else:
 				return "Error (Render Node does not exist)"
+
+
+	#	Configures name to conform with Fusion Restrictions
+	@err_catcher(name=__name__)
+	def getFusLegalName(self, origName, check=False):
+		"""
+			Fusion has strict naming for nodes.  You can only use:
+			Alphanumeric characters:  a-z, A-Z, 0-9,
+			Do not use any spaces,
+			Do not use special charactors,
+			Node name cannot start with a number.
+		"""
+
+		# Check if the name starts with a number
+		if origName[0].isdigit():
+			if check:
+				return False, "Name cannot start with a number."
 			
+			return "Error: Name cannot start with a number."
+
+		# Check if the name contains only allowed characters
+		if not re.match(r'^[A-Za-z0-9_\- .]*$', origName):
+			if check:
+				return False, "Name contains invalid characters."
+			
+			return "Error: Name contains invalid characters."
+
+		newName = origName.replace(' ', '_')
+		newName = newName.replace('.', '_')
+		newName = newName.replace('-', '_')
+
+		if check:
+			return True, ""
+		
+		return newName
+
+
+	@err_catcher(name=__name__)
+	def getRendernodeName(self, stateName):
+		legalName = self.getFusLegalName(stateName)
+		nodeName = f"PrSAVER_{legalName}"
+
+		return nodeName
+	
+
+	@err_catcher(name=__name__)
+	def getMatchingStateData(self, nodeName):
+		stateDataRaw = json.loads(self.sm_readStates(self))
+
+		# Iterate through the states to find the matching state dictionary
+		stateDetails = None
+		for stateData in stateDataRaw["states"]:
+			if stateData.get("rendernode") == nodeName:
+				stateDetails = stateData
+				return stateDetails
+
+		self.core.popup(f"No state details for:  {nodeName}")                           #    TODO - ERROR HANDLING
 
 
 	@err_catcher(name=__name__)
@@ -1052,49 +1125,211 @@ class Prism_Fusion_Functions(object):
 					return "unknown error (files do not exist)"
 
 
+	@err_catcher(name=__name__)
+	def configureCompSettings(self, comp, mode, cData=None):
+
+		if mode == "save":
+			cData = {}
+
+			cData["orig_frameRange_Start"] = comp.GetAttrs()["COMPN_RenderStart"]
+			cData["orig_frameRange_End"] = comp.GetAttrs()["COMPN_RenderEnd"]
+			cData["orig_currentFrame"] = comp.CurrentTime
+			cData["orig_rezX"], cData["orig_rezY"] = self.getResolution()
+			cData["orig_HQ"] = comp.GetAttrs()["COMPB_HiQ"]
+			cData["orig_MB"] = comp.GetAttrs()["COMPB_MotionBlur"]
+			cData["orig_Proxy"] = comp.GetAttrs()["COMPB_Proxy"]
+
+			return cData
+		
+		elif mode == "load":
+			comp.SetAttrs({"COMPN_RenderStart": cData["orig_frameRange_Start"]})
+			comp.SetAttrs({"COMPN_RenderEnd": cData["orig_frameRange_End"]})
+			comp.CurrentTime = cData["orig_currentFrame"]
+			self.setResolution(cData["orig_rezX"], cData["orig_rezY"])
+			comp.SetAttrs({"COMPB_HiQ": cData["orig_HQ"]})
+			comp.SetAttrs({"COMPB_MotionBlur": cData["orig_MB"]})
+			comp.SetAttrs({"COMPB_Proxy": cData["orig_Proxy"]})
+
+
+	@err_catcher(name=__name__)
+	def setCompOverrides(self, comp, rSettings, origCompSettings):
+		if "frameOvr" in rSettings and rSettings["frameOvr"]:
+			comp.SetAttrs({"COMPN_RenderStart": rSettings["frame_start"]})
+			comp.SetAttrs({"COMPN_RenderEnd": rSettings["frame_end"]})
+
+		if "scalingOvr" in rSettings and rSettings["scalingOvr"]:
+			render_Scale = int(rSettings["render_Scale"])
+			renderRezX = origCompSettings["orig_rezX"] * render_Scale / 100
+			renderRezY = origCompSettings["orig_rezY"] * render_Scale / 100
+			self.setResolution(renderRezX, renderRezY)
+
+		if "hiQualOvr" in rSettings and rSettings["hiQualOvr"]:
+			tempHQ = rSettings["render_HQ"]
+			if tempHQ == "Force HiQ":
+				comp.SetAttrs({"COMPB_HiQ": 1})
+			if tempHQ == "Force LowQ":
+				comp.SetAttrs({"COMPB_HiQ": 0})
+
+		if "blurOvr" in rSettings and rSettings["blurOvr"]:
+			tempBlur = rSettings["render_Blur"]
+			if tempBlur == "Force Use MB":
+				comp.SetAttrs({"COMPB_MotionBlur": 1})
+			if tempBlur == "Force No MB":
+				comp.SetAttrs({"COMPB_MotionBlur": 0})
+				
+		if "proxyOvr" in rSettings and rSettings["proxyOvr"]:
+			tempProxy = rSettings["render_Proxy"]
+			if tempProxy == "Force Proxies Off":
+				comp.SetAttrs({"COMPB_Proxy": 0})
+			if tempProxy == "Force Proxies On":
+				comp.SetAttrs({"COMPB_Proxy": 1})
+
+
+
+	@err_catcher(name=__name__)
+	def isUsingMasterVersion(self):
+		useMaster = self.core.mediaProducts.getUseMaster()
+		if not useMaster:
+			return False
+
+		try:
+			masterAction = self.cb_master.currentText()
+			if masterAction == "Don't update master":
+				return False
+		except:
+			pass
+
+		return True
+
+
+	@err_catcher(name=__name__)
+	def handleMasterVersion(self, outputName, masterAction=None):
+		if not self.isUsingMasterVersion():
+			return
+
+		if not masterAction:
+			masterAction = self.cb_master.currentText()
+
+		if masterAction in ("Set as master", "Force Set as Master"):
+			self.core.mediaProducts.updateMasterVersion(outputName, mediaType="2drenders")
+		elif masterAction in ("Add to master", "Force Add to Master"):
+			self.core.mediaProducts.addToMasterVersion(outputName, mediaType="2drenders")
+
+
+
+	@err_catcher(name=__name__)
+	def saveMasterData(self, rSettings, stateData, outputPath):
+		if rSettings["masterOvr"]:
+			stateMasterData = [stateData["taskname"], rSettings["handleMaster"], outputPath]
+
+		else:
+			stateMasterData = [stateData["taskname"], stateData["masterVersion"], outputPath]
+
+		self.masterData.append(stateMasterData)
+
+
+	@err_catcher(name=__name__)
+	def executeMaster(self):
+		for state in self.masterData:
+
+			self.handleMasterVersion(state[2], state[1])
+
 
 	@err_catcher(name=__name__)
 	def sm_render_startLocalGroupRender(self, origin, outputPathOnly, outputName, rSettings):
-		comp = self.fusion.GetCurrentComp()	
+		comp = self.fusion.GetCurrentComp()
+		if self.sm_checkCorrectComp(comp):
 
-		comp.Render({"Wait": True})
+			origSaverList = {}
+			self.masterData = []
 
+			#	Capture orignal Comp settings for restore after render
+			origCompSettings = self.configureCompSettings(comp, "save")
 
-		# if self.sm_checkCorrectComp(comp):
-		# 	sv = self.get_rendernode(origin.get_rendernode_name())
-		# 	#if sv is not None
-		# 	if sv:
-		# 		#if sv has input
-		# 		if sv.Input.GetConnectedOutput():
-		# 			sv.Clip = outputName
-		# 		else:
-		# 			return "Error (Render Node is not connected)"
-		# 	else:
-		# 		return "Error (Render Node does not exist)"
-			
-			
-		# 	# Are we just setting the path and version into the render nodes or are we executing a local render?
-		# 	if outputPathOnly:
+			comp.Lock()
 
-		# 		return "Result=Success"
+			#	Get ImageRender states to be rendered with the group
+			renderStates = rSettings["groupRenderStates"]
 
-		# 	else:				
-		# 		frstart = rSettings["startFrame"]
-		# 		frend = rSettings["endFrame"]
+			#   Save pass-through state of all savers
+			origSaverList = self.origSaverStates("save", comp, origSaverList)
 
-		# 		if origin.chb_resOverride.isChecked():
-		# 			wdt = origin.sp_resWidth.value()
-		# 			Hhgt = origin.sp_resHeight.value()
-			
-		# 			comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}','SizeType': -1, 'Width': wdt, 'Height': Hhgt})
-		# 		else:
-		# 			comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}'})
+			#	Configure Comp with overrides from RenderGroup
+			self.setCompOverrides(comp, rSettings, origCompSettings)
 
-		# 		if len(os.listdir(os.path.dirname(outputName))) > 0:
-		# 			return "Result=Success"
-		# 		else:
-		# 			return "unknown error (files do not exist)"
-				
+			for state in renderStates:
+				#	Get Saver name for State
+				nodeName = self.getRendernodeName(state)
+				self.setNodePassthrough(nodeName, passThrough=False)
+
+				context = rSettings["context"]
+
+				#	Set frame padding format for Fusion
+				framePadding = "0" * self.core.framePadding
+				context["frame"] = framePadding
+
+				#	Get State data from Comp
+				stateData = self.getMatchingStateData(nodeName)
+
+				#	If Render as Previous Version enabled
+				if rSettings["renderAsPrevVer"]:
+					#	Get project basepath from core
+					basePath = self.core.paths.getRenderProductBasePaths()[stateData["curoutputpath"]]
+					#	 Add info to context
+					stateData["mediaType"] = "2drenders"
+					stateData["project_path"] = basePath
+					stateData["identifier"] = stateData["taskname"]
+					context["mediaType"] = "2drenders"
+					#	Get highest existing render version to use for render
+					useVersion = self.core.mediaProducts.getHighestMediaVersion(context, getExisting=True)
+
+				#	If Render as Previous Version not enabled
+				else:
+					useVersion = "next"
+
+				#	 Handle Location override
+				if rSettings["locationOvr"]:
+					renderLoc = rSettings["render_Loc"]
+				else:
+					renderLoc = stateData["curoutputpath"]
+
+				#	Get new render path from Core
+				outputPathData = self.core.mediaProducts.generateMediaProductPath(
+					entity=context,
+					task=stateData["taskname"],
+					extension=stateData["outputFormat"],
+					framePadding=framePadding,
+					comment=origin.stateManager.publishComment,
+					version=useVersion if useVersion != "next" else None,
+					location=renderLoc,
+					singleFrame=False,
+					returnDetails=True,
+					mediaType="2drenders"
+					)
+
+				#	Get version filepath for Saver
+				outputPath = outputPathData["path"]
+				#	Configure Saver with new filepath
+				self.configureRenderNode(nodeName, outputPath, fuseName=None)
+
+				#	Setup master version execution
+				self.saveMasterData(rSettings, stateData, outputPath)
+
+			#	Render of course . . . 
+			comp.Render({"Wait": True})
+
+			#	Reset Comp settings to Original
+			self.configureCompSettings(comp, "load", origCompSettings)
+
+			#	Reconfigure pass-through of Savers
+			self.origSaverStates("load", comp, origSaverList)
+
+			comp.Unlock()
+
+			#	Execute master version if applicable
+			self.executeMaster()
+
+		return "Result=Success"
 
 
 	@err_catcher(name=__name__)
