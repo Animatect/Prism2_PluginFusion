@@ -82,6 +82,38 @@ class Ui_wg_RenderGroup(object):
 
         self.verticalLayout_2.addWidget(self.w_context)
 
+        self.f_renderAsPrevVer = QHBoxLayout()
+        self.f_renderAsPrevVer.setObjectName(u"f_renderAsPrevVer")
+        self.chb_renderAsPrevVer = QCheckBox(self.gb_RenderGroup)
+        self.chb_renderAsPrevVer.setObjectName(u"chb_renderAsPrevVer")
+
+        self.f_renderAsPrevVer.addWidget(self.chb_renderAsPrevVer)
+
+        self.w_renderAsPrevVer = QWidget(self.gb_RenderGroup)
+        self.w_renderAsPrevVer.setObjectName(u"w_renderAsPrevVer")
+        self.horizontalLayout_18 = QHBoxLayout(self.w_renderAsPrevVer)
+        self.horizontalLayout_18.setSpacing(0)
+        self.horizontalLayout_18.setObjectName(u"horizontalLayout_18")
+        self.horizontalLayout_18.setContentsMargins(9, 0, 9, 0)
+        self.l_renderVersion = QLabel(self.w_renderAsPrevVer)
+        self.l_renderVersion.setObjectName(u"l_renderVersion")
+
+        self.horizontalLayout_18.addWidget(self.l_renderVersion)
+
+        self.horizontalSpacer_29 = QSpacerItem(20, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+
+        self.horizontalLayout_18.addItem(self.horizontalSpacer_29)
+
+
+        self.f_renderAsPrevVer.addWidget(self.w_renderAsPrevVer)
+
+
+        self.verticalLayout_2.addLayout(self.f_renderAsPrevVer)
+
+        self.verticalSpacer_2 = QSpacerItem(20, 5, QSizePolicy.Minimum, QSizePolicy.Fixed)
+
+        self.verticalLayout_2.addItem(self.verticalSpacer_2)
+
         self.f_frameRange = QHBoxLayout()
         self.f_frameRange.setObjectName(u"f_frameRange")
         self.f_frameRangeOverride = QVBoxLayout()
@@ -784,6 +816,8 @@ class Ui_wg_RenderGroup(object):
         self.label_7.setText(QCoreApplication.translate("wg_RenderGroup", u"Context:", None))
         self.l_context.setText("")
         self.b_context.setText(QCoreApplication.translate("wg_RenderGroup", u"Select", None))
+        self.chb_renderAsPrevVer.setText("")
+        self.l_renderVersion.setText(QCoreApplication.translate("wg_RenderGroup", u"Render as Previous Version", None))
         self.chb_overrideFrameRange.setText("")
         self.label_3.setText(QCoreApplication.translate("wg_RenderGroup", u"Framerange:", None))
         self.l_rangeStartInfo.setText(QCoreApplication.translate("wg_RenderGroup", u"Start:", None))
