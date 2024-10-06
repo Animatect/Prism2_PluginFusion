@@ -34,15 +34,22 @@
 
 import os
 import sys
-import time
-import platform
-import re
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
+
+
+
+##################################
+#
+#	TODO 's
+#	- Generate VERSION INFO File for renders
+#	- Handle Master version for Farm RenderGroup renders
+#
+##################################
 
 
 class RenderGroupClass(object):
@@ -94,7 +101,6 @@ class RenderGroupClass(object):
 			self.gb_submit.setVisible(False)
 
 		self.managerChanged(True)
-		
 
 		#	Load Existing State Data
 		if stateData is not None:
@@ -128,7 +134,6 @@ class RenderGroupClass(object):
 			# self.setUniqueName(self.className + " - Compositing")
 #			self.chb_upVersion.setChecked(True)
 
-
 		self.connectEvents()
 		self.setToolTips()
 		self.refreshSubmitUi()
@@ -137,7 +142,6 @@ class RenderGroupClass(object):
 
 	@err_catcher(name=__name__)
 	def populateCombos(self):
-
 		#	Frame Range
 		self.rangeTypes = [
 			"Scene",
@@ -352,26 +356,16 @@ class RenderGroupClass(object):
 		if "dlgpudevices" in data:
 			self.le_dlGPUdevices.setText(data["dlgpudevices"])
 			self.gpuDevicesChanged()
-		# if "lastexportpath" in data:
-		# 	lePath = self.core.fixPath(data["lastexportpath"])
-		# 	self.l_pathLast.setText(lePath)
-		# 	self.l_pathLast.setToolTip(lePath)
+
 		if "stateenabled" in data:
 			if type(data["stateenabled"]) == int:
 				self.state.setCheckState(
 					0, Qt.CheckState(data["stateenabled"]),
 				)
 
-		# if state:
-		# 	self.state.setCheckState(0, Qt.Checked)
-		# else:
-		# 	self.state.setCheckState(0, Qt.Unchecked)
-
-		# if "stateenabled" in data:
-		# 	self.chb_upVersion.setChecked(eval(data["upversion"]))
-
 		# Item Color #
-		self.state.setBackground(0, QColor("#429933"))
+		# self.state.setBackground(0, QColor("#429933"))
+		self.state.setBackground(0, QColor("#2A3B4C"))
 
 		self.core.callback("onStateSettingsLoaded", self, data)
 
@@ -380,7 +374,6 @@ class RenderGroupClass(object):
 	def connectEvents(self):
 		self.e_name.textChanged.connect(self.nameChanged)
 		self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
-
 		self.chb_renderAsPrevVer.toggled.connect(lambda: self.updateUi())
 		self.chb_overrideFrameRange.toggled.connect(lambda: self.updateUi())
 		self.chb_overrideMaster.toggled.connect(lambda: self.updateUi())
@@ -401,10 +394,8 @@ class RenderGroupClass(object):
 		self.le_frameExpression.mouseMoveEvent = self.exprMoveEvent
 		self.le_frameExpression.leaveEvent = self.exprLeaveEvent
 		self.le_frameExpression.focusOutEvent = self.exprFocusOutEvent
-
 		self.cb_master.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_outPath.activated.connect(self.stateManager.saveStatesToScene)
-
 		self.b_addRenderState.clicked.connect(self.addRenderState)
 		self.gb_submit.toggled.connect(self.rjToggled)
 		self.cb_manager.activated.connect(self.managerChanged)
@@ -437,6 +428,7 @@ class RenderGroupClass(object):
 		self.updateUi()
 		self.stateManager.saveStatesToScene()
 
+
 	@err_catcher(name=__name__)
 	def startChanged(self):
 		if self.sp_rangeStart.value() > self.sp_rangeEnd.value():
@@ -444,12 +436,14 @@ class RenderGroupClass(object):
 
 		self.stateManager.saveStatesToScene()
 
+
 	@err_catcher(name=__name__)
 	def endChanged(self):
 		if self.sp_rangeEnd.value() < self.sp_rangeStart.value():
 			self.sp_rangeStart.setValue(self.sp_rangeEnd.value())
 
 		self.stateManager.saveStatesToScene()
+
 
 	@err_catcher(name=__name__)
 	def frameExpressionChanged(self, text=None):
@@ -468,6 +462,7 @@ class RenderGroupClass(object):
 		self.expressionWinLabel.setText(frameStr)
 		self.expressionWin.resize(1, 1)
 
+
 	@err_catcher(name=__name__)
 	def exprMoveEvent(self, event):
 		self.showExpressionWin(event)
@@ -476,6 +471,7 @@ class RenderGroupClass(object):
 				QCursor.pos().x() + 20, QCursor.pos().y() - self.expressionWin.height()
 			)
 		self.le_frameExpression.origMoveEvent(event)
+
 
 	@err_catcher(name=__name__)
 	def showExpressionWin(self, event):
@@ -556,7 +552,9 @@ class RenderGroupClass(object):
 				name = text.format(**context)
 		except Exception:
 			name = text
+
 		name = "RENDERGROUP - " + name
+		self.groupName = name
 
 		if self.state.text(0).endswith(" - disabled"):
 			name += " - disabled"
@@ -568,6 +566,7 @@ class RenderGroupClass(object):
 	def getContextType(self):
 		contextType = self.cb_context.currentText()
 		return contextType
+	
 
 	@err_catcher(name=__name__)
 	def setContextType(self, contextType):
@@ -578,13 +577,14 @@ class RenderGroupClass(object):
 			return True
 
 		return False
+	
 
 	@err_catcher(name=__name__)
 	def getTaskname(self):
 		return "RenderGroup"
 
 
-	@err_catcher(name=__name__)															#	TODO	NEEDED??
+	@err_catcher(name=__name__)
 	def setTaskname(self, taskname):
 		pass
 
@@ -636,6 +636,7 @@ class RenderGroupClass(object):
 	####### RENDER NODE STUFF #######
 	#								#
 	#################################
+
 	@err_catcher(name=__name__)
 	def getItemNamesRecursive(self, item, itemNames):
 		# Add the name of the current item
@@ -664,6 +665,7 @@ class RenderGroupClass(object):
 	def getRangeType(self):
 		return self.cb_rangeType.currentText()
 
+
 	@err_catcher(name=__name__)
 	def setRangeType(self, rangeType):
 		idx = self.cb_rangeType.findText(rangeType)
@@ -679,6 +681,7 @@ class RenderGroupClass(object):
 	def getMasterVersion(self):
 		return self.cb_master.currentText()
 
+
 	@err_catcher(name=__name__)
 	def setMasterVersion(self, master):
 		idx = self.cb_master.findText(master)
@@ -689,9 +692,11 @@ class RenderGroupClass(object):
 
 		return False
 
+
 	@err_catcher(name=__name__)
 	def getLocation(self):
 		return self.cb_outPath.currentText()
+
 
 	@err_catcher(name=__name__)
 	def setLocation(self, location):
@@ -740,7 +745,6 @@ class RenderGroupClass(object):
 		#	Clears list
 		self.tw_renderStates.clear()
 		self.stateManager.saveStatesToScene()
-
 
 
 	@err_catcher(name=__name__)
@@ -865,7 +869,7 @@ class RenderGroupClass(object):
 			self.cb_rangeType,
 			self.w_frameRangeValues,
 			self.w_frameExpression
-		]
+			]
 		
 		# Iterate over each UI element and set its hidden state
 		for element in uiElements:
@@ -879,7 +883,7 @@ class RenderGroupClass(object):
 		# UI elements to update
 		uiElements = [
 			self.cb_master
-		]
+			]
 		
 		# Iterate over each UI element and set its hidden state
 		for element in uiElements:
@@ -894,7 +898,7 @@ class RenderGroupClass(object):
 			# UI elements to update
 			uiElements = [
 				self.cb_outPath
-			]
+				]
 			
 			# Iterate over each UI element and set its hidden state
 			for element in uiElements:
@@ -908,7 +912,7 @@ class RenderGroupClass(object):
 		# UI elements to update
 		uiElements = [
 			self.cb_renderScaling
-		]
+			]
 		
 		# Iterate over each UI element and set its hidden state
 		for element in uiElements:
@@ -922,7 +926,7 @@ class RenderGroupClass(object):
 		# UI elements to update
 		uiElements = [
 			self.cb_renderQuality
-		]
+			]
 		
 		# Iterate over each UI element and set its hidden state
 		for element in uiElements:
@@ -936,7 +940,7 @@ class RenderGroupClass(object):
 		# UI elements to update
 		uiElements = [
 			self.cb_renderMB
-		]
+			]
 		
 		# Iterate over each UI element and set its hidden state
 		for element in uiElements:
@@ -950,7 +954,7 @@ class RenderGroupClass(object):
 		# UI elements to update
 		uiElements = [
 			self.cb_renderProxy
-		]
+			]
 		
 		# Iterate over each UI element and set its hidden state
 		for element in uiElements:
@@ -1114,11 +1118,6 @@ class RenderGroupClass(object):
 
 		self.updateUi()
 
-
-		# if self.tasknameRequired and not self.getTaskname():						#	TODO Change to looking at States from list
-		# 	warnings.append(["No identifier is given.", "", 3])
-
-		#	TODO	Get StateNames from list
 		renderStatesNames = []
 		for i in range(self.tw_renderStates.count()):
 			item = self.tw_renderStates.item(i)
@@ -1131,6 +1130,9 @@ class RenderGroupClass(object):
 			warnings.append(["RenderGroup does not contain any Render States", "", 3])
 		else:
 			warnings.append([f"The following States will be rendered: {renderStatesString}", "", 2])				#	TESTING
+
+
+		###		TODO	ADD WARNING IF RENDER AS PREVIOUS VERSION IS CHECKED	######
 
 
 		rangeType = self.cb_rangeType.currentText()
@@ -1154,9 +1156,21 @@ class RenderGroupClass(object):
 	def submitCheckPaths(self):
 		self.fusionFuncs.sm_render_CheckSubmittedPaths()
 
+
 	@err_catcher(name=__name__)
 	def setFarmedRange(self, startFrame, endFrame):
 		self.fusionFuncs.setFrameRange(self, startFrame, endFrame)
+
+
+	@err_catcher(name=__name__)
+	def convertScale(self, percentStr):
+		#	Converts percent text to 0-1 for Fusion
+		try:
+			scale = int(percentStr) / 100
+			return scale
+		except ValueError:
+			print(f"Error: Unable to convert '{scale}' to an integer.")
+			return 1
 
 
 	@err_catcher(name=__name__)
@@ -1169,9 +1183,12 @@ class RenderGroupClass(object):
 
 		if sumbitToFarm and not hasRenderManger:
 			return [self.state.text(0) + " - error - There are no Render Manager plugins installed"]
+		else:
+			farmPlugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
 		
 		context = self.getCurrentContext()
 
+		#	Gets RenderGroup states and remove the leading text
 		groupRenderStates = []
 		for i in range(self.tw_renderStates.count()):
 			item = self.tw_renderStates.item(i)
@@ -1182,6 +1199,7 @@ class RenderGroupClass(object):
 		frame_start, frame_end = self.getFrameRange(rangeType)
 
 		rSettings = {}
+		rSettings["groupName"] = self.groupName
 		rSettings["groupRenderStates"] = groupRenderStates
 		rSettings["context"] = context
 		rSettings["renderAsPrevVer"] = self.chb_renderAsPrevVer.isChecked()
@@ -1194,7 +1212,7 @@ class RenderGroupClass(object):
 		rSettings["locationOvr"] = self.chb_overrideLocation.isChecked()
 		rSettings["render_Loc"] = self.cb_outPath.currentText()
 		rSettings["scalingOvr"] = self.chb_overrideScaling.isChecked()
-		rSettings["render_Scale"] = self.cb_renderScaling.currentText()
+		rSettings["render_Scale"] = self.convertScale(self.cb_renderScaling.currentText())
 		rSettings["hiQualOvr"] = self.chb_overrideQuality.isChecked()
 		rSettings["render_HQ"] = self.cb_renderQuality.currentText()
 		rSettings["blurOvr"] = self.chb_overrideRenderMB.isChecked()
@@ -1202,16 +1220,10 @@ class RenderGroupClass(object):
 		rSettings["proxyOvr"] = self.chb_overrideProxy.isChecked()
 		rSettings["render_Proxy"] = self.cb_renderProxy.currentText()
 
-
 		if not sumbitToFarm:
-
-			result = self.fusionFuncs.sm_render_startLocalGroupRender(self, outputPathOnly=False, outputName="", rSettings=rSettings)
-
-
-		else:																#	TODO ADD FARM RENDER
-			pass
-
-
+			result = self.fusionFuncs.sm_render_startLocalGroupRender(self, rSettings=rSettings)
+		else:
+			result = self.fusionFuncs.sm_render_startFarmGroupRender(self, farmPlugin, rSettings=rSettings)
 
 		return result
 
@@ -1300,11 +1312,9 @@ class RenderGroupClass(object):
 			"dlconcurrent": self.sp_dlConcurrentTasks.value(),
 			"dlgpupt": self.sp_dlGPUpt.value(),
 			"dlgpudevices": self.le_dlGPUdevices.text(),
-			"stateenabled": str(self.state.checkState(0)),
-			# "upversion": str(self.chb_upVersion.isChecked()),
-        	"renderStates": [self.tw_renderStates.item(i).text() for i in range(self.tw_renderStates.count())]
+        	"renderStates": [self.tw_renderStates.item(i).text() for i in range(self.tw_renderStates.count())],
+			"stateenabled": self.core.getCheckStateValue(self.state.checkState(0)),
 		}
-
 
 		self.core.callback("onStateGetSettings", self, stateProps)
 		return stateProps
