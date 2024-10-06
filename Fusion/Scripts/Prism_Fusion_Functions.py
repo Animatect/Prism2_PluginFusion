@@ -32,6 +32,7 @@
 # along with Prism.  If not, see <https://www.gnu.org/licenses/>.
 
 
+
 import os
 import sys
 import json
@@ -120,7 +121,6 @@ class Prism_Fusion_Functions(object):
 			".bcam":{"importFunction": self.importBlenderCam},
 		}
 
-
 		# self.exportHandlers = {
 		# 	".abc": {"exportFunction": self.exportAlembic},
 		# 	".fbx": {"exportFunction": self.exportFBX},
@@ -192,6 +192,7 @@ class Prism_Fusion_Functions(object):
 		# 	origin.startAutosaveTimer()
 		pass
 
+
 	@err_catcher(name=__name__)
 	def getCurrentFileName(self, origin=None, path=True):
 		curComp = self.fusion.GetCurrentComp()
@@ -201,10 +202,12 @@ class Prism_Fusion_Functions(object):
 			currentFileName = self.fusion.GetCurrentComp().GetAttrs()["COMPS_FileName"]
 
 		return currentFileName
+	
 
 	@err_catcher(name=__name__)
 	def getSceneExtension(self, origin):
 		return self.sceneFormats[0]
+	
 
 	@err_catcher(name=__name__)
 	def saveScene(self, origin, filepath, details={}):
@@ -213,6 +216,7 @@ class Prism_Fusion_Functions(object):
 			return self.fusion.GetCurrentComp().Save(filepath)
 		except:
 			return False
+		
 
 	@err_catcher(name=__name__)
 	def getFrameRange(self, origin):
@@ -220,6 +224,7 @@ class Prism_Fusion_Functions(object):
 		endframe = self.fusion.GetCurrentComp().GetAttrs()["COMPN_GlobalEnd"]
 
 		return [startframe, endframe]
+	
 
 	@err_catcher(name=__name__)
 	def setFrameRange(self, origin, startFrame, endFrame):
@@ -241,13 +246,16 @@ class Prism_Fusion_Functions(object):
 		)
 		comp.Unlock()
 
+
 	@err_catcher(name=__name__)
 	def getFPS(self, origin):
 		return self.fusion.GetCurrentComp().GetPrefs()["Comp"]["FrameFormat"]["Rate"]
+	
 
 	@err_catcher(name=__name__)
 	def setFPS(self, origin, fps):
 		return self.fusion.GetCurrentComp().SetPrefs({"Comp.FrameFormat.Rate": fps})
+	
 
 	@err_catcher(name=__name__)
 	def getResolution(self):
@@ -256,6 +264,7 @@ class Prism_Fusion_Functions(object):
 		height = self.fusion.GetCurrentComp().GetPrefs()[
 			"Comp"]["FrameFormat"]["Height"]
 		return [width, height]
+	
 
 	@err_catcher(name=__name__)
 	def setResolution(self, width=None, height=None):
@@ -266,56 +275,61 @@ class Prism_Fusion_Functions(object):
 			}
 		)
 
-	# @err_catcher(name=__name__)
-	# def updateReadNodes(self):
-	# 	updatedNodes = []
 
-	# 	selNodes = self.fusion.GetCurrentComp().GetToolList(True, "Loader")
-	# 	if len(selNodes) == 0:
-	# 		selNodes = self.fusion.GetCurrentComp().GetToolList(False, "Loader")
+	@err_catcher(name=__name__)
+	def updateReadNodes(self):
+		updatedNodes = []
 
-	# 	if len(selNodes):
-	# 		comp = self.fusion.GetCurrentComp()
-	# 		comp.StartUndo("Updating loaders")
-	# 		for k in selNodes:
-	# 			i = selNodes[k]
-	# 			curPath = comp.MapPath(i.GetAttrs()["TOOLST_Clip_Name"][1])
+		selNodes = self.fusion.GetCurrentComp().GetToolList(True, "Loader")
+		if len(selNodes) == 0:
+			selNodes = self.fusion.GetCurrentComp().GetToolList(False, "Loader")
 
-	# 			newPath = self.core.getLatestCompositingVersion(curPath)
+		if len(selNodes):
+			comp = self.fusion.GetCurrentComp()
+			comp.StartUndo("Updating loaders")
+			for k in selNodes:
+				i = selNodes[k]
+				curPath = comp.MapPath(i.GetAttrs()["TOOLST_Clip_Name"][1])
 
-	# 			if os.path.exists(os.path.dirname(newPath)) and not curPath.startswith(
-	# 				os.path.dirname(newPath)
-	# 			):
-	# 				firstFrame = i.GetInput("GlobalIn")
-	# 				lastFrame = i.GetInput("GlobalOut")
+				newPath = self.core.getLatestCompositingVersion(curPath)
 
-	# 				i.Clip = newPath
+				if os.path.exists(os.path.dirname(newPath)) and not curPath.startswith(
+					os.path.dirname(newPath)
+				):
+					firstFrame = i.GetInput("GlobalIn")
+					lastFrame = i.GetInput("GlobalOut")
 
-	# 				i.GlobalOut = lastFrame
-	# 				i.GlobalIn = firstFrame
-	# 				i.ClipTimeStart = 0
-	# 				i.ClipTimeEnd = lastFrame - firstFrame
-	# 				i.HoldLastFrame = 0
+					i.Clip = newPath
 
-	# 				updatedNodes.append(i)
-	# 		comp.EndUndo(True)
+					i.GlobalOut = lastFrame
+					i.GlobalIn = firstFrame
+					i.ClipTimeStart = 0
+					i.ClipTimeEnd = lastFrame - firstFrame
+					i.HoldLastFrame = 0
 
-	# 	if len(updatedNodes) == 0:
-	# 		QMessageBox.information(
-	# 			self.core.messageParent, "Information", "No nodes were updated"
-	# 		)
-	# 	else:
-	# 		mStr = "%s nodes were updated:\n\n" % len(updatedNodes)
-	# 		for i in updatedNodes:
-	# 			mStr += i.GetAttrs()["TOOLS_Name"] + "\n"
+					updatedNodes.append(i)
+			comp.EndUndo(True)
 
-	# 		QMessageBox.information(
-	# 			self.core.messageParent, "Information", mStr)
+		if len(updatedNodes) == 0:
+			QMessageBox.information(
+				self.core.messageParent, "Information", "No nodes were updated"
+			)
+		else:
+			mStr = "%s nodes were updated:\n\n" % len(updatedNodes)
+			for i in updatedNodes:
+				mStr += i.GetAttrs()["TOOLS_Name"] + "\n"
+
+			QMessageBox.information(
+				self.core.messageParent, "Information", mStr)
 
 
 	@err_catcher(name=__name__)
 	def getAppVersion(self, origin):
-		return self.fusion.Version
+		currVer = self.fusion.Version
+		#	This is a workaround since as of now Deadline does not support Fusion 19
+		if currVer > 18:
+			currVer = 18
+		return currVer
 
 
 	@err_catcher(name=__name__)
@@ -522,6 +536,7 @@ class Prism_Fusion_Functions(object):
 					return False
 
 		return False
+	
 
 	################################################
 	#                                              #
@@ -541,6 +556,7 @@ class Prism_Fusion_Functions(object):
 		origin.updateUi()
 		origin.stateManager.saveStatesToScene()
 
+
 	@err_catcher(name=__name__)
 	def getNodeName(self, origin, node):
 		if self.isNodeValid(origin, node):
@@ -553,6 +569,7 @@ class Prism_Fusion_Functions(object):
 				return node
 		else:
 			return "invalid"
+		
 
 	@err_catcher(name=__name__)
 	def selectNodes(self, origin):
@@ -563,10 +580,12 @@ class Prism_Fusion_Functions(object):
 				if self.isNodeValid(origin, node):
 					nodes.append(node)
 			# select(nodes)
+					
 
 	@err_catcher(name=__name__)
 	def isNodeValid(self, origin, handle):
 		return True
+	
 
 	@err_catcher(name=__name__)
 	def getCamNodes(self, origin, cur=False):
@@ -575,38 +594,45 @@ class Prism_Fusion_Functions(object):
 			sceneCams = ["Current View"] + sceneCams
 
 		return sceneCams
+	
 
-	@err_catcher(name=__name__)
+	@err_catcher(name=__name__)												#	TODO
 	def getCamName(self, origin, handle):
 		if handle == "Current View":
 			return handle
 
 		return str(nodes[0])
+	
 
-	@err_catcher(name=__name__)
+	@err_catcher(name=__name__)												#	TODO
 	def selectCam(self, origin):
 		if self.isNodeValid(origin, origin.curCam):
 			select(origin.curCam)
+
 
 	@err_catcher(name=__name__)
 	def sm_export_startup(self, origin):
 		pass
 
-	# 	@err_catcher(name=__name__)
-	# 	def sm_export_setTaskText(self, origin, prevTaskName, newTaskName):
-	# 		origin.l_taskName.setText(newTaskName)
+		@err_catcher(name=__name__)
+		def sm_export_setTaskText(self, origin, prevTaskName, newTaskName):
+			origin.l_taskName.setText(newTaskName)
+
 
 	@err_catcher(name=__name__)
 	def sm_export_removeSetItem(self, origin, node):
 		pass
 
+
 	@err_catcher(name=__name__)
 	def sm_export_clearSet(self, origin):
 		pass
 
+
 	@err_catcher(name=__name__)
 	def sm_export_updateObjects(self, origin):
 		pass
+
 
 	@err_catcher(name=__name__)
 	def sm_export_exportShotcam(self, origin, startFrame, endFrame, outputName):
@@ -628,6 +654,7 @@ class Prism_Fusion_Functions(object):
 		)
 		return result
 
+
 	@err_catcher(name=__name__)
 	def sm_export_exportAppObjects(
 		self,
@@ -641,9 +668,11 @@ class Prism_Fusion_Functions(object):
 	):
 		pass
 
+
 	@err_catcher(name=__name__)
 	def sm_export_preDelete(self, origin):
 		pass
+
 
 	@err_catcher(name=__name__)
 	def sm_export_unColorObjList(self, origin):
@@ -651,9 +680,11 @@ class Prism_Fusion_Functions(object):
 			"QListWidget { border: 3px solid rgb(50,50,50); }"
 		)
 
+
 	@err_catcher(name=__name__)
 	def sm_export_typeChanged(self, origin, idx):
 		pass
+
 
 	@err_catcher(name=__name__)
 	def sm_export_preExecute(self, origin, startFrame, endFrame):
@@ -661,15 +692,18 @@ class Prism_Fusion_Functions(object):
 
 		return warnings
 
+
 	@err_catcher(name=__name__)
 	def sm_export_loadData(self, origin, data):
 		pass
+
 
 	@err_catcher(name=__name__)
 	def sm_export_getStateProps(self, origin, stateProps):
 		stateProps.update()
 
 		return stateProps
+
 
 	################################################
 	#                                              #
@@ -681,23 +715,28 @@ class Prism_Fusion_Functions(object):
 	def sm_render_startup(self, origin):
 		pass
 
+
 	@err_catcher(name=__name__)
 	def sm_render_getRenderLayer(self, origin):
 		rlayerNames = []
 
 		return rlayerNames
+	
 
 	@err_catcher(name=__name__)
 	def sm_render_refreshPasses(self, origin):
 		pass
 
+
 	@err_catcher(name=__name__)
 	def sm_render_openPasses(self, origin, item=None):
 		pass
 
+
 	@err_catcher(name=__name__)
 	def removeAOV(self, aovName):
 		pass
+
 
 	@err_catcher(name=__name__)
 	def setNodePassthrough(self, nodename, passThrough):
@@ -709,6 +748,7 @@ class Prism_Fusion_Functions(object):
 	def getNodePassthrough(self, nodename):
 		node = self.get_rendernode(nodename)
 		return not node.GetAttrs("TOOLB_PassThrough")
+	
 
 	@err_catcher(name=__name__)
 	def stackNodesByType(self, nodetostack, yoffset=3, tooltype="Saver"):
@@ -743,6 +783,7 @@ class Prism_Fusion_Functions(object):
 			#set pos to the leftmost or rightmost node
 			flow.SetPos(nodetostack, origx, thresh_y_position + yoffset)
 
+
 	@err_catcher(name=__name__)
 	def rendernode_exists(self, nodename):
 		comp = self.fusion.GetCurrentComp()
@@ -750,11 +791,13 @@ class Prism_Fusion_Functions(object):
 		if sv is None:
 			return False
 		return True
+	
 
 	@err_catcher(name=__name__)
 	def get_rendernode(self, nodename):
 		comp = self.fusion.GetCurrentComp()
 		return comp.FindTool(nodename)
+	
 
 	@err_catcher(name=__name__)
 	def create_rendernode(self, nodename):
@@ -804,6 +847,7 @@ class Prism_Fusion_Functions(object):
 					return {"path":formatted_path, "valid":pathexists, "net":isnetworkpath}
 		
 		return {"path":None, "valid":pathexists, "net":isnetworkpath}
+	
 
 	@err_catcher(name=__name__)
 	def replacePathMapsLUTFiles(self, comp):
@@ -833,6 +877,7 @@ class Prism_Fusion_Functions(object):
 				print("Pattern not found in the text.")
 		pyperclip.copy(oldcopy)
 
+
 	@err_catcher(name=__name__)
 	def replacePathMapsOCIOCS(self, comp):
 		oldcopy = pyperclip.paste()
@@ -859,6 +904,7 @@ class Prism_Fusion_Functions(object):
 				print("Pattern not found in the text.")
 		pyperclip.copy(oldcopy)
 	
+
 	def replacePathMapsFBX(self, comp):
 		oldcopy = pyperclip.paste()
 		# Input text
@@ -883,6 +929,7 @@ class Prism_Fusion_Functions(object):
 			else:
 				print("Pattern not found in the text.")
 		pyperclip.copy(oldcopy)
+
 
 	def replacePathMapsABC(self, comp):
 		pathdata = []
@@ -910,6 +957,7 @@ class Prism_Fusion_Functions(object):
 			
 		pyperclip.copy(oldcopy)
 		return pathdata
+	
 
 	@err_catcher(name=__name__)
 	def replacePathMapsbyPattern(self, comp, tool_list, regexpattern, pathInput):
@@ -935,6 +983,7 @@ class Prism_Fusion_Functions(object):
 			
 		pyperclip.copy(oldcopy)
 		return pathdata
+	
 
 	@err_catcher(name=__name__)
 	def replacePathMapsIOtools(self, comp):
@@ -953,6 +1002,11 @@ class Prism_Fusion_Functions(object):
 
 		comp.Unlock()
 		return pathdata
+
+
+	###############################
+	#		 RENDERING  		  #
+	###############################
 
 	@err_catcher(name=__name__)
 	def sm_render_CheckSubmittedPaths(self):
@@ -995,24 +1049,8 @@ class Prism_Fusion_Functions(object):
 			print("path: ", pathdata["path"], " in ", pathdata["node"], "was processed")
 
 
-	###########################
-
-	#Function called from MediaProducts.py to fix the output path for Fusion.					#	TODO	Needs testing.  May not be needed
-	# @err_catcher(name=__name__)																#			with the changes in fus_Image
-	# def sm_render_fixOutputPath(self, origin, path, singleFrame=False, state=None):
-	# 	directory, filename = os.path.split(path)
-	# 	name, extension = os.path.splitext(filename)
-	# 	new_filename = f"{name}_.{extension}"
-	# 	newPath = os.path.join(directory, new_filename)
-	# 	# return newPath
-	# 	return path
-
-	##############################
-
-
 	@err_catcher(name=__name__)
 	def configureRenderNode(self, nodeName, outputPath, fuseName=None):
-
 		comp = self.fusion.GetCurrentComp()		
 		if self.sm_checkCorrectComp(comp):
 			sv = self.get_rendernode(nodeName)
@@ -1034,10 +1072,10 @@ class Prism_Fusion_Functions(object):
 	def getFusLegalName(self, origName, check=False):
 		"""
 			Fusion has strict naming for nodes.  You can only use:
-			Alphanumeric characters:  a-z, A-Z, 0-9,
-			Do not use any spaces,
-			Do not use special charactors,
-			Node name cannot start with a number.
+			- Alphanumeric characters:  a-z, A-Z, 0-9,
+			- Do not use any spaces,
+			- Do not use special charactors,
+			- Node name cannot start with a number.
 		"""
 
 		# Check if the name starts with a number
@@ -1064,6 +1102,7 @@ class Prism_Fusion_Functions(object):
 		return newName
 
 
+	#	Returns Fusion-legal Saver name base on State name
 	@err_catcher(name=__name__)
 	def getRendernodeName(self, stateName):
 		legalName = self.getFusLegalName(stateName)
@@ -1072,6 +1111,7 @@ class Prism_Fusion_Functions(object):
 		return nodeName
 	
 
+	#	Gets individual State data from the comp state data based on the Saver name
 	@err_catcher(name=__name__)
 	def getMatchingStateData(self, nodeName):
 		stateDataRaw = json.loads(self.sm_readStates(self))
@@ -1086,6 +1126,7 @@ class Prism_Fusion_Functions(object):
 		self.core.popup(f"No state details for:  {nodeName}")                           #    TODO - ERROR HANDLING
 
 
+	#	Renders individual State Saver locally
 	@err_catcher(name=__name__)
 	def sm_render_startLocalRender(self, origin, outputPathOnly, outputName, rSettings):
 		comp = self.fusion.GetCurrentComp()		
@@ -1101,10 +1142,8 @@ class Prism_Fusion_Functions(object):
 			else:
 				return "Error (Render Node does not exist)"
 			
-			
 			# Are we just setting the path and version into the render nodes or are we executing a local render?
 			if outputPathOnly:
-
 				return "Result=Success"
 
 			else:				
@@ -1123,67 +1162,6 @@ class Prism_Fusion_Functions(object):
 					return "Result=Success"
 				else:
 					return "unknown error (files do not exist)"
-
-
-	@err_catcher(name=__name__)
-	def configureCompSettings(self, comp, mode, cData=None):
-
-		if mode == "save":
-			cData = {}
-
-			cData["orig_frameRange_Start"] = comp.GetAttrs()["COMPN_RenderStart"]
-			cData["orig_frameRange_End"] = comp.GetAttrs()["COMPN_RenderEnd"]
-			cData["orig_currentFrame"] = comp.CurrentTime
-			cData["orig_rezX"], cData["orig_rezY"] = self.getResolution()
-			cData["orig_HQ"] = comp.GetAttrs()["COMPB_HiQ"]
-			cData["orig_MB"] = comp.GetAttrs()["COMPB_MotionBlur"]
-			cData["orig_Proxy"] = comp.GetAttrs()["COMPB_Proxy"]
-
-			return cData
-		
-		elif mode == "load":
-			comp.SetAttrs({"COMPN_RenderStart": cData["orig_frameRange_Start"]})
-			comp.SetAttrs({"COMPN_RenderEnd": cData["orig_frameRange_End"]})
-			comp.CurrentTime = cData["orig_currentFrame"]
-			self.setResolution(cData["orig_rezX"], cData["orig_rezY"])
-			comp.SetAttrs({"COMPB_HiQ": cData["orig_HQ"]})
-			comp.SetAttrs({"COMPB_MotionBlur": cData["orig_MB"]})
-			comp.SetAttrs({"COMPB_Proxy": cData["orig_Proxy"]})
-
-
-	@err_catcher(name=__name__)
-	def setCompOverrides(self, comp, rSettings, origCompSettings):
-		if "frameOvr" in rSettings and rSettings["frameOvr"]:
-			comp.SetAttrs({"COMPN_RenderStart": rSettings["frame_start"]})
-			comp.SetAttrs({"COMPN_RenderEnd": rSettings["frame_end"]})
-
-		if "scalingOvr" in rSettings and rSettings["scalingOvr"]:
-			render_Scale = int(rSettings["render_Scale"])
-			renderRezX = origCompSettings["orig_rezX"] * render_Scale / 100
-			renderRezY = origCompSettings["orig_rezY"] * render_Scale / 100
-			self.setResolution(renderRezX, renderRezY)
-
-		if "hiQualOvr" in rSettings and rSettings["hiQualOvr"]:
-			tempHQ = rSettings["render_HQ"]
-			if tempHQ == "Force HiQ":
-				comp.SetAttrs({"COMPB_HiQ": 1})
-			if tempHQ == "Force LowQ":
-				comp.SetAttrs({"COMPB_HiQ": 0})
-
-		if "blurOvr" in rSettings and rSettings["blurOvr"]:
-			tempBlur = rSettings["render_Blur"]
-			if tempBlur == "Force Use MB":
-				comp.SetAttrs({"COMPB_MotionBlur": 1})
-			if tempBlur == "Force No MB":
-				comp.SetAttrs({"COMPB_MotionBlur": 0})
-				
-		if "proxyOvr" in rSettings and rSettings["proxyOvr"]:
-			tempProxy = rSettings["render_Proxy"]
-			if tempProxy == "Force Proxies Off":
-				comp.SetAttrs({"COMPB_Proxy": 0})
-			if tempProxy == "Force Proxies On":
-				comp.SetAttrs({"COMPB_Proxy": 1})
-
 
 
 	@err_catcher(name=__name__)
@@ -1216,118 +1194,389 @@ class Prism_Fusion_Functions(object):
 			self.core.mediaProducts.addToMasterVersion(outputName, mediaType="2drenders")
 
 
-
+	#	Makes dict for later use in updating Master ver
 	@err_catcher(name=__name__)
 	def saveMasterData(self, rSettings, stateData, outputPath):
 		if rSettings["masterOvr"]:
 			stateMasterData = [stateData["taskname"], rSettings["handleMaster"], outputPath]
-
 		else:
 			stateMasterData = [stateData["taskname"], stateData["masterVersion"], outputPath]
 
 		self.masterData.append(stateMasterData)
 
 
+	#	Executes update Master for each state in dict
 	@err_catcher(name=__name__)
 	def executeMaster(self):
 		for state in self.masterData:
-
 			self.handleMasterVersion(state[2], state[1])
 
 
+	#	Saves original comp settings
 	@err_catcher(name=__name__)
-	def sm_render_startLocalGroupRender(self, origin, outputPathOnly, outputName, rSettings):
+	def saveOrigCompSettings(self, comp):
+		cData = {}
+
+		cData["orig_frameRange"] = self.getFrameRange(self)
+		cData["orig_currentFrame"] = comp.CurrentTime
+		cData["orig_rezX"], cData["orig_rezY"] = self.getResolution()
+		cData["orig_HQ"] = comp.GetAttrs()["COMPB_HiQ"]
+		cData["orig_MB"] = comp.GetAttrs()["COMPB_MotionBlur"]
+		cData["orig_Proxy"] = comp.GetAttrs()["COMPB_Proxy"]
+
+		return cData
+	
+
+	#	Resets original comp settings
+	@err_catcher(name=__name__)
+	def loadOrigCompSettings(self, comp, cData):
+		origFrameStart, origFrameEnd = cData["orig_frameRange"]
+		self.setFrameRange(self, origFrameStart, origFrameEnd)
+		comp.CurrentTime = cData["orig_currentFrame"]
+		self.setResolution(cData["orig_rezX"], cData["orig_rezY"])
+		comp.SetAttrs({"COMPB_HiQ": cData["orig_HQ"]})
+		comp.SetAttrs({"COMPB_MotionBlur": cData["orig_MB"]})
+		comp.SetAttrs({"COMPB_Proxy": cData["orig_Proxy"]})
+
+
+	#	Changes comp settings based on RenderGroup overrides if applicable
+	@err_catcher(name=__name__)
+	def setCompOverrides(self, comp, rSettings):
+		if "frameOvr" in rSettings and rSettings["frameOvr"]:
+			self.setFrameRange(self, rSettings["frame_start"], rSettings["frame_end"])
+
+		if "scalingOvr" in rSettings and rSettings["scalingOvr"]:
+			render_Scale = rSettings["render_Scale"]
+			orig_rezX, orig_rezY = self.getResolution()
+			renderRezX = orig_rezX * render_Scale
+			renderRezY = orig_rezY * render_Scale
+			self.setResolution(renderRezX, renderRezY)
+
+		if "hiQualOvr" in rSettings and rSettings["hiQualOvr"]:
+			tempHQ = rSettings["render_HQ"]
+			if tempHQ == "Force HiQ":
+				comp.SetAttrs({"COMPB_HiQ": True})
+			if tempHQ == "Force LowQ":
+				comp.SetAttrs({"COMPB_HiQ": False})
+
+		if "blurOvr" in rSettings and rSettings["blurOvr"]:
+			tempBlur = rSettings["render_Blur"]
+			if tempBlur == "Force Use MB":
+				comp.SetAttrs({"COMPB_MotionBlur": True})
+			if tempBlur == "Force No MB":
+				comp.SetAttrs({"COMPB_MotionBlur": False})
+				
+		if "proxyOvr" in rSettings and rSettings["proxyOvr"]:
+			tempProxy = rSettings["render_Proxy"]
+			if tempProxy == "Force Proxies Off":
+				comp.SetAttrs({"COMPB_Proxy": True})
+			if tempProxy == "Force Proxies On":
+				comp.SetAttrs({"COMPB_Proxy": False})
+
+
+	#	Adds a Scale node if the Scale override is used by the RenderGroup
+	@err_catcher(name=__name__)
+	def addScaleNode(self, comp, nodeName, scale):
+		try:
+			sv = self.get_rendernode(nodeName)
+			if sv:
+				#	Add a Scale tool
+				scaleTool = comp.AddTool("Scale")
+				#	Add tool to temp list for later deletion
+				self.tempScaleTools.append(scaleTool)
+				#	Set scale value
+				scaleTool.SetInput("XSize", scale)
+
+				# Get the output of the Scale tool
+				scaleOutput = scaleTool.FindMainOutput(1)
+
+				# Rewire the connections
+				prev_input = sv.FindMainInput(1).GetConnectedOutput()  # Get the input connected to Saver
+
+				if prev_input:
+					scaleTool.FindMainInput(1).ConnectTo(prev_input)  # Connect the previous input to Scale
+					sv.FindMainInput(1).ConnectTo(scaleOutput)  # Connect Scale to this specific Saver
+				else:
+					print(f"No input found connected to {sv.Name}.")
+		
+		except Exception as e:
+			print(f"Error adding Scale node: {e}")
+
+
+	#	Deletes the temp Scale nodes
+	@err_catcher(name=__name__)
+	def deleteTempScaleTools(self):
+		for tool in self.tempScaleTools:
+			try:
+				tool.Delete()
+			except:
+				print(f"Unable to delete temporary Scale tool {tool}")
+
+
+	#	Configures all the settings and paths for each state of the RenderGroup
+	@err_catcher(name=__name__)
+	def configureRenderComp(self, origin, comp, rSettings):
+		self.origSaverList = {}
+		self.masterData = []
+		self.tempScaleTools = []
+
+		#	Capture orignal Comp settings for restore after render
+		self.origCompSettings = self.saveOrigCompSettings(comp)
+
+		#	Get ImageRender states to be rendered with the group
+		renderStates = rSettings["groupRenderStates"]
+
+		#   Save pass-through state of all savers
+		self.origSaverList = self.origSaverStates("save", comp, self.origSaverList)
+
+		#	Configure Comp with overrides from RenderGroup
+		self.setCompOverrides(comp, rSettings)
+
+		for state in renderStates:
+			#	Get Saver name for State
+			nodeName = self.getRendernodeName(state)
+			self.setNodePassthrough(nodeName, passThrough=False)
+
+			#	Add Scale tool if scale override
+			if "scalingOvr" in rSettings and rSettings["scalingOvr"]:
+				self.addScaleNode(comp, nodeName, rSettings["render_Scale"])
+
+			context = rSettings["context"]
+
+			#	Set frame padding format for Fusion
+			framePadding = "0" * self.core.framePadding
+			context["frame"] = framePadding
+
+			#	Get State data from Comp
+			stateData = self.getMatchingStateData(nodeName)
+
+			#	If Render as Previous Version enabled
+			if rSettings["renderAsPrevVer"]:
+				#	Get project basepath from core
+				basePath = self.core.paths.getRenderProductBasePaths()[stateData["curoutputpath"]]
+
+				#	 Add info to context
+				stateData["mediaType"] = "2drenders"
+				stateData["project_path"] = basePath
+				stateData["identifier"] = stateData["taskname"]
+				context["mediaType"] = "2drenders"
+				#	Get highest existing render version to use for render
+				self.useVersion = self.core.mediaProducts.getHighestMediaVersion(context, getExisting=True)
+
+			#	If Render as Previous Version not enabled
+			else:
+				self.useVersion = None
+
+			#	 Handle Location override
+			if rSettings["locationOvr"]:
+				renderLoc = rSettings["render_Loc"]
+			else:
+				renderLoc = stateData["curoutputpath"]
+
+			#	Get new render path from Core for each Saver
+			outputPathData = self.core.mediaProducts.generateMediaProductPath(
+				entity=context,
+				task=stateData["taskname"],
+				extension=stateData["outputFormat"],
+				framePadding=framePadding,
+				comment=origin.stateManager.publishComment,
+				version=self.useVersion if self.useVersion != "next" else None,
+				location=renderLoc,
+				singleFrame=False,
+				returnDetails=True,
+				mediaType="2drenders"
+				)
+
+			#	Get version filepath for Saver
+			self.outputPath = outputPathData["path"]
+			#	Configure Saver with new filepath
+			self.configureRenderNode(nodeName, self.outputPath, fuseName=None)
+
+			#	Setup master version execution
+			self.saveMasterData(rSettings, stateData, self.outputPath)
+
+
+			####	TODO  ADD VERSIONINFO CREATION	####
+
+
+	#	Executes a GroupRender on the local machine that allows multiple Savers to render simultaneously
+	@err_catcher(name=__name__)
+	def sm_render_startLocalGroupRender(self, origin, rSettings):
 		comp = self.fusion.GetCurrentComp()
-		if self.sm_checkCorrectComp(comp):
 
-			origSaverList = {}
-			self.masterData = []
+		#	Return if the Comps do not match
+		if not self.sm_checkCorrectComp(comp):
+			return False
 
-			#	Capture orignal Comp settings for restore after render
-			origCompSettings = self.configureCompSettings(comp, "save")
+		comp.Lock()
 
-			comp.Lock()
+		#	Setup comp settings and filepaths for render
+		self.configureRenderComp(origin, comp, rSettings)
 
-			#	Get ImageRender states to be rendered with the group
-			renderStates = rSettings["groupRenderStates"]
+		#	Render of course . . . 
+		comp.Render({"Wait": True})
 
-			#   Save pass-through state of all savers
-			origSaverList = self.origSaverStates("save", comp, origSaverList)
+		#	Remove any temp Scale nodes
+		self.deleteTempScaleTools()
 
-			#	Configure Comp with overrides from RenderGroup
-			self.setCompOverrides(comp, rSettings, origCompSettings)
+		#	Reset Comp settings to Original
+		self.loadOrigCompSettings(comp, self.origCompSettings)
 
-			for state in renderStates:
-				#	Get Saver name for State
-				nodeName = self.getRendernodeName(state)
-				self.setNodePassthrough(nodeName, passThrough=False)
+		#	Reconfigure pass-through of Savers
+		self.origSaverStates("load", comp, self.origSaverList)
 
-				context = rSettings["context"]
+		comp.Unlock()
 
-				#	Set frame padding format for Fusion
-				framePadding = "0" * self.core.framePadding
-				context["frame"] = framePadding
+		#	Execute master version if applicable
+		self.executeMaster()
 
-				#	Get State data from Comp
-				stateData = self.getMatchingStateData(nodeName)
+		###		TODO	ADD POST RENDER CALLBACK	####
 
-				#	If Render as Previous Version enabled
-				if rSettings["renderAsPrevVer"]:
-					#	Get project basepath from core
-					basePath = self.core.paths.getRenderProductBasePaths()[stateData["curoutputpath"]]
-					#	 Add info to context
-					stateData["mediaType"] = "2drenders"
-					stateData["project_path"] = basePath
-					stateData["identifier"] = stateData["taskname"]
-					context["mediaType"] = "2drenders"
-					#	Get highest existing render version to use for render
-					useVersion = self.core.mediaProducts.getHighestMediaVersion(context, getExisting=True)
+		#	TODO LOOK AT VERSIONINFO FILE GENERATION
 
-				#	If Render as Previous Version not enabled
-				else:
-					useVersion = "next"
+		return "Result=Success"
 
-				#	 Handle Location override
-				if rSettings["locationOvr"]:
-					renderLoc = rSettings["render_Loc"]
-				else:
-					renderLoc = stateData["curoutputpath"]
 
-				#	Get new render path from Core
-				outputPathData = self.core.mediaProducts.generateMediaProductPath(
-					entity=context,
-					task=stateData["taskname"],
-					extension=stateData["outputFormat"],
-					framePadding=framePadding,
-					comment=origin.stateManager.publishComment,
-					version=useVersion if useVersion != "next" else None,
-					location=renderLoc,
-					singleFrame=False,
-					returnDetails=True,
-					mediaType="2drenders"
-					)
+	#	Generates a temp file and dir for farm submission
+	@err_catcher(name=__name__)
+	def getFarmTempFilepath(self, origFilepath):
+		dirPath, fileName = os.path.split(origFilepath)
+		baseName, ext = os.path.splitext(fileName)
 
-				#	Get version filepath for Saver
-				outputPath = outputPathData["path"]
-				#	Configure Saver with new filepath
-				self.configureRenderNode(nodeName, outputPath, fuseName=None)
+		# Modify the basename by adding "--TEMP"
+		new_baseName = f"{baseName}--TEMP_FARM_FILE{ext}"
 
-				#	Setup master version execution
-				self.saveMasterData(rSettings, stateData, outputPath)
+		# Add the "TEMP" child directory to the path
+		new_dirPath = os.path.join(dirPath, "TEMP_FARM")
+		if not os.path.exists(new_dirPath):
+			os.mkdir(new_dirPath)
 
-			#	Render of course . . . 
-			comp.Render({"Wait": True})
+		# Combine the new directory path with the modified filename
+		new_filePath = os.path.join(new_dirPath, new_baseName)
 
-			#	Reset Comp settings to Original
-			self.configureCompSettings(comp, "load", origCompSettings)
+		return new_filePath, new_dirPath
+	
 
-			#	Reconfigure pass-through of Savers
-			self.origSaverStates("load", comp, origSaverList)
+	@err_catcher(name=__name__)
+	def setupFarmDetails(self, origin, rSettings):
+		#	Edit various details for farm submission
+		context = rSettings["context"]
+		details = context.copy()
+		
+		if "filename" in details:
+			del details["filename"]
+		if "extension" in details:
+			del details["extension"]
 
-			comp.Unlock()
+		details["version"] = self.useVersion
+		details["sourceScene"] = self.tempFilePath
+		details["identifier"] = rSettings["groupName"]
+		details["comment"] = self.monkeypatchedsm.publishComment
 
-			#	Execute master version if applicable
-			self.executeMaster()
+		sceneDescription = None
+		self.className = "RenderGroup"
+
+		return details
+
+
+	#	Submits the temp comp file to the Farm plugin for rendering
+	@err_catcher(name=__name__)
+	def sm_render_startFarmGroupRender(self, origin, farmPlugin, rSettings):
+		comp = self.fusion.GetCurrentComp()
+
+		#	Return if the Comps do not match
+		if not self.sm_checkCorrectComp(comp):
+			return False
+		
+		comp.Lock()
+
+		#	Setup comp settings and filepaths for render
+		self.configureRenderComp(origin, comp, rSettings)
+
+		#	Gets current filename
+		currFile = self.core.getCurrentFileName()
+		#	Gets temp filename
+		self.tempFilePath, tempDir = self.getFarmTempFilepath(currFile)
+		#	Saves to temp comp
+		saveTempResult = comp.Save(self.tempFilePath)				#	TODO HANDLE SAVE ERROR
+
+		farmDetails = self.setupFarmDetails(origin, rSettings)
+
+		#	Submits to farm plugin
+		result = farmPlugin.sm_render_submitJob(
+			origin,
+			self.outputPath,
+			None,
+			handleMaster=False,					#	TESTING			TODO FINISH
+			# handleMaster=handleMaster,		#	TODO FARM HANDLEMASTER
+			details=farmDetails,
+			sceneDescription=False
+			)
+		
+
+		updateMaster = False						#	TODO
+
+
+		# if result == "publish paused":
+		# 	return
+		# else:
+		# 	if updateMaster:
+		# 		self.handleMasterVersion(outputName)
+
+		# 	kwargs = {
+		# 		"state": self,
+		# 		"scenefile": fileName,
+		# 		"settings": rSettings,
+		# 		"result": result,
+		# 	}
+
+		# 	self.core.callback("postRender", **kwargs)
+
+		# 	if "Result=Success" in result:
+		# 		return [self.state.text(0) + " - success"]
+		# 	else:
+		# 		erStr = "%s ERROR - sm_default_imageRenderPublish %s:\n%s" % (
+		# 			time.strftime("%d/%m/%y %X"),
+		# 			self.core.version,
+		# 			result,
+		# 		)
+		# 		if not result.startswith("Execute Canceled: "):
+		# 			if result == "unknown error (files do not exist)":
+		# 				QMessageBox.warning(
+		# 					self.core.messageParent,
+		# 					"Warning",
+		# 					"No files were created during the rendering. If you think this is a Prism bug please report it in the forum:\nwww.prism-pipeline.com/forum/\nor write a mail to contact@prism-pipeline.com",
+		# 				)
+		# 			else:
+		# 				self.core.writeErrorLog(erStr)
+		# 		return [self.state.text(0) + " - error - " + result]
+
+
+		#	Deletes temp comp file
+		try:
+			shutil.rmtree(tempDir)
+		except:
+			self.core.popup(f"Unable to remove temp directory:  {tempDir}")                                      #    TESTING	TODO  Handle error
+
+		#	Remove any temp Scale nodes
+		self.deleteTempScaleTools()
+
+		#	Reset Comp settings to Original
+		self.loadOrigCompSettings(comp, self.origCompSettings)
+
+		#	Reconfigure pass-through of Savers
+		self.origSaverStates("load", comp, self.origSaverList)
+
+		#	Save the original settings to original file
+		comp.Save(currFile)
+
+		comp.Unlock()
+
+		# #	Execute master version if applicable									#	TODO
+		# self.executeMaster()
+
+		###		TODO	ADD POST RENDER CALLBACK	####
+
 
 		return "Result=Success"
 
@@ -1336,49 +1585,59 @@ class Prism_Fusion_Functions(object):
 	def sm_render_undoRenderSettings(self, origin, rSettings):
 		pass
 
+
 	@err_catcher(name=__name__)
 	def sm_render_getDeadlineParams(self, origin, dlParams, homeDir):
 		dlParams["jobInfoFile"] = os.path.join(
 			homeDir, "temp", "fusion_submit_info.job"
-		)
+			)
 		dlParams["pluginInfoFile"] = os.path.join(
 			homeDir, "temp", "fusion_plugin_info.job"
-		)
+			)
 
 		dlParams["jobInfos"]["Plugin"] = "Fusion"
-		dlParams["jobInfos"]["Comment"] = "Prism-Submission-Fusion_ImageRender"
 		dlParams["pluginInfos"]["Version"] = str(math.floor(self.getAppVersion(origin)))
-
 		dlParams["pluginInfos"]["OutputFile"] = dlParams["jobInfos"]["OutputFilename0"]
-		dlParams["pluginInfos"]["FlowFile"] = self.core.getCurrentFileName()
+
+		#	Uses StateManager comment for Farm comment
+		try:
+			dlParams["jobInfos"]["Comment"] = self.monkeypatchedsm.publishComment
+		except:
+			dlParams["jobInfos"]["Comment"] = "Prism-Submission-Fusion_ImageRender"
+
 
 	@err_catcher(name=__name__)
 	def getCurrentRenderer(self, origin):
 		return "Renderer"
+	
 
 	@err_catcher(name=__name__)
 	def getCurrentSceneFiles(self, origin):
 		curFileName = self.core.getCurrentFileName()
 		scenefiles = [curFileName]
 		return scenefiles
+	
 
 	@err_catcher(name=__name__)
 	def sm_render_getRenderPasses(self, origin):
 		return []
+	
 
 	@err_catcher(name=__name__)
 	def sm_render_addRenderPass(self, origin, passName, steps):
 		pass
 
+
 	@err_catcher(name=__name__)
 	def sm_render_preExecute(self, origin):
 		warnings = []
-
 		return warnings
+	
 
 	@err_catcher(name=__name__)
 	def getProgramVersion(self, origin):
 		return "1.0"
+	
 
 	@err_catcher(name=__name__)
 	def deleteNodes(self, origin, handles, num=0):
@@ -1390,11 +1649,13 @@ class Prism_Fusion_Functions(object):
 				if tool:
 					tool.Delete()
 
+
 	################################################
 	#                                              #
 	#                 IMPORTIMAGES                 #
 	#                                              #
 	################################################
+
 	@err_catcher(name=__name__)
 	def reloadLoader(self, node, filePath, firstframe, lastframe):
 		if node.GetAttrs("TOOLS_RegID") == 'Loader':
@@ -1438,7 +1699,6 @@ class Prism_Fusion_Functions(object):
 
 		# refNode = comp.ActiveTool # None if no active tool
 		leftmostNode = self.find_leftmost_lower_node(0.5)
-		
 
 		# deselect all nodes
 		flow.Select()
@@ -1469,11 +1729,10 @@ class Prism_Fusion_Functions(object):
 		# deselect all nodes
 		flow.Select()
 
-	# Get the leftmost position.
-	# Also get Lower Position and check if it is within the x threshold to be still on the leftmost.
-	# Update the position with every new node as the new pos.
+		# Get the leftmost position.
+		# Also get Lower Position and check if it is within the x threshold to be still on the leftmost.
+		# Update the position with every new node as the new pos.
 		leftmostNode = self.find_leftmost_lower_node(0.5)
-	#
 
 		dataSources = mediaBrowser.compGetImportPasses()
 		for sourceData in dataSources:
@@ -1620,6 +1879,7 @@ class Prism_Fusion_Functions(object):
 		msgStr = "No image sequence was loaded."
 		QMessageBox.warning(self.core.messageParent, "Prism Integration", msgStr)
 		return None
+	
 
 	@err_catcher(name=__name__)
 	def getPassData(self, comp, sourceData, allAOVs=True):
@@ -1633,6 +1893,7 @@ class Prism_Fusion_Functions(object):
 		aovNm = os.path.dirname(filePath).split("/")[-1]
     
 		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm)
+	
 
 	@err_catcher(name=__name__)
 	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame):
@@ -1650,6 +1911,7 @@ class Prism_Fusion_Functions(object):
 					return loader, version1
 			
 		return None, ""
+	
 
 	@err_catcher(name=__name__)
 	def processImageImport(self, imageData, splithandle=None, updatehandle:list=[], refNode=None):
@@ -1739,6 +2001,7 @@ class Prism_Fusion_Functions(object):
 		flow.Select(node, True)
 		
 		return node
+	
 
 	@err_catcher(name=__name__)
 	def createWireless(self, tool):
@@ -1799,6 +2062,7 @@ class Prism_Fusion_Functions(object):
 			return downmost
 		else:
 			return leftmost
+		
 
 	@err_catcher(name=__name__)
 	def extract_version(self, filepath):
@@ -1808,6 +2072,7 @@ class Prism_Fusion_Functions(object):
 			return int(match.group(1))
 		else:
 			return None
+		
 
 	@err_catcher(name=__name__)
 	def are_paths_equal_except_version(self, path1, path2):
@@ -1829,6 +2094,7 @@ class Prism_Fusion_Functions(object):
 		pattern = re.compile(r'^(.+)v\d{4}\.exr$')
 		match = pattern.match(string)
 		return match.group(1) if match else None
+	
 
 	@err_catcher(name=__name__)
 	def is_image_sequence(self, strings):
@@ -1837,6 +2103,7 @@ class Prism_Fusion_Functions(object):
 			return strings[0]
 		else:
 			return None
+		
 
 	@err_catcher(name=__name__)
 	def get_loader_channels(self, tool):
@@ -1863,6 +2130,7 @@ class Prism_Fusion_Functions(object):
 		sorted_channels = sorted(all_channels)
 
 		return sorted_channels
+	
 
 	@err_catcher(name=__name__)
 	def get_channel_data(self,loader_channels):
@@ -1881,6 +2149,7 @@ class Prism_Fusion_Functions(object):
 				channels.append(channel_name)
 
 		return channel_data
+	
 
 	@err_catcher(name=__name__)
 	def GetLoaderClip(self, tool):
@@ -1890,6 +2159,7 @@ class Prism_Fusion_Functions(object):
 		
 		print("Loader contains no clips to explore")
 		return 
+	
 
 	@err_catcher(name=__name__)
 	def move_loaders(self,org_x_pos, org_y_pos, loaders):
@@ -1899,6 +2169,7 @@ class Prism_Fusion_Functions(object):
 
 		for count, ldr in enumerate(loaders, start=0):
 			flow.SetPos(ldr, org_x_pos, org_y_pos + y_pos_add * count)
+
 
 	@err_catcher(name=__name__)
 	def process_multichannel(self, tool):
@@ -1982,6 +2253,7 @@ class Prism_Fusion_Functions(object):
 	#                   IMPORT3D                   #
 	#                                              #
 	################################################
+
 	abc_options = {
 		"Points": True,
 		"Transforms": True,
@@ -2003,6 +2275,7 @@ class Prism_Fusion_Functions(object):
 		python_location = os.path.join(new_path, "python.exe")
 		# Construct the command as a list
 		return python_location
+
 
 	@err_catcher(name=__name__)
 	def create_and_run_bat(self):
@@ -2028,6 +2301,7 @@ class Prism_Fusion_Functions(object):
 			bat_file.write(bat_content)
 
 		return bat_file_path
+
 
 	@err_catcher(name=__name__)
 	def focus_fusion_window(self):
@@ -2072,7 +2346,6 @@ class Prism_Fusion_Functions(object):
 			self.core.popup(msg)
 			return False
 		
-		
 
 	@err_catcher(name=__name__)
 	def doUiImport(self, fusion, formatCall, interval, filepath):
@@ -2086,7 +2359,6 @@ class Prism_Fusion_Functions(object):
 			pyautogui.press("enter")
 			pyautogui.press("enter")
 			
-			
 			# Wait until file is imported
 			elapsedtime = 0
 			while len(comp.GetToolList(True))<0 and elapsedtime < 20:
@@ -2099,7 +2371,6 @@ class Prism_Fusion_Functions(object):
 				return False
 		else:
 			return False
-
 
 		
 	@err_catcher(name=__name__)
@@ -2162,18 +2433,18 @@ class Prism_Fusion_Functions(object):
 		origin.stateManager.showNormal()
 
 		return imported
-		
-
 
 
 	@err_catcher(name=__name__)
 	def importAlembic(self, importPath, origin):
 		return self.importFormatByUI(origin = origin, formatCall="AbcImport", filepath=importPath,global_scale=100, options = self.abc_options)
 
+
 	@err_catcher(name=__name__)
 	def importFBX(self, importPath, origin):
 		return self.importFormatByUI(origin = origin, formatCall="FBXImport", filepath=importPath,global_scale=100)
 	
+
 	@err_catcher(name=__name__)
 	def importBlenderCam(self, importPath, origin):
 		from MH_BlenderCam_Fusion_Importer import BlenderCameraImporter
@@ -2184,6 +2455,7 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def sm_import_disableObjectTracking(self, origin):
 		self.deleteNodes(origin, [origin.setName])
+
 
 	#Main Import function
 	@err_catcher(name=__name__)
@@ -2213,7 +2485,6 @@ class Prism_Fusion_Functions(object):
 				atx, aty = flow.GetPosTable(activetool).values()
 			else:
 				atx, aty = self.find_LastClickPosition()
-				
 			
 			#get Extension
 			ext = fileName[1].lower()
@@ -2262,7 +2533,6 @@ class Prism_Fusion_Functions(object):
 						comp.Unlock()
 					##########
 
-
 					importedNodes = []
 					for i in newNodes:
 						# Append sufix to objNames to identify product with unique Name
@@ -2298,6 +2568,7 @@ class Prism_Fusion_Functions(object):
 		else:
 			node = {"name": obj.Name}
 		return node
+	
 
 	@err_catcher(name=__name__)
 	def getObject(self, node):
@@ -2306,11 +2577,13 @@ class Prism_Fusion_Functions(object):
 			node = self.getNode(node)
 
 		return comp.FindTool(node["name"])
+	
 
 	@err_catcher(name=__name__)
 	def apllyProductSufix(self, originalName, origin):
 		newName = originalName + "_" + origin.importPath.split("_")[-2]
 		return newName
+	
 
 	@err_catcher(name=__name__)
 	def cleanbeforeImport(self, origin):
@@ -2322,6 +2595,7 @@ class Prism_Fusion_Functions(object):
 
 		self.deleteNodes(origin, nodes)
 		origin.nodes = []
+
 
 	@err_catcher(name=__name__)
 	def ReplaceBeforeImport(self, origin, newnodes):
@@ -2429,24 +2703,29 @@ class Prism_Fusion_Functions(object):
 	def sm_import_updateObjects(self, origin):
 		pass
 
+
 	@err_catcher(name=__name__)
 	def sm_import_removeNameSpaces(self, origin):
 		pass
+
 
 	################################################
 	#                                              #
 	#                    PLAYBLAST                 #
 	#                                              #
 	################################################
+
 	@err_catcher(name=__name__)
 	def sm_playblast_startup(self, origin):
 		frange = self.getFrameRange(origin)
 		origin.sp_rangeStart.setValue(frange[0])
 		origin.sp_rangeEnd.setValue(frange[1])
 
+
 	@err_catcher(name=__name__)
 	def sm_playblast_createPlayblast(self, origin, jobFrames, outputName):
 		pass
+
 
 	@err_catcher(name=__name__)
 	def sm_playblast_preExecute(self, origin):
@@ -2454,13 +2733,16 @@ class Prism_Fusion_Functions(object):
 
 		return warnings
 
+
 	@err_catcher(name=__name__)
 	def sm_playblast_execute(self, origin):
 		pass
 
+
 	@err_catcher(name=__name__)
 	def sm_playblast_postExecute(self, origin):
 		pass
+
 
 	@err_catcher(name=__name__)
 	def sm_createRenderPressed(self, origin):
@@ -2486,6 +2768,7 @@ class Prism_Fusion_Functions(object):
 
 		return x,y
 		# return -32768, -32768
+
 
 	@err_catcher(name=__name__)
 	def find_extreme_loader(self):
@@ -2515,6 +2798,7 @@ class Prism_Fusion_Functions(object):
 
 		# Output the leftmost lower Loader node
 		return leftmost_lower_loader
+
 
 	@err_catcher(name=__name__)
 	def find_extreme_position(self, thisnode=None, ignore_node_type=None, find_min=True):
@@ -2552,9 +2836,11 @@ class Prism_Fusion_Functions(object):
 
 		return extreme_node, thresh_x_position, thresh_y_position
 
+
 	@err_catcher(name=__name__)
 	def set_node_position(self, flow, smnode, x, y):
 		flow.SetPos(smnode, x, y)
+
 
 	@err_catcher(name=__name__)
 	def matchNodePos(self, nodeTomove, nodeInPos):
@@ -2562,6 +2848,7 @@ class Prism_Fusion_Functions(object):
 		flow = comp.CurrentFrame.FlowView
 		x,y = flow.GetPosTable(nodeInPos).values()
 		self.set_node_position(flow, nodeTomove, x, y)
+
 
 	#The name of this function comes for its initial use to position the "state manager node" that what used before using SetData.
 	@err_catcher(name=__name__)
@@ -2592,6 +2879,7 @@ class Prism_Fusion_Functions(object):
 			x,y = self.find_LastClickPosition()
 			flow.SetPos(node, x, y)
 
+
 	@err_catcher(name=__name__)
 	def posRelativeToNode(self, node, xoffset=3):
 		comp = self.fusion.GetCurrentComp()
@@ -2615,27 +2903,36 @@ class Prism_Fusion_Functions(object):
 
 		return False
 
+
 	################################################
 	#                                              #
 	#        	  STATE MANAGER STUFF              #
 	#                                              #
 	################################################
+
 	@err_catcher(name=__name__)
 	def sm_checkCorrectComp(self, comp, displaypopup=True):
 		if self.comp:
-			if self.comp.GetAttrs("COMPS_Name") == comp.GetAttrs("COMPS_Name"):
-				return True
-			else:
+			try:
+				if self.comp.GetAttrs("COMPS_Name") == comp.GetAttrs("COMPS_Name"):
+					return True
+				else:
+					raise Exception
+			except:
 				if displaypopup:
-					self.core.popup("""the state manager was originally oppened in another comp\n 
-					it will now close and open again to avoid corrupting this comp's state data.""")
+					self.core.popup("""The State Manager was originally opened in another comp.\n 
+					It will now close and open again to avoid corrupting this comp's state data.""")
 					self.core.closeSM(restart=True)
 				return False
+			
 		return True
+	
+	
 	@err_catcher(name=__name__)
 	def sm_getExternalFiles(self, origin):
 		extFiles = []
 		return [extFiles, []]
+	
 
 	@err_catcher(name=__name__)
 	def setDefaultState(self):
@@ -2653,12 +2950,14 @@ class Prism_Fusion_Functions(object):
 	"""
 			comp.SetData("prismstates",defaultState)
 
+
 	@err_catcher(name=__name__)
 	def sm_saveStates(self, origin, buf):
 		comp = self.fusion.CurrentComp
 		if self.sm_checkCorrectComp(comp):
 			comp.SetData("prismstates", buf + "_..._")
-		
+
+
 	@err_catcher(name=__name__)
 	def sm_saveImports(self, origin, importPaths):
 		comp = self.fusion.CurrentComp
@@ -2667,6 +2966,7 @@ class Prism_Fusion_Functions(object):
 			prismdata += importPaths.replace("\\\\", "\\")
 			comp.SetData("prismstates", prismdata)
 
+
 	@err_catcher(name=__name__)
 	def sm_readStates(self, origin):
 		comp = self.fusion.CurrentComp
@@ -2674,11 +2974,13 @@ class Prism_Fusion_Functions(object):
 			prismdata = comp.GetData("prismstates")
 			return prismdata.split("_..._")[0]
 
+
 	@err_catcher(name=__name__)
 	def sm_deleteStates(self, origin):
 		comp = self.fusion.CurrentComp
 		if self.sm_checkCorrectComp(comp):
 			comp.SetData("prismstates","")
+
 
 	@err_catcher(name=__name__)
 	def getImportPaths(self, origin):
@@ -2686,6 +2988,7 @@ class Prism_Fusion_Functions(object):
 		if self.sm_checkCorrectComp(comp):
 			prismdata = comp.GetData("prismstates")
 			return prismdata.split("_..._")[1]
+
 
 	################################################
 	#                                              #
@@ -2696,6 +2999,7 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def onUserSettingsOpen(self, origin):
 		pass
+
 
 	@err_catcher(name=__name__)
 	def onProjectBrowserStartup(self, origin):
@@ -2709,8 +3013,10 @@ class Prism_Fusion_Functions(object):
 		except:
 			pass
 
+
 	def onProjectBrowserClose(self, origin):
 		self.pbUI = None
+
 
 	@err_catcher(name=__name__)
 	def onProjectBrowserCalled(self, popup=None):
@@ -2721,6 +3027,7 @@ class Prism_Fusion_Functions(object):
 			pass
 		if popup:
 			self.popup = popup
+
 
 	@err_catcher(name=__name__)
 	def onStateManagerCalled(self, popup=None):
@@ -2735,7 +3042,8 @@ class Prism_Fusion_Functions(object):
 			pass
 		if popup:
 			self.popup = popup
-		
+
+
 	@err_catcher(name=__name__)
 	def onStateManagerOpen(self, origin):
 		#Remove Export and Playblast buttons and states
@@ -2767,7 +3075,8 @@ class Prism_Fusion_Functions(object):
 				del sm.stateTypes[state]
 
 		comp = self.fusion.GetCurrentComp()
-		#Set the comp used when sm was oppened for reference when saving states.
+		
+		#Set the comp used when sm was opened for reference when saving states.
 		self.comp = comp
 		#Set State Manager Data on first open.
 		if comp.GetData("prismstates") is None:
@@ -2810,7 +3119,8 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def onStateManagerClose(self, origin):
 		self.smUI = None
-		
+
+
 	@err_catcher(name=__name__)
 	def onStateCreated(self, origin, state, stateData):
 		if state.className in ["ImageRender", "Playblast"]:
@@ -2818,6 +3128,7 @@ class Prism_Fusion_Functions(object):
 
 		if state.className == "Folder":
 			origin.tw_export.itemChanged.connect(self.sm_onfolderToggle)
+
 
 	@err_catcher(name=__name__)
 	def sm_onfolderToggle(self, item, column):
@@ -2829,6 +3140,7 @@ class Prism_Fusion_Functions(object):
 					curState.setCheckState(0, Qt.Checked)
 				else:
 					curState.setCheckState(0, Qt.Unchecked)
+
 
 	@err_catcher(name=__name__)
 	def onStateDeleted(self, origin, stateui):
@@ -2966,6 +3278,7 @@ class Prism_Fusion_Functions(object):
 				rcmenu.addAction(actDel)
 
 				rcmenu.exec_(sm.activeList.mapToGlobal(pos))
+
 
 	@err_catcher(name=__name__)
 	def preDelete(
