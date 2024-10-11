@@ -1204,12 +1204,37 @@ class Prism_Fusion_Functions(object):
 
 		self.masterData.append(stateMasterData)
 
-
 	#	Executes update Master for each state in dict
 	@err_catcher(name=__name__)
-	def executeMaster(self):
+	def executeGroupMaster(self):
 		for state in self.masterData:
 			self.handleMasterVersion(state[2], state[1])
+
+
+	#	Makes dict for later use in updating Master ver
+	@err_catcher(name=__name__)
+	def saveVersionList(self, outputPath, stateData):
+
+		sData = outputPath, stateData
+		self.versionData.append(sData)
+
+
+	#	Executes versioninfo creation for each state in dict
+	@err_catcher(name=__name__)
+	def executeGroupVersioninfo(self):
+		for state in self.versionData:
+
+			filepath = state[0]
+			stateData = state[1]
+
+			self.core.saveVersionInfo(filepath, details=stateData)
+
+
+	# #	Executes update Master for each state in dict
+	# @err_catcher(name=__name__)
+	# def executeMaster(self):
+	# 	for state in self.masterData:
+	# 		self.handleMasterVersion(state[2], state[1])
 
 
 	#	Saves original comp settings
@@ -1318,6 +1343,7 @@ class Prism_Fusion_Functions(object):
 	def configureRenderComp(self, origin, comp, rSettings):
 		self.origSaverList = {}
 		self.masterData = []
+		self.versionData = []
 		self.tempScaleTools = []
 
 		#	Capture orignal Comp settings for restore after render
@@ -1392,6 +1418,10 @@ class Prism_Fusion_Functions(object):
 			#	Configure Saver with new filepath
 			self.configureRenderNode(nodeName, self.outputPath, fuseName=None)
 
+			stateData["comment"] = self.monkeypatchedsm.publishComment
+			renderDir = os.path.dirname(self.outputPath)
+			self.saveVersionList(renderDir, stateData)
+
 			#	Setup master version execution
 			self.saveMasterData(rSettings, stateData, self.outputPath)
 
@@ -1413,8 +1443,17 @@ class Prism_Fusion_Functions(object):
 		#	Setup comp settings and filepaths for render
 		self.configureRenderComp(origin, comp, rSettings)
 
+
+		# renderCmd = self.makeRenderCmd(comp, rSettings)
+
+		# self.core.popup(f"renderCmd:  {renderCmd}")		
+
+
 		#	Render of course . . . 
 		comp.Render({"Wait": True})
+
+		# comp.Render({**renderCmd, "Wait": True})
+
 
 		#	Remove any temp Scale nodes
 		self.deleteTempScaleTools()
@@ -1427,12 +1466,16 @@ class Prism_Fusion_Functions(object):
 
 		comp.Unlock()
 
+
+		#	Create versionInfo file for each state
+		self.executeGroupVersioninfo()
+
 		#	Execute master version if applicable
-		self.executeMaster()
+		self.executeGroupMaster()
+
 
 		###		TODO	ADD POST RENDER CALLBACK	####
 
-		#	TODO LOOK AT VERSIONINFO FILE GENERATION
 
 		return "Result=Success"
 
@@ -3315,6 +3358,7 @@ class Prism_Fusion_Functions(object):
 				# Check if it is Image Render #
 				if parentState.ui.className != "ImageRender":
 					menuExecuteV.setEnabled(False)
+
 				###############################
 
 				if parentState is None or parentState.ui.className == "Folder":
