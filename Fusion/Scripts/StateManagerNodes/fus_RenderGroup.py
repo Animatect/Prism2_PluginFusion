@@ -189,7 +189,7 @@ class RenderGroupClass(object):
 		motionBlurOptions = ["Force Use MB", "Force No MB"]
 		self.cb_renderMB.addItems(motionBlurOptions)
 
-		proxyOptions = ["Force Proxies Off", "Force Proxies On"]
+		proxyOptions = ["Force Proxies Off", "1/4", "1/3", "1/2"]
 		self.cb_renderProxy.addItems(proxyOptions)
 
 
@@ -221,7 +221,7 @@ class RenderGroupClass(object):
 		self.l_location.setToolTip(tip)
 		self.cb_outPath.setToolTip(tip)
 
-		tip = "Scale Render Resolution of Comp."
+		tip = "Scale Render Resolution of Saved Image Output."
 		self.chb_overrideScaling.setToolTip(tip)
 		self.l_renderScaling.setToolTip(tip)
 		self.cb_renderScaling.setToolTip(tip)
