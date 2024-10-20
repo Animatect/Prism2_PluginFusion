@@ -422,41 +422,6 @@ class Ui_wg_RenderGroup(object):
 
         self.verticalLayout_2.addWidget(self.w_renderMB)
 
-        self.w_useProxy = QWidget(self.gb_RenderGroup)
-        self.w_useProxy.setObjectName(u"w_useProxy")
-        self.horizontalLayout_32 = QHBoxLayout(self.w_useProxy)
-        self.horizontalLayout_32.setObjectName(u"horizontalLayout_32")
-        self.horizontalLayout_32.setContentsMargins(0, 0, 0, 0)
-        self.chb_overrideProxy = QCheckBox(self.w_useProxy)
-        self.chb_overrideProxy.setObjectName(u"chb_overrideProxy")
-
-        self.horizontalLayout_32.addWidget(self.chb_overrideProxy)
-
-        self.w_proxyOptions = QHBoxLayout()
-        self.w_proxyOptions.setObjectName(u"w_proxyOptions")
-        self.w_proxyOptions.setContentsMargins(9, -1, 9, -1)
-        self.l_renderProxy = QLabel(self.w_useProxy)
-        self.l_renderProxy.setObjectName(u"l_renderProxy")
-
-        self.w_proxyOptions.addWidget(self.l_renderProxy)
-
-        self.horizontalSpacer_10 = QSpacerItem(20, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
-
-        self.w_proxyOptions.addItem(self.horizontalSpacer_10)
-
-        self.cb_renderProxy = QComboBox(self.w_useProxy)
-        self.cb_renderProxy.setObjectName(u"cb_renderProxy")
-        self.cb_renderProxy.setEnabled(True)
-        self.cb_renderProxy.setMinimumSize(QSize(150, 0))
-
-        self.w_proxyOptions.addWidget(self.cb_renderProxy)
-
-
-        self.horizontalLayout_32.addLayout(self.w_proxyOptions)
-
-
-        self.verticalLayout_2.addWidget(self.w_useProxy)
-
 
         self.verticalLayout.addWidget(self.gb_RenderGroup)
 
@@ -830,13 +795,11 @@ class Ui_wg_RenderGroup(object):
         self.chb_overrideLocation.setText("")
         self.l_location.setText(QCoreApplication.translate("wg_RenderGroup", u"Location:", None))
         self.chb_overrideScaling.setText("")
-        self.l_renderScaling.setText(QCoreApplication.translate("wg_RenderGroup", u"Scaling % ", None))
+        self.l_renderScaling.setText(QCoreApplication.translate("wg_RenderGroup", u"Scaling:", None))
         self.chb_overrideQuality.setText("")
         self.l_renderQuality.setText(QCoreApplication.translate("wg_RenderGroup", u"Quality:", None))
         self.chb_overrideRenderMB.setText("")
         self.l_renderMB.setText(QCoreApplication.translate("wg_RenderGroup", u"Motion Blur:", None))
-        self.chb_overrideProxy.setText("")
-        self.l_renderProxy.setText(QCoreApplication.translate("wg_RenderGroup", u"Proxies:", None))
         self.b_addRenderState.setText(QCoreApplication.translate("wg_RenderGroup", u"Add Render State", None))
         self.gb_submit.setTitle(QCoreApplication.translate("wg_RenderGroup", u"Submit Render Job", None))
         self.l_manager.setText(QCoreApplication.translate("wg_RenderGroup", u"Manager:", None))
