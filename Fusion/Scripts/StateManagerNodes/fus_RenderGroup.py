@@ -1123,11 +1123,12 @@ class RenderGroupClass(object):
 		if self.chb_overrideRenderMB.isChecked():
 			renderOverrides.append(f"    Motion Blur Override: {self.cb_renderMB.currentText()}")
 
-		overrideStr = ""
-		for override in renderOverrides:
-			overrideStr = overrideStr + f"{override}\n"
+		if len(renderOverrides) > 0:
+			overrideStr = ""
+			for override in renderOverrides:
+				overrideStr = overrideStr + f"{override}\n"
 
-		warnings.append([f"Overrides:\n{overrideStr}", "", 2])
+			warnings.append([f"Overrides:\n{overrideStr}", "", 2])
 
 		if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
 			plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
