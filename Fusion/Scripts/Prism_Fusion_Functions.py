@@ -43,6 +43,7 @@ import math
 import ctypes
 import glob
 import shutil
+from datetime import datetime
 
 import BlackmagicFusion as bmd
 
@@ -276,6 +277,17 @@ class Prism_Fusion_Functions(object):
 		)
 
 
+	#	Creates simple Date/Time UID
+	@err_catcher(name=__name__)
+	def getDateTimeUID(self):
+		# Get the current date and time
+		now = datetime.now()
+		# Format as MMDDHHMM
+		uid = now.strftime("%m%d%H%M")
+    
+		return uid
+
+
 	@err_catcher(name=__name__)
 	def updateReadNodes(self):
 		updatedNodes = []
@@ -397,7 +409,7 @@ class Prism_Fusion_Functions(object):
 			comp.SetAttrs({'COMPN_RenderEnd' : currFrame})
 
 			# Render the current frame
-			comp.Render()  # Trigger the render
+			comp.Render()
 
 			# Restore the original render range
 			comp.SetAttrs({'COMPN_RenderStart' : origStartFrame})
@@ -457,7 +469,6 @@ class Prism_Fusion_Functions(object):
 	# Get list of all Savers
 	@err_catcher(name=__name__)
 	def getSaverList(self, comp):
-
 		saverList = []
 		for tool in comp.GetToolList(False).values():
 			if self.isSaver(tool):
@@ -596,7 +607,7 @@ class Prism_Fusion_Functions(object):
 		return sceneCams
 	
 
-	@err_catcher(name=__name__)												#	TODO
+	@err_catcher(name=__name__)												#	TODO - USED?
 	def getCamName(self, origin, handle):
 		if handle == "Current View":
 			return handle
@@ -604,7 +615,7 @@ class Prism_Fusion_Functions(object):
 		return str(nodes[0])
 	
 
-	@err_catcher(name=__name__)												#	TODO
+	@err_catcher(name=__name__)												#	TODO - USED?
 	def selectCam(self, origin):
 		if self.isNodeValid(origin, origin.curCam):
 			select(origin.curCam)
@@ -1172,7 +1183,7 @@ class Prism_Fusion_Functions(object):
 
 		try:
 			masterAction = self.cb_master.currentText()
-			if masterAction == "Don't update master":
+			if masterAction == "Don't Update Master":
 				return False
 		except:
 			pass
@@ -1180,6 +1191,7 @@ class Prism_Fusion_Functions(object):
 		return True
 
 
+	#	Executes local master update if required
 	@err_catcher(name=__name__)
 	def handleMasterVersion(self, outputName, masterAction=None):
 		if not self.isUsingMasterVersion():
@@ -1188,9 +1200,9 @@ class Prism_Fusion_Functions(object):
 		if not masterAction:
 			masterAction = self.cb_master.currentText()
 
-		if masterAction in ("Set as master", "Force Set as Master"):
+		if masterAction in ["Set as master", "Force Set as Master"]:
 			self.core.mediaProducts.updateMasterVersion(outputName, mediaType="2drenders")
-		elif masterAction in ("Add to master", "Force Add to Master"):
+		elif masterAction in ["Add to master", "Force Add to Master"]:
 			self.core.mediaProducts.addToMasterVersion(outputName, mediaType="2drenders")
 
 
@@ -1202,14 +1214,98 @@ class Prism_Fusion_Functions(object):
 		else:
 			stateMasterData = [stateData["taskname"], stateData["masterVersion"], outputPath]
 
-		self.masterData.append(stateMasterData)
+		if stateMasterData[1] in ["Set as master", "Add to master", "Force Set as Master", "Force Add to Master"]:
+			self.masterData.append(stateMasterData)
 
 
 	#	Executes update Master for each state in dict
 	@err_catcher(name=__name__)
-	def executeMaster(self):
-		for state in self.masterData:
-			self.handleMasterVersion(state[2], state[1])
+	def executeGroupMaster(self):
+		for stateData in self.masterData:
+			self.handleMasterVersion(stateData[2], stateData[1])
+
+
+	#	Submits python job to Farm for Master Update
+	@err_catcher(name=__name__)
+	def submitFarmGroupMaster(self, origin, farmPlugin, result, details):
+		#	Gets farm job info
+		jobId = farmPlugin.getJobIdFromSubmitResult(result)
+
+		for stateData in self.masterData:
+			updateMaster = False
+			#	Appends job name
+			jobName = stateData[0] + "_updateMaster"
+			jobOutputFile = stateData[2].replace("\\", "/")
+			jobData = origin.stateManager.submittedDlJobData[jobId]
+
+			#	Generates code to be used in python job
+			code = """
+import sys
+
+root = \"%s\"
+sys.path.append(root + "/Scripts")
+
+import PrismCore
+pcore = PrismCore.create(prismArgs=["noUI", "loadProject"])
+path = r\"%s\"
+""" % (self.core.prismRoot, os.path.expandvars(jobOutputFile))
+
+			#	Uses core methods for update mastr
+			if stateData[1] in ["Set as master", "Force Set as Master"]:
+				updateMaster = True
+				code += "pcore.mediaProducts.updateMasterVersion(path, mediaType='2drenders')"
+
+			#	Uses core methods for update mastr
+			elif stateData[1] in ["Add to master", "Force Add to Master"]:
+				updateMaster = True
+				code += "pcore.mediaProducts.addToMasterVersion(path, mediaType='2drenders')"
+
+			if jobId:
+				masterDep = [jobId]
+			else:
+				masterDep = None
+
+			prio = os.getenv("PRISM_DEADLINE_MASTER_UPDATE_PRIO")
+			if prio:
+				prio = int(prio)
+			else:
+				prio = 80
+
+			#	Submits python job is applicable
+			if updateMaster:
+				farmPlugin.submitPythonJob(
+					code=code,
+					jobName=jobName,
+					jobPrio=prio,
+					jobPool=jobData["jobInfos"]["Pool"],
+					jobSndPool=jobData["jobInfos"]["SecondaryPool"],
+					jobGroup=jobData["jobInfos"]["Group"],
+					jobTimeOut=jobData["jobInfos"]["TaskTimeoutMinutes"],
+					jobMachineLimit=jobData["jobInfos"]["MachineLimit"],
+					jobComment="Prism-Update_Master",
+					jobBatchName=jobData["jobInfos"].get("BatchName"),
+					frames="1",
+					suspended=jobData["jobInfos"].get("InitialStatus") == "Suspended",
+					jobDependencies=masterDep,
+					state=origin,
+					)
+
+
+	#	Makes dict for later use in updating Master ver
+	@err_catcher(name=__name__)
+	def saveVersionList(self, outputPath, stateData):
+		sData = outputPath, stateData
+		self.versionData.append(sData)
+
+
+	#	Executes versioninfo creation for each state in dict
+	@err_catcher(name=__name__)
+	def executeGroupVersioninfo(self):
+		for state in self.versionData:
+			filepath = state[0]
+			stateData = state[1]
+
+			self.core.saveVersionInfo(filepath, details=stateData)
 
 
 	#	Saves original comp settings
@@ -1245,38 +1341,18 @@ class Prism_Fusion_Functions(object):
 		if "frameOvr" in rSettings and rSettings["frameOvr"]:
 			self.setFrameRange(self, rSettings["frame_start"], rSettings["frame_end"])
 
-		if "scalingOvr" in rSettings and rSettings["scalingOvr"]:
-			render_Scale = rSettings["render_Scale"]
+		#	Temp adjust comp rez if scale override is above 100%
+		scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
+		if scaleOvrType == "scale":
 			orig_rezX, orig_rezY = self.getResolution()
-			renderRezX = orig_rezX * render_Scale
-			renderRezY = orig_rezY * render_Scale
+			renderRezX = orig_rezX * scaleOvrCode
+			renderRezY = orig_rezY * scaleOvrCode
 			self.setResolution(renderRezX, renderRezY)
-
-		if "hiQualOvr" in rSettings and rSettings["hiQualOvr"]:
-			tempHQ = rSettings["render_HQ"]
-			if tempHQ == "Force HiQ":
-				comp.SetAttrs({"COMPB_HiQ": True})
-			if tempHQ == "Force LowQ":
-				comp.SetAttrs({"COMPB_HiQ": False})
-
-		if "blurOvr" in rSettings and rSettings["blurOvr"]:
-			tempBlur = rSettings["render_Blur"]
-			if tempBlur == "Force Use MB":
-				comp.SetAttrs({"COMPB_MotionBlur": True})
-			if tempBlur == "Force No MB":
-				comp.SetAttrs({"COMPB_MotionBlur": False})
-				
-		if "proxyOvr" in rSettings and rSettings["proxyOvr"]:
-			tempProxy = rSettings["render_Proxy"]
-			if tempProxy == "Force Proxies Off":
-				comp.SetAttrs({"COMPB_Proxy": True})
-			if tempProxy == "Force Proxies On":
-				comp.SetAttrs({"COMPB_Proxy": False})
 
 
 	#	Adds a Scale node if the Scale override is used by the RenderGroup
 	@err_catcher(name=__name__)
-	def addScaleNode(self, comp, nodeName, scale):
+	def addScaleNode(self, comp, nodeName, scaleOvrCode):
 		try:
 			sv = self.get_rendernode(nodeName)
 			if sv:
@@ -1284,8 +1360,7 @@ class Prism_Fusion_Functions(object):
 				scaleTool = comp.AddTool("Scale")
 				#	Add tool to temp list for later deletion
 				self.tempScaleTools.append(scaleTool)
-				#	Set scale value
-				scaleTool.SetInput("XSize", scale)
+				scaleTool.SetInput("XSize", scaleOvrCode)
 
 				# Get the output of the Scale tool
 				scaleOutput = scaleTool.FindMainOutput(1)
@@ -1318,6 +1393,7 @@ class Prism_Fusion_Functions(object):
 	def configureRenderComp(self, origin, comp, rSettings):
 		self.origSaverList = {}
 		self.masterData = []
+		self.versionData = []
 		self.tempScaleTools = []
 
 		#	Capture orignal Comp settings for restore after render
@@ -1337,9 +1413,10 @@ class Prism_Fusion_Functions(object):
 			nodeName = self.getRendernodeName(state)
 			self.setNodePassthrough(nodeName, passThrough=False)
 
-			#	Add Scale tool if scale override
-			if "scalingOvr" in rSettings and rSettings["scalingOvr"]:
-				self.addScaleNode(comp, nodeName, rSettings["render_Scale"])
+			#	Add Scale tool if scale override is above 100%
+			scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
+			if scaleOvrType == "scale":
+				self.addScaleNode(comp, nodeName, scaleOvrCode)
 
 			context = rSettings["context"]
 
@@ -1392,12 +1469,118 @@ class Prism_Fusion_Functions(object):
 			#	Configure Saver with new filepath
 			self.configureRenderNode(nodeName, self.outputPath, fuseName=None)
 
+			stateData["comment"] = self.monkeypatchedsm.publishComment
+			renderDir = os.path.dirname(self.outputPath)
+			self.saveVersionList(renderDir, stateData)
+
 			#	Setup master version execution
 			self.saveMasterData(rSettings, stateData, self.outputPath)
 
 
-			####	TODO  ADD VERSIONINFO CREATION	####
+	@err_catcher(name=__name__)
+	def getHiQualOverride(self, rSettings):
+		if "hiQualOvr" in rSettings and rSettings["hiQualOvr"]:
+			tempHQ = rSettings["render_HQ"]
+			if tempHQ == "Force HiQ":
+				hiQCmd = True
+			if tempHQ == "Force LowQ":
+				hiQCmd = False
+		else:
+			hiQCmd = None
 
+		return hiQCmd
+	
+	
+	@err_catcher(name=__name__)
+	def getBlurOverride(self, rSettings):
+		if "blurOvr" in rSettings and rSettings["blurOvr"]:
+			tempBlur = rSettings["render_Blur"]
+			if tempBlur == "Force Use MB":
+				blurCmd = True
+			if tempBlur == "Force No MB":
+				blurCmd = False
+		else:
+			blurCmd = None
+
+		return blurCmd
+	
+	
+	#	Returns scale type and scale code if scale override
+	@err_catcher(name=__name__)
+	def getScaleOverride(self, rSettings):
+		if not rSettings["scalingOvr"]:
+			return None, None
+		
+		if rSettings["render_Scale"] in ["Force Proxies Off",
+									   		"1/2 (proxy)",
+											"1/3 (proxy)",
+											"1/4 (proxy)"
+											]:
+	
+			match rSettings["render_Scale"]:
+				case "Force Proxies Off":
+					scaleCmd = 1
+				case "1/2 (proxy)":
+					scaleCmd = 2
+				case "1/3 (proxy)":
+					scaleCmd = 3
+				case "1/4 (proxy)":
+					scaleCmd = 4
+
+			return "proxy", scaleCmd
+		
+		elif rSettings["render_Scale"] in ["125 (scale)",
+									 		"150 (scale)",
+											"200 (scale)"
+											]:
+			
+			match rSettings["render_Scale"]:
+				case "125 (scale)":
+					scale = 1.25
+				case "150 (scale)":
+					scale = 1.5
+				case "200 (scale)":
+					scale = 2
+
+			return "scale", scale
+		
+		else:
+			return None, None
+		
+
+	#	Generates render args dict from overrides
+	@err_catcher(name=__name__)
+	def makeRenderCmd(self, comp, rSettings):
+		renderCmd = {}
+
+		#	If framerange override
+		if "frameOvr" in rSettings and rSettings["frameOvr"]:
+			frstart = int(rSettings["frame_start"])
+			frend = int(rSettings["frame_end"])
+		#	If no override uses comp range
+		else:
+			frstart, frend = self.getFrameRange(self)
+
+		renderCmd['Start'] = frstart
+		renderCmd['End'] = frend
+
+		#	Uses Fusion proxy command for rez's less than 100%
+		scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
+		if scaleOvrType == "proxy":
+			renderCmd['SizeType'] = scaleOvrCode
+
+		#	Sets global comp HiQual setting
+		hiQualOvr = self.getHiQualOverride(rSettings)
+		if hiQualOvr is not None:
+			renderCmd['HiQ'] = hiQualOvr
+
+		#	Sets global comp MotionBlur setting
+		blurOvr = self.getBlurOverride(rSettings)
+		if blurOvr is not None:
+			renderCmd['MotionBlur'] = blurOvr
+
+		return renderCmd
+	
 
 	#	Executes a GroupRender on the local machine that allows multiple Savers to render simultaneously
 	@err_catcher(name=__name__)
@@ -1413,8 +1596,11 @@ class Prism_Fusion_Functions(object):
 		#	Setup comp settings and filepaths for render
 		self.configureRenderComp(origin, comp, rSettings)
 
-		#	Render of course . . . 
-		comp.Render({"Wait": True})
+		#	Gets render args from override settings
+		renderCmd = self.makeRenderCmd(comp, rSettings)
+
+		#	Renders with override args
+		comp.Render({**renderCmd, "Wait": True})
 
 		#	Remove any temp Scale nodes
 		self.deleteTempScaleTools()
@@ -1427,12 +1613,15 @@ class Prism_Fusion_Functions(object):
 
 		comp.Unlock()
 
+		#	Create versionInfo file for each state
+		self.executeGroupVersioninfo()
+
 		#	Execute master version if applicable
-		self.executeMaster()
+		self.executeGroupMaster()
+
 
 		###		TODO	ADD POST RENDER CALLBACK	####
 
-		#	TODO LOOK AT VERSIONINFO FILE GENERATION
 
 		return "Result=Success"
 
@@ -1457,9 +1646,9 @@ class Prism_Fusion_Functions(object):
 		return new_filePath, new_dirPath
 	
 
+	#	Edit various details for farm submission
 	@err_catcher(name=__name__)
 	def setupFarmDetails(self, origin, rSettings):
-		#	Edit various details for farm submission
 		context = rSettings["context"]
 		details = context.copy()
 		
@@ -1468,12 +1657,13 @@ class Prism_Fusion_Functions(object):
 		if "extension" in details:
 			del details["extension"]
 
-		details["version"] = self.useVersion
+		details["version"] = self.getDateTimeUID()
 		details["sourceScene"] = self.tempFilePath
 		details["identifier"] = rSettings["groupName"]
 		details["comment"] = self.monkeypatchedsm.publishComment
 
-		sceneDescription = None
+		# sceneDescription = None											#	TODO NEEDED???
+
 		self.className = "RenderGroup"
 
 		return details
@@ -1483,6 +1673,9 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def sm_render_startFarmGroupRender(self, origin, farmPlugin, rSettings):
 		comp = self.fusion.GetCurrentComp()
+
+		#	Makes global for later use in versioninfo creation and master update
+		self.rSettings = rSettings
 
 		#	Return if the Comps do not match
 		if not self.sm_checkCorrectComp(comp):
@@ -1498,65 +1691,32 @@ class Prism_Fusion_Functions(object):
 		#	Gets temp filename
 		self.tempFilePath, tempDir = self.getFarmTempFilepath(currFile)
 		#	Saves to temp comp
-		saveTempResult = comp.Save(self.tempFilePath)				#	TODO HANDLE SAVE ERROR
+		saveTempResult = comp.Save(self.tempFilePath)							#	TODO HANDLE SAVE ERROR
 
 		farmDetails = self.setupFarmDetails(origin, rSettings)
 
+		#	Checks if there are states that use update Master
+		if len(self.masterData) > 0:
+			executeMaster = True
+		else:
+			executeMaster = False
+
 		#	Submits to farm plugin
-		result = farmPlugin.sm_render_submitJob(
+		submitResult = farmPlugin.sm_render_submitJob(
 			origin,
 			self.outputPath,
 			None,
-			handleMaster=False,					#	TESTING			TODO FINISH
-			# handleMaster=handleMaster,		#	TODO FARM HANDLEMASTER
+			handleMaster=False,
 			details=farmDetails,
+			useBatch=executeMaster,
 			sceneDescription=False
 			)
-		
-
-		updateMaster = False						#	TODO
-
-
-		# if result == "publish paused":
-		# 	return
-		# else:
-		# 	if updateMaster:
-		# 		self.handleMasterVersion(outputName)
-
-		# 	kwargs = {
-		# 		"state": self,
-		# 		"scenefile": fileName,
-		# 		"settings": rSettings,
-		# 		"result": result,
-		# 	}
-
-		# 	self.core.callback("postRender", **kwargs)
-
-		# 	if "Result=Success" in result:
-		# 		return [self.state.text(0) + " - success"]
-		# 	else:
-		# 		erStr = "%s ERROR - sm_default_imageRenderPublish %s:\n%s" % (
-		# 			time.strftime("%d/%m/%y %X"),
-		# 			self.core.version,
-		# 			result,
-		# 		)
-		# 		if not result.startswith("Execute Canceled: "):
-		# 			if result == "unknown error (files do not exist)":
-		# 				QMessageBox.warning(
-		# 					self.core.messageParent,
-		# 					"Warning",
-		# 					"No files were created during the rendering. If you think this is a Prism bug please report it in the forum:\nwww.prism-pipeline.com/forum/\nor write a mail to contact@prism-pipeline.com",
-		# 				)
-		# 			else:
-		# 				self.core.writeErrorLog(erStr)
-		# 		return [self.state.text(0) + " - error - " + result]
-
 
 		#	Deletes temp comp file
 		try:
 			shutil.rmtree(tempDir)
 		except:
-			self.core.popup(f"Unable to remove temp directory:  {tempDir}")                                      #    TESTING	TODO  Handle error
+			self.core.popup(f"Unable to remove temp directory:  {tempDir}")                #    TESTING	TODO  Handle error
 
 		#	Remove any temp Scale nodes
 		self.deleteTempScaleTools()
@@ -1572,8 +1732,12 @@ class Prism_Fusion_Functions(object):
 
 		comp.Unlock()
 
-		# #	Execute master version if applicable									#	TODO
-		# self.executeMaster()
+		#	Create versionInfo file for each state
+		self.executeGroupVersioninfo()
+
+		#	Executes Farm update Master if applicable
+		if submitResult and executeMaster:
+			self.submitFarmGroupMaster(origin, farmPlugin, submitResult, farmDetails)
 
 		###		TODO	ADD POST RENDER CALLBACK	####
 
@@ -1581,29 +1745,44 @@ class Prism_Fusion_Functions(object):
 		return "Result=Success"
 
 
+	#	NOT USED HERE
 	@err_catcher(name=__name__)
 	def sm_render_undoRenderSettings(self, origin, rSettings):
 		pass
 
 
+	#	Sets Deadline args that are called from Deadline plugin
 	@err_catcher(name=__name__)
 	def sm_render_getDeadlineParams(self, origin, dlParams, homeDir):
-		dlParams["jobInfoFile"] = os.path.join(
-			homeDir, "temp", "fusion_submit_info.job"
-			)
-		dlParams["pluginInfoFile"] = os.path.join(
-			homeDir, "temp", "fusion_plugin_info.job"
-			)
+		#	Sets Deadling jobinfo arg file location
+		dlParams["jobInfoFile"] = os.path.join(homeDir, "temp", "fusion_submit_info.job")
 
 		dlParams["jobInfos"]["Plugin"] = "Fusion"
-		dlParams["pluginInfos"]["Version"] = str(math.floor(self.getAppVersion(origin)))
-		dlParams["pluginInfos"]["OutputFile"] = dlParams["jobInfos"]["OutputFilename0"]
 
-		#	Uses StateManager comment for Farm comment
+		#	Uses StateManager comment for Deadline comment
 		try:
 			dlParams["jobInfos"]["Comment"] = self.monkeypatchedsm.publishComment
 		except:
 			dlParams["jobInfos"]["Comment"] = "Prism-Submission-Fusion_ImageRender"
+
+		#	Sets Deadling plugininfo arg file location
+		dlParams["pluginInfoFile"] = os.path.join(homeDir, "temp", "fusion_plugin_info.job")
+
+		dlParams["pluginInfos"]["Version"] = str(math.floor(self.getAppVersion(origin)))
+		dlParams["pluginInfos"]["OutputFile"] = dlParams["jobInfos"]["OutputFilename0"]
+
+		#	Uses Fusion proxy command for rez's less than 100%
+		scaleOvrType, scaleOvrCode = self.getScaleOverride(self.rSettings)
+		if scaleOvrType == "proxy":
+			dlParams["pluginInfos"]["Proxy"] = scaleOvrCode
+
+		hiQualOvr = self.getHiQualOverride(self.rSettings)
+		if hiQualOvr is not None:
+			dlParams["pluginInfos"]["HighQuality"] = hiQualOvr
+
+		blurOvr = self.getBlurOverride(self.rSettings)
+		if blurOvr is not None:
+			dlParams["pluginInfos"]["MotionBlur"] = blurOvr
 
 
 	@err_catcher(name=__name__)
@@ -1723,9 +1902,6 @@ class Prism_Fusion_Functions(object):
 					
 			else:				
 				node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=None, createwireless=sortnodes)
-			
-			
-			
 
 			# deselect all nodes
 			flow.Select()
@@ -3282,6 +3458,7 @@ class Prism_Fusion_Functions(object):
 					menuExecuteV.setEnabled(False)
 				elif hasattr(parentState.ui, "l_pathLast"):
 					outPath = parentState.ui.getOutputName()
+
 					if not outPath or not outPath[0]:
 						menuExecuteV.setEnabled(False)
 					else:
@@ -3317,6 +3494,7 @@ class Prism_Fusion_Functions(object):
 				# Check if it is Image Render #
 				if parentState.ui.className != "ImageRender":
 					menuExecuteV.setEnabled(False)
+
 				###############################
 
 				if parentState is None or parentState.ui.className == "Folder":

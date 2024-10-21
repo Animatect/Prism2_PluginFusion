@@ -43,15 +43,6 @@ from PrismUtils.Decorators import err_catcher
 
 
 
-##################################
-#
-#	TODO 's
-#	- Generate VERSION INFO File for renders
-#	- Handle Master version for Farm RenderGroup renders
-#
-##################################
-
-
 class RenderGroupClass(object):
 	className = "RenderGroup"
 	listType = "Export"
@@ -102,7 +93,7 @@ class RenderGroupClass(object):
 
 		self.managerChanged(True)
 
-		#	Load Existing State Data
+		#	Load Existing State Data if exists
 		if stateData is not None:
 			self.loadData(stateData)
 
@@ -129,7 +120,7 @@ class RenderGroupClass(object):
 				self.setTaskname(context.get("task"))
 				self.e_name.setText(context.get("task"))
 
-			self.chb_overrideFrameRange.setChecked(False)										#	TODO SET DEFAULTS
+			self.chb_overrideFrameRange.setChecked(False)
 
 			# self.setUniqueName(self.className + " - Compositing")
 #			self.chb_upVersion.setChecked(True)
@@ -157,7 +148,7 @@ class RenderGroupClass(object):
 			)
 
 		#	Handle Master
-		masterItems = ["Force Set as Master", "Force Add to master", "Force Don't update master"]
+		masterItems = ["Force Set as Master", "Force Add to Master", "Force Don't Update Master"]
 		self.cb_master.addItems(masterItems)
 
 		self.product_paths = self.core.paths.getRenderProductBasePaths()
@@ -170,18 +161,18 @@ class RenderGroupClass(object):
 
 		#	Render Scaling
 		renderScalings = [
-			"25",
-			"50",
-			"75",
-			"100",
-			"125",
-			"150",
-			"200"
+			"Force Proxies Off",
+			"1/4 (proxy)", 
+			"1/3 (proxy)",
+			"1/2 (proxy)",
+			"100 (scale)",
+			"125 (scale)",
+			"150 (scale)",
+			"200 (scale)"
 			]
 
 		self.cb_renderScaling.addItems(renderScalings)
-		tempIdx = self.cb_renderScaling.findText("100")
-		self.cb_renderScaling.setCurrentIndex(tempIdx)
+		self.cb_renderScaling.setCurrentIndex(0)
 
 		qualOptions = ["Force HiQ", "Force LowQ"]
 		self.cb_renderQuality.addItems(qualOptions)
@@ -189,13 +180,9 @@ class RenderGroupClass(object):
 		motionBlurOptions = ["Force Use MB", "Force No MB"]
 		self.cb_renderMB.addItems(motionBlurOptions)
 
-		proxyOptions = ["Force Proxies Off", "Force Proxies On"]
-		self.cb_renderProxy.addItems(proxyOptions)
-
 
 	@err_catcher(name=__name__)
-	def setToolTips(self):															#	TODO	ADD TOOLTIPS
-
+	def setToolTips(self):
 		tip = "Name of RenderGroup.\nThis does not affect the render filenaming"
 		self.l_class.setToolTip(tip)
 		self.e_name.setToolTip(tip)
@@ -221,7 +208,9 @@ class RenderGroupClass(object):
 		self.l_location.setToolTip(tip)
 		self.cb_outPath.setToolTip(tip)
 
-		tip = "Scale Render Resolution of Comp."
+		tip = ("Overrides the render resolution of the composition\n"
+		 		"  - Resolutions less than 100% will use Fusion's proxy system.\n"
+				"  - Resolutions greater than 100% will use a scale tool.")
 		self.chb_overrideScaling.setToolTip(tip)
 		self.l_renderScaling.setToolTip(tip)
 		self.cb_renderScaling.setToolTip(tip)
@@ -236,24 +225,18 @@ class RenderGroupClass(object):
 		self.l_renderMB.setToolTip(tip)
 		self.cb_renderMB.setToolTip(tip)
 
-		tip = "Override Prx (Proxy) setting of Comp."
-		self.chb_overrideProxy.setToolTip(tip)
-		self.l_renderProxy.setToolTip(tip)
-		self.cb_renderProxy.setToolTip(tip)
-
 		self.w_frameExpression.setToolTip(
 			self.stateManager.getFrameRangeTypeToolTip("ExpressionField")
 			)
 
 
+	#	Loads State data if it exists
 	@err_catcher(name=__name__)
 	def loadData(self, data):
 		if "contextType" in data:
 			self.setContextType(data["contextType"])
 		if "customContext" in data:
 			self.customContext = data["customContext"]
-		# if "taskname" in data:
-		# 	self.setTaskname(data["taskname"])
 
 		self.updateUi()
 
@@ -296,12 +279,6 @@ class RenderGroupClass(object):
 			idx = self.cb_renderMB.findText(data["ovrMBOption"])
 			if idx != -1:
 				self.cb_renderMB.setCurrentIndex(idx)
-		if "overrideProxy" in data:
-			self.chb_overrideProxy.setChecked(data["overrideProxy"])
-		if "ovrProxyOption" in data:
-			idx = self.cb_renderProxy.findText(data["ovrProxyOption"])
-			if idx != -1:
-				self.cb_renderProxy.setCurrentIndex(idx)
 		if "rangeType" in data:
 			idx = self.cb_rangeType.findText(data["rangeType"])
 			if idx != -1:
@@ -381,7 +358,6 @@ class RenderGroupClass(object):
 		self.chb_overrideScaling.toggled.connect(lambda: self.updateUi())
 		self.chb_overrideQuality.toggled.connect(lambda: self.updateUi())
 		self.chb_overrideRenderMB.toggled.connect(lambda: self.updateUi())
-		self.chb_overrideProxy.toggled.connect(lambda: self.updateUi())
 		self.cb_rangeType.activated.connect(self.rangeTypeChanged)
 		self.sp_rangeStart.editingFinished.connect(self.startChanged)
 		self.sp_rangeEnd.editingFinished.connect(self.endChanged)
@@ -525,6 +501,7 @@ class RenderGroupClass(object):
 			self.expressionWin.close()
 
 
+	#	Sets RenderGroup name
 	@err_catcher(name=__name__)
 	def nameChanged(self, text):
 		text = self.e_name.text()
@@ -589,7 +566,7 @@ class RenderGroupClass(object):
 		pass
 
 
-	# @err_catcher(name=__name__)															#	TODO	NEEDED??
+	# @err_catcher(name=__name__)															#	TODO	Is this used?
 	# def getSortKey(self):
 	# 	return self.getTaskname()
 
@@ -811,7 +788,6 @@ class RenderGroupClass(object):
 		self.updateScalingOvr()
 		self.updateHiQOvr()
 		self.updateMbOvr()
-		self.updateProxyOvr()
 
 		self.stateManager.saveStatesToScene()
 
@@ -948,20 +924,6 @@ class RenderGroupClass(object):
 
 
 	@err_catcher(name=__name__)
-	def updateProxyOvr(self):
-		isEnabled = self.chb_overrideProxy.isChecked()
-
-		# UI elements to update
-		uiElements = [
-			self.cb_renderProxy
-			]
-		
-		# Iterate over each UI element and set its hidden state
-		for element in uiElements:
-			element.setHidden(not isEnabled)
-
-
-	@err_catcher(name=__name__)
 	def updateRange(self):
 		rangeType = self.cb_rangeType.currentText()
 		isCustom = rangeType == "Custom"
@@ -985,44 +947,50 @@ class RenderGroupClass(object):
 
 	@err_catcher(name=__name__)
 	def getFrameRange(self, rangeType):
-		startFrame = None
-		endFrame = None
-		if rangeType == "Scene":
-			if hasattr(self.fusionFuncs, "getFrameRange"):
-				startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
-				startFrame = int(startFrame)
-				endFrame = int(endFrame)
-			else:
-				startFrame = 1001
-				endFrame = 1100
-		elif rangeType == "Shot":
-			context = self.getCurrentContext()
-			if context.get("type") == "shot" and "sequence" in context:
-				frange = self.core.entities.getShotRange(context)
-				if frange:
-					startFrame, endFrame = frange
-		elif rangeType == "Single Frame":
-			if hasattr(self.fusionFuncs, "getCurrentFrame"):
-				startFrame = int(self.fusionFuncs.getCurrentFrame())
-			else:
-				startFrame = 1001
-		elif rangeType == "Custom":
-			startFrame = self.sp_rangeStart.value()
-			endFrame = self.sp_rangeEnd.value()
-		elif rangeType == "Expression":
-			return self.core.resolveFrameExpression(self.le_frameExpression.text())
-
-		if startFrame == "":
+		#	Get framerange from override if checked
+		if self.chb_overrideFrameRange.isChecked():
 			startFrame = None
-
-		if endFrame == "":
 			endFrame = None
+			if rangeType == "Scene":
+				if hasattr(self.fusionFuncs, "getFrameRange"):
+					startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
+					startFrame = int(startFrame)
+					endFrame = int(endFrame)
+				else:
+					startFrame = 1001
+					endFrame = 1100
+			elif rangeType == "Shot":
+				context = self.getCurrentContext()
+				if context.get("type") == "shot" and "sequence" in context:
+					frange = self.core.entities.getShotRange(context)
+					if frange:
+						startFrame, endFrame = frange
+			elif rangeType == "Single Frame":
+				if hasattr(self.fusionFuncs, "getCurrentFrame"):
+					startFrame = int(self.fusionFuncs.getCurrentFrame())
+				else:
+					startFrame = 1001
+			elif rangeType == "Custom":
+				startFrame = self.sp_rangeStart.value()
+				endFrame = self.sp_rangeEnd.value()
+			elif rangeType == "Expression":
+				return self.core.resolveFrameExpression(self.le_frameExpression.text())
 
-		if startFrame is not None:
-			startFrame = int(startFrame)
+			if startFrame == "":
+				startFrame = None
 
-		if endFrame is not None:
-			endFrame = int(endFrame)
+			if endFrame == "":
+				endFrame = None
+
+			if startFrame is not None:
+				startFrame = int(startFrame)
+
+			if endFrame is not None:
+				endFrame = int(endFrame)
+
+		#	Get framerange from Comp
+		else:
+			startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
 
 		return startFrame, endFrame
 
@@ -1123,25 +1091,44 @@ class RenderGroupClass(object):
 			item = self.tw_renderStates.item(i)
 			renderStatesNames.append(item.text())
 
-		renderStatesString = "\n    ".join(renderStatesNames)						#	TESTING
-
+		renderStatesString = "\n    ".join(renderStatesNames)
 
 		if self.tw_renderStates.count() == 0:
 			warnings.append(["RenderGroup does not contain any Render States", "", 3])
 		else:
-			warnings.append([f"The following States will be rendered: {renderStatesString}", "", 2])				#	TESTING
-
-
-		###		TODO	ADD WARNING IF RENDER AS PREVIOUS VERSION IS CHECKED	######
-
+			warnings.append([f"The following States will be rendered:\n    {renderStatesString}", "", 2])
 
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
+		start, end = frames
+
 		if rangeType != "Expression":
 			frames = frames[0]
-
 		if frames is None or frames == []:
 			warnings.append(["Framerange is invalid.", "", 3])
+
+		renderOverrides = []
+		if self.chb_renderAsPrevVer.isChecked():
+			renderOverrides.append("    Render as Prevous Version Enabled")
+		if self.chb_overrideFrameRange.isChecked():
+			renderOverrides.append(f"    Frame Range Override: {start}-{end}")
+		if self.chb_overrideMaster.isChecked():
+			renderOverrides.append(f"    Update Master Override: {self.cb_master.currentText()}")
+		if self.chb_overrideLocation.isChecked():
+			renderOverrides.append(f"    Location Override: {self.cb_outPath.currentText()}")
+		if self.chb_overrideScaling.isChecked():
+			renderOverrides.append(f"    Scaling Override: {self.cb_renderScaling.currentText()}")
+		if self.chb_overrideQuality.isChecked():
+			renderOverrides.append(f"    Quality Override: {self.cb_renderQuality.currentText()}")
+		if self.chb_overrideRenderMB.isChecked():
+			renderOverrides.append(f"    Motion Blur Override: {self.cb_renderMB.currentText()}")
+
+		if len(renderOverrides) > 0:
+			overrideStr = ""
+			for override in renderOverrides:
+				overrideStr = overrideStr + f"{override}\n"
+
+			warnings.append([f"Overrides:\n{overrideStr}", "", 2])
 
 		if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
 			plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
@@ -1163,19 +1150,8 @@ class RenderGroupClass(object):
 
 
 	@err_catcher(name=__name__)
-	def convertScale(self, percentStr):
-		#	Converts percent text to 0-1 for Fusion
-		try:
-			scale = int(percentStr) / 100
-			return scale
-		except ValueError:
-			print(f"Error: Unable to convert '{scale}' to an integer.")
-			return 1
-
-
-	@err_catcher(name=__name__)
 	def executeState(self, parent, useVersion="next", outOnly=False):
-		# if render manager plugins were detected.
+		# Checks if Render Manager plugins were detected.
 		if self.cb_manager.count() > 0:
 			hasRenderManger = True
 
@@ -1198,6 +1174,7 @@ class RenderGroupClass(object):
 		rangeType = self.cb_rangeType.currentText()
 		frame_start, frame_end = self.getFrameRange(rangeType)
 
+		#	Creates render settings
 		rSettings = {}
 		rSettings["groupName"] = self.groupName
 		rSettings["groupRenderStates"] = groupRenderStates
@@ -1212,49 +1189,49 @@ class RenderGroupClass(object):
 		rSettings["locationOvr"] = self.chb_overrideLocation.isChecked()
 		rSettings["render_Loc"] = self.cb_outPath.currentText()
 		rSettings["scalingOvr"] = self.chb_overrideScaling.isChecked()
-		rSettings["render_Scale"] = self.convertScale(self.cb_renderScaling.currentText())
+		rSettings["render_Scale"] = self.cb_renderScaling.currentText()
 		rSettings["hiQualOvr"] = self.chb_overrideQuality.isChecked()
 		rSettings["render_HQ"] = self.cb_renderQuality.currentText()
 		rSettings["blurOvr"] = self.chb_overrideRenderMB.isChecked()
 		rSettings["render_Blur"] = self.cb_renderMB.currentText()
-		rSettings["proxyOvr"] = self.chb_overrideProxy.isChecked()
-		rSettings["render_Proxy"] = self.cb_renderProxy.currentText()
 
 		if not sumbitToFarm:
+			#	Executes render on local machine
 			result = self.fusionFuncs.sm_render_startLocalGroupRender(self, rSettings=rSettings)
 		else:
+			#	Submits render to farm
 			result = self.fusionFuncs.sm_render_startFarmGroupRender(self, farmPlugin, rSettings=rSettings)
 
 		return result
 
 
+	# @err_catcher(name=__name__)											#	NEEDED ???
+	# def isUsingMasterVersion(self):
+	# 	useMaster = self.core.mediaProducts.getUseMaster()
+	# 	if not useMaster:
+	# 		return False
+
+	# 	masterAction = self.cb_master.currentText()
+	# 	if masterAction == "Don't Update Master":
+	# 		return False
+
+	# 	return True
+
+
+	# @err_catcher(name=__name__)											#	NEEDED ???
+	# def handleMasterVersion(self, outputName):
+	# 	if not self.isUsingMasterVersion():
+	# 		return
+
+	# 	masterAction = self.cb_master.currentText()
+	# 	if masterAction == "Set as master":
+	# 		self.core.mediaProducts.updateMasterVersion(outputName, mediaType="2drenders")
+	# 	elif masterAction == "Add to master":
+	# 		self.core.mediaProducts.addToMasterVersion(outputName, mediaType="2drenders")
+
+
 	@err_catcher(name=__name__)
-	def isUsingMasterVersion(self):
-		useMaster = self.core.mediaProducts.getUseMaster()
-		if not useMaster:
-			return False
-
-		masterAction = self.cb_master.currentText()
-		if masterAction == "Don't update master":
-			return False
-
-		return True
-
-
-	@err_catcher(name=__name__)
-	def handleMasterVersion(self, outputName):
-		if not self.isUsingMasterVersion():
-			return
-
-		masterAction = self.cb_master.currentText()
-		if masterAction == "Set as master":
-			self.core.mediaProducts.updateMasterVersion(outputName, mediaType="2drenders")
-		elif masterAction == "Add to master":
-			self.core.mediaProducts.addToMasterVersion(outputName, mediaType="2drenders")
-
-
-	@err_catcher(name=__name__)
-	def setTaskWarn(self, warn):
+	def setTaskWarn(self, warn):														#	NEEDED ???
 		# useSS = getattr(self.fusionFuncs, "colorButtonWithStyleSheet", False)
 		# if warn:
 		# 	if useSS:
@@ -1296,8 +1273,6 @@ class RenderGroupClass(object):
 			"ovrHiQOption": self.cb_renderQuality.currentText(),
 			"overrideMB": self.chb_overrideRenderMB.isChecked(),
 			"ovrMBOption": self.cb_renderMB.currentText(),
-			"overrideProxy": self.chb_overrideProxy.isChecked(),
-			"ovrProxyOption": self.cb_renderProxy.currentText(),
 			"curoutputpath": self.cb_outPath.currentText(),
 			"submitrender": str(self.gb_submit.isChecked()),
 			"rjmanager": str(self.cb_manager.currentText()),
