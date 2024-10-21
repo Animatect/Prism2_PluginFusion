@@ -3122,6 +3122,8 @@ class Prism_Fusion_Functions(object):
 		self.monkeypatchedsm = origin
 		self.core.plugins.monkeyPatch(origin.rclTree, self.rclTree, self, force=True)
 
+		self.core.plugins.monkeyPatch(self.core.mediaProducts.getVersionStackContextFromPath, self.getVersionStackContextFromPath, self, force=True)
+
 		#origin.gb_import.setStyleSheet("margin-top: 20px;")
 
 
@@ -3335,6 +3337,28 @@ class Prism_Fusion_Functions(object):
 				rcmenu.addAction(actDel)
 
 				rcmenu.exec_(sm.activeList.mapToGlobal(pos))
+
+	@err_catcher(name=__name__)
+	def getVersionStackContextFromPath(self, filepath, mediaType=None):
+		# context = self.core.paths.getRenderProductData(filepath)
+		#The only modification was putting the mediaType as an argument for the context in the next line which replaces the previous one.
+		context = self.core.paths.getRenderProductData(filepath, mediaType=mediaType)
+		print(f"MediaProductscontext: {context} `\n\n")
+
+		if mediaType:
+			context["mediaType"] = mediaType
+
+		if "asset" in context:
+			context["asset"] = os.path.basename(context["asset_path"])
+
+		if "version" in context:
+			del context["version"]
+		if "comment" in context:
+			del context["comment"]
+		if "user" in context:
+			del context["user"]
+
+		return context
 
 
 	@err_catcher(name=__name__)
