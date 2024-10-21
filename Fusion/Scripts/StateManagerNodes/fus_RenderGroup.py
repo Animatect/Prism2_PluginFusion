@@ -1091,25 +1091,43 @@ class RenderGroupClass(object):
 			item = self.tw_renderStates.item(i)
 			renderStatesNames.append(item.text())
 
-		renderStatesString = "\n    ".join(renderStatesNames)						#	TESTING
-
+		renderStatesString = "\n    ".join(renderStatesNames)
 
 		if self.tw_renderStates.count() == 0:
 			warnings.append(["RenderGroup does not contain any Render States", "", 3])
 		else:
-			warnings.append([f"The following States will be rendered: {renderStatesString}", "", 2])				#	TESTING
-
-
-		###		TODO	ADD WARNING IF RENDER AS PREVIOUS VERSION IS CHECKED	######
-
+			warnings.append([f"The following States will be rendered:\n    {renderStatesString}", "", 2])
 
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
+		start, end = frames
+
 		if rangeType != "Expression":
 			frames = frames[0]
-
 		if frames is None or frames == []:
 			warnings.append(["Framerange is invalid.", "", 3])
+
+		renderOverrides = []
+		if self.chb_renderAsPrevVer.isChecked():
+			renderOverrides.append("    Render as Prevous Version Enabled")
+		if self.chb_overrideFrameRange.isChecked():
+			renderOverrides.append(f"    Frame Range Override: {start}-{end}")
+		if self.chb_overrideMaster.isChecked():
+			renderOverrides.append(f"    Update Master Override: {self.cb_master.currentText()}")
+		if self.chb_overrideLocation.isChecked():
+			renderOverrides.append(f"    Location Override: {self.cb_outPath.currentText()}")
+		if self.chb_overrideScaling.isChecked():
+			renderOverrides.append(f"    Scaling Override: {self.cb_renderScaling.currentText()}")
+		if self.chb_overrideQuality.isChecked():
+			renderOverrides.append(f"    Quality Override: {self.cb_renderQuality.currentText()}")
+		if self.chb_overrideRenderMB.isChecked():
+			renderOverrides.append(f"    Motion Blur Override: {self.cb_renderMB.currentText()}")
+
+		overrideStr = ""
+		for override in renderOverrides:
+			overrideStr = overrideStr + f"{override}\n"
+
+		warnings.append([f"Overrides:\n{overrideStr}", "", 2])
 
 		if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
 			plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
