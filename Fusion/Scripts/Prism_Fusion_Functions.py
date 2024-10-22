@@ -929,7 +929,6 @@ class Prism_Fusion_Functions(object):
 
 			# Search for the pattern in the text
 			match = re.search(pattern, text)
-			# print(match)
 
 			# If a match is found, extract the substring after "Value ="
 			if match:
@@ -2038,7 +2037,7 @@ path = r\"%s\"
 		updatehandle = []
 		for sourceData in dataSources:
 			imageData = self.getPassData(comp, sourceData)
-			updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'])
+			updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'])
 			if updatedloader:
 				# Set up update feedback Dialog message
 				version1 = prevVersion
@@ -2050,31 +2049,37 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
-	def returnImageDataDict(self, filePath, firstFrame, lastFrame, aovNm, layerNm):
+	def returnImageDataDict(self, filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence):
 		return {
 		'filePath': filePath, 
 		'firstFrame': firstFrame, 
 		'lastFrame': lastFrame, 
 		'aovNm': aovNm,
-		'layerNm': layerNm
+		'layerNm': layerNm,
+		'isSequence': isSequence
 		}
 
 
 	@err_catcher(name=__name__)
 	def getImageData(self, comp, sourceData):
-		curfr = int(comp.CurrentTime)	
+		curfr = int(comp.CurrentTime)
+		framepadding = self.core.framePadding
+		padding_string = '#' * framepadding + '.'
 		# check if the source data is interpreting the image sequence as individual images.
 		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
 		if len(image_strings) > 1:
+			isSequence = False
+			if padding_string in sourceData[0]:
+				isSequence = True
 			imagepath = self.is_image_sequence(image_strings)
 			if imagepath:
-				filePath = imagepath.replace("####", f"{curfr:0{4}}")
+				filePath = imagepath.replace(padding_string, f"{curfr:0{framepadding}}.")
 				firstFrame = 1
 				lastFrame = len(image_strings)	
 				aovNm = 'PrismLoader'
 				layerNm = 'PrismMedia'
 
-				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm)
+				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
 		else:
 			# Break the meaningless 1 item nested array.
 			return self.getPassData(comp, sourceData[0], allAOVs=False)
@@ -2087,25 +2092,41 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def getPassData(self, comp, sourceData, allAOVs=True):
 		curfr = int(comp.CurrentTime)
-		if allAOVs:
-			filePath = sourceData[0].replace(".####", "")
-		else:
-			filePath = sourceData[0].replace("####", f"{curfr:0{4}}")
 		firstFrame = sourceData[1]
-		lastFrame = sourceData[2]			
+		lastFrame = sourceData[2]	
+		framepadding = self.core.framePadding
+		padding_string = '#' * framepadding + '.'
+		isSequence = False
+		if  padding_string in sourceData[0]:
+			isSequence = True
+		if allAOVs:
+			#Fusion will always add the .####. pattern before the extension, if that pattern is not in the file we have to handle that case.
+			# Create the formatted frame number for firstFrame
+			formatted_first_frame = f"{firstFrame:0{framepadding}}."
+			# Replace padding_string with formatted_first_frame in the source path
+			modified_file_path = sourceData[0].replace(padding_string, formatted_first_frame)
+			# Find the index of padding_string
+			if os.path.exists(modified_file_path):
+				# Frame pattern Preceded by a dot, the behaviour of Fusion is expected.
+				filePath = sourceData[0].replace(padding_string, f"{curfr:0{framepadding}}.")
+			else:
+				# Preceded by something else it needs the frames removed.
+				filePath = sourceData[0].replace("." + padding_string, ".")
+		else:
+			filePath = sourceData[0].replace(padding_string, f"{curfr:0{framepadding}}.")		
 		aovNm = os.path.dirname(filePath).split("/")[-1]
 		layerNm = os.path.dirname(filePath).split("/")[-3]
     
-		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm)
+		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
 
 	@err_catcher(name=__name__)
-	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame):
+	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False):
 		for loader in Loaderstocheck:
 			loaderClipPath = loader.Clip[0]
 			if filePath == loaderClipPath:
 				return loader, ".#nochange#."
 			
-			if self.are_paths_equal_except_version(loaderClipPath, filePath):
+			if self.are_paths_equal_except_version(loaderClipPath, filePath, isSequence):
 				version1 = self.extract_version(loaderClipPath)
 				version2 = self.extract_version(filePath)
 
@@ -2127,11 +2148,12 @@ path = r\"%s\"
 		lastFrame = imageData['lastFrame']		
 		aovNm = imageData['aovNm']
 		layerNm = imageData['layerNm']
+		isSequence = imageData['isSequence']
 		
 		extension = os.path.splitext(filePath)[1]
 		# Check if path without version exists in a loader and if so generate a popup to update with new version.
 		allLoaders = comp.GetToolList(False, "Loader").values()
-		updatedloader, prevVersion = self.updateLoaders(allLoaders, filePath, firstFrame, lastFrame)
+		updatedloader, prevVersion = self.updateLoaders(allLoaders, filePath, firstFrame, lastFrame, isSequence)
 		# If an updated node was produced.
 		if updatedloader:
 			# Update Multilayer.
@@ -2142,7 +2164,7 @@ path = r\"%s\"
 				if len(self.get_loader_channels(updatedloader)) > 0:
 					while  extraloader:
 						allremainingLoaders = [t for t in allLoaders if not t.Name in checkedloaders]
-						extraloader, extraversion = self.updateLoaders(allremainingLoaders, filePath, firstFrame, lastFrame)
+						extraloader, extraversion = self.updateLoaders(allremainingLoaders, filePath, firstFrame, lastFrame, isSequence)
 						if extraloader:
 							checkedloaders.append(extraloader.Name)
 
@@ -2277,7 +2299,9 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def extract_version(self, filepath):
 		# Extract the version information using a regular expression
-		match = re.search(r"v(\d{4})", filepath)
+		padding = self.core.versionPadding
+		pattern = rf"v(\d{{{padding}}})"  # Using f-string for dynamic regex pattern
+		match = re.search(pattern, filepath)
 		if match:
 			return int(match.group(1))
 		else:
@@ -2285,10 +2309,16 @@ path = r\"%s\"
 		
 
 	@err_catcher(name=__name__)
-	def are_paths_equal_except_version(self, path1, path2):
+	def are_paths_equal_except_version(self, path1, path2, isSequence):	
 		# Remove the version part from the paths for exact match comparison
-		path1_without_version = re.sub(r"v\d{4}", "", path1)
-		path2_without_version = re.sub(r"v\d{4}", "", path2)
+		padding = self.core.versionPadding
+		version_pattern = rf"v\d{{{padding}}}"
+		path1_without_version = re.sub(version_pattern, "", path1)
+		path2_without_version = re.sub(version_pattern, "", path2)
+		if isSequence:
+			# Use regex to remove numbers before any file extension (can vary in length)
+			path1_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path1_without_version)
+			path2_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path2_without_version)
 		# Check if the non-version parts are an exact match
 		if path1_without_version == path2_without_version:
 			# Versions are the same, and non-version parts are an exact match
@@ -2297,12 +2327,17 @@ path = r\"%s\"
 			# Versions are the same, but non-version parts are different
 			return False
 
-
-	# EXR CHANNEL MANAGEMENT #
 	@err_catcher(name=__name__)
-	def get_pattern_prefix(self, string):
-		pattern = re.compile(r'^(.+)v\d{4}\.exr$')
-		match = pattern.match(string)
+	def get_pattern_prefix(self, file_path):
+		_, file_extension = os.path.splitext(file_path)
+		padding = self.core.versionPadding
+
+		# Construct the regex pattern with proper escaping
+		# The escape character for dot (.) in the file extension needs to be double-escaped in raw strings
+		regex_pattern = rf'^(.+)v\d{{{padding}}}{re.escape(file_extension)}$'
+
+		pattern = re.compile(regex_pattern)
+		match = pattern.match(file_path)
 		return match.group(1) if match else None
 	
 
@@ -2314,6 +2349,8 @@ path = r\"%s\"
 		else:
 			return None
 		
+
+	# EXR CHANNEL MANAGEMENT #
 
 	@err_catcher(name=__name__)
 	def get_loader_channels(self, tool):
@@ -3521,7 +3558,6 @@ path = r\"%s\"
 		# context = self.core.paths.getRenderProductData(filepath)
 		#The only modification was putting the mediaType as an argument for the context in the next line which replaces the previous one.
 		context = self.core.paths.getRenderProductData(filepath, mediaType=mediaType)
-		print(f"MediaProductscontext: {context} `\n\n")
 
 		if mediaType:
 			context["mediaType"] = mediaType
