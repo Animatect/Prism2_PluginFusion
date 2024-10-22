@@ -247,32 +247,10 @@ class Ui_wg_ImageRender(object):
 
         self.horizontalLayout_9.addWidget(self.chb_resOverride)
 
-        self.sp_resWidth = QSpinBox(self.f_resolution)
-        self.sp_resWidth.setObjectName(u"sp_resWidth")
-        self.sp_resWidth.setEnabled(False)
-        self.sp_resWidth.setMinimum(1)
-        self.sp_resWidth.setMaximum(99999)
-        self.sp_resWidth.setValue(1280)
+        self.cb_renderScaling = QComboBox(self.f_resolution)
+        self.cb_renderScaling.setObjectName(u"cb_renderScaling")
 
-        self.horizontalLayout_9.addWidget(self.sp_resWidth)
-
-        self.sp_resHeight = QSpinBox(self.f_resolution)
-        self.sp_resHeight.setObjectName(u"sp_resHeight")
-        self.sp_resHeight.setEnabled(False)
-        self.sp_resHeight.setMinimum(1)
-        self.sp_resHeight.setMaximum(99999)
-        self.sp_resHeight.setValue(720)
-
-        self.horizontalLayout_9.addWidget(self.sp_resHeight)
-
-        self.b_resPresets = QPushButton(self.f_resolution)
-        self.b_resPresets.setObjectName(u"b_resPresets")
-        self.b_resPresets.setEnabled(False)
-        self.b_resPresets.setMinimumSize(QSize(23, 23))
-        self.b_resPresets.setMaximumSize(QSize(23, 23))
-        self.b_resPresets.setFocusPolicy(Qt.NoFocus)
-
-        self.horizontalLayout_9.addWidget(self.b_resPresets)
+        self.horizontalLayout_9.addWidget(self.cb_renderScaling)
 
 
         self.verticalLayout_2.addWidget(self.f_resolution)
@@ -282,27 +260,6 @@ class Ui_wg_ImageRender(object):
         self.horizontalLayout_14 = QHBoxLayout(self.w_renderPreset)
         self.horizontalLayout_14.setObjectName(u"horizontalLayout_14")
         self.horizontalLayout_14.setContentsMargins(-1, 0, -1, 0)
-        self.l_renderPreset = QLabel(self.w_renderPreset)
-        self.l_renderPreset.setObjectName(u"l_renderPreset")
-
-        self.horizontalLayout_14.addWidget(self.l_renderPreset)
-
-        self.horizontalSpacer_7 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-        self.horizontalLayout_14.addItem(self.horizontalSpacer_7)
-
-        self.chb_renderPreset = QCheckBox(self.w_renderPreset)
-        self.chb_renderPreset.setObjectName(u"chb_renderPreset")
-
-        self.horizontalLayout_14.addWidget(self.chb_renderPreset)
-
-        self.cb_renderPreset = QComboBox(self.w_renderPreset)
-        self.cb_renderPreset.setObjectName(u"cb_renderPreset")
-        self.cb_renderPreset.setEnabled(False)
-        self.cb_renderPreset.setMinimumSize(QSize(150, 0))
-
-        self.horizontalLayout_14.addWidget(self.cb_renderPreset)
-
 
         self.verticalLayout_2.addWidget(self.w_renderPreset)
 
@@ -772,7 +729,7 @@ class Ui_wg_ImageRender(object):
         self.scrollArea.setWidgetResizable(True)
         self.scrollAreaWidgetContents = QWidget()
         self.scrollAreaWidgetContents.setObjectName(u"scrollAreaWidgetContents")
-        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 446, 69))
+        self.scrollAreaWidgetContents.setGeometry(QRect(0, 0, 446, 92))
         self.verticalLayout_3 = QVBoxLayout(self.scrollAreaWidgetContents)
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
         self.l_pathLast = QLabel(self.scrollAreaWidgetContents)
@@ -801,11 +758,7 @@ class Ui_wg_ImageRender(object):
         QWidget.setTabOrder(self.sp_rangeStart, self.sp_rangeEnd)
         QWidget.setTabOrder(self.sp_rangeEnd, self.le_frameExpression)
         QWidget.setTabOrder(self.le_frameExpression, self.chb_resOverride)
-        QWidget.setTabOrder(self.chb_resOverride, self.sp_resWidth)
-        QWidget.setTabOrder(self.sp_resWidth, self.sp_resHeight)
-        QWidget.setTabOrder(self.sp_resHeight, self.chb_renderPreset)
-        QWidget.setTabOrder(self.chb_renderPreset, self.cb_renderPreset)
-        QWidget.setTabOrder(self.cb_renderPreset, self.cb_master)
+        QWidget.setTabOrder(self.chb_resOverride, self.cb_master)
         QWidget.setTabOrder(self.cb_master, self.cb_outPath)
         QWidget.setTabOrder(self.cb_outPath, self.cb_renderLayer)
         QWidget.setTabOrder(self.cb_renderLayer, self.cb_format)
@@ -833,12 +786,9 @@ class Ui_wg_ImageRender(object):
         self.l_rangeStart.setText(QCoreApplication.translate("wg_ImageRender", u"1001", None))
         self.l_rangeStartInfo.setText(QCoreApplication.translate("wg_ImageRender", u"Start:", None))
         self.l_rangeEndInfo.setText(QCoreApplication.translate("wg_ImageRender", u"End:", None))
-        self.l_frameExpression.setText(QCoreApplication.translate("wg_ImageRender", u"Frame expression:", None))
-        self.label_4.setText(QCoreApplication.translate("wg_ImageRender", u"Resolution override:", None))
+        self.l_frameExpression.setText(QCoreApplication.translate("wg_ImageRender", u"Frame Expression:", None))
+        self.label_4.setText(QCoreApplication.translate("wg_ImageRender", u"Resolution Scale", None))
         self.chb_resOverride.setText("")
-        self.b_resPresets.setText(QCoreApplication.translate("wg_ImageRender", u"\u25bc", None))
-        self.l_renderPreset.setText(QCoreApplication.translate("wg_ImageRender", u"Rendersettings preset:", None))
-        self.chb_renderPreset.setText("")
         self.l_outPath_2.setText(QCoreApplication.translate("wg_ImageRender", u"Master Version:", None))
         self.l_outPath.setText(QCoreApplication.translate("wg_ImageRender", u"Location:", None))
         self.label_5.setText(QCoreApplication.translate("wg_ImageRender", u"Render layer:", None))
