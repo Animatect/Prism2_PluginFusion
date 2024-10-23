@@ -59,43 +59,14 @@ Prism functions are accessed through the Prism menu in the top bar of Gimp's UI.
 
 <br/>
 
-### **Messages / Logging**
+### **Rendering**
 
-Messages can be displayed several ways, with several levels of detail.  Gimp displays messages through the status bar at the bottom, and the "Error Console".
-
-![Gimp Error Console](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/67df98e5-ae36-4a11-a60d-dbd3bbfdb3c5)
-
-There are three level of message display, but all messages will always be saved in the log.  With "Log Only", no messages will be displayed in the Gimp UI.  "Minimal" will display some messages that may be useful to the user such as "Starting Server".  "All" will display all messages in the UI. 
-
-![Log Menu](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/f0de1aef-72b2-4b4c-bc5f-495414f321a6)
-
-Keep in mind that having "All" messages displayed will show many messages and slightly slow the interface, thus it is suggested to have the message level at "Minimal".  If the Error Console is docked in a widow with other tabs, new messages will move the focus to the Error Console so it is suggested to have the Error Console docked into its own window.
-
-![Suggested UI](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/30882315-8770-4f04-a863-afea2f504e82)
+Prism's State Manager is used for rendering images from Fusion into the Prism pipeline and functions similar to other DCC integrations.  The main render state is the ImageRender which allows the user to
 
 
-
-The Gimp log may be viewed by opening the directory with the "open Log" button in Settings->DCCs->Gimp.  The log will update until it reaches the max size limit set in settings, and then will be renamed to "_OLD" with a maximum of those two files.  By default, the logs are saved in the Gimp plugin directory and you can change the save location in the settings.
-<br/><br/>
-
-### **Exporting**
-
-To export (save) images we use the StateManager via a custom Gimp_Render state.  Various output image formats are supported, with more being added.  The current image's details will be displayed along with format-specific settings for each state.  A user has the option to scale the resulting image, or change the color mode and bit depth of the resulting export.  These changes will not alter the scenefile.
-
-![Gimp Render](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/5d989db8-205d-4484-b5e6-d64528bad250)
-
-If the lowest layer of the scenefile image has an alpha channel, and the export format is not an alpha format (not RGBA or GRAYA), then an option will be displayed to select the desired background to be used.
-
-![AlphaFill](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/fe812ace-7ff5-4862-9915-b5a6ef12ed3e)
+### **Importing**
 
 
-A user may export to .psd using the StateManager.  By default the resulting .psd will be saved in the selected Identifier in Media tab.  There is also and option to export the .psd as a scenefile under the Scenefiles tab.
-
-![SM psd](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/08b12333-d439-4690-b0cc-1cc29c9a311d)
-
-This will export the .psd next to the .xcf using the same version number and details.
-
-![PSD Version](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/185bc704-922c-41df-81e0-315f7da7ee2a)
 
 
 <br/><br/>
@@ -103,4 +74,4 @@ This will export the .psd next to the .xcf using the same version number and det
 
 ## **Issues / Suggestions**
 
-For any bug reports or suggestions, please add to the GitHub repo.
+For any bug reports or suggestions, please add to the GitHub repo I/ssues or Projects tabs.
