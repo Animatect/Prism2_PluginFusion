@@ -1,4 +1,4 @@
-# **Black Magic Fusion Studio Integration for Prism Pipeline 2**
+# **BMD Fusion Studio Integration for Prism Pipeline 2**
 A Fusion Studio integration to be used with version 2 of Prism Pipeline 
 
 Prism automates and simplifies the workflow of animation and VFX projects.
@@ -10,13 +10,8 @@ https://prism-pipeline.com/
 
 ## **Notes**
 
-- Gimp2 versions are supported.  Gimp3 (2.99) support will be added in the future.
-- Prism and Gimp communicate through a socket.  The port listed in the Gimp tab in Prism's DCC settings must be available, and any anti-virus must allow the port to be used.
-- Hint: if you click an Prism Menu item such as "State Manager" and nothing happens, you probably need to start the server in the Prism menu. If message display is active, there will be a reminder shown.
-- Hint: clicking a Prism action from the menu loads an instance of Prism, and thus there is a slight delay for the actions such as requesting the Project Browser or State Manager.
-- New unsaved .xcr scenefiles cannot be saved into project using "Create new version from Current".  Either use presets for new scenefile, or "Copy path for next version".
-- As of now: .png, .exr, .jpg, .tif, .pdf, and .psd exports are supported.  More formats will be added.
-- Gimp saves .exr's in full-float 32bit zip compression only.  
+- This intergration has been tested with Fusion Studio versions 18 and 19.
+- This integration does not work with Resolve Fusion, thought it is planned for the future.
 - To aid is use, tooltips are provided throughout.
 <br/><br/>
 
@@ -38,17 +33,20 @@ You can add the additional plugin search paths in Prism2 settings.  Go to Settin
 
 Once added, select the "Add existing plugin" (plus icon) and navigate to where you saved the Fusion folder.
 
-![Add Existing Plugin](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/d86e3b34-d172-4cd8-b238-147ff6a25106)<br/><br/>
+![Adding Plugin](https://github.com/user-attachments/assets/59a083a6-88e0-439e-a228-51112e509b76)
 
-![Select Plugin Folder](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/31ad18bf-4658-4da2-ad65-3c5500a7b284)
+<br/>
+
+![Plugin Folder](https://github.com/user-attachments/assets/3858e04c-60e1-454c-91b1-7ba945d3d005)
+
 
 Afterwards, you can select the Plugin autoload as desired:
 
-![AutoLoad](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/1f0295c3-709d-4937-88fb-3d63d43d779c)
+![Autoload](https://github.com/user-attachments/assets/f254c8e9-9ff9-40ca-95f7-4a2fdb20946a)
 
-To add the integration, go to the "DCC Apps" -> "Gimp" tab.  Then click the "add" button and navigate to the folder containing the Gimp executable - ie "Gimp-2.10.exe".  If there is more than one version of Gimp installed, it is advisable to set the executable in the "Override" box in the DCC settings.
+To add the integration, go to the "DCC Apps" -> "Fusion" tab.  Then click the "add" button and navigate to the folder containing Fusion's "Scripts" directory - this is usually at "../AppData/Roaming/Blackmagic Design/Fusion".  If there is more than one version of Fusion installed, it is advisable to set the executable in the "Override" box in the DCC settings.
 
-![Intergration](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/41923782-3672-430e-93b8-7c405daa7856)
+![Add DCC apps](https://github.com/user-attachments/assets/8d4d16ac-38d9-4849-ba8d-d9be7a077fca)
 
 <br/>
 
