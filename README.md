@@ -57,7 +57,9 @@ Prism functions are accessed through the Prism menu in the top bar of Fusion Stu
 
 TODO
 
-![Prism Menu](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/46afa882-72d0-4153-b7bf-ae9cac63ebfc)
+TODO - NEW PIC AFTER MENU CLEANUP
+![Prism Menu](https://github.com/user-attachments/assets/3e5fca21-8ca6-458c-a593-b0398d207930)
+
 
 <br/>
 
