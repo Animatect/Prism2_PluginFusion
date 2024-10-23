@@ -70,7 +70,7 @@ class Prism_Fusion_Functions(object):
 		self.comp = None # This comp is used by the state Manager to avoid overriding the state data on wrong comps
 		self.monkeypatchedsm = None # Reference to the state manager to be used on the monkeypatched functions.
 		self.monkeypatchedimportstate = None # Reference to the importState to be used on the monkeypatched functions.
-		self.popup = None # Reference of popUp dialog that shows before openning a window when it takes some time.
+		self.popup = None # Reference of popUp dialog that shows before opening a window when it takes some time.
 
 		self.listener = None
 		
@@ -128,6 +128,47 @@ class Prism_Fusion_Functions(object):
 		# 	".obj": {"exportFunction": self.exportObj},
 		# 	".blend": {"exportFunction": self.exportBlend},
 		# }
+
+		#	Format dict to differentiate still/movie types
+		self.outputFormats = [
+			{"extension": ".exr", "fuseName": "OpenEXRFormat", "type": "image"},
+			{"extension": ".dpx", "fuseName": "DPXFormat", "type": "image"},
+			{"extension": ".png", "fuseName": "PNGFormat", "type": "image"},
+			{"extension": ".tif", "fuseName": "TiffFormat", "type": "image"},
+			{"extension": ".jpg", "fuseName": "JpegFormat", "type": "image"},
+			{"extension": ".mov", "fuseName": "QuickTimeMovies", "type": "video"},
+			{"extension": ".mxf", "fuseName": "MXFFormat", "type": "video"},
+			{"extension": ".avi", "fuseName": "AVIFormat", "type": "video"}
+		]
+		#	ARCHIVED FORMATS FOR LATER USE - THESE ARE THE NAMES FUSION USES
+			# "PIXFormat": "pix",             # Alias PIX
+            # "IFFFormat": "iff",             # Amiga IFF
+            # "CineonFormat": "cin",          # Kodak Cineon
+            # "DPXFormat": "dpx",             # DPX
+            # "FusePicFormat": "fusepic",     # Fuse Pic
+            # "FlipbookFormat": "fb",         # Fusion Flipbooks
+            # "RawFormat": "raw",             # Fusion RAW Image
+            # "IFLFormat": "ifl",             # Image File List (Text File)
+            # "IPLFormat": "ipl",             # IPL
+            # "JpegFormat": "jpg",            # JPEG
+            # "Jpeg2000Format": "jp2",        # JPEG2000
+            # "MXFFormat": "mxf",             # MXF - Material Exchange Format
+            # "OpenEXRFormat": "exr",         # OpenEXR
+            # "PandoraFormat": "piyuv10",     # Pandora YUV
+            # "PNGFormat": "png",             # PNG
+            # "VPBFormat": "vpb",             # Quantel VPB
+            # "QuickTimeMovies": "mov",       # QuickTime Movie
+            # "HDRFormat": "hdr",             # Radiance
+            # "SixRNFormat": "6RN",           # Rendition
+            # "SGIFormat": "sgi",             # SGI
+            # "PICFormat": "si",              # Softimage PIC
+            # "SUNFormat": "RAS",             # SUN Raster
+            # "TargaFormat": "tga",           # Targa
+            # "TiffFormat": "tiff",           # TIFF
+            # "rlaFormat": "rla",             # Wavefront RLA
+            # "BMPFormat": "bmp",             # Windows BMP
+            # "YUVFormat": "yuv",             # YUV
+
 
 
 	@err_catcher(name=__name__)
@@ -929,7 +970,6 @@ class Prism_Fusion_Functions(object):
 
 			# Search for the pattern in the text
 			match = re.search(pattern, text)
-			# print(match)
 
 			# If a match is found, extract the substring after "Value ="
 			if match:
@@ -1137,44 +1177,6 @@ class Prism_Fusion_Functions(object):
 		self.core.popup(f"No state details for:  {nodeName}")                           #    TODO - ERROR HANDLING
 
 
-	#	Renders individual State Saver locally
-	@err_catcher(name=__name__)
-	def sm_render_startLocalRender(self, origin, outputPathOnly, outputName, rSettings):
-		comp = self.fusion.GetCurrentComp()		
-		if self.sm_checkCorrectComp(comp):
-			sv = self.get_rendernode(origin.get_rendernode_name())
-			#if sv is not None
-			if sv:
-				#if sv has input
-				if sv.Input.GetConnectedOutput():
-					sv.Clip = outputName
-				else:
-					return "Error (Render Node is not connected)"
-			else:
-				return "Error (Render Node does not exist)"
-			
-			# Are we just setting the path and version into the render nodes or are we executing a local render?
-			if outputPathOnly:
-				return "Result=Success"
-
-			else:				
-				frstart = rSettings["startFrame"]
-				frend = rSettings["endFrame"]
-
-				if origin.chb_resOverride.isChecked():
-					wdt = origin.sp_resWidth.value()
-					Hhgt = origin.sp_resHeight.value()
-			
-					comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}','SizeType': -1, 'Width': wdt, 'Height': Hhgt})
-				else:
-					comp.Render({'Tool': sv, 'Wait': True, 'FrameRange': f'{frstart}..{frend}'})
-
-				if len(os.listdir(os.path.dirname(outputName))) > 0:
-					return "Result=Success"
-				else:
-					return "unknown error (files do not exist)"
-
-
 	@err_catcher(name=__name__)
 	def isUsingMasterVersion(self):
 		useMaster = self.core.mediaProducts.getUseMaster()
@@ -1312,7 +1314,6 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def saveOrigCompSettings(self, comp):
 		cData = {}
-
 		cData["orig_frameRange"] = self.getFrameRange(self)
 		cData["orig_currentFrame"] = comp.CurrentTime
 		cData["orig_rezX"], cData["orig_rezY"] = self.getResolution()
@@ -1420,12 +1421,21 @@ path = r\"%s\"
 
 			context = rSettings["context"]
 
-			#	Set frame padding format for Fusion
-			framePadding = "0" * self.core.framePadding
-			context["frame"] = framePadding
-
 			#	Get State data from Comp
 			stateData = self.getMatchingStateData(nodeName)
+
+			#	Set frame padding format for Fusion
+			extension = stateData["outputFormat"]
+			#	Gets list of ext types that are still image formats
+			imageExts = [formatDict["extension"] for formatDict in self.outputFormats if formatDict["type"] == "image"]
+			if extension in imageExts:
+				#	Adds project padding to the name if it is a image sequence
+				framePadding = "0" * self.core.framePadding
+			else:
+				#	Adds empty string if a movie format
+				framePadding = ""
+
+			context["frame"] = framePadding
 
 			#	If Render as Previous Version enabled
 			if rSettings["renderAsPrevVer"]:
@@ -1550,7 +1560,7 @@ path = r\"%s\"
 
 	#	Generates render args dict from overrides
 	@err_catcher(name=__name__)
-	def makeRenderCmd(self, comp, rSettings):
+	def makeRenderCmd(self, comp, rSettings, group=False):
 		renderCmd = {}
 
 		#	If framerange override
@@ -1559,7 +1569,11 @@ path = r\"%s\"
 			frend = int(rSettings["frame_end"])
 		#	If no override uses comp range
 		else:
-			frstart, frend = self.getFrameRange(self)
+			if group:
+				frstart, frend = self.getFrameRange(self)
+			else:
+				frstart = rSettings["startFrame"]
+				frend = rSettings["endFrame"]
 
 		renderCmd['Start'] = frstart
 		renderCmd['End'] = frend
@@ -1582,6 +1596,54 @@ path = r\"%s\"
 		return renderCmd
 	
 
+	#	Renders individual State Saver locally
+	@err_catcher(name=__name__)
+	def sm_render_startLocalRender(self, origin, outputPathOnly, outputName, rSettings):
+		comp = self.fusion.GetCurrentComp()		
+		if self.sm_checkCorrectComp(comp):
+			self.tempScaleTools = []
+			origCompSettings = self.saveOrigCompSettings(comp)
+
+			sv = self.get_rendernode(origin.get_rendernode_name())
+			#if sv is not None
+			if sv:
+				#if sv has input
+				if sv.Input.GetConnectedOutput():
+					sv.Clip = outputName
+				else:
+					return "Error (Render Node is not connected)"
+			else:
+				return "Error (Render Node does not exist)"
+			
+			# Are we just setting the path and version into the render nodes or are we executing a local render?
+			if outputPathOnly:
+				return "Result=Success"
+
+			else:				
+				#	Add Scale tool if scale override is above 100%
+				scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
+				if scaleOvrType == "scale":
+					nodeName = origin.get_rendernode_name()
+					self.addScaleNode(comp, nodeName, scaleOvrCode)
+
+				#	Gets render args from override settings
+				renderCmd = self.makeRenderCmd(comp, rSettings)
+
+				#	Renders with override args
+				comp.Render({**renderCmd, 'Tool': sv, "Wait": True})
+
+				#	Remove any temp Scale nodes
+				self.deleteTempScaleTools()
+
+				#	Reset Comp settings to Original
+				self.loadOrigCompSettings(comp, origCompSettings)
+
+				if len(os.listdir(os.path.dirname(outputName))) > 0:
+					return "Result=Success"
+				else:
+					return "unknown error (files do not exist)"
+				
+
 	#	Executes a GroupRender on the local machine that allows multiple Savers to render simultaneously
 	@err_catcher(name=__name__)
 	def sm_render_startLocalGroupRender(self, origin, rSettings):
@@ -1597,7 +1659,7 @@ path = r\"%s\"
 		self.configureRenderComp(origin, comp, rSettings)
 
 		#	Gets render args from override settings
-		renderCmd = self.makeRenderCmd(comp, rSettings)
+		renderCmd = self.makeRenderCmd(comp, rSettings, group=True)
 
 		#	Renders with override args
 		comp.Render({**renderCmd, "Wait": True})
@@ -1661,8 +1723,6 @@ path = r\"%s\"
 		details["sourceScene"] = self.tempFilePath
 		details["identifier"] = rSettings["groupName"]
 		details["comment"] = self.monkeypatchedsm.publishComment
-
-		# sceneDescription = None											#	TODO NEEDED???
 
 		self.className = "RenderGroup"
 
@@ -2038,7 +2098,7 @@ path = r\"%s\"
 		updatehandle = []
 		for sourceData in dataSources:
 			imageData = self.getPassData(comp, sourceData)
-			updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'])
+			updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'])
 			if updatedloader:
 				# Set up update feedback Dialog message
 				version1 = prevVersion
@@ -2050,31 +2110,40 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
-	def returnImageDataDict(self, filePath, firstFrame, lastFrame, aovNm, layerNm):
+	def returnImageDataDict(self, filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence):
 		return {
 		'filePath': filePath, 
 		'firstFrame': firstFrame, 
 		'lastFrame': lastFrame, 
 		'aovNm': aovNm,
-		'layerNm': layerNm
+		'layerNm': layerNm,
+		'isSequence': isSequence
 		}
 
 
 	@err_catcher(name=__name__)
 	def getImageData(self, comp, sourceData):
 		curfr = int(comp.CurrentTime)	
+		framepadding = self.core.framePadding
+		padding_string = '#' * framepadding + '.'
+
 		# check if the source data is interpreting the image sequence as individual images.
 		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
 		if len(image_strings) > 1:
+			isSequence = False
+			if padding_string in sourceData[0]:
+				isSequence = True
+
 			imagepath = self.is_image_sequence(image_strings)
+
 			if imagepath:
-				filePath = imagepath.replace("####", f"{curfr:0{4}}")
+				filePath = imagepath.replace(padding_string, f"{curfr:0{framepadding}}.")
 				firstFrame = 1
 				lastFrame = len(image_strings)	
 				aovNm = 'PrismLoader'
 				layerNm = 'PrismMedia'
 
-				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm)
+				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
 		else:
 			# Break the meaningless 1 item nested array.
 			return self.getPassData(comp, sourceData[0], allAOVs=False)
@@ -2087,25 +2156,46 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def getPassData(self, comp, sourceData, allAOVs=True):
 		curfr = int(comp.CurrentTime)
-		if allAOVs:
-			filePath = sourceData[0].replace(".####", "")
-		else:
-			filePath = sourceData[0].replace("####", f"{curfr:0{4}}")
 		firstFrame = sourceData[1]
-		lastFrame = sourceData[2]			
+		lastFrame = sourceData[2]	
+		framepadding = self.core.framePadding
+		padding_string = '#' * framepadding + '.'
+		isSequence = False
+
+		if padding_string in sourceData[0]:
+			isSequence = True
+
+		if allAOVs:
+			# Fusion will always add the .####. pattern before the extension, if that pattern is not in the file we have to handle that case.
+			# Create the formatted frame number for firstFrame
+			formatted_first_frame = f"{firstFrame:0{framepadding}}."
+			# Replace padding_string with formatted_first_frame in the source path
+			modified_file_path = sourceData[0].replace(padding_string, formatted_first_frame)
+			# Find the index of padding_string
+			if os.path.exists(modified_file_path):
+				# Frame pattern Preceded by a dot, the behaviour of Fusion is expected.
+				filePath = sourceData[0].replace(padding_string, f"{curfr:0{framepadding}}.")
+			else:
+				# Preceded by something else it needs the frames removed.
+				filePath = sourceData[0].replace("." + padding_string, ".")
+
+		else:
+			filePath = sourceData[0].replace(padding_string, f"{curfr:0{framepadding}}.")
+
 		aovNm = os.path.dirname(filePath).split("/")[-1]
 		layerNm = os.path.dirname(filePath).split("/")[-3]
     
-		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm)
+		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
+	
 
 	@err_catcher(name=__name__)
-	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame):
+	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False):
 		for loader in Loaderstocheck:
 			loaderClipPath = loader.Clip[0]
 			if filePath == loaderClipPath:
 				return loader, ".#nochange#."
 			
-			if self.are_paths_equal_except_version(loaderClipPath, filePath):
+			if self.are_paths_equal_except_version(loaderClipPath, filePath, isSequence):
 				version1 = self.extract_version(loaderClipPath)
 				version2 = self.extract_version(filePath)
 
@@ -2127,11 +2217,12 @@ path = r\"%s\"
 		lastFrame = imageData['lastFrame']		
 		aovNm = imageData['aovNm']
 		layerNm = imageData['layerNm']
+		isSequence = imageData['isSequence']
 		
 		extension = os.path.splitext(filePath)[1]
 		# Check if path without version exists in a loader and if so generate a popup to update with new version.
 		allLoaders = comp.GetToolList(False, "Loader").values()
-		updatedloader, prevVersion = self.updateLoaders(allLoaders, filePath, firstFrame, lastFrame)
+		updatedloader, prevVersion = self.updateLoaders(allLoaders, filePath, firstFrame, lastFrame, isSequence)
 		# If an updated node was produced.
 		if updatedloader:
 			# Update Multilayer.
@@ -2142,7 +2233,7 @@ path = r\"%s\"
 				if len(self.get_loader_channels(updatedloader)) > 0:
 					while  extraloader:
 						allremainingLoaders = [t for t in allLoaders if not t.Name in checkedloaders]
-						extraloader, extraversion = self.updateLoaders(allremainingLoaders, filePath, firstFrame, lastFrame)
+						extraloader, extraversion = self.updateLoaders(allremainingLoaders, filePath, firstFrame, lastFrame, isSequence)
 						if extraloader:
 							checkedloaders.append(extraloader.Name)
 
@@ -2277,7 +2368,10 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def extract_version(self, filepath):
 		# Extract the version information using a regular expression
-		match = re.search(r"v(\d{4})", filepath)
+		padding = self.core.versionPadding
+		pattern = rf"v(\d{{{padding}}})"  # Using f-string for dynamic regex pattern
+		match = re.search(pattern, filepath)
+
 		if match:
 			return int(match.group(1))
 		else:
@@ -2285,10 +2379,16 @@ path = r\"%s\"
 		
 
 	@err_catcher(name=__name__)
-	def are_paths_equal_except_version(self, path1, path2):
+	def are_paths_equal_except_version(self, path1, path2, isSequence):
 		# Remove the version part from the paths for exact match comparison
-		path1_without_version = re.sub(r"v\d{4}", "", path1)
-		path2_without_version = re.sub(r"v\d{4}", "", path2)
+		padding = self.core.versionPadding
+		version_pattern = rf"v\d{{{padding}}}"
+		path1_without_version = re.sub(version_pattern, "", path1)
+		path2_without_version = re.sub(version_pattern, "", path2)
+		if isSequence:
+			# Use regex to remove numbers before any file extension (can vary in length)
+			path1_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path1_without_version)
+			path2_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path2_without_version)
 		# Check if the non-version parts are an exact match
 		if path1_without_version == path2_without_version:
 			# Versions are the same, and non-version parts are an exact match
@@ -2298,11 +2398,18 @@ path = r\"%s\"
 			return False
 
 
-	# EXR CHANNEL MANAGEMENT #
 	@err_catcher(name=__name__)
-	def get_pattern_prefix(self, string):
-		pattern = re.compile(r'^(.+)v\d{4}\.exr$')
-		match = pattern.match(string)
+	def get_pattern_prefix(self, file_path):
+		_, file_extension = os.path.splitext(file_path)
+		padding = self.core.versionPadding
+
+		# Construct the regex pattern with proper escaping
+		# The escape character for dot (.) in the file extension needs to be double-escaped in raw strings
+		regex_pattern = rf'^(.+)v\d{{{padding}}}{re.escape(file_extension)}$'
+
+		pattern = re.compile(regex_pattern)
+		match = pattern.match(file_path)
+
 		return match.group(1) if match else None
 	
 
@@ -2314,6 +2421,8 @@ path = r\"%s\"
 		else:
 			return None
 		
+
+	# EXR CHANNEL MANAGEMENT #
 
 	@err_catcher(name=__name__)
 	def get_loader_channels(self, tool):
@@ -3338,8 +3447,8 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def onStateCreated(self, origin, state, stateData):
-		if state.className in ["ImageRender", "Playblast"]:
-			state.b_resPresets.setStyleSheet("padding-left: 1px;padding-right: 1px;")
+		# if state.className in ["ImageRender", "Playblast"]:								#	FROM REMOVING RENDER REZ PRESETS
+		# 	state.b_resPresets.setStyleSheet("padding-left: 1px;padding-right: 1px;")
 
 		if state.className == "Folder":
 			origin.tw_export.itemChanged.connect(self.sm_onfolderToggle)
@@ -3521,7 +3630,6 @@ path = r\"%s\"
 		# context = self.core.paths.getRenderProductData(filepath)
 		#The only modification was putting the mediaType as an argument for the context in the next line which replaces the previous one.
 		context = self.core.paths.getRenderProductData(filepath, mediaType=mediaType)
-		print(f"MediaProductscontext: {context} `\n\n")
 
 		if mediaType:
 			context["mediaType"] = mediaType

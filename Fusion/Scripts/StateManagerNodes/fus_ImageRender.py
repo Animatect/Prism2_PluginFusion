@@ -56,12 +56,11 @@ class ImageRenderClass(object):
 		self.state = state
 		self.core = core
 		self.stateManager = stateManager
-		self.fusionFuncs = self.core.appPlugin													#	ADDED - all calls to appPlugin
+		self.fusionFuncs = self.core.appPlugin		#	ADDED - all calls to appPlugin
 		self.canSetVersion = True
 		self.customContext = None
 		self.allowCustomContext = False
 		self.cb_context.addItems(["From scenefile", "Custom"])
-
 
 		self.treeWidget = self.stateManager.tw_export
 		self.itemNames = self.getItemNames()
@@ -87,15 +86,20 @@ class ImageRenderClass(object):
 			self.stateManager.getFrameRangeTypeToolTip("ExpressionField")
 		)
 
-		self.renderPresets = (
-			self.stateManager.stateTypes["RenderSettings"].getPresets(self.core)
-			if "RenderSettings" in self.stateManager.stateTypes
-			else {}
-		)
-		if self.renderPresets:
-			self.cb_renderPreset.addItems(self.renderPresets.keys())
-		else:
-			self.w_renderPreset.setVisible(False)
+		#	Render Scaling
+		renderScalings = [
+			"Force Proxies Off",
+			"1/4 (proxy)", 
+			"1/3 (proxy)",
+			"1/2 (proxy)",
+			"100 (scale)",
+			"125 (scale)",
+			"150 (scale)",
+			"200 (scale)"
+			]
+
+		self.cb_renderScaling.addItems(renderScalings)
+		self.cb_renderScaling.setCurrentIndex(4)
 
 		self.l_name.setVisible(False)
 		self.e_name.setVisible(False)
@@ -114,54 +118,9 @@ class ImageRenderClass(object):
 		self.mediaType = "2drenders"
 		self.tasknameRequired = True
 
-		#	Format dict to differentiate still/movie types
-		self.outputFormats = [																		#	EDITED
-			{"extension": ".exr", "fuseName": "OpenEXRFormat", "type": "image"},
-			{"extension": ".dpx", "fuseName": "DPXFormat", "type": "image"},
-			{"extension": ".png", "fuseName": "PNGFormat", "type": "image"},
-			{"extension": ".tif", "fuseName": "TiffFormat", "type": "image"},
-			{"extension": ".jpg", "fuseName": "JpegFormat", "type": "image"},
-			{"extension": ".mov", "fuseName": "QuickTimeMovies", "type": "video"},
-			{"extension": ".mxf", "fuseName": "MXFFormat", "type": "video"},
-			{"extension": ".avi", "fuseName": "AVIFormat", "type": "video"}
-		]
-
-		#	ARCHIVED FORMATS FOR LATER USE - THESE ARE THE NAMES FUSION USES
-			# "PIXFormat": "pix",             # Alias PIX
-            # "IFFFormat": "iff",             # Amiga IFF
-            # "CineonFormat": "cin",          # Kodak Cineon
-            # "DPXFormat": "dpx",             # DPX
-            # "FusePicFormat": "fusepic",     # Fuse Pic
-            # "FlipbookFormat": "fb",         # Fusion Flipbooks
-            # "RawFormat": "raw",             # Fusion RAW Image
-            # "IFLFormat": "ifl",             # Image File List (Text File)
-            # "IPLFormat": "ipl",             # IPL
-            # "JpegFormat": "jpg",            # JPEG
-            # "Jpeg2000Format": "jp2",        # JPEG2000
-            # "MXFFormat": "mxf",             # MXF - Material Exchange Format
-            # "OpenEXRFormat": "exr",         # OpenEXR
-            # "PandoraFormat": "piyuv10",     # Pandora YUV
-            # "PNGFormat": "png",             # PNG
-            # "VPBFormat": "vpb",             # Quantel VPB
-            # "QuickTimeMovies": "mov",       # QuickTime Movie
-            # "HDRFormat": "hdr",             # Radiance
-            # "SixRNFormat": "6RN",           # Rendition
-            # "SGIFormat": "sgi",             # SGI
-            # "PICFormat": "si",              # Softimage PIC
-            # "SUNFormat": "RAS",             # SUN Raster
-            # "TargaFormat": "tga",           # Targa
-            # "TiffFormat": "tiff",           # TIFF
-            # "rlaFormat": "rla",             # Wavefront RLA
-            # "BMPFormat": "bmp",             # Windows BMP
-            # "YUVFormat": "yuv",             # YUV
-
+		#	Gets formats dict from Prism_Fusion_Functions.py to differentiate still/movie types
+		self.outputFormats = self.fusionFuncs.outputFormats
 		self.cb_format.addItems([formatDict["extension"] for formatDict in self.outputFormats])
-
-		self.resolutionPresets = self.core.projects.getResolutionPresets()
-		if "Get from rendersettings" not in self.resolutionPresets:
-			self.resolutionPresets.append("Get from rendersettings")
-
-		# self.e_osSlaves.setText("All")
 
 		self.connectEvents()
 
@@ -177,8 +136,6 @@ class ImageRenderClass(object):
 		self.core.callback("onStateStartup", self)
 
 		#Disable Distributed rendering as it is handled by the NetRender state.
-		# if self.cb_manager.count() == 0:
-		# 	self.gb_submit.setVisible(False)
 		self.gb_submit.setVisible(False)
 		self.gb_submit.setChecked(False)
 
@@ -208,11 +165,12 @@ class ImageRenderClass(object):
 			if context.get("task"):
 				self.setTaskname(context.get("task"))
 
-
+			self.chb_resOverride.setChecked(False)
 
 			self.setUniqueName(f"{self.className} - Compositing")
 			self.setupRendernode()
 			self.updateUi()
+
 
 	@err_catcher(name=__name__)
 	def loadData(self, data):
@@ -229,13 +187,12 @@ class ImageRenderClass(object):
 			self.e_name.setText(data["stateName"])
 		elif "statename" in data:
 			self.e_name.setText(data["statename"] + " - {identifier}")
-		if "renderpresetoverride" in data:
-			res = eval(data["renderpresetoverride"])
-			self.chb_renderPreset.setChecked(res)
-		if "currentrenderpreset" in data:
-			idx = self.cb_renderPreset.findText(data["currentrenderpreset"])
+		if "renderScaleOverride" in data:
+			self.chb_resOverride.setChecked(data["renderScaleOverride"])
+		if "currentRenderScale" in data:
+			idx = self.cb_renderScaling.findText(data["currentRenderScale"])
 			if idx != -1:
-				self.cb_renderPreset.setCurrentIndex(idx)
+				self.cb_renderScaling.setCurrentIndex(idx)
 				self.stateManager.saveStatesToScene()
 		if "rangeType" in data:
 			idx = self.cb_rangeType.findText(data["rangeType"])
@@ -248,20 +205,6 @@ class ImageRenderClass(object):
 			self.sp_rangeEnd.setValue(int(data["endframe"]))
 		if "frameExpression" in data:
 			self.le_frameExpression.setText(data["frameExpression"])
-		# if "currentcam" in data:
-		#     camName = getattr(self.fusionFuncs, "getCamName", lambda x, y: "")(
-		#         self, data["currentcam"]
-		#     )
-		#     idx = self.cb_cam.findText(camName)
-		#     if idx != -1:
-		#         self.curCam = self.camlist[idx]
-		#         self.cb_cam.setCurrentIndex(idx)
-		#         self.stateManager.saveStatesToScene()
-		if "resoverride" in data:
-			res = eval(data["resoverride"])
-			self.chb_resOverride.setChecked(res[0])
-			self.sp_resWidth.setValue(res[1])
-			self.sp_resHeight.setValue(res[2])
 		if "masterVersion" in data:
 			idx = self.cb_master.findText(data["masterVersion"])
 			if idx != -1:
@@ -310,8 +253,6 @@ class ImageRenderClass(object):
 		if "dlgpudevices" in data:
 			self.le_dlGPUdevices.setText(data["dlgpudevices"])
 			self.gpuDevicesChanged()
-		# if "enablepasses" in data:
-		# 	self.gb_passes.setChecked(eval(data["enablepasses"]))
 		if "lastexportpath" in data:
 			lePath = self.core.fixPath(data["lastexportpath"])
 			self.l_pathLast.setText(lePath)
@@ -353,8 +294,8 @@ class ImageRenderClass(object):
 		self.b_context.clicked.connect(self.selectContextClicked)
 		self.b_changeTask.clicked.connect(self.changeTask)
 		self.b_setRendernode.clicked.connect(self.setRendernode)
-		self.chb_renderPreset.stateChanged.connect(self.presetOverrideChanged)
-		self.cb_renderPreset.activated.connect(self.stateManager.saveStatesToScene)
+		self.chb_resOverride.toggled.connect(lambda: self.updateUi())
+		self.cb_renderScaling.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_rangeType.activated.connect(self.rangeTypeChanged)
 		self.sp_rangeStart.editingFinished.connect(self.startChanged)
 		self.sp_rangeEnd.editingFinished.connect(self.endChanged)
@@ -367,15 +308,10 @@ class ImageRenderClass(object):
 		self.le_frameExpression.mouseMoveEvent = self.exprMoveEvent
 		self.le_frameExpression.leaveEvent = self.exprLeaveEvent
 		self.le_frameExpression.focusOutEvent = self.exprFocusOutEvent
-		# self.cb_cam.activated.connect(self.setCam)
-		self.chb_resOverride.stateChanged.connect(self.resOverrideChanged)
-		self.sp_resWidth.editingFinished.connect(self.stateManager.saveStatesToScene)
-		self.sp_resHeight.editingFinished.connect(self.stateManager.saveStatesToScene)
-		self.b_resPresets.clicked.connect(self.showResPresets)
 		self.cb_master.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_outPath.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_renderLayer.activated.connect(self.stateManager.saveStatesToScene)
-		self.cb_format.activated.connect(lambda: self.setRendernode())								#	EDITED
+		self.cb_format.activated.connect(lambda: self.setRendernode())
 		self.gb_submit.toggled.connect(self.rjToggled)
 		self.cb_manager.activated.connect(self.managerChanged)
 		self.sp_rjPrio.editingFinished.connect(self.stateManager.saveStatesToScene)
@@ -396,16 +332,8 @@ class ImageRenderClass(object):
 		)
 		self.sp_dlGPUpt.editingFinished.connect(self.gpuPtChanged)
 		self.le_dlGPUdevices.editingFinished.connect(self.gpuDevicesChanged)
-		# self.gb_passes.toggled.connect(self.stateManager.saveStatesToScene)
-		# self.b_addPasses.clicked.connect(self.showPasses)
-		# self.lw_passes.customContextMenuRequested.connect(self.rclickPasses)
-
 		self.b_pathLast.clicked.connect(self.showLastPathMenu)
 		self.chb_outOnly.stateChanged.connect(self.outOnlyChanged)
-		# self.lw_passes.itemDoubleClicked.connect(
-		# 	lambda x: self.fusionFuncs.sm_render_openPasses(self)
-		# )
-
 		# self.treeWidget.itemSelectionChanged.connect(self.onTreeItemSelectionChanged)
 
 	@err_catcher(name=__name__)
@@ -657,7 +585,7 @@ class ImageRenderClass(object):
 
 	
 	@err_catcher(name=__name__)
-	def changeTask(self):														#	EDITED
+	def changeTask(self):
 		from PrismUtils import PrismWidgets
 		#	Sets up popup window
 		self.nameWin = PrismWidgets.CreateItem(
@@ -694,7 +622,7 @@ class ImageRenderClass(object):
 	#	Do not use special charactors,
 	#	Node name cannot start with a number.
 	@err_catcher(name=__name__)
-	def getFusLegalName(self, origName, check=False):							#	ADDED
+	def getFusLegalName(self, origName, check=False):
 		# Check if the name starts with a number
 		if origName[0].isdigit():
 			if check:
@@ -709,7 +637,7 @@ class ImageRenderClass(object):
 			
 			return "Error: Name contains invalid characters."
 
-		newName = origName.replace(' ', '_')									#	EDITED
+		newName = origName.replace(' ', '_')
 		newName = newName.replace('.', '_')
 		newName = newName.replace('-', '_')
 
@@ -806,7 +734,7 @@ class ImageRenderClass(object):
 	def get_rendernode_name(self):
 		identifier = self.getTaskname()
 		legalName = self.getFusLegalName(identifier)
-		nodeName = f"PrSAVER_{legalName}"										#	TODO	EDITED	GOOD NAME?
+		nodeName = f"PrSAVER_{legalName}"
 
 		return nodeName
 	
@@ -833,48 +761,11 @@ class ImageRenderClass(object):
 		self.b_setRendernode.setText(name)
 		self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
 
-		self.configureRenderNode(name)													#	ADDED
-
+		self.configureRenderNode(name)
 		self.updateUi()
 		self.setTreeItemColor()
 		self.stateManager.saveStatesToScene()
-		
-	
-	@err_catcher(name=__name__)
-	def presetOverrideChanged(self, checked):
-		self.cb_renderPreset.setEnabled(checked)
-		self.stateManager.saveStatesToScene()
 
-	@err_catcher(name=__name__)
-	def resOverrideChanged(self, checked):
-		self.sp_resWidth.setEnabled(checked)
-		self.sp_resHeight.setEnabled(checked)
-		self.b_resPresets.setEnabled(checked)
-
-		self.stateManager.saveStatesToScene()
-
-	@err_catcher(name=__name__)
-	def showResPresets(self):
-		pmenu = QMenu(self)
-
-		for preset in self.resolutionPresets:
-			pAct = QAction(preset, self)
-			res = self.getResolution(preset)
-			if not res:
-				continue
-
-			pwidth, pheight = res
-
-			pAct.triggered.connect(
-				lambda x=None, v=pwidth: self.sp_resWidth.setValue(v)
-			)
-			pAct.triggered.connect(
-				lambda x=None, v=pheight: self.sp_resHeight.setValue(v)
-			)
-			pAct.triggered.connect(lambda: self.stateManager.saveStatesToScene())
-			pmenu.addAction(pAct)
-
-		pmenu.exec_(QCursor.pos())
 
 	@err_catcher(name=__name__)
 	def getRangeType(self):
@@ -890,28 +781,6 @@ class ImageRenderClass(object):
 
 		return False
 
-	@err_catcher(name=__name__)
-	def getResolution(self, resolution):
-		res = None
-		if resolution == "Get from rendersettings":
-			if hasattr(self.fusionFuncs, "getResolution"):
-				res = self.fusionFuncs.getResolution()
-			else:
-				res = [1920, 1080]
-		elif resolution.startswith("Project ("):
-			res = resolution[9:-1].split("x")
-			res = [int(r) for r in res]
-		else:
-			try:
-				pwidth = int(resolution.split("x")[0])
-				pheight = int(resolution.split("x")[1])
-				res = [pwidth, pheight]
-			except:
-				res = getattr(
-					self.fusionFuncs, "evaluateResolution", lambda x: None
-				)(resolution)
-
-		return res
 
 	@err_catcher(name=__name__)
 	def getMasterVersion(self):
@@ -972,6 +841,8 @@ class ImageRenderClass(object):
 
 		if not self.core.mediaProducts.getUseMaster():
 			self.w_master.setVisible(False)
+
+		self.cb_renderScaling.setEnabled(self.chb_resOverride.isChecked())
 
 		# update Render Layer
 		# curLayer = self.cb_renderLayer.currentText()
@@ -1347,14 +1218,13 @@ class ImageRenderClass(object):
 
 
 	@err_catcher(name=__name__)
-	def configureRenderNode(self, nodeName, useVersion="next", stateUI=None):				#	ADDED
+	def configureRenderNode(self, nodeName, useVersion="next", stateUI=None):
 		if stateUI is None:
 			stateUI = self
 		if stateUI.tasknameRequired and not stateUI.getTaskname():
 			return
 
 		outputName, _, _ = self.getOutputName(useVersion=useVersion)
-
 		extension = stateUI.cb_format.currentText()
 		fuseName = None
 
@@ -1373,7 +1243,6 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def executeState(self, parent, useVersion="next", outOnly=False):
-		# print("parent: ",parent, "\n\n\n")
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
 		outOnly = outOnly or self.chb_outOnly.isChecked()
@@ -1393,6 +1262,7 @@ class ImageRenderClass(object):
 		updateMaster = True
 		fileName = self.core.getCurrentFileName()
 		context = self.getCurrentContext()
+
 		if not self.renderingStarted:
 			if self.tasknameRequired and not self.getTaskname():
 				return [
@@ -1455,18 +1325,8 @@ class ImageRenderClass(object):
 				"rangeType": rangeType,
 			}
 
-			if (
-				self.chb_renderPreset.isChecked()
-				and "RenderSettings" in self.stateManager.stateTypes
-			):
-				rSettings["renderSettings"] = getattr(
-					self.fusionFuncs,
-					"sm_renderSettings_getCurrentSettings",
-					lambda x: {},
-				)(self)
-				self.stateManager.stateTypes["RenderSettings"].applyPreset(
-					self.core, self.renderPresets[self.cb_renderPreset.currentText()]
-				)
+			rSettings["scalingOvr"] = self.chb_resOverride.isChecked()
+			rSettings["render_Scale"] = self.cb_renderScaling.currentText()
 
 			self.fusionFuncs.sm_render_preSubmit(self, rSettings)
 
@@ -1488,41 +1348,6 @@ class ImageRenderClass(object):
 				os.makedirs(os.path.dirname(rSettings["outputName"]))
 
 
-			# self.core.saveScene(versionUp=False, prismReq=False)					#	TODO	Do we want this here, or let option in SM handle?
-
-
-			#### SHOULD ALWAYS BE FALSE distribution is handled by NetRender State ####				#	TODO NEEEED?
-
-
-			# If Render on the farm is selected
-			# if not self.gb_submit.isHidden() and self.gb_submit.isChecked() and not outOnly:
-			# 	# get the Frame Range.
-			# 	# self.setFarmedRange()
-			# 	# get new versions for all savers.
-			# 	# self.upSubmittedSaversVersions(self.stateManager)
-			# 	# check paths and resolve path mappings.
-			# 	# self.submitCheckPaths()
-			# 	# 
-			# 	handleMaster = "media" if self.isUsingMasterVersion() else False
-			# 	plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
-			# 	if hasattr(self, "chb_redshift") and self.chb_redshift.isChecked() and not self.w_redshift.isHidden():
-			# 		sceneDescription = "redshift"
-			# 	else:
-			# 		sceneDescription = None
-
-			# 	result = plugin.sm_render_submitJob(
-			# 		self,
-			# 		rSettings["outputName"],
-			# 		parent,
-			# 		handleMaster=handleMaster,
-			# 		details=details,
-			# 		sceneDescription=sceneDescription
-			# 	)
-				
-
-			# 	updateMaster = False
-			# Render Locally
-			# else:
 			result = self.fusionFuncs.sm_render_startLocalRender(
 					self, outOnly, rSettings["outputName"], rSettings
 				)
@@ -1620,20 +1445,20 @@ class ImageRenderClass(object):
 			"contextType": self.getContextType(),
 			"customContext": self.customContext,
 			"taskname": self.getTaskname(),
-			"renderpresetoverride": str(self.chb_renderPreset.isChecked()),
-			"currentrenderpreset": self.cb_renderPreset.currentText(),
+			"renderScaleOverride": self.chb_resOverride.isChecked(),
+			"currentRenderScale": self.cb_renderScaling.currentText(),
 			"rangeType": str(self.cb_rangeType.currentText()),
 			"startframe": self.sp_rangeStart.value(),
 			"endframe": self.sp_rangeEnd.value(),
 			"frameExpression": self.le_frameExpression.text(),
 			# "currentcam": str(self.curCam),
-			"resoverride": str(
-				[
-					self.chb_resOverride.isChecked(),
-					self.sp_resWidth.value(),
-					self.sp_resHeight.value(),
-				]
-			),
+			# "resoverride": str(
+			# 	[
+			# 		self.chb_resOverride.isChecked(),
+			# 		self.sp_resWidth.value(),
+			# 		self.sp_resHeight.value(),
+			# 	]
+			# ),
 			"masterVersion": self.cb_master.currentText(),
 			"curoutputpath": self.cb_outPath.currentText(),
 			"renderlayer": str(self.cb_renderLayer.currentText()),
@@ -1652,7 +1477,6 @@ class ImageRenderClass(object):
 			"dlgpupt": self.sp_dlGPUpt.value(),
 			"dlgpudevices": self.le_dlGPUdevices.text(),
 			"lastexportpath": self.l_pathLast.text().replace("\\", "/"),
-			# "enablepasses": str(self.gb_passes.isChecked()),
 			"stateenabled": str(self.state.checkState(0)),
 			"rendernode": self.b_setRendernode.text(),
 			"outonly": self.chb_outOnly.isChecked(),

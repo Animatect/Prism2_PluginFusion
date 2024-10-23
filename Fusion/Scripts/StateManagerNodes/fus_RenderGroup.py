@@ -122,9 +122,6 @@ class RenderGroupClass(object):
 
 			self.chb_overrideFrameRange.setChecked(False)
 
-			# self.setUniqueName(self.className + " - Compositing")
-#			self.chb_upVersion.setChecked(True)
-
 		self.connectEvents()
 		self.setToolTips()
 		self.refreshSubmitUi()
@@ -341,7 +338,6 @@ class RenderGroupClass(object):
 				)
 
 		# Item Color #
-		# self.state.setBackground(0, QColor("#429933"))
 		self.state.setBackground(0, QColor("#2A3B4C"))
 
 		self.core.callback("onStateSettingsLoaded", self, data)
@@ -566,11 +562,6 @@ class RenderGroupClass(object):
 		pass
 
 
-	# @err_catcher(name=__name__)															#	TODO	Is this used?
-	# def getSortKey(self):
-	# 	return self.getTaskname()
-
-
 	@err_catcher(name=__name__)
 	def changeTask(self):
 		from PrismUtils import PrismWidgets
@@ -782,7 +773,6 @@ class RenderGroupClass(object):
 
 		self.refreshSubmitUi()
 		self.nameChanged(self.e_name.text())
-
 		self.updateRange()
 		self.updateLocationOvr()
 		self.updateScalingOvr()
@@ -1203,31 +1193,6 @@ class RenderGroupClass(object):
 			result = self.fusionFuncs.sm_render_startFarmGroupRender(self, farmPlugin, rSettings=rSettings)
 
 		return result
-
-
-	# @err_catcher(name=__name__)											#	NEEDED ???
-	# def isUsingMasterVersion(self):
-	# 	useMaster = self.core.mediaProducts.getUseMaster()
-	# 	if not useMaster:
-	# 		return False
-
-	# 	masterAction = self.cb_master.currentText()
-	# 	if masterAction == "Don't Update Master":
-	# 		return False
-
-	# 	return True
-
-
-	# @err_catcher(name=__name__)											#	NEEDED ???
-	# def handleMasterVersion(self, outputName):
-	# 	if not self.isUsingMasterVersion():
-	# 		return
-
-	# 	masterAction = self.cb_master.currentText()
-	# 	if masterAction == "Set as master":
-	# 		self.core.mediaProducts.updateMasterVersion(outputName, mediaType="2drenders")
-	# 	elif masterAction == "Add to master":
-	# 		self.core.mediaProducts.addToMasterVersion(outputName, mediaType="2drenders")
 
 
 	@err_catcher(name=__name__)
