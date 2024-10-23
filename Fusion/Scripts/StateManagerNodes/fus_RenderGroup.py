@@ -180,7 +180,7 @@ class RenderGroupClass(object):
 
 	@err_catcher(name=__name__)
 	def setToolTips(self):
-		tip = "Name of RenderGroup.\nThis does not affect the render filenaming"
+		tip = "Name of RenderGroup.\nThis does not affect the render file naming"
 		self.l_class.setToolTip(tip)
 		self.e_name.setToolTip(tip)
 
@@ -241,7 +241,6 @@ class RenderGroupClass(object):
 			self.e_name.setText(data["stateName"])
 		elif "statename" in data:
 			self.e_name.setText(data["statename"] + " - {identifier}")
-
 		if "renderAsPrevVer" in data:
 			self.chb_renderAsPrevVer.setChecked(data["renderAsPrevVer"])
 		if "overrideFrameRange" in data:
@@ -291,14 +290,12 @@ class RenderGroupClass(object):
 			idx = self.cb_outPath.findText(data["curoutputpath"])
 			if idx != -1:
 				self.cb_outPath.setCurrentIndex(idx)
-
 		if "renderStates" in data:
 			# Clear any existing items in the list
 			self.tw_renderStates.clear()
 			# Populate State List
 			for state in data["renderStates"]:
 				self.tw_renderStates.addItem(state)
-
 		if "submitrender" in data:
 			self.gb_submit.setChecked(eval(data["submitrender"]))
 		if "rjmanager" in data:
@@ -827,22 +824,6 @@ class RenderGroupClass(object):
 
 
 	@err_catcher(name=__name__)
-	def updateFrameRangeOvr(self):
-		isEnabled = self.chb_overrideFrameRange.isChecked()
-
-		# UI elements to update
-		uiElements = [
-			self.cb_rangeType,
-			self.w_frameRangeValues,
-			self.w_frameExpression
-			]
-		
-		# Iterate over each UI element and set its hidden state
-		for element in uiElements:
-			element.setHidden(not isEnabled)
-
-
-	@err_catcher(name=__name__)
 	def updateMasterOvr(self):
 		isEnabled = self.chb_overrideMaster.isChecked()
 
@@ -915,24 +896,40 @@ class RenderGroupClass(object):
 
 	@err_catcher(name=__name__)
 	def updateRange(self):
-		rangeType = self.cb_rangeType.currentText()
-		isCustom = rangeType == "Custom"
-		isExp = rangeType == "Expression"
-		self.l_rangeStart.setVisible(not isCustom and not isExp)
-		self.l_rangeEnd.setVisible(not isCustom and not isExp)
-		self.sp_rangeStart.setVisible(isCustom)
-		self.sp_rangeEnd.setVisible(isCustom)
-		self.w_frameRangeValues.setVisible(not isExp)
-		self.w_frameExpression.setVisible(isExp)
+		isOvrEnabled = self.chb_overrideFrameRange.isChecked()
 
-		if not isCustom and not isExp:
-			frange = self.getFrameRange(rangeType=rangeType)
-			start = str(int(frange[0])) if frange[0] is not None else "-"
-			end = str(int(frange[1])) if frange[1] is not None else "-"
-			self.l_rangeStart.setText(start)
-			self.l_rangeEnd.setText(end)
+		#	If override is not checked hide UI elements
+		if not isOvrEnabled:
+			# UI elements to update
+			uiElements = [
+				self.cb_rangeType,
+				self.w_frameRangeValues,
+				self.w_frameExpression
+				]
+			
+			# Iterate over each UI element and set its hidden state
+			for element in uiElements:
+				element.setHidden(True)
 
-		self.updateFrameRangeOvr()
+		#	If override is checked, handle UI elements
+		else:
+			self.cb_rangeType.setVisible(True)
+			rangeType = self.cb_rangeType.currentText()
+			isCustom = rangeType == "Custom"
+			isExp = rangeType == "Expression"
+			self.l_rangeStart.setVisible(not isCustom and not isExp)
+			self.l_rangeEnd.setVisible(not isCustom and not isExp)
+			self.sp_rangeStart.setVisible(isCustom)
+			self.sp_rangeEnd.setVisible(isCustom)
+			self.w_frameRangeValues.setVisible(not isExp)
+			self.w_frameExpression.setVisible(isExp)
+
+			if not isCustom and not isExp:
+				frange = self.getFrameRange(rangeType=rangeType)
+				start = str(int(frange[0])) if frange[0] is not None else "-"
+				end = str(int(frange[1])) if frange[1] is not None else "-"
+				self.l_rangeStart.setText(start)
+				self.l_rangeEnd.setText(end)
 
 
 	@err_catcher(name=__name__)
@@ -941,6 +938,7 @@ class RenderGroupClass(object):
 		if self.chb_overrideFrameRange.isChecked():
 			startFrame = None
 			endFrame = None
+
 			if rangeType == "Scene":
 				if hasattr(self.fusionFuncs, "getFrameRange"):
 					startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
@@ -949,20 +947,25 @@ class RenderGroupClass(object):
 				else:
 					startFrame = 1001
 					endFrame = 1100
+
 			elif rangeType == "Shot":
 				context = self.getCurrentContext()
 				if context.get("type") == "shot" and "sequence" in context:
 					frange = self.core.entities.getShotRange(context)
 					if frange:
 						startFrame, endFrame = frange
+
 			elif rangeType == "Single Frame":
-				if hasattr(self.fusionFuncs, "getCurrentFrame"):
-					startFrame = int(self.fusionFuncs.getCurrentFrame())
-				else:
+				try:
+					comp = self.fusionFuncs.getCurrentComp()
+					startFrame = comp.CurrentTime
+				except:
 					startFrame = 1001
+
 			elif rangeType == "Custom":
 				startFrame = self.sp_rangeStart.value()
 				endFrame = self.sp_rangeEnd.value()
+
 			elif rangeType == "Expression":
 				return self.core.resolveFrameExpression(self.le_frameExpression.text())
 
@@ -978,11 +981,15 @@ class RenderGroupClass(object):
 			if endFrame is not None:
 				endFrame = int(endFrame)
 
+			return startFrame, endFrame
+
 		#	Get framerange from Comp
 		else:
+			idx = self.cb_rangeType.findText("Scene")
+			if idx != -1:
+				self.cb_rangeType.setCurrentIndex(idx)
 			startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
-
-		return startFrame, endFrame
+			return startFrame, endFrame
 
 
 	@err_catcher(name=__name__)
@@ -1090,10 +1097,12 @@ class RenderGroupClass(object):
 
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
-		start, end = frames
-
 		if rangeType != "Expression":
+			framesStr = f"{frames[0]} - {frames[1]}"
 			frames = frames[0]
+		else:
+			framesStr = f"Expression {self.le_frameExpression.text()}"
+
 		if frames is None or frames == []:
 			warnings.append(["Framerange is invalid.", "", 3])
 
@@ -1101,7 +1110,7 @@ class RenderGroupClass(object):
 		if self.chb_renderAsPrevVer.isChecked():
 			renderOverrides.append("    Render as Prevous Version Enabled")
 		if self.chb_overrideFrameRange.isChecked():
-			renderOverrides.append(f"    Frame Range Override: {start}-{end}")
+			renderOverrides.append(f"    Frame Range Override: {framesStr}")
 		if self.chb_overrideMaster.isChecked():
 			renderOverrides.append(f"    Update Master Override: {self.cb_master.currentText()}")
 		if self.chb_overrideLocation.isChecked():
@@ -1162,7 +1171,20 @@ class RenderGroupClass(object):
 			groupRenderStates.append(stateName)
 
 		rangeType = self.cb_rangeType.currentText()
-		frame_start, frame_end = self.getFrameRange(rangeType)
+		frames = self.getFrameRange(rangeType)
+
+		if rangeType != "Expression":
+			frame_start = frames[0]
+			frame_end = frames[1]
+		else:
+			frame_start = None
+			frame_end = None
+
+		if frames is None or frames == [] or frames[0] is None:
+			return [self.state.text(0) + ": error - Framerange is invalid"]
+
+		if rangeType == "Single Frame":
+			frame_end = frame_start
 
 		#	Creates render settings
 		rSettings = {}
@@ -1171,9 +1193,10 @@ class RenderGroupClass(object):
 		rSettings["context"] = context
 		rSettings["renderAsPrevVer"] = self.chb_renderAsPrevVer.isChecked()
 		rSettings["frameOvr"] = self.chb_overrideFrameRange.isChecked()
-		rSettings["frameRangeType"] = rangeType
+		rSettings["rangeType"] = rangeType
 		rSettings["frame_start"] = frame_start
 		rSettings["frame_end"] = frame_end
+		rSettings["frames"] = frames
 		rSettings["masterOvr"] = self.chb_overrideMaster.isChecked()
 		rSettings["handleMaster"] = self.cb_master.currentText()
 		rSettings["locationOvr"] = self.chb_overrideLocation.isChecked()
