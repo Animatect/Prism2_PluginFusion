@@ -3293,11 +3293,16 @@ path = r\"%s\"
 			return prismdata.split("_..._")[0]
 
 
+	#	Gets called from SM to remove all States
 	@err_catcher(name=__name__)
 	def sm_deleteStates(self, origin):
 		comp = self.fusion.CurrentComp
 		if self.sm_checkCorrectComp(comp):
-			comp.SetData("prismstates","")
+			#	Sets the states datablock to empty default state
+			self.setDefaultState()
+			self.core.popup("All States have been removed.\n"
+							"You may have to remove associated Savers from the comp manually.")
+
 
 
 	@err_catcher(name=__name__)
