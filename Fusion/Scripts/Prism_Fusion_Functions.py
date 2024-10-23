@@ -2123,17 +2123,15 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def getImageData(self, comp, sourceData):
-		curfr = int(comp.CurrentTime)	
+		curfr = int(comp.CurrentTime)
 		framepadding = self.core.framePadding
 		padding_string = '#' * framepadding + '.'
-
 		# check if the source data is interpreting the image sequence as individual images.
 		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
 		if len(image_strings) > 1:
 			isSequence = False
 			if padding_string in sourceData[0]:
 				isSequence = True
-
 			imagepath = self.is_image_sequence(image_strings)
 
 			if imagepath:
@@ -2186,7 +2184,6 @@ path = r\"%s\"
 		layerNm = os.path.dirname(filePath).split("/")[-3]
     
 		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
-	
 
 	@err_catcher(name=__name__)
 	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False):
@@ -2379,7 +2376,7 @@ path = r\"%s\"
 		
 
 	@err_catcher(name=__name__)
-	def are_paths_equal_except_version(self, path1, path2, isSequence):
+	def are_paths_equal_except_version(self, path1, path2, isSequence):	
 		# Remove the version part from the paths for exact match comparison
 		padding = self.core.versionPadding
 		version_pattern = rf"v\d{{{padding}}}"
@@ -2396,7 +2393,6 @@ path = r\"%s\"
 		else:
 			# Versions are the same, but non-version parts are different
 			return False
-
 
 	@err_catcher(name=__name__)
 	def get_pattern_prefix(self, file_path):
