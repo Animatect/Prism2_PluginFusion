@@ -53,7 +53,9 @@ To add the integration, go to the "DCC Apps" -> "Fusion" tab.  Then click the "a
 ## **Usage**
 
 ### **Menu**
-Prism functions are accessed through the Prism menu in the top bar of Gimp's UI.  The communication server must be started before Prism functions may be executed.  This opens a socket port between Prism and the Gimp integration only, and there is no data communicated outside the local computer.  You can change the port number in Settings->DCCs->Gimp if needed.
+Prism functions are accessed through the Prism menu in the top bar of Fusion Studio's UI.
+
+TODO
 
 ![Prism Menu](https://github.com/AltaArts/Gimp_Integration--Prism-Plugin/assets/86539171/46afa882-72d0-4153-b7bf-ae9cac63ebfc)
 
