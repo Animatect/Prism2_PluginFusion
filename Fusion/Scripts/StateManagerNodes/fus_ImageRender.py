@@ -170,6 +170,8 @@ class ImageRenderClass(object):
 			self.setUniqueName(f"{self.className} - Compositing")
 			self.setupRendernode()
 			self.updateUi()
+		
+		self.onStateLoaded()
 
 
 	@err_catcher(name=__name__)
@@ -271,6 +273,24 @@ class ImageRenderClass(object):
 
 
 		# Setup the enabled disabled checkboxes
+		# nodename = self.get_rendernode_name()
+		# if self.fusionFuncs.rendernode_exists(nodename):
+		# 	state = self.fusionFuncs.getNodePassthrough(nodename)
+		# 	if state:
+		# 		self.state.setCheckState(0, Qt.Checked)
+		# 	else:
+		# 		self.state.setCheckState(0, Qt.Unchecked)
+				
+		# self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
+
+		# self.state.setBackground(0, QColor("#365e99"))
+
+		self.core.callback("onStateSettingsLoaded", self, data)
+
+
+	@err_catcher(name=__name__)
+	def onStateLoaded(self):
+		print("stateloaded")
 		nodename = self.get_rendernode_name()
 		if self.fusionFuncs.rendernode_exists(nodename):
 			state = self.fusionFuncs.getNodePassthrough(nodename)
@@ -278,13 +298,10 @@ class ImageRenderClass(object):
 				self.state.setCheckState(0, Qt.Checked)
 			else:
 				self.state.setCheckState(0, Qt.Unchecked)
-				
+
 		self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
 
 		self.state.setBackground(0, QColor("#365e99"))
-
-		self.core.callback("onStateSettingsLoaded", self, data)
-		
 
 	@err_catcher(name=__name__)
 	def connectEvents(self):
@@ -722,6 +739,7 @@ class ImageRenderClass(object):
 	def sm_ToggleNodeChanged(self, disabled)->None:
 		# disabled = twitem.checkState(0) != Qt.Checked
 		nodename = self.get_rendernode_name()
+		# print(f"nodename: {nodename}")
 		if self.fusionFuncs.rendernode_exists(nodename):
 			self.fusionFuncs.setNodePassthrough(nodename, disabled)
 		else:
