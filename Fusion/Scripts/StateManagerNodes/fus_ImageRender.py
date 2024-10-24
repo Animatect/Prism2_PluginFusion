@@ -943,10 +943,12 @@ class ImageRenderClass(object):
 			self.l_rangeStart.setText(start)
 			self.l_rangeEnd.setText(end)
 
+
 	@err_catcher(name=__name__)
 	def getFrameRange(self, rangeType):
 		startFrame = None
 		endFrame = None
+
 		if rangeType == "Scene":
 			if hasattr(self.fusionFuncs, "getFrameRange"):
 				startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
@@ -955,20 +957,25 @@ class ImageRenderClass(object):
 			else:
 				startFrame = 1001
 				endFrame = 1100
+
 		elif rangeType == "Shot":
 			context = self.getCurrentContext()
 			if context.get("type") == "shot" and "sequence" in context:
 				frange = self.core.entities.getShotRange(context)
 				if frange:
 					startFrame, endFrame = frange
+
 		elif rangeType == "Single Frame":
-			if hasattr(self.fusionFuncs, "getCurrentFrame"):
-				startFrame = int(self.fusionFuncs.getCurrentFrame())
-			else:
+			try:	
+				comp = self.fusionFuncs.getCurrentComp()
+				startFrame = comp.CurrentTime
+			except:
 				startFrame = 1001
+
 		elif rangeType == "Custom":
 			startFrame = self.sp_rangeStart.value()
 			endFrame = self.sp_rangeEnd.value()
+
 		elif rangeType == "Expression":
 			return self.core.resolveFrameExpression(self.le_frameExpression.text())
 
@@ -985,6 +992,7 @@ class ImageRenderClass(object):
 			endFrame = int(endFrame)
 
 		return startFrame, endFrame
+	
 
 	@err_catcher(name=__name__)
 	def openSlaves(self):
@@ -1261,9 +1269,12 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def executeState(self, parent, useVersion="next", outOnly=False):
+
+		outOnly = outOnly or self.chb_outOnly.isChecked()
+
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
-		outOnly = outOnly or self.chb_outOnly.isChecked()
+
 		if rangeType != "Expression":
 			startFrame = frames[0]
 			endFrame = frames[1]
