@@ -3300,14 +3300,14 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def sm_saveStates(self, origin, buf):
-		comp = self.fusion.CurrentComp
+		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			comp.SetData("prismstates", buf + "_..._")
 
 
 	@err_catcher(name=__name__)
 	def sm_saveImports(self, origin, importPaths):
-		comp = self.fusion.CurrentComp
+		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			prismdata = comp.GetData("prismstates")
 			prismdata += importPaths.replace("\\\\", "\\")
@@ -3316,7 +3316,8 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def sm_readStates(self, origin):
-		comp = self.fusion.CurrentComp
+		comp = self.getCurrentComp()
+		print(comp)
 		if self.sm_checkCorrectComp(comp):
 			prismdata = comp.GetData("prismstates")
 			return prismdata.split("_..._")[0]
@@ -3325,7 +3326,7 @@ path = r\"%s\"
 	#	Gets called from SM to remove all States
 	@err_catcher(name=__name__)
 	def sm_deleteStates(self, origin):
-		comp = self.fusion.CurrentComp
+		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			#	Sets the states datablock to empty default state
 			self.setDefaultState()
@@ -3336,7 +3337,7 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def getImportPaths(self, origin):
-		comp = self.fusion.CurrentComp
+		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			prismdata = comp.GetData("prismstates")
 			return prismdata.split("_..._")[1]
