@@ -137,6 +137,7 @@ class Prism_Fusion_Functions(object):
 			{"extension": ".tif", "fuseName": "TiffFormat", "type": "image"},
 			{"extension": ".jpg", "fuseName": "JpegFormat", "type": "image"},
 			{"extension": ".mov", "fuseName": "QuickTimeMovies", "type": "video"},
+			{"extension": ".mp4", "fuseName": "QuickTimeMovies", "type": "video"},
 			{"extension": ".mxf", "fuseName": "MXFFormat", "type": "video"},
 			{"extension": ".avi", "fuseName": "AVIFormat", "type": "video"}
 		]
