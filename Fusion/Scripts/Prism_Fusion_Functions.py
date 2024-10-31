@@ -1934,8 +1934,12 @@ path = r\"%s\"
 
 			# Rename the clipname to force reload duration
 			node.Clip = loaderPath
-			node.GlobalIn[0] = firstframe
 			node.GlobalOut[0] = lastframe
+			node.GlobalIn[0] = firstframe
+
+			node.ClipTimeStart = 0
+			node.ClipTimeEnd = lastframe - firstframe
+			node.HoldLastFrame = 0
 
 			# ClipsReaload
 			node.SetAttrs({"TOOLB_PassThrough": True})
@@ -2187,7 +2191,8 @@ path = r\"%s\"
 		firstFrame = sourceData[1]
 		lastFrame = sourceData[2]	
 		framepadding = self.core.framePadding
-		padding_string = '#' * framepadding + '.'
+		# padding_string = '#' * framepadding + '.'
+		padding_string = '#' * 4 + '.' # apparently Fusion always reads 4 pads regardless
 		isSequence = False
 
 		if padding_string in sourceData[0]:
@@ -2197,8 +2202,11 @@ path = r\"%s\"
 			# Fusion will always add the .####. pattern before the extension, if that pattern is not in the file we have to handle that case.
 			# Create the formatted frame number for firstFrame
 			formatted_first_frame = f"{firstFrame:0{framepadding}}."
+			print("getPassData.formatted_First_Frame: ", formatted_first_frame)
 			# Replace padding_string with formatted_first_frame in the source path
 			modified_file_path = sourceData[0].replace(padding_string, formatted_first_frame)
+			print("getPassData.Original path-----: ", sourceData[0])
+			print("getPassData.modified_file_path: ", modified_file_path, '\n')
 			# Find the index of padding_string
 			if os.path.exists(modified_file_path):
 				# Frame pattern Preceded by a dot, the behaviour of Fusion is expected.
