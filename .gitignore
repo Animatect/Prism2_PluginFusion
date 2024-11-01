@@ -1,3 +1,4 @@
 *.pyc
 Fusion/.fusion_typings/
 *.fusion_typings/
+.vscode/settings.json

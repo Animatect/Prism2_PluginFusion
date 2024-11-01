@@ -3,5 +3,9 @@
         "C:\\Gaffer\\gaffer-1.2.3.0-windows\\python",
         "C:\\USD\\lib\\python\\pxr",
         "./.fusion_typings"
-    ]
+    ],
+    "editor.tokenColorCustomizations": {
+        "comments": "",
+        "textMateRules": []
+    }
 }
