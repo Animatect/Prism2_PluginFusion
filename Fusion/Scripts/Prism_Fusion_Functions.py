@@ -1964,8 +1964,12 @@ path = r\"%s\"
 		checked = comp.GetData("isprismimportchbxcheck")
 		if not checked:
 			checked = False		
+		currentAOV = mediaBrowser.origin.getCurrentAOV()
+		dataSources = None
+		if currentAOV:
+			dataSources = mediaBrowser.compGetImportPasses()		
 
-		if mediaBrowser.origin.getCurrentAOV():			
+		if currentAOV and len(dataSources) > 1:
 			buttons = ["Current AOV", "All AOVs", "Update Selected", "Cancel"]
 			result, checkbox_checked = self.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=checked)
 		else:
@@ -1977,7 +1981,7 @@ path = r\"%s\"
 		if result == "Current AOV" or result == "Import Media":
 			self.fusionImportSource(mediaBrowser, sortnodes=not checkbox_checked)
 		elif result == "All AOVs":
-			self.fusionImportPasses(mediaBrowser, sortnodes=not checkbox_checked)
+			self.fusionImportPasses(mediaBrowser, dataSources, sortnodes=not checkbox_checked)
 		elif result == "Update Selected":
 			self.fusionUpdateSelectedPasses(mediaBrowser, sortnodes=not checkbox_checked)
 		else:
@@ -2015,7 +2019,7 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
-	def fusionImportPasses(self, mediaBrowser, sortnodes=True):
+	def fusionImportPasses(self, mediaBrowser, dataSources, sortnodes=True):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
@@ -2031,7 +2035,7 @@ path = r\"%s\"
 		# Update the position with every new node as the new pos.
 		leftmostNode = self.find_leftmost_lower_node(0.5)
 
-		dataSources = mediaBrowser.compGetImportPasses()
+		# dataSources = mediaBrowser.compGetImportPasses()
 		for sourceData in dataSources:
 			imageData = self.getPassData(sourceData)
 			# Return the last processed node.
