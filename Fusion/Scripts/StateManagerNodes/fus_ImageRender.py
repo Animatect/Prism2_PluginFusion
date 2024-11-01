@@ -323,7 +323,7 @@ class ImageRenderClass(object):
 		self.cb_context.activated.connect(self.onContextTypeChanged)
 		self.b_context.clicked.connect(self.selectContextClicked)
 		self.b_changeTask.clicked.connect(self.changeTask)
-		self.b_setRendernode.clicked.connect(lambda: self.setRendernode(create=True))
+		self.b_setRendernode.clicked.connect(self.on_b_setRendernode_clicked)
 		self.chb_resOverride.toggled.connect(lambda: self.updateUi())
 		self.cb_renderScaling.activated.connect(self.stateManager.saveStatesToScene)
 		self.cb_rangeType.activated.connect(self.rangeTypeChanged)
@@ -697,10 +697,25 @@ class ImageRenderClass(object):
 	####### RENDER NODE STUFF #######
 	#								#
 	#################################
-
+	
 	# @err_catcher(name=__name__)
 	# def onTreeItemSelectionChanged(self):
 		# 	self.setTreeItemColor("selected")
+
+	@err_catcher(name=__name__)
+	def on_b_setRendernode_clicked(self):
+		pcore = self.core
+		curfile = pcore.getCurrentFileName()
+		filepath = curfile.replace("\\", "/")
+		if not filepath:
+			pcore.showFileNotInProjectWarning()
+			return
+		if not pcore.fileInPipeline(filepath, validateFilename=False):
+			pcore.showFileNotInProjectWarning()
+			return
+		
+		self.setRendernode()
+
 
 	@err_catcher(name=__name__)
 	def getItemNamesRecursive(self, item, itemNames):
