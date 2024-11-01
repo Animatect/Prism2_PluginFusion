@@ -12,7 +12,7 @@ def openProjectBrowser(globalpcore=None):
 		qapp = QtWidgets.QApplication.instance()
 		if qapp == None:
 			qapp = QtWidgets.QApplication(sys.argv)
-		popup = popupNoButton("Openning Project Browser, Please wait", qapp)
+		popup = popupNoButton("Opening Project Browser, Please wait", qapp)
 
 		pcore = PrismInit.prismInit()
 
@@ -88,11 +88,11 @@ def openPrismSaveWithComment(globalpcore=None):
 
 def openPrismStateManager(globalpcore=None):
 	if not globalpcore:
-		print("StateManager no GlobalPcore")
+		print("StateManager: No GlobalPcore")
 		qapp = QtWidgets.QApplication.instance()
 		if qapp == None:
 			qapp = QtWidgets.QApplication(sys.argv)
-		popup = popupNoButton("Openning State Manager, Please wait", qapp)
+		popup = popupNoButton("Opening State Manager, Please wait", qapp)
 
 		pcore = PrismInit.prismInit()
 		pcore.callback(name="onStateManagerCalled", args=[popup])
@@ -106,7 +106,7 @@ def openPrismStateManager(globalpcore=None):
 			qapp = QtWidgets.QApplication(sys.argv)
 
 		
-		popup = popupNoButton("Openning State Manager, Please wait", qapp)
+		popup = popupNoButton("Opening State Manager, Please wait", qapp)
 		
 		if globalpcore:
 			pcore = globalpcore
@@ -147,7 +147,7 @@ def openPrismSettings(globalpcore=None):
 
 def launchProjectBrowser(qapp=None, globalpcore=None):
 	if qapp and globalpcore:
-		popup = popupNoButton("Openning Project Browser, Please wait", qapp)
+		popup = popupNoButton("Opening Project Browser, Please wait", qapp)
 		pcore = globalpcore
 		pcore.callback(name="onProjectBrowserCalled", args=[popup])
 		#
@@ -159,7 +159,7 @@ def launchProjectBrowser(qapp=None, globalpcore=None):
 def popupError():
 	error_box = QtWidgets.QMessageBox()
 	# Set the text and title of the error box
-	error_box.setText("Prism isn't propperly started!\nPlease Reset Prism from the button in the Prism Menu.")
+	error_box.setText("Prism isn't properly started!\nPlease Reset Prism from the button in the Prism Menu.")
 	error_box.setWindowTitle("Error")
 
 	# Set the icon to a critical error icon

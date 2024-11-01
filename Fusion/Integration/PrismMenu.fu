@@ -108,7 +108,7 @@
     {
         ID = "Start_Prism",
         Category = "Prism",
-        Name = "* START PRISM *",
+        Name = "* RESET PRISM *",
 
         Targets =
         {
@@ -116,27 +116,6 @@
             {
                 Execute = _Lua [=[
                     local scriptPath = app:MapPath("Scripts:Prism/ResetPrism.py")
-                    if bmd.fileexists(scriptPath) == false then
-                        print("[Prism Error] Can't run file: " .. scriptPath)
-                    else
-                        target:RunScript(scriptPath)
-                    end
-                ]=],
-            },
-        },
-    },
-    Action
-    {
-        ID = "Blender_OCIO_Manager",
-        Category = "Prism",
-        Name = "Blender OCIO Manager",
-
-        Targets =
-        {
-            Composition =
-            {
-                Execute = _Lua [=[
-                    local scriptPath = app:MapPath("Scripts:Prism/BlenderOCIOmanager.py")
                     if bmd.fileexists(scriptPath) == false then
                         print("[Prism Error] Can't run file: " .. scriptPath)
                     else
@@ -160,8 +139,6 @@
                 "OpenProjectBrowser{}",
                 "OpenStateManager{}",
                 "OpenSettings{}",
-                "_",
-                "Blender_OCIO_Manager{}",
                 "_",
                 "_",
                 "Start_Prism{}",
