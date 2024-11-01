@@ -2169,32 +2169,32 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def getImageData(self, sourceData):
 		curfr = self.get_current_frame()
-		framepadding = self.core.framePadding#self.check_padding_in_filepath(sourceData[0])
+		framepadding = self.core.framePadding
 		padding_string = self.get_frame_padding_string()
 		print("sourceData: ", sourceData)
 
 		# Check if source data interprets the image sequence as individual images.
 		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
 		if len(image_strings) > 1:
-			isSequence = padding_string in sourceData[0]
+			# isSequence = padding_string in sourceData[0]
 			imagepath = self.is_image_sequence(image_strings)
 
 			if imagepath:
-				filePath = self.format_file_path(imagepath, curfr, framepadding, padding_string)
-				firstFrame, lastFrame = 1, len(image_strings)
+				filePath = self.format_file_path(imagepath["file_path"], curfr, framepadding, padding_string)
+				firstFrame, lastFrame = imagepath["start_frame"], imagepath["end_frame"]
 				print("saca los frames de image strings")
 				aovNm, layerNm = 'PrismLoader', 'PrismMedia'
-				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
+				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, imagepath["is_sequence"])
 		else:
 			# Handle a single image by calling getPassData directly
-			return self.getPassData(sourceData[0], allAOVs=False)
+			return self.getPassData(sourceData[0])
 
 		QMessageBox.warning(self.core.messageParent, "Prism Integration", "No image sequence was loaded.")
 		return None
 
 
 	@err_catcher(name=__name__)
-	def getPassData(self, sourceData, allAOVs=True):
+	def getPassData(self, sourceData):
 		firstFrame, lastFrame = sourceData[1], sourceData[2]
 		curfr = firstFrame #self.get_current_frame()
 		print("saca los frames de source data y son: ", firstFrame, ", ", lastFrame)
@@ -2212,13 +2212,6 @@ path = r\"%s\"
 			filePath = self.format_file_path_with_validation(sourceData[0], curfr, framepadding, padding_string, firstFrame)
 		else:
 			filePath = sourceData[0]
-		# else:
-		# 	print("UNmodified single path: ", sourceData[0])
-		# 	# print("padding string: ", padding_string, ", frame replacement: ", f"{curfr:0{framepadding}}.")
-		# 	if isSequence:
-		# 		filePath = sourceData[0].replace(padding_string, f"{curfr:0{framepadding}}.")
-		# 	else:
-		# 		filePath = sourceData[0]
 			print("modified single path: ", filePath)
 
 		aovNm, layerNm = self.extract_aov_layer_names(filePath)
@@ -2498,26 +2491,44 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def get_pattern_prefix(self, file_path):
+		# Extract the file extension
 		_, file_extension = os.path.splitext(file_path)
 		padding = self.core.versionPadding
 
-		# Construct the regex pattern with proper escaping
-		# The escape character for dot (.) in the file extension needs to be double-escaped in raw strings
-		regex_pattern = rf'^(.+)v\d{{{padding}}}{re.escape(file_extension)}$'
-
+		# Regex pattern to capture the prefix and the frame number
+		# Example: sq_030-sh_010_Compositing_v001.0001.exr
+		regex_pattern = rf'^(.+)v\d{{{padding}}}\.(\d{{{padding}}}){re.escape(file_extension)}$'
 		pattern = re.compile(regex_pattern)
 		match = pattern.match(file_path)
 
-		return match.group(1) if match else None
-	
+		# Return the prefix and frame number if matched
+		return (match.group(1), int(match.group(2))) if match else (None, None)
+		
 
 	@err_catcher(name=__name__)
 	def is_image_sequence(self, strings):
-		first_image_prefix = self.get_pattern_prefix(strings[0])
-		if all(self.get_pattern_prefix(item) == first_image_prefix for item in strings):
-			return strings[0]
-		else:
-			return None
+		# Get the prefix and frame number of the first file
+		first_image_prefix, first_frame = self.get_pattern_prefix(strings[0])
+
+		# Check if all files share the same prefix and find their frame numbers
+		frame_numbers = []
+		for item in strings:
+			prefix, frame = self.get_pattern_prefix(item)
+			if prefix != first_image_prefix or frame is None:
+				return None  # Not an image sequence
+			frame_numbers.append(frame)
+
+		# Get the first and last frame numbers
+		start_frame = min(frame_numbers)
+		end_frame = max(frame_numbers)
+
+		# Return the first file path (assumed as the main reference), and frame range details
+		return {
+			"file_path": strings[0],
+			"start_frame": start_frame,
+			"end_frame": end_frame,
+			"is_sequence": True
+		} if start_frame != end_frame else None
 		
 
 	# EXR CHANNEL MANAGEMENT #
