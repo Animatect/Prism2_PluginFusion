@@ -69,6 +69,7 @@ class Prism_Fusion_Functions(object):
 		self.fusion = bmd.scriptapp("Fusion")
 		self.comp = None # This comp is used by the state Manager to avoid overriding the state data on wrong comps
 		self.monkeypatchedsm = None # Reference to the state manager to be used on the monkeypatched functions.
+		self.monkeypatchedmediabrowser = None # Reference to the mediabrowser to be used on the monkeypatched functions.
 		self.monkeypatchedimportstate = None # Reference to the importState to be used on the monkeypatched functions.
 		self.popup = None # Reference of popUp dialog that shows before opening a window when it takes some time.
 
@@ -143,32 +144,32 @@ class Prism_Fusion_Functions(object):
 		]
 		#	ARCHIVED FORMATS FOR LATER USE - THESE ARE THE NAMES FUSION USES
 			# "PIXFormat": "pix",             # Alias PIX
-            # "IFFFormat": "iff",             # Amiga IFF
-            # "CineonFormat": "cin",          # Kodak Cineon
-            # "DPXFormat": "dpx",             # DPX
-            # "FusePicFormat": "fusepic",     # Fuse Pic
-            # "FlipbookFormat": "fb",         # Fusion Flipbooks
-            # "RawFormat": "raw",             # Fusion RAW Image
-            # "IFLFormat": "ifl",             # Image File List (Text File)
-            # "IPLFormat": "ipl",             # IPL
-            # "JpegFormat": "jpg",            # JPEG
-            # "Jpeg2000Format": "jp2",        # JPEG2000
-            # "MXFFormat": "mxf",             # MXF - Material Exchange Format
-            # "OpenEXRFormat": "exr",         # OpenEXR
-            # "PandoraFormat": "piyuv10",     # Pandora YUV
-            # "PNGFormat": "png",             # PNG
-            # "VPBFormat": "vpb",             # Quantel VPB
-            # "QuickTimeMovies": "mov",       # QuickTime Movie
-            # "HDRFormat": "hdr",             # Radiance
-            # "SixRNFormat": "6RN",           # Rendition
-            # "SGIFormat": "sgi",             # SGI
-            # "PICFormat": "si",              # Softimage PIC
-            # "SUNFormat": "RAS",             # SUN Raster
-            # "TargaFormat": "tga",           # Targa
-            # "TiffFormat": "tiff",           # TIFF
-            # "rlaFormat": "rla",             # Wavefront RLA
-            # "BMPFormat": "bmp",             # Windows BMP
-            # "YUVFormat": "yuv",             # YUV
+			# "IFFFormat": "iff",             # Amiga IFF
+			# "CineonFormat": "cin",          # Kodak Cineon
+			# "DPXFormat": "dpx",             # DPX
+			# "FusePicFormat": "fusepic",     # Fuse Pic
+			# "FlipbookFormat": "fb",         # Fusion Flipbooks
+			# "RawFormat": "raw",             # Fusion RAW Image
+			# "IFLFormat": "ifl",             # Image File List (Text File)
+			# "IPLFormat": "ipl",             # IPL
+			# "JpegFormat": "jpg",            # JPEG
+			# "Jpeg2000Format": "jp2",        # JPEG2000
+			# "MXFFormat": "mxf",             # MXF - Material Exchange Format
+			# "OpenEXRFormat": "exr",         # OpenEXR
+			# "PandoraFormat": "piyuv10",     # Pandora YUV
+			# "PNGFormat": "png",             # PNG
+			# "VPBFormat": "vpb",             # Quantel VPB
+			# "QuickTimeMovies": "mov",       # QuickTime Movie
+			# "HDRFormat": "hdr",             # Radiance
+			# "SixRNFormat": "6RN",           # Rendition
+			# "SGIFormat": "sgi",             # SGI
+			# "PICFormat": "si",              # Softimage PIC
+			# "SUNFormat": "RAS",             # SUN Raster
+			# "TargaFormat": "tga",           # Targa
+			# "TiffFormat": "tiff",           # TIFF
+			# "rlaFormat": "rla",             # Wavefront RLA
+			# "BMPFormat": "bmp",             # Windows BMP
+			# "YUVFormat": "yuv",             # YUV
 
 
 
@@ -1933,9 +1934,17 @@ path = r\"%s\"
 			loaderName = node.GetAttrs("TOOLS_Name")
 
 			# Rename the clipname to force reload duration
-			node.Clip = loaderPath
-			node.GlobalIn[0] = firstframe
-			node.GlobalOut[0] = lastframe
+			node.Clip[self.fusion.TIME_UNDEFINED] = loaderPath
+
+			# If first frame is None, it is probably not a sequence.
+			if firstframe:
+				node.GlobalOut[0] = lastframe
+				node.GlobalIn[0] = firstframe
+
+				# Trim
+				node.ClipTimeStart = 0
+				node.ClipTimeEnd = lastframe - firstframe
+				node.HoldLastFrame = 0
 
 			# ClipsReaload
 			node.SetAttrs({"TOOLB_PassThrough": True})
@@ -1944,13 +1953,22 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def importImages(self, mediaBrowser):
+		#
+		self.monkeypatchedmediabrowser = mediaBrowser
+		self.core.plugins.monkeyPatch(mediaBrowser.compGetImportSource, self.compGetImportSource, self, force=True)
+		self.core.plugins.monkeyPatch(mediaBrowser.compGetImportPasses, self.compGetImportPasses, self, force=True)
+		#
 		comp = self.getCurrentComp()
 		fString = "Please select an import option:"
 		checked = comp.GetData("isprismimportchbxcheck")
 		if not checked:
 			checked = False		
+		currentAOV = mediaBrowser.origin.getCurrentAOV()
+		dataSources = None
+		if currentAOV:
+			dataSources = mediaBrowser.compGetImportPasses()		
 
-		if mediaBrowser.origin.getCurrentAOV():			
+		if currentAOV and len(dataSources) > 1:
 			buttons = ["Current AOV", "All AOVs", "Update Selected", "Cancel"]
 			result, checkbox_checked = self.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=checked)
 		else:
@@ -1962,7 +1980,7 @@ path = r\"%s\"
 		if result == "Current AOV" or result == "Import Media":
 			self.fusionImportSource(mediaBrowser, sortnodes=not checkbox_checked)
 		elif result == "All AOVs":
-			self.fusionImportPasses(mediaBrowser, sortnodes=not checkbox_checked)
+			self.fusionImportPasses(mediaBrowser, dataSources, sortnodes=not checkbox_checked)
 		elif result == "Update Selected":
 			self.fusionUpdateSelectedPasses(mediaBrowser, sortnodes=not checkbox_checked)
 		else:
@@ -1981,7 +1999,7 @@ path = r\"%s\"
 		flow.Select()
 
 		sourceData = mediaBrowser.compGetImportSource()
-		imageData = self.getImageData(comp, sourceData)
+		imageData = self.getImageData(sourceData)
 		if imageData:
 			updatehandle:list = [] # Required to return data on the updated nodes.
 			if sortnodes:
@@ -1999,7 +2017,7 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
-	def fusionImportPasses(self, mediaBrowser, sortnodes=True):
+	def fusionImportPasses(self, mediaBrowser, dataSources, sortnodes=True):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
@@ -2015,9 +2033,9 @@ path = r\"%s\"
 		# Update the position with every new node as the new pos.
 		leftmostNode = self.find_leftmost_lower_node(0.5)
 
-		dataSources = mediaBrowser.compGetImportPasses()
+		# dataSources = mediaBrowser.compGetImportPasses()
 		for sourceData in dataSources:
-			imageData = self.getPassData(comp, sourceData)
+			imageData = self.getPassData(sourceData)
 			# Return the last processed node.
 			leftmostNode = self.processImageImport(imageData, splithandle=splithandle, updatehandle=updatehandle, refNode=leftmostNode, createwireless=sortnodes)
 		
@@ -2127,7 +2145,7 @@ path = r\"%s\"
 		dataSources = mediaBrowser.compGetImportPasses()
 		updatehandle = []
 		for sourceData in dataSources:
-			imageData = self.getPassData(comp, sourceData)
+			imageData = self.getPassData(sourceData)
 			updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'])
 			if updatedloader:
 				# Set up update feedback Dialog message
@@ -2150,70 +2168,110 @@ path = r\"%s\"
 		'isSequence': isSequence
 		}
 
-
 	@err_catcher(name=__name__)
-	def getImageData(self, comp, sourceData):
-		curfr = int(comp.CurrentTime)
+	def getImageData(self, sourceData):
+		curfr = self.get_current_frame()
 		framepadding = self.core.framePadding
-		padding_string = '#' * framepadding + '.'
-		# check if the source data is interpreting the image sequence as individual images.
+		padding_string = self.get_frame_padding_string()
+
+		# Check if source data interprets the image sequence as individual images.
 		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
 		if len(image_strings) > 1:
-			isSequence = False
-			if padding_string in sourceData[0]:
-				isSequence = True
+			# isSequence = padding_string in sourceData[0]
 			imagepath = self.is_image_sequence(image_strings)
 
 			if imagepath:
-				filePath = imagepath.replace(padding_string, f"{curfr:0{framepadding}}.")
-				firstFrame = 1
-				lastFrame = len(image_strings)	
-				aovNm = 'PrismLoader'
-				layerNm = 'PrismMedia'
-
-				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
+				filePath = self.format_file_path(imagepath["file_path"], curfr, framepadding, padding_string)
+				firstFrame, lastFrame = imagepath["start_frame"], imagepath["end_frame"]
+				aovNm, layerNm = 'PrismLoader', 'PrismMedia'
+				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, imagepath["is_sequence"])
 		else:
-			# Break the meaningless 1 item nested array.
-			return self.getPassData(comp, sourceData[0], allAOVs=False)
+			# Handle a single image by calling getPassData directly
+			return self.getPassData(sourceData[0])
 
-		msgStr = "No image sequence was loaded."
-		QMessageBox.warning(self.core.messageParent, "Prism Integration", msgStr)
+		QMessageBox.warning(self.core.messageParent, "Prism Integration", "No image sequence was loaded.")
 		return None
-	
+
 
 	@err_catcher(name=__name__)
-	def getPassData(self, comp, sourceData, allAOVs=True):
-		curfr = int(comp.CurrentTime)
-		firstFrame = sourceData[1]
-		lastFrame = sourceData[2]	
+	def getPassData(self, sourceData):
+		firstFrame, lastFrame = sourceData[1], sourceData[2]
+		curfr = firstFrame #self.get_current_frame()
+		framepadding = self.core.framePadding
+		padding_string = self.get_frame_padding_string()
+
+		numframepadsinpath = self.check_padding_in_filepath(sourceData[0])
+		isSequence = numframepadsinpath > 0
+
+		if isSequence:
+			filePath = self.format_file_path_with_validation(sourceData[0], curfr, framepadding, padding_string, firstFrame)
+		else:
+			filePath = sourceData[0]
+
+		aovNm, layerNm = self.extract_aov_layer_names(filePath)
+		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
+
+
+	# Helper function to know if a path has padding and the padding length.
+	@err_catcher(name=__name__)
+	def check_padding_in_filepath(self,filepath):
+		filepath = str(filepath)
+		# Get the file extension
+		_, file_extension = os.path.splitext(filepath)
+
+		# Regular expression to match consecutive '#' characters before the extension
+		pattern = rf"(#+)\{file_extension}$"
+		match = re.search(pattern, filepath)
+
+		if match:
+			num_hashes = len(match.group(1))
+			# File path has {num_hashes} consecutive '#' characters before the extension.
+			return num_hashes
+		else:
+			# No consecutive '#' characters found before the extension.
+			return 0
+
+	# Helper function get frame number
+	@err_catcher(name=__name__)
+	def get_current_frame(self):
+		comp = self.getCurrentComp()
+		return int(comp.CurrentTime)
+
+	# Helper function get frame padding string
+	@err_catcher(name=__name__)
+	def get_frame_padding_string(self):
 		framepadding = self.core.framePadding
 		padding_string = '#' * framepadding + '.'
-		isSequence = False
+		return str(padding_string)
 
-		if padding_string in sourceData[0]:
-			isSequence = True
+	# Helper function to format file path with frame number
+	@err_catcher(name=__name__)
+	def format_file_path(self, path, frame, framepadding, padding_string):
+		"""Format the file path to replace padding_string with the current frame."""
+		return path.replace(padding_string, f"{frame:0{framepadding}}.")
 
-		if allAOVs:
-			# Fusion will always add the .####. pattern before the extension, if that pattern is not in the file we have to handle that case.
-			# Create the formatted frame number for firstFrame
-			formatted_first_frame = f"{firstFrame:0{framepadding}}."
-			# Replace padding_string with formatted_first_frame in the source path
-			modified_file_path = sourceData[0].replace(padding_string, formatted_first_frame)
-			# Find the index of padding_string
-			if os.path.exists(modified_file_path):
-				# Frame pattern Preceded by a dot, the behaviour of Fusion is expected.
-				filePath = sourceData[0].replace(padding_string, f"{curfr:0{framepadding}}.")
-			else:
-				# Preceded by something else it needs the frames removed.
-				filePath = sourceData[0].replace("." + padding_string, ".")
 
+	# Helper function to handle padding string replacement based on file existence
+	@err_catcher(name=__name__)
+	def format_file_path_with_validation(self, path, frame, framepadding, padding_string, firstFrame):
+		"""Format the file path by validating its existence."""
+		formatted_first_frame = f"{firstFrame:0{framepadding}}."
+		modified_file_path = path.replace(padding_string, formatted_first_frame)
+
+		if os.path.exists(modified_file_path):
+			return path.replace(padding_string, f"{frame:0{framepadding}}.")
 		else:
-			filePath = sourceData[0].replace(padding_string, f"{curfr:0{framepadding}}.")
+			return path.replace("." + padding_string, ".")
 
-		aovNm = os.path.dirname(filePath).split("/")[-1]
-		layerNm = os.path.dirname(filePath).split("/")[-3]
-    
-		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
+
+	# Helper function to extract AOV and layer names
+	@err_catcher(name=__name__)
+	def extract_aov_layer_names(self, filePath):
+		"""Extract the AOV and layer names from the file path."""
+		parts = os.path.dirname(filePath).split("/")
+		return parts[-1], parts[-3]
+
+
 
 	@err_catcher(name=__name__)
 	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False):
@@ -2426,26 +2484,44 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def get_pattern_prefix(self, file_path):
+		# Extract the file extension
 		_, file_extension = os.path.splitext(file_path)
 		padding = self.core.versionPadding
 
-		# Construct the regex pattern with proper escaping
-		# The escape character for dot (.) in the file extension needs to be double-escaped in raw strings
-		regex_pattern = rf'^(.+)v\d{{{padding}}}{re.escape(file_extension)}$'
-
+		# Regex pattern to capture the prefix and the frame number
+		# Example: sq_030-sh_010_Compositing_v001.0001.exr
+		regex_pattern = rf'^(.+)v\d{{{padding}}}\.(\d{{{padding}}}){re.escape(file_extension)}$'
 		pattern = re.compile(regex_pattern)
 		match = pattern.match(file_path)
 
-		return match.group(1) if match else None
-	
+		# Return the prefix and frame number if matched
+		return (match.group(1), int(match.group(2))) if match else (None, None)
+		
 
 	@err_catcher(name=__name__)
 	def is_image_sequence(self, strings):
-		first_image_prefix = self.get_pattern_prefix(strings[0])
-		if all(self.get_pattern_prefix(item) == first_image_prefix for item in strings):
-			return strings[0]
-		else:
-			return None
+		# Get the prefix and frame number of the first file
+		first_image_prefix, first_frame = self.get_pattern_prefix(strings[0])
+
+		# Check if all files share the same prefix and find their frame numbers
+		frame_numbers = []
+		for item in strings:
+			prefix, frame = self.get_pattern_prefix(item)
+			if prefix != first_image_prefix or frame is None:
+				return None  # Not an image sequence
+			frame_numbers.append(frame)
+
+		# Get the first and last frame numbers
+		start_frame = min(frame_numbers)
+		end_frame = max(frame_numbers)
+
+		# Return the first file path (assumed as the main reference), and frame range details
+		return {
+			"file_path": strings[0],
+			"start_frame": start_frame,
+			"end_frame": end_frame,
+			"is_sequence": True
+		} if start_frame != end_frame else None
 		
 
 	# EXR CHANNEL MANAGEMENT #
@@ -3715,6 +3791,94 @@ path = r\"%s\"
 			# if action == 2:
 			if result == "Yes":
 				self.core.appPlugin.deleteNodes(state, validNodes)
+
+
+	# These two functions should take into account the dynamic padding, that is the only modification, next to changing self to a reference to the mediabrowser.
+	@err_catcher(name=__name__)
+	def compGetImportSource(self):
+		mediabrowser = self.monkeypatchedmediabrowser # added this is refered as self in the original.
+		#
+		sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/") #
+		sources = self.core.media.getImgSources(sourceFolder)
+		sourceData = []
+
+		framepadding = self.core.framePadding #added
+		for curSourcePath in sources:
+			if "#" * framepadding in curSourcePath: # changed
+				if mediabrowser.pstart == "?" or mediabrowser.pend == "?": #
+					firstFrame = None
+					lastFrame = None
+				else:
+					firstFrame = mediabrowser.pstart #
+					lastFrame = mediabrowser.pend #
+
+				filePath = curSourcePath.replace("\\", "/")
+			else:
+				filePath = curSourcePath.replace("\\", "/")
+				firstFrame = None
+				lastFrame = None
+
+			sourceData.append([filePath, firstFrame, lastFrame])
+
+		return sourceData
+
+	@err_catcher(name=__name__)
+	def compGetImportPasses(self):
+		mediabrowser = self.monkeypatchedmediabrowser # added this is refered as self in the original.
+		#
+		framepadding = self.core.framePadding #added
+		sourceFolder = os.path.dirname(
+			os.path.dirname(mediabrowser.seq[0])
+		).replace("\\", "/")
+		passes = [
+			x
+			for x in os.listdir(sourceFolder)
+			if x[-5:] not in ["(mp4)", "(jpg)", "(png)"]
+			and os.path.isdir(os.path.join(sourceFolder, x))
+		]
+		sourceData = []
+
+		for curPass in passes:
+			curPassPath = os.path.join(sourceFolder, curPass)
+
+			imgs = os.listdir(curPassPath)
+			if len(imgs) == 0:
+				continue
+
+			if (
+				len(imgs) > 1
+				and mediabrowser.pstart #
+				and mediabrowser.pend #
+				and mediabrowser.pstart != "?" #
+				and mediabrowser.pend != "?" #
+			):
+				firstFrame = mediabrowser.pstart #
+				lastFrame = mediabrowser.pend #
+
+				curPassName = imgs[0].split(".")[0]
+				increment = "#" * framepadding # changed
+				curPassFormat = imgs[0].split(".")[-1]
+
+				filePath = os.path.join(
+					sourceFolder,
+					curPass,
+					".".join([curPassName, increment, curPassFormat]),
+				).replace("\\", "/")
+			else:
+				filePath = os.path.join(curPassPath, imgs[0]).replace("\\", "/")
+				firstFrame = None
+				lastFrame = None
+
+			sourceData.append([filePath, firstFrame, lastFrame])
+
+		return sourceData
+
+
+
+
+
+
+
 
 class CustomMessageBox(QDialog):
 	def __init__(self, text, title, buttons, parent=None, checked=False):
