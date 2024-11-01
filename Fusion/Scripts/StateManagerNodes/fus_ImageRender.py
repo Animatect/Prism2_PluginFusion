@@ -702,19 +702,21 @@ class ImageRenderClass(object):
 	# def onTreeItemSelectionChanged(self):
 		# 	self.setTreeItemColor("selected")
 
+
+	#	Checks if Comp is in Prism's project
 	@err_catcher(name=__name__)
 	def on_b_setRendernode_clicked(self):
 		pcore = self.core
 		curfile = pcore.getCurrentFileName()
 		filepath = curfile.replace("\\", "/")
-		if not filepath:
+
+		#	Checks if comp exists on disk and in Prism
+		if not filepath and not pcore.fileInPipeline(filepath, validateFilename=False):
 			pcore.showFileNotInProjectWarning()
 			return
-		if not pcore.fileInPipeline(filepath, validateFilename=False):
-			pcore.showFileNotInProjectWarning()
-			return
-		
-		self.setRendernode()
+				
+		#	Sets the Saver
+		self.setRendernode(create=True)
 
 
 	@err_catcher(name=__name__)
