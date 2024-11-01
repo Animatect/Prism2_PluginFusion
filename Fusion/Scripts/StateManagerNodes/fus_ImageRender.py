@@ -56,7 +56,7 @@ class ImageRenderClass(object):
 		self.state = state
 		self.core = core
 		self.stateManager = stateManager
-		self.fusionFuncs = self.core.appPlugin		#	ADDED - all calls to appPlugin
+		self.fusionFuncs = self.core.appPlugin
 		self.canSetVersion = True
 		self.customContext = None
 		self.allowCustomContext = False
@@ -141,9 +141,11 @@ class ImageRenderClass(object):
 
 		self.managerChanged(True)
 
-
+		#	Load State data from comp
 		if stateData is not None:
 			self.loadData(stateData)
+
+		#	Load default State data
 		else:
 			context = self.getCurrentContext()
 			if context.get("type") == "asset":
@@ -168,14 +170,19 @@ class ImageRenderClass(object):
 			self.chb_resOverride.setChecked(False)
 
 			self.setUniqueName(f"{self.className} - Compositing")
-			self.setupRendernode()
+
+			self.stateUID = self.fusionFuncs.createUUID()
+
+			self.setRendernode()
 			self.updateUi()
-		
+
 		self.onStateLoaded()
 
 
 	@err_catcher(name=__name__)
 	def loadData(self, data):
+		if "nodeUID" in data:
+			self.stateUID = data["nodeUID"]
 		if "contextType" in data:
 			self.setContextType(data["contextType"])
 		if "customContext" in data:
@@ -189,6 +196,7 @@ class ImageRenderClass(object):
 			self.e_name.setText(data["stateName"])
 		elif "statename" in data:
 			self.e_name.setText(data["statename"] + " - {identifier}")
+
 		if "renderScaleOverride" in data:
 			self.chb_resOverride.setChecked(data["renderScaleOverride"])
 		if "currentRenderScale" in data:
@@ -264,12 +272,15 @@ class ImageRenderClass(object):
 				self.state.setCheckState(
 					0, Qt.CheckState(data["stateenabled"]),
 				)
-
 		if "rendernode" in data:
-			self.setupRendernode()
+			self.setRendernode()
 		
 		if "outonly" in data: 
 			self.chb_outOnly.setChecked(data["outonly"])
+
+		self.core.callback("onStateSettingsLoaded", self, data)
+
+
 
 
 		# Setup the enabled disabled checkboxes
@@ -285,15 +296,14 @@ class ImageRenderClass(object):
 
 		# self.state.setBackground(0, QColor("#365e99"))
 
-		self.core.callback("onStateSettingsLoaded", self, data)
 
 
 	@err_catcher(name=__name__)
 	def onStateLoaded(self):
-		print("stateloaded")
-		nodename = self.get_rendernode_name()
-		if self.fusionFuncs.rendernode_exists(nodename):
-			state = self.fusionFuncs.getNodePassthrough(nodename)
+		print("stateloaded")											#	TESTING
+
+		if self.fusionFuncs.rendernodeExists(self.stateUID):
+			state = self.fusionFuncs.getNodePassthrough(self.stateUID)
 			if state:
 				self.state.setCheckState(0, Qt.Checked)
 			else:
@@ -302,6 +312,9 @@ class ImageRenderClass(object):
 		self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
 
 		self.state.setBackground(0, QColor("#365e99"))
+
+		self.stateManager.saveStatesToScene()
+
 
 	@err_catcher(name=__name__)
 	def connectEvents(self):
@@ -363,6 +376,7 @@ class ImageRenderClass(object):
 		names.add(unique_name)
 		return unique_name
 
+
 	@err_catcher(name=__name__)
 	def setUniqueName(self, origName):
 		name = origName
@@ -371,6 +385,7 @@ class ImageRenderClass(object):
 		self.itemNames.add(uniqueName)
 		newtaskname = uniqueName.split(" - ")[-1]
 		self.changeTaskAuto(newtaskname)
+
 
 	@err_catcher(name=__name__)
 	def showLastPathMenu(self, state=None):
@@ -556,6 +571,12 @@ class ImageRenderClass(object):
 
 		self.state.setText(0, name)
 
+		self.statusColorNodeButton()
+
+		self.stateManager.saveStatesToScene()
+
+
+
 	@err_catcher(name=__name__)
 	def getFormat(self):
 		self.cb_format.currentText()
@@ -681,19 +702,21 @@ class ImageRenderClass(object):
 	# def onTreeItemSelectionChanged(self):
 		# 	self.setTreeItemColor("selected")
 
+
+	#	Checks if Comp is in Prism's project
 	@err_catcher(name=__name__)
 	def on_b_setRendernode_clicked(self):
 		pcore = self.core
 		curfile = pcore.getCurrentFileName()
 		filepath = curfile.replace("\\", "/")
-		if not filepath:
+
+		#	Checks if comp exists on disk and in Prism
+		if not filepath and not pcore.fileInPipeline(filepath, validateFilename=False):
 			pcore.showFileNotInProjectWarning()
 			return
-		if not pcore.fileInPipeline(filepath, validateFilename=False):
-			pcore.showFileNotInProjectWarning()
-			return
-		
-		self.setRendernode()
+				
+		#	Sets the Saver
+		self.setRendernode(create=True)
 
 
 	@err_catcher(name=__name__)
@@ -753,15 +776,15 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def sm_ToggleNodeChanged(self, disabled)->None:
 		# disabled = twitem.checkState(0) != Qt.Checked
-		nodename = self.get_rendernode_name()
-		# print(f"nodename: {nodename}")
-		if self.fusionFuncs.rendernode_exists(nodename):
-			self.fusionFuncs.setNodePassthrough(nodename, disabled)
+		nodeUID = self.stateUID
+		if self.fusionFuncs.rendernodeExists(nodeUID):
+			self.fusionFuncs.setNodePassthrough(nodeUID, disabled)
 		else:
-			self.setupRendernode()
+			self.setRendernode()
 
 		# self.setTreeItemColor()
 		self.stateManager.saveStatesToScene()
+
 
 	@err_catcher(name=__name__)
 	def get_rendernode_name(self):
@@ -772,37 +795,96 @@ class ImageRenderClass(object):
 		return nodeName
 	
 
+	#	Adds and configures RenderNode
 	@err_catcher(name=__name__)
-	def setupRendernode(self):
-		name = self.get_rendernode_name()
-		if self.fusionFuncs.rendernode_exists(name):
-			self.b_setRendernode.setText(name)
-			self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
-		else:
-			self.b_setRendernode.setText("SetRenderNode")
-			self.b_setRendernode.setStyleSheet("background-color: red; color: white;")
-		
-		self.updateUi()
-		self.setTreeItemColor()
-		
- 
-	@err_catcher(name=__name__)
-	def setRendernode(self):
-		name = self.get_rendernode_name()
-		if not self.fusionFuncs.rendernode_exists(name):
-			self.fusionFuncs.create_rendernode(name)
-		self.b_setRendernode.setText(name)
-		self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
+	def setRendernode(self, create=False):
+		nodeName = self.get_rendernode_name()
+		nodeUID = self.stateUID
 
-		self.configureRenderNode(name)
+		#	If the Saver exists
+		if self.fusionFuncs.rendernodeExists(nodeUID):
+			self.b_setRendernode.setText(nodeName)
+			self.fusionFuncs.updateRendernode(nodeName, nodeUID)
+
+		#	If it does not exist
+		else:
+			#	If Create then call createRendernode
+			if create:
+				self.fusionFuncs.createRendernode(nodeName, nodeUID)
+				self.b_setRendernode.setText(nodeName)
+
+			#	 If not create then just set text
+			else:
+				self.b_setRendernode.setText("SetRenderNode")
+
+
+		self.configureRenderNode(nodeName)
+		self.statusColorNodeButton()
 		self.updateUi()
 		self.setTreeItemColor()
 		self.stateManager.saveStatesToScene()
 
 
+	#	Checks the Saver's data and colors the button
+	@err_catcher(name=__name__)
+	def statusColorNodeButton(self):
+		try:
+			#	Checks if Saver exists
+			if self.fusionFuncs.rendernodeExists(self.stateUID):
+				toolName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
+
+				#	Compares Identifier name to Saver name
+				if toolName == self.get_rendernode_name():
+					#	If they are the same then Green
+					self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
+					return True
+				
+				else:
+					#	If different then Orange
+					self.b_setRendernode.setStyleSheet("background-color: orange; color: white;")
+					return "ERROR: Saver name does not match Indentifier"
+
+			#	If the Saver does not exist	
+			else:
+				raise Exception
+
+		except:
+			#	If Saver does not exists or error then RED
+			self.b_setRendernode.setStyleSheet("background-color: red; color: white;")
+			return "ERROR:  Saver does not exist"
+
+
+	#	Sets image format and output path
+	@err_catcher(name=__name__)
+	def configureRenderNode(self, nodeName, useVersion="next", stateUI=None):
+		if stateUI is None:
+			stateUI = self
+		if stateUI.tasknameRequired and not stateUI.getTaskname():
+			return
+		
+		nodeUID = self.stateUID
+
+		outputName, _, _ = self.getOutputName(useVersion=useVersion)
+		extension = stateUI.cb_format.currentText()
+		fuseName = None
+
+		try:
+			for fmt in self.outputFormats:
+				if fmt["extension"] == extension.lower():
+					fuseName = fmt["fuseName"]
+					break
+
+			self.fusionFuncs.configureRenderNode(nodeUID, outputName, fuseName)
+			self.stateManager.saveStatesToScene()
+
+		except:
+			print("ERROR: Unable to config Saver")										#	TODO - Logging
+
+
 	@err_catcher(name=__name__)
 	def getRangeType(self):
 		return self.cb_rangeType.currentText()
+
 
 	@err_catcher(name=__name__)
 	def setRangeType(self, rangeType):
@@ -849,7 +931,7 @@ class ImageRenderClass(object):
 		self.refreshContext()
 
 
-		# update Cams
+		# update Cams																		#	TODO - NEEDED ???
 		# self.cb_cam.clear()
 		# self.camlist = camNames = []
 
@@ -1156,6 +1238,7 @@ class ImageRenderClass(object):
 		context = "%s - %s" % (entityType.capitalize(), entityName)
 		return context
 
+
 	@err_catcher(name=__name__)
 	def preExecuteState(self):
 		warnings = []
@@ -1165,7 +1248,12 @@ class ImageRenderClass(object):
 		if self.tasknameRequired and not self.getTaskname():
 			warnings.append(["No identifier is given.", "", 3])
 
-		# if self.curCam is None or (
+		#	Checks for any node errors
+		nodeStatus = self.statusColorNodeButton()
+		if nodeStatus is not True:
+			warnings.append([nodeStatus, "", 3])
+
+		# if self.curCam is None or (									#	TODO - NEEDED ???
 		#     self.curCam != "Current View"
 		#     and not self.fusionFuncs.isNodeValid(self, self.curCam)
 		# ):
@@ -1189,8 +1277,10 @@ class ImageRenderClass(object):
 
 		return [self.state.text(0), warnings]
 
+
+
 	#################################################
-	# @err_catcher(name=__name__)
+	# @err_catcher(name=__name__)										#	TODO - NEEDED ???
 	# def submitCheckPaths(self):
 	# 	self.fusionFuncs.sm_render_CheckSubmittedPaths()
 
@@ -1256,30 +1346,6 @@ class ImageRenderClass(object):
 		hVersion = outputPathData["version"]
 
 		return outputPathData["path"], outputFolder, hVersion
-
-
-	@err_catcher(name=__name__)
-	def configureRenderNode(self, nodeName, useVersion="next", stateUI=None):
-		if stateUI is None:
-			stateUI = self
-		if stateUI.tasknameRequired and not stateUI.getTaskname():
-			return
-
-		outputName, _, _ = self.getOutputName(useVersion=useVersion)
-		extension = stateUI.cb_format.currentText()
-		fuseName = None
-
-		try:
-			for fmt in self.outputFormats:
-				if fmt["extension"] == extension.lower():
-					fuseName = fmt["fuseName"]
-					break
-
-			self.fusionFuncs.configureRenderNode(nodeName, outputName, fuseName)
-			self.stateManager.saveStatesToScene()
-
-		except:
-			print("ERROR: Unable to config Saver")
 
 
 	@err_catcher(name=__name__)
@@ -1363,6 +1429,7 @@ class ImageRenderClass(object):
 
 			rSettings = {
 				"outputName": outputName,
+				"nodeUID": self.stateUID,
 				"startFrame": startFrame,
 				"endFrame": endFrame,
 				"frames": frames,
@@ -1441,6 +1508,7 @@ class ImageRenderClass(object):
 						self.core.writeErrorLog(erStr)
 				return [self.state.text(0) + " - error - " + result]
 
+
 	@err_catcher(name=__name__)
 	def isUsingMasterVersion(self):
 		useMaster = self.core.mediaProducts.getUseMaster()
@@ -1482,11 +1550,13 @@ class ImageRenderClass(object):
 			else:
 				self.b_changeTask.setPalette(self.oldPalette)
 
+
 	#This function is used to get the settings that are going to be saved to the state file.
 	@err_catcher(name=__name__)
 	def getStateProps(self):
 		stateProps = {
 			"stateName": self.e_name.text(),
+			"nodeUID": self.stateUID, 
 			"contextType": self.getContextType(),
 			"customContext": self.customContext,
 			"taskname": self.getTaskname(),

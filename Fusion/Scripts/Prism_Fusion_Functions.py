@@ -43,6 +43,8 @@ import math
 import ctypes
 import glob
 import shutil
+import uuid
+import hashlib
 from datetime import datetime
 
 import BlackmagicFusion as bmd
@@ -194,7 +196,6 @@ class Prism_Fusion_Functions(object):
 			if curPrj != "":
 				self.core.changeProject(curPrj)
 			return False
-
 		
 		self.core.setActiveStyleSheet("Fusion")
 		appIcon = QIcon(
@@ -237,6 +238,12 @@ class Prism_Fusion_Functions(object):
 		pass
 
 
+	#	Returns Current Comp
+	@err_catcher(name=__name__)
+	def getCurrentComp(self):
+		return self.fusion.GetCurrentComp()
+	
+
 	@err_catcher(name=__name__)
 	def getCurrentFileName(self, origin=None, path=True):
 		curComp = self.getCurrentComp()
@@ -260,11 +267,6 @@ class Prism_Fusion_Functions(object):
 			return self.getCurrentComp().Save(filepath)
 		except:
 			return False
-		
-	#	Returns Current Comp
-	@err_catcher(name=__name__)
-	def getCurrentComp(self):
-		return self.fusion.GetCurrentComp()
 	
 
 	@err_catcher(name=__name__)
@@ -312,7 +314,6 @@ class Prism_Fusion_Functions(object):
 				renderCmd["FrameRange"] = ", ".join(str(i) for i in rSettings["frames"])
 
 			return renderCmd
-
 
 		#	RenderGroup
 		else:
@@ -363,15 +364,27 @@ class Prism_Fusion_Functions(object):
 		)
 
 
-	#	Creates simple Date/Time UID
+	#	Creates UUID
 	@err_catcher(name=__name__)
-	def getDateTimeUID(self):
-		# Get the current date and time
-		now = datetime.now()
-		# Format as MMDDHHMM
-		uid = now.strftime("%m%d%H%M")
-    
-		return uid
+	def createUUID(self, simple=False, length=8):
+		#	Creates simple Date/Time UID
+		if simple:
+			# Get the current date and time
+			now = datetime.now()
+			# Format as MMDDHHMM
+			uid = now.strftime("%m%d%H%M")
+		
+			return uid
+		
+		# Generate a 8 charactor UUID string
+		else:
+			uid = uuid.uuid4()
+			# Create a SHA-256 hash of the UUID
+			hashObject = hashlib.sha256(uid.bytes)
+			# Convert the hash to a hex string and truncate it to the desired length
+			shortUID = hashObject.hexdigest()[:length]
+
+			return shortUID
 
 
 	@err_catcher(name=__name__)
@@ -423,11 +436,7 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def getAppVersion(self, origin):
-		currVer = self.fusion.Version
-		#	This is a workaround since as of now Deadline does not support Fusion 19
-		if currVer > 18:
-			currVer = 18
-		return currVer
+		return self.fusion.Version
 
 
 	@err_catcher(name=__name__)
@@ -836,14 +845,14 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def setNodePassthrough(self, nodename, passThrough):
-		node = self.get_rendernode(nodename)
+	def setNodePassthrough(self, nodeUID, passThrough):
+		node = self.getNodeByUID(nodeUID)
 		node.SetAttrs({"TOOLB_PassThrough": passThrough})
 
 
 	@err_catcher(name=__name__)
-	def getNodePassthrough(self, nodename):
-		node = self.get_rendernode(nodename)
+	def getNodePassthrough(self, nodeUID):
+		node = self.getNodeByUID(nodeUID)
 		return not node.GetAttrs("TOOLB_PassThrough")
 	
 
@@ -882,33 +891,92 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def rendernode_exists(self, nodename):
-		comp = self.getCurrentComp()
-		sv = comp.FindTool(nodename)
-		if sv is None:
-			return False
-		return True
+	def rendernodeExists(self, nodeUID):
+		if self.getNodeByUID(nodeUID):
+			exists = True
+		else:
+			exists = False
+
+		# self.core.popup(f"EXISTS:  {exists}")                                      #    TESTING
+
+		return exists
+
+
+		# 	return True														#	TODO
+		
+		# return False
 	
 
 	@err_catcher(name=__name__)
-	def get_rendernode(self, nodename):
+	def getNodeByUID(self, nodeUID):
 		comp = self.getCurrentComp()
-		return comp.FindTool(nodename)
+		# Iterate through all tools in the composition
+		tools = comp.GetToolList(False)
+
+		for tool_name, tool in tools.items():  # tool_name is the key, tool is the value
+			toolUID = tool.GetData('Prism_UUID')
+
+        # Check if the tool has the attribute 'Prism_UUID' and if it matches the provided UID
+			if toolUID == nodeUID:
+				return tool
+			
+		return None
 	
 
 	@err_catcher(name=__name__)
-	def create_rendernode(self, nodename):
+	def getNodeNameByUID(self, nodeUID):
+		tool = self.getNodeByUID(nodeUID)
+		toolName = tool.GetAttrs()["TOOLS_Name"]
+
+		return toolName
+
+
+
+	# @err_catcher(name=__name__)
+	# def refreshNodees(self):
+	# 	comp = self.getCurrentComp()
+	# 	# Iterate through all tools in the composition
+	# 	tools = comp.GetToolList(False)
+
+	# 	for tool_name, tool in tools.items():  # tool_name is the key, tool is the value
+	# 		toolUID = tool.GetData('Prism_UUID')
+
+    #     # Check if the tool has the attribute 'Prism_UUID' and if it matches the provided UID
+	# 		if toolUID == nodeUID:
+	# 			return tool
+			
+	# 	return None
+
+	
+	@err_catcher(name=__name__)
+	def createRendernode(self, nodename, nodeUID):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			if not self.rendernode_exists(nodename):
+			if not self.rendernodeExists(nodeUID):
 				comp.Lock()
 				sv = comp.Saver()
-				comp.Unlock()
 				sv.SetAttrs({'TOOLS_Name' : nodename})
+				sv.SetData('Prism_UUID', nodeUID)
+				comp.Unlock()
+
 				if not self.posRelativeToNode(sv):
 					#Move Render Node to the Right of the scene	
 					self.setNodePosition(sv, find_min=False, x_offset=10, ignore_node_type="Saver")
 					self.stackNodesByType(sv)
+			return sv
+
+
+	@err_catcher(name=__name__)
+	def updateRendernode(self, nodename, nodeUID):
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			sv = self.getNodeByUID(nodeUID)
+
+			if sv:
+				comp.Lock()
+				sv.SetAttrs({'TOOLS_Name' : nodename})
+				comp.Unlock()
+
 			return sv
 
 
@@ -1146,10 +1214,10 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def configureRenderNode(self, nodeName, outputPath, fuseName=None):
+	def configureRenderNode(self, nodeUID, outputPath, fuseName=None):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			sv = self.get_rendernode(nodeName)
+			sv = self.getNodeByUID(nodeUID)
 			if sv:
 				sv.Clip = outputPath
 				if fuseName:
@@ -1207,19 +1275,34 @@ class Prism_Fusion_Functions(object):
 		return nodeName
 	
 
-	#	Gets individual State data from the comp state data based on the Saver name
+	#	Gets individual State data from the comp state data based on the UUID
 	@err_catcher(name=__name__)
-	def getMatchingStateData(self, nodeName):
+	def getMatchingStateDataFromUID(self, nodeUID):
 		stateDataRaw = json.loads(self.sm_readStates(self))
 
 		# Iterate through the states to find the matching state dictionary
 		stateDetails = None
 		for stateData in stateDataRaw["states"]:
-			if stateData.get("rendernode") == nodeName:
+			if stateData.get("nodeUID") == nodeUID:
 				stateDetails = stateData
 				return stateDetails
 
-		self.core.popup(f"No state details for:  {nodeName}")                           #    TODO - ERROR HANDLING
+		self.core.popup(f"No state details for:  {nodeUID}")                           #    TODO - ERROR HANDLING
+
+
+	#	Gets individual State data from the comp state data based on the Saver name
+	@err_catcher(name=__name__)
+	def getMatchingStateDataFromName(self, nodeUID):
+		stateDataRaw = json.loads(self.sm_readStates(self))
+
+		# Iterate through the states to find the matching state dictionary
+		stateDetails = None
+		for stateData in stateDataRaw["states"]:
+			if stateData.get("rendernode") == nodeUID:
+				stateDetails = stateData
+				return stateDetails
+
+		self.core.popup(f"No state details for:  {nodeUID}")                           #    TODO - ERROR HANDLING
 
 
 	@err_catcher(name=__name__)
@@ -1398,9 +1481,8 @@ path = r\"%s\"
 
 	#	Adds a Scale node if the Scale override is used by the RenderGroup
 	@err_catcher(name=__name__)
-	def addScaleNode(self, comp, nodeName, scaleOvrCode):
+	def addScaleNode(self, comp, sv, scaleOvrCode):
 		try:
-			sv = self.get_rendernode(nodeName)
 			if sv:
 				#	Add a Scale tool
 				scaleTool = comp.AddTool("Scale")
@@ -1442,6 +1524,8 @@ path = r\"%s\"
 		self.versionData = []
 		self.tempScaleTools = []
 
+		context = rSettings["context"]
+		
 		#	Capture orignal Comp settings for restore after render
 		self.origCompSettings = self.saveOrigCompSettings(comp)
 
@@ -1454,20 +1538,19 @@ path = r\"%s\"
 		#	Configure Comp with overrides from RenderGroup
 		self.setCompOverrides(comp, rSettings)
 
-		for state in renderStates:
-			#	Get Saver name for State
-			nodeName = self.getRendernodeName(state)
-			self.setNodePassthrough(nodeName, passThrough=False)
+		for nodeUID in renderStates:
+
+			#	Get State data from Comp
+			stateData = self.getMatchingStateDataFromUID(nodeUID)
+
+			sv = self.getNodeByUID(nodeUID)
+			self.setNodePassthrough(nodeUID, passThrough=False)
 
 			#	Add Scale tool if scale override is above 100%
 			scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
 			if scaleOvrType == "scale":
-				self.addScaleNode(comp, nodeName, scaleOvrCode)
+				self.addScaleNode(comp, sv, scaleOvrCode)
 
-			context = rSettings["context"]
-
-			#	Get State data from Comp
-			stateData = self.getMatchingStateData(nodeName)
 
 			#	Set frame padding format for Fusion
 			extension = stateData["outputFormat"]
@@ -1522,7 +1605,7 @@ path = r\"%s\"
 			#	Get version filepath for Saver
 			self.outputPath = outputPathData["path"]
 			#	Configure Saver with new filepath
-			self.configureRenderNode(nodeName, self.outputPath, fuseName=None)
+			self.configureRenderNode(nodeUID, self.outputPath, fuseName=None)
 
 			stateData["comment"] = self.monkeypatchedsm.publishComment
 			renderDir = os.path.dirname(self.outputPath)
@@ -1635,8 +1718,7 @@ path = r\"%s\"
 			self.tempScaleTools = []
 			origCompSettings = self.saveOrigCompSettings(comp)
 
-			sv = self.get_rendernode(origin.get_rendernode_name())
-			#if sv is not None
+			sv = self.getNodeByUID(rSettings["nodeUID"])
 			if sv:
 				#if sv has input
 				if sv.Input.GetConnectedOutput():
@@ -1654,8 +1736,7 @@ path = r\"%s\"
 				#	Add Scale tool if scale override is above 100%
 				scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
 				if scaleOvrType == "scale":
-					nodeName = origin.get_rendernode_name()
-					self.addScaleNode(comp, nodeName, scaleOvrCode)
+					self.addScaleNode(comp, sv, scaleOvrCode)
 
 				#	Gets render args from override settings
 				renderCmd = self.makeRenderCmd(comp, rSettings)
@@ -1750,7 +1831,7 @@ path = r\"%s\"
 		if "extension" in details:
 			del details["extension"]
 
-		details["version"] = self.getDateTimeUID()
+		details["version"] = self.createUUID(simple=True)
 		details["sourceScene"] = self.tempFilePath
 		details["identifier"] = rSettings["groupName"]
 		details["comment"] = self.monkeypatchedsm.publishComment
@@ -3397,6 +3478,7 @@ path = r\"%s\"
 		print(comp)
 		if self.sm_checkCorrectComp(comp):
 			prismdata = comp.GetData("prismstates")
+
 			return prismdata.split("_..._")[0]
 
 
