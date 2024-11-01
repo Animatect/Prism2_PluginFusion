@@ -1416,6 +1416,7 @@ class ImageRenderClass(object):
 				"state": self,
 				"scenefile": fileName,
 				"settings": rSettings,
+				"mediaType": "2drenders",
 				"result": result,
 			}
 
