@@ -1928,7 +1928,6 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def reloadLoader(self, node, filePath, firstframe, lastframe):
-		print("RELOAD LOADER ::: firstframe: ", firstframe, ", lastframe: ", lastframe)
 		if node.GetAttrs("TOOLS_RegID") == 'Loader':
 			node = node
 			loaderPath = filePath
@@ -2000,7 +1999,6 @@ path = r\"%s\"
 		flow.Select()
 
 		sourceData = mediaBrowser.compGetImportSource()
-		print("originalSourceData: ", sourceData)
 		imageData = self.getImageData(sourceData)
 		if imageData:
 			updatehandle:list = [] # Required to return data on the updated nodes.
@@ -2175,7 +2173,6 @@ path = r\"%s\"
 		curfr = self.get_current_frame()
 		framepadding = self.core.framePadding
 		padding_string = self.get_frame_padding_string()
-		print("sourceData: ", sourceData)
 
 		# Check if source data interprets the image sequence as individual images.
 		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
@@ -2186,7 +2183,6 @@ path = r\"%s\"
 			if imagepath:
 				filePath = self.format_file_path(imagepath["file_path"], curfr, framepadding, padding_string)
 				firstFrame, lastFrame = imagepath["start_frame"], imagepath["end_frame"]
-				print("saca los frames de image strings")
 				aovNm, layerNm = 'PrismLoader', 'PrismMedia'
 				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, imagepath["is_sequence"])
 		else:
@@ -2201,22 +2197,16 @@ path = r\"%s\"
 	def getPassData(self, sourceData):
 		firstFrame, lastFrame = sourceData[1], sourceData[2]
 		curfr = firstFrame #self.get_current_frame()
-		print("saca los frames de source data y son: ", firstFrame, ", ", lastFrame)
-		framepadding = self.core.framePadding#self.check_padding_in_filepath(sourceData[0])# self.core.framePadding
-		print("FRAMEPADDING: ", framepadding)
+		framepadding = self.core.framePadding
 		padding_string = self.get_frame_padding_string()
 
 		numframepadsinpath = self.check_padding_in_filepath(sourceData[0])
-		print("num frame pads in path: ", numframepadsinpath)
 		isSequence = numframepadsinpath > 0
 
-		# if allAOVs:
-		print("UNmodified single path: ", sourceData[0])
 		if isSequence:
 			filePath = self.format_file_path_with_validation(sourceData[0], curfr, framepadding, padding_string, firstFrame)
 		else:
 			filePath = sourceData[0]
-			print("modified single path: ", filePath)
 
 		aovNm, layerNm = self.extract_aov_layer_names(filePath)
 		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
@@ -2267,7 +2257,6 @@ path = r\"%s\"
 		"""Format the file path by validating its existence."""
 		formatted_first_frame = f"{firstFrame:0{framepadding}}."
 		modified_file_path = path.replace(padding_string, formatted_first_frame)
-		print("modified path: ", modified_file_path)
 
 		if os.path.exists(modified_file_path):
 			return path.replace(padding_string, f"{frame:0{framepadding}}.")
@@ -3811,13 +3800,11 @@ path = r\"%s\"
 		#
 		sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/") #
 		sources = self.core.media.getImgSources(sourceFolder)
-		print("sources: ", sources)
 		sourceData = []
 
 		framepadding = self.core.framePadding #added
 		for curSourcePath in sources:
 			if "#" * framepadding in curSourcePath: # changed
-				print("has #")
 				if mediabrowser.pstart == "?" or mediabrowser.pend == "?": #
 					firstFrame = None
 					lastFrame = None
@@ -3827,7 +3814,6 @@ path = r\"%s\"
 
 				filePath = curSourcePath.replace("\\", "/")
 			else:
-				print("does not have #")
 				filePath = curSourcePath.replace("\\", "/")
 				firstFrame = None
 				lastFrame = None
@@ -3841,7 +3827,6 @@ path = r\"%s\"
 		mediabrowser = self.monkeypatchedmediabrowser # added this is refered as self in the original.
 		#
 		framepadding = self.core.framePadding #added
-		print("compGetImportPasses Monkeypatched")
 		sourceFolder = os.path.dirname(
 			os.path.dirname(mediabrowser.seq[0])
 		).replace("\\", "/")
