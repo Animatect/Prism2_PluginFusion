@@ -1,6 +1,4 @@
 
-# import platform
-# import subprocess
 import sys
 import os
 import time
@@ -128,7 +126,7 @@ class PrismHolderClass(object):
 	# Add your GUI element based event functions here: ev is the event object
 	def on_btn_projectbrowser_clicked(self, ev):
 		if global_Prism.pcore.getPlugin("Fusion").pbUI:
-			print("alreadyOppened")
+			print("Already Opened")
 		else:
 			opw.openProjectBrowser(global_Prism.pcore)
 
@@ -140,7 +138,7 @@ class PrismHolderClass(object):
 
 	def on_btn_statemanager_clicked(self, ev):
 		if global_Prism.pcore.getPlugin("Fusion").smUI:
-			print("alreadyOppened")
+			print("Already Opened")
 		else:
 			opw.openPrismStateManager(global_Prism.pcore)
 
@@ -243,5 +241,5 @@ class prismStateHolderClass(object):
 		code_string = command
 		exec(code_string)
 
-		print("finish")
+		print("Finish")
 

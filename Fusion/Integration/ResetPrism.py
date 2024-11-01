@@ -14,7 +14,7 @@ import psutil
 # from plyer import notification
 
 def launch_prismFusion_menu():
-	print("launching")
+	print("Launching Prism")
 	timescale = 0.5
 	# Make Sure the script runs only once at startup.
 	# if fusion.GetData('Prism.Startup') or fusion.GetData('Prism.Startup') == None:
@@ -75,7 +75,7 @@ def launch_prismFusion_menu():
 		# 	ProgressWinUpdate(msgwin, msgitm, winTitle, "is Rendejob...", step, totalSteps, 0.5*timescale)
 		# 	msgwin.Hide()
 	else:
-		fusion_popup("RenderNode Running", "Render Node is Running\nplease Close it and reset prism from the menu.")
+		fusion_popup("RenderNode Running", "Render Node is Running\nplease Close it and Reset Prism from the menu.")
 
 def get_script_dir():
 	# Try to determine the script's directory
@@ -290,7 +290,7 @@ def terminate_process_by_name(process_name):
                 print(f"Access denied when trying to terminate {proc.info['name']} with PID {proc.info['pid']}")
 
 def is_process_running(process_name):
-	"""Check if there is any running process that contains the given name."""
+	"""Check if there are any running processes that contains the given name."""
 	for proc in psutil.process_iter(['pid', 'name']):
 		try:
 			if process_name.lower() in proc.info['name'].lower():

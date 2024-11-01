@@ -62,7 +62,6 @@ class Prism_Fusion_Integration(object):
 				"CallButtons.py",
 				"CreateHolder.py",
 				"manageprismpaths.py",
-				"BlenderOCIOmanager.py",
 				"startupDialog.py",
 				"emptydialog.py",
 			]
