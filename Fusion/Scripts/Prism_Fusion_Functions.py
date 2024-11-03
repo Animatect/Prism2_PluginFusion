@@ -3540,23 +3540,6 @@ path = r\"%s\"
 		if popup:
 			self.popup = popup
 
-
-	# @err_catcher(name=__name__)
-	# def DEBUG_checkstate(self, extracomment=""):
-	# 	prevcomp = self.comp
-	# 	comp=self.getCurrentComp()
-	# 	ps = 0
-	# 	prvps = 0
-	# 	if "prismstates" in comp.GetData().values():
-	# 		ps = len(comp.GetData("prismstates"))
-	# 	if "prismstates" in prevcomp.GetData().values():
-	# 		prvps = len(prevcomp.GetData("prismstates"))		
-
-	# 	print(extracomment)
-	# 	print("prevcomp: ", prevcomp.GetAttrs('COMPS_Name')," ps: ", prvps)
-	# 	print("curcomp: ", comp.GetAttrs('COMPS_Name'), " ps: ",  ps, "\n")
-
-
 	@err_catcher(name=__name__)
 	def onStateManagerCalled(self, popup=None):
 		#Feedback in case it takes time to open
