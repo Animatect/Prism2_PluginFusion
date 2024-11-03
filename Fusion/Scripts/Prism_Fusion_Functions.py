@@ -819,7 +819,11 @@ class Prism_Fusion_Functions(object):
 					except:
 						logger.debug(f"ERROR: Not able to position {nodeName}")
 
-			return sv
+			if sv:
+				return sv
+			else:
+				logger.warning(f"ERROR: Unable to create Saver for {nodeName}")
+				return False
 
 
 	#	Updates Saver node name
@@ -3652,8 +3656,8 @@ path = r\"%s\"
 				logger.warning("ERROR: The State Manager was originally opened in another comp.\n" 
 								"It will now close and open again to avoid corrupting this comp's state data.")
 				if displaypopup:
-					self.core.popup("""The State Manager was originally opened in another comp.\n 
-					It will now close and open again to avoid corrupting this comp's state data.""")
+					self.core.popup("The State Manager was originally opened in another comp.\n"
+									"It will now close and open again to avoid corrupting this comp's state data.")
 					self.core.closeSM(restart=True)
 				return False
 			

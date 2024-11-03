@@ -36,14 +36,16 @@ import os
 import sys
 import time
 import platform
-import re
-import re
+import logging
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
+
+logger = logging.getLogger(__name__)
+
 
 
 class ImageRenderClass(object):
@@ -147,31 +149,37 @@ class ImageRenderClass(object):
 
 		#	Load default State data
 		else:
-			context = self.getCurrentContext()
-			if context.get("type") == "asset":
-				self.setRangeType("Single Frame")
-			elif context.get("type") == "shot":
-				self.setRangeType("Shot")
-			elif self.stateManager.standalone:
-				self.setRangeType("Custom")
-			else:
-				self.setRangeType("Scene")
+			try:
+				context = self.getCurrentContext()
+				if context.get("type") == "asset":
+					self.setRangeType("Single Frame")
+				elif context.get("type") == "shot":
+					self.setRangeType("Shot")
+				elif self.stateManager.standalone:
+					self.setRangeType("Custom")
+				else:
+					self.setRangeType("Scene")
 
-			start, end = self.getFrameRange("Scene")
-			if start is not None:
-				self.sp_rangeStart.setValue(start)
+				start, end = self.getFrameRange("Scene")
+				if start is not None:
+					self.sp_rangeStart.setValue(start)
 
-			if end is not None:
-				self.sp_rangeEnd.setValue(end)
+				if end is not None:
+					self.sp_rangeEnd.setValue(end)
 
-			if context.get("task"):
-				self.setTaskname(context.get("task"))
+				if context.get("task"):
+					self.setTaskname(context.get("task"))
 
-			self.chb_resOverride.setChecked(False)
+				self.chb_resOverride.setChecked(False)
 
-			self.setUniqueName(f"{self.className} - Compositing")
+				self.setUniqueName(f"{self.className} - Compositing")
 
-			self.stateUID = self.fusionFuncs.createUUID()
+				self.stateUID = self.fusionFuncs.createUUID()
+
+				logger.debug("Loading State Defaults")
+
+			except:
+				logger.warning("ERROR: Failed to load State defaults")
 
 			self.setRendernode()
 			self.updateUi()
@@ -181,104 +189,112 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def loadData(self, data):
-		if "nodeUID" in data:
-			self.stateUID = data["nodeUID"]
-		if "contextType" in data:
-			self.setContextType(data["contextType"])
-		if "customContext" in data:
-			self.customContext = data["customContext"]
-		if "taskname" in data:
-			self.setTaskname(data["taskname"])
+		try:
+			if "nodeUID" in data:
+				self.stateUID = data["nodeUID"]
+			if "contextType" in data:
+				self.setContextType(data["contextType"])
+			if "customContext" in data:
+				self.customContext = data["customContext"]
+			if "taskname" in data:
+				self.setTaskname(data["taskname"])
 
-		self.updateUi()
+			self.updateUi()
 
-		if "stateName" in data:
-			self.e_name.setText(data["stateName"])
-		elif "statename" in data:
-			self.e_name.setText(data["statename"] + " - {identifier}")
+			if "stateName" in data:
+				self.e_name.setText(data["stateName"])
+			elif "statename" in data:
+				self.e_name.setText(data["statename"] + " - {identifier}")
 
-		if "renderScaleOverride" in data:
-			self.chb_resOverride.setChecked(data["renderScaleOverride"])
-		if "currentRenderScale" in data:
-			idx = self.cb_renderScaling.findText(data["currentRenderScale"])
-			if idx != -1:
-				self.cb_renderScaling.setCurrentIndex(idx)
-				self.stateManager.saveStatesToScene()
-		if "rangeType" in data:
-			idx = self.cb_rangeType.findText(data["rangeType"])
-			if idx != -1:
-				self.cb_rangeType.setCurrentIndex(idx)
-				self.updateRange()
-		if "startframe" in data:
-			self.sp_rangeStart.setValue(int(data["startframe"]))
-		if "endframe" in data:
-			self.sp_rangeEnd.setValue(int(data["endframe"]))
-		if "frameExpression" in data:
-			self.le_frameExpression.setText(data["frameExpression"])
-		if "masterVersion" in data:
-			idx = self.cb_master.findText(data["masterVersion"])
-			if idx != -1:
-				self.cb_master.setCurrentIndex(idx)
-		if "curoutputpath" in data:
-			idx = self.cb_outPath.findText(data["curoutputpath"])
-			if idx != -1:
-				self.cb_outPath.setCurrentIndex(idx)
-		if "renderlayer" in data:
-			idx = self.cb_renderLayer.findText(data["renderlayer"])
-			if idx != -1:
-				self.cb_renderLayer.setCurrentIndex(idx)
-				self.stateManager.saveStatesToScene()
-		if "outputFormat" in data:
-			idx = self.cb_format.findText(data["outputFormat"])
-			if idx != -1:
-				self.cb_format.setCurrentIndex(idx)
-		if "submitrender" in data:
-			self.gb_submit.setChecked(eval(data["submitrender"]))
-		if "rjmanager" in data:
-			idx = self.cb_manager.findText(data["rjmanager"])
-			if idx != -1:
-				self.cb_manager.setCurrentIndex(idx)
-			self.managerChanged(True)
-		if "rjprio" in data:
-			self.sp_rjPrio.setValue(int(data["rjprio"]))
-		if "rjframespertask" in data:
-			self.sp_rjFramesPerTask.setValue(int(data["rjframespertask"]))
-		if "rjtimeout" in data:
-			self.sp_rjTimeout.setValue(int(data["rjtimeout"]))
-		if "rjsuspended" in data:
-			self.chb_rjSuspended.setChecked(eval(data["rjsuspended"]))
-		if "osdependencies" in data:
-			self.chb_osDependencies.setChecked(eval(data["osdependencies"]))
-		if "osupload" in data:
-			self.chb_osUpload.setChecked(eval(data["osupload"]))
-		if "ospassets" in data:
-			self.chb_osPAssets.setChecked(eval(data["ospassets"]))
-		if "osslaves" in data:
-			self.e_osSlaves.setText(data["osslaves"])
-		if "dlconcurrent" in data:
-			self.sp_dlConcurrentTasks.setValue(int(data["dlconcurrent"]))
-		if "dlgpupt" in data:
-			self.sp_dlGPUpt.setValue(int(data["dlgpupt"]))
-			self.gpuPtChanged()
-		if "dlgpudevices" in data:
-			self.le_dlGPUdevices.setText(data["dlgpudevices"])
-			self.gpuDevicesChanged()
-		if "lastexportpath" in data:
-			lePath = self.core.fixPath(data["lastexportpath"])
-			self.l_pathLast.setText(lePath)
-			self.l_pathLast.setToolTip(lePath)
-		if "stateenabled" in data:
-			if type(data["stateenabled"]) == int:
-				self.state.setCheckState(
-					0, Qt.CheckState(data["stateenabled"]),
-				)
-		if "rendernode" in data:
-			self.setRendernode()
+			if "renderScaleOverride" in data:
+				self.chb_resOverride.setChecked(data["renderScaleOverride"])
+			if "currentRenderScale" in data:
+				idx = self.cb_renderScaling.findText(data["currentRenderScale"])
+				if idx != -1:
+					self.cb_renderScaling.setCurrentIndex(idx)
+					self.stateManager.saveStatesToScene()
+			if "rangeType" in data:
+				idx = self.cb_rangeType.findText(data["rangeType"])
+				if idx != -1:
+					self.cb_rangeType.setCurrentIndex(idx)
+					self.updateRange()
+			if "startframe" in data:
+				self.sp_rangeStart.setValue(int(data["startframe"]))
+			if "endframe" in data:
+				self.sp_rangeEnd.setValue(int(data["endframe"]))
+			if "frameExpression" in data:
+				self.le_frameExpression.setText(data["frameExpression"])
+			if "masterVersion" in data:
+				idx = self.cb_master.findText(data["masterVersion"])
+				if idx != -1:
+					self.cb_master.setCurrentIndex(idx)
+			if "curoutputpath" in data:
+				idx = self.cb_outPath.findText(data["curoutputpath"])
+				if idx != -1:
+					self.cb_outPath.setCurrentIndex(idx)
+			if "renderlayer" in data:
+				idx = self.cb_renderLayer.findText(data["renderlayer"])
+				if idx != -1:
+					self.cb_renderLayer.setCurrentIndex(idx)
+					self.stateManager.saveStatesToScene()
+			if "outputFormat" in data:
+				idx = self.cb_format.findText(data["outputFormat"])
+				if idx != -1:
+					self.cb_format.setCurrentIndex(idx)
+			if "submitrender" in data:
+				self.gb_submit.setChecked(eval(data["submitrender"]))
+			if "rjmanager" in data:
+				idx = self.cb_manager.findText(data["rjmanager"])
+				if idx != -1:
+					self.cb_manager.setCurrentIndex(idx)
+				self.managerChanged(True)
+			if "rjprio" in data:
+				self.sp_rjPrio.setValue(int(data["rjprio"]))
+			if "rjframespertask" in data:
+				self.sp_rjFramesPerTask.setValue(int(data["rjframespertask"]))
+			if "rjtimeout" in data:
+				self.sp_rjTimeout.setValue(int(data["rjtimeout"]))
+			if "rjsuspended" in data:
+				self.chb_rjSuspended.setChecked(eval(data["rjsuspended"]))
+			if "osdependencies" in data:
+				self.chb_osDependencies.setChecked(eval(data["osdependencies"]))
+			if "osupload" in data:
+				self.chb_osUpload.setChecked(eval(data["osupload"]))
+			if "ospassets" in data:
+				self.chb_osPAssets.setChecked(eval(data["ospassets"]))
+			if "osslaves" in data:
+				self.e_osSlaves.setText(data["osslaves"])
+			if "dlconcurrent" in data:
+				self.sp_dlConcurrentTasks.setValue(int(data["dlconcurrent"]))
+			if "dlgpupt" in data:
+				self.sp_dlGPUpt.setValue(int(data["dlgpupt"]))
+				self.gpuPtChanged()
+			if "dlgpudevices" in data:
+				self.le_dlGPUdevices.setText(data["dlgpudevices"])
+				self.gpuDevicesChanged()
+			if "lastexportpath" in data:
+				lePath = self.core.fixPath(data["lastexportpath"])
+				self.l_pathLast.setText(lePath)
+				self.l_pathLast.setToolTip(lePath)
+			if "stateenabled" in data:
+				if type(data["stateenabled"]) == int:
+					self.state.setCheckState(
+						0, Qt.CheckState(data["stateenabled"]),
+					)
+			if "rendernode" in data:
+				self.setRendernode()
+			
+			if "outonly" in data: 
+				self.chb_outOnly.setChecked(data["outonly"])
+			
+			logger.debug("Loaded State Data into UI")
 		
-		if "outonly" in data: 
-			self.chb_outOnly.setChecked(data["outonly"])
+		except:
+			logger.warning("ERROR: Failed to load State Data into UI")
+
 
 		self.core.callback("onStateSettingsLoaded", self, data)
+
 
 
 
@@ -300,8 +316,6 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def onStateLoaded(self):
-		print("stateloaded")											#	TESTING
-
 		if self.fusionFuncs.rendernodeExists(self.stateUID):
 			state = self.fusionFuncs.isPassThrough(nodeUID=self.stateUID)
 			if state:
@@ -314,6 +328,9 @@ class ImageRenderClass(object):
 		self.state.setBackground(0, QColor("#365e99"))
 
 		self.stateManager.saveStatesToScene()
+
+		stateName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
+		logger.debug(f"Loaded State: {stateName}")
 
 
 	@err_catcher(name=__name__)
@@ -368,13 +385,17 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def generateUniqueName(self, base_name, names):
-		unique_name = base_name
-		counter = 1
-		while unique_name in names:
-			unique_name = f"{base_name}_{counter}"
-			counter += 1
-		names.add(unique_name)
-		return unique_name
+		try:
+			unique_name = base_name
+			counter = 1
+			while unique_name in names:
+				unique_name = f"{base_name}_{counter}"
+				counter += 1
+			names.add(unique_name)
+			return unique_name
+		except:
+			logger.warning(f"ERROR: Failed to create unique name for {base_name}")
+			return base_name
 
 
 	@err_catcher(name=__name__)
@@ -583,11 +604,14 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def setFormat(self, fmt):
-		idx = self.cb_format.findText(fmt)
-		if idx != -1:
-			self.cb_format.setCurrentIndex(idx)
-			self.stateManager.saveStatesToScene()
-			return True
+		try:
+			idx = self.cb_format.findText(fmt)
+			if idx != -1:
+				self.cb_format.setCurrentIndex(idx)
+				self.stateManager.saveStatesToScene()
+				return True
+		except:
+			logger.warning(f"ERROR: Unable to set format in the UI: {fmt}")
 
 		return False
 
@@ -642,7 +666,7 @@ class ImageRenderClass(object):
 
 		if result == 1:
 			#	Checks if entered name is Fusion legal
-			isLegal, errorStr = self.getFusLegalName(self.nameWin.e_item.text(), check=True)
+			isLegal, errorStr = self.fusionFuncs.getFusLegalName(self.nameWin.e_item.text(), check=True)
 			if not isLegal:
 				self.core.popup(errorStr)
 				return
@@ -652,37 +676,6 @@ class ImageRenderClass(object):
 			self.stateManager.saveStatesToScene()
 			
 			self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
-
-
-	#	Fusion has strict naming for nodes.  You can only use:
-	#	Alphanumeric characters:  a-z, A-Z, 0-9,
-	#	Do not use any spaces,
-	#	Do not use special charactors,
-	#	Node name cannot start with a number.
-	@err_catcher(name=__name__)
-	def getFusLegalName(self, origName, check=False):
-		# Check if the name starts with a number
-		if origName[0].isdigit():
-			if check:
-				return False, "Name cannot start with a number."
-			
-			return "Error: Name cannot start with a number."
-
-		# Check if the name contains only allowed characters
-		if not re.match(r'^[A-Za-z0-9_\- .]*$', origName):
-			if check:
-				return False, "Name contains invalid characters."
-			
-			return "Error: Name contains invalid characters."
-
-		newName = origName.replace(' ', '_')
-		newName = newName.replace('.', '_')
-		newName = newName.replace('-', '_')
-
-		if check:
-			return True, ""
-		
-		return newName
 
 
 	@err_catcher(name=__name__)
@@ -734,12 +727,17 @@ class ImageRenderClass(object):
 	def getItemNames(self):
 		itemNames = set()
 
-		# Iterate through the top-level items in the QTreeWidget
-		for i in range(self.treeWidget.topLevelItemCount()):
-			top_level_item = self.treeWidget.topLevelItem(i)
-			self.getItemNamesRecursive(top_level_item, itemNames)
+		try:
+			# Iterate through the top-level items in the QTreeWidget
+			for i in range(self.treeWidget.topLevelItemCount()):
+				top_level_item = self.treeWidget.topLevelItem(i)
+				self.getItemNamesRecursive(top_level_item, itemNames)
 
-		return itemNames 
+			return itemNames
+		
+		except:
+			logger.warning("ERROR: Cannot get Item names")
+			return None
 
 	@err_catcher(name=__name__)
 	def setTreeItemColor(self, status=None):
@@ -776,11 +774,15 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def sm_ToggleNodeChanged(self, disabled)->None:
 		# disabled = twitem.checkState(0) != Qt.Checked
-		nodeUID = self.stateUID
-		if self.fusionFuncs.rendernodeExists(nodeUID):
-			self.fusionFuncs.setPassThrough(nodeUID=nodeUID, passThrough=disabled)
-		else:
-			self.setRendernode()
+		try:
+			nodeUID = self.stateUID
+			if self.fusionFuncs.rendernodeExists(nodeUID):
+				self.fusionFuncs.setPassThrough(nodeUID=nodeUID, passThrough=disabled)
+			else:
+				self.setRendernode()
+		except:
+			stateName = self.fusionFuncs.getNodeNameByUID(nodeUID)
+			logger.warning(f"ERROR: Unable to change the {stateName} Saver's passthrough.")
 
 		# self.setTreeItemColor()
 		self.stateManager.saveStatesToScene()
@@ -789,7 +791,7 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def get_rendernode_name(self):
 		identifier = self.getTaskname()
-		legalName = self.getFusLegalName(identifier)
+		legalName = self.fusionFuncs.getFusLegalName(identifier)
 		nodeName = f"PrSAVER_{legalName}"
 
 		return nodeName
@@ -810,8 +812,11 @@ class ImageRenderClass(object):
 		else:
 			#	If Create then call createRendernode
 			if create:
-				self.fusionFuncs.createRendernode(nodeName, nodeUID)
-				self.b_setRendernode.setText(nodeName)
+				try:
+					result = self.fusionFuncs.createRendernode(nodeName, nodeUID)
+					self.b_setRendernode.setText(nodeName)
+				except:
+					pass
 
 			#	 If not create then just set text
 			else:
@@ -865,6 +870,9 @@ class ImageRenderClass(object):
 		nodeUID = self.stateUID
 
 		outputName, _, _ = self.getOutputName(useVersion=useVersion)
+		if not outputName:
+			return
+		
 		extension = stateUI.cb_format.currentText()
 		fuseName = None
 
@@ -878,7 +886,8 @@ class ImageRenderClass(object):
 			self.stateManager.saveStatesToScene()
 
 		except:
-			print("ERROR: Unable to config Saver")										#	TODO - Logging
+			nodeName = self.fusionFuncs.getNodeNameByUID(nodeUID)
+			logger.warning(f"ERROR: Unable to config Saver {nodeName}")
 
 
 	@err_catcher(name=__name__)
@@ -1045,50 +1054,54 @@ class ImageRenderClass(object):
 	def getFrameRange(self, rangeType):
 		startFrame = None
 		endFrame = None
+		try:
+			if rangeType == "Scene":
+				if hasattr(self.fusionFuncs, "getFrameRange"):
+					startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
+					startFrame = int(startFrame)
+					endFrame = int(endFrame)
+				else:
+					startFrame = 1001
+					endFrame = 1100
 
-		if rangeType == "Scene":
-			if hasattr(self.fusionFuncs, "getFrameRange"):
-				startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
+			elif rangeType == "Shot":
+				context = self.getCurrentContext()
+				if context.get("type") == "shot" and "sequence" in context:
+					frange = self.core.entities.getShotRange(context)
+					if frange:
+						startFrame, endFrame = frange
+
+			elif rangeType == "Single Frame":
+				try:	
+					comp = self.fusionFuncs.getCurrentComp()
+					startFrame = comp.CurrentTime
+				except:
+					startFrame = 1001
+
+			elif rangeType == "Custom":
+				startFrame = self.sp_rangeStart.value()
+				endFrame = self.sp_rangeEnd.value()
+
+			elif rangeType == "Expression":
+				return self.core.resolveFrameExpression(self.le_frameExpression.text())
+
+			if startFrame == "":
+				startFrame = None
+
+			if endFrame == "":
+				endFrame = None
+
+			if startFrame is not None:
 				startFrame = int(startFrame)
+
+			if endFrame is not None:
 				endFrame = int(endFrame)
-			else:
-				startFrame = 1001
-				endFrame = 1100
 
-		elif rangeType == "Shot":
-			context = self.getCurrentContext()
-			if context.get("type") == "shot" and "sequence" in context:
-				frange = self.core.entities.getShotRange(context)
-				if frange:
-					startFrame, endFrame = frange
-
-		elif rangeType == "Single Frame":
-			try:	
-				comp = self.fusionFuncs.getCurrentComp()
-				startFrame = comp.CurrentTime
-			except:
-				startFrame = 1001
-
-		elif rangeType == "Custom":
-			startFrame = self.sp_rangeStart.value()
-			endFrame = self.sp_rangeEnd.value()
-
-		elif rangeType == "Expression":
-			return self.core.resolveFrameExpression(self.le_frameExpression.text())
-
-		if startFrame == "":
-			startFrame = None
-
-		if endFrame == "":
-			endFrame = None
-
-		if startFrame is not None:
-			startFrame = int(startFrame)
-
-		if endFrame is not None:
-			endFrame = int(endFrame)
-
-		return startFrame, endFrame
+			return startFrame, endFrame
+		
+		except:
+			stateName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
+			logger.warning(f"ERROR: Unable to set range type {rangeType} for {stateName}")
 	
 
 	@err_catcher(name=__name__)
@@ -1329,28 +1342,33 @@ class ImageRenderClass(object):
 
 		location = stateUI.cb_outPath.currentText()
 
-		outputPathData = stateUI.core.mediaProducts.generateMediaProductPath(
-			entity=context,
-			task=task,
-			extension=extension,
-			framePadding=framePadding,
-			comment=self.stateManager.publishComment,
-			version=useVersion if useVersion != "next" else None,
-			location=location,
-			singleFrame=False,
-			returnDetails=True,
-			mediaType=self.mediaType,
-			)
+		try:
+			outputPathData = stateUI.core.mediaProducts.generateMediaProductPath(
+				entity=context,
+				task=task,
+				extension=extension,
+				framePadding=framePadding,
+				comment=self.stateManager.publishComment,
+				version=useVersion if useVersion != "next" else None,
+				location=location,
+				singleFrame=False,
+				returnDetails=True,
+				mediaType=self.mediaType,
+				)
 
-		outputFolder = os.path.dirname(outputPathData["path"])
-		hVersion = outputPathData["version"]
+			outputFolder = os.path.dirname(outputPathData["path"])
+			hVersion = outputPathData["version"]
 
-		return outputPathData["path"], outputFolder, hVersion
+			return outputPathData["path"], outputFolder, hVersion
+		
+		except Exception as e:
+			stateName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
+			logger.warning(f"ERROR: Unable to get render output name for {stateName}:\n{e}")
+			return None, None, None
 
 
 	@err_catcher(name=__name__)
 	def executeState(self, parent, useVersion="next", outOnly=False):
-
 		outOnly = outOnly or self.chb_outOnly.isChecked()
 
 		rangeType = self.cb_rangeType.currentText()
@@ -1364,7 +1382,7 @@ class ImageRenderClass(object):
 			endFrame = None
 
 		if frames is None or frames == [] or frames[0] is None:
-			return [self.state.text(0) + ": error - Framerange is invalid"]
+			return [self.state.text(0) + " - error - Framerange is invalid"]
 
 		if rangeType == "Single Frame":
 			endFrame = startFrame
@@ -1390,6 +1408,9 @@ class ImageRenderClass(object):
 			#     ]
 
 			outputName, outputPath, hVersion = self.getOutputName(useVersion=useVersion)
+
+			if not outputName:
+				return [self.state.text(0) + " - error - Unable to get render output path. Canceling publish. "]
 
 			outLength = len(outputName)
 			if platform.system() == "Windows" and os.getenv("PRISM_IGNORE_PATH_LENGTH") != "1" and outLength > 255:
@@ -1529,26 +1550,35 @@ class ImageRenderClass(object):
 
 		masterAction = self.cb_master.currentText()
 		if masterAction == "Set as master":
-			self.core.mediaProducts.updateMasterVersion(outputName, mediaType="2drenders")
+			try:
+				self.core.mediaProducts.updateMasterVersion(outputName, mediaType="2drenders")
+			except Exception as e:
+				logger.warning(f"ERROR: Unable to Set as Master:\n{e}")
 		elif masterAction == "Add to master":
-			self.core.mediaProducts.addToMasterVersion(outputName, mediaType="2drenders")
+			try:
+				self.core.mediaProducts.addToMasterVersion(outputName, mediaType="2drenders")
+			except Exception as e:
+				logger.warning(f"ERROR: Unable to Add to Master:\n{e}")
 
 
 	@err_catcher(name=__name__)
 	def setTaskWarn(self, warn):
-		useSS = getattr(self.fusionFuncs, "colorButtonWithStyleSheet", False)
-		if warn:
-			if useSS:
-				self.b_changeTask.setStyleSheet(
-					"QPushButton { background-color: rgb(200,0,0); }"
-				)
+		try:
+			useSS = getattr(self.fusionFuncs, "colorButtonWithStyleSheet", False)
+			if warn:
+				if useSS:
+					self.b_changeTask.setStyleSheet(
+						"QPushButton { background-color: rgb(200,0,0); }"
+					)
+				else:
+					self.b_changeTask.setPalette(self.warnPalette)
 			else:
-				self.b_changeTask.setPalette(self.warnPalette)
-		else:
-			if useSS:
-				self.b_changeTask.setStyleSheet("")
-			else:
-				self.b_changeTask.setPalette(self.oldPalette)
+				if useSS:
+					self.b_changeTask.setStyleSheet("")
+				else:
+					self.b_changeTask.setPalette(self.oldPalette)
+		except:
+			logger.warning("ERROR: Unable to set Task Warning color.")
 
 
 	#This function is used to get the settings that are going to be saved to the state file.
