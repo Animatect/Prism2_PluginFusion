@@ -303,7 +303,7 @@ class ImageRenderClass(object):
 		print("stateloaded")											#	TESTING
 
 		if self.fusionFuncs.rendernodeExists(self.stateUID):
-			state = self.fusionFuncs.getNodePassthrough(self.stateUID)
+			state = self.fusionFuncs.isPassThrough(nodeUID=self.stateUID)
 			if state:
 				self.state.setCheckState(0, Qt.Checked)
 			else:
@@ -778,7 +778,7 @@ class ImageRenderClass(object):
 		# disabled = twitem.checkState(0) != Qt.Checked
 		nodeUID = self.stateUID
 		if self.fusionFuncs.rendernodeExists(nodeUID):
-			self.fusionFuncs.setNodePassthrough(nodeUID, disabled)
+			self.fusionFuncs.setPassThrough(nodeUID=nodeUID, passThrough=disabled)
 		else:
 			self.setRendernode()
 

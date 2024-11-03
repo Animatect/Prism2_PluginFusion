@@ -34,6 +34,7 @@
 
 import os
 import platform
+import logging
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -41,37 +42,45 @@ from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher_plugin as err_catcher
 
+logger = logging.getLogger(__name__)
+
 
 class Prism_Fusion_externalAccess_Functions(object):
 	def __init__(self, core, plugin):
 		self.core = core
 		self.plugin = plugin
-		###
-		self.core.registerCallback(
-			"userSettings_saveSettings",
-			self.userSettings_saveSettings,
-			plugin=self.plugin,
-		)
-		self.core.registerCallback(
-			"userSettings_loadSettings",
-			self.userSettings_loadSettings,
-			plugin=self.plugin,
-		)
-		self.core.registerCallback(
-			"getPresetScenes", 
-			self.getPresetScenes, 
-			plugin=self.plugin
-		)
-		ssheetPath = os.path.join(
-			self.pluginDirectory,
-			"UserInterfaces",
-			"FusionStyleSheet"
-		)
-		self.core.registerStyleSheet(ssheetPath)
 
-		self.core.registerCallback(
-			"getIconPathForFileType", self.getIconPathForFileType, plugin=self
+		#	Register callbacks
+		try:
+			self.core.registerCallback(
+				"userSettings_saveSettings",
+				self.userSettings_saveSettings,
+				plugin=self.plugin,
 			)
+			self.core.registerCallback(
+				"userSettings_loadSettings",
+				self.userSettings_loadSettings,
+				plugin=self.plugin,
+			)
+			self.core.registerCallback(
+				"getPresetScenes", 
+				self.getPresetScenes, 
+				plugin=self.plugin
+			)
+			ssheetPath = os.path.join(
+				self.pluginDirectory,
+				"UserInterfaces",
+				"FusionStyleSheet"
+			)
+			self.core.registerCallback(
+				"getIconPathForFileType", self.getIconPathForFileType, plugin=self
+				)
+			logger.debug("Registered callbacks")
+
+		except Exception as e:
+			logger.warning(f"ERROR: Registering callbacks failed:\n {e}")
+		
+		self.core.registerStyleSheet(ssheetPath)
 		
 
 	@err_catcher(name=__name__)
@@ -123,52 +132,67 @@ class Prism_Fusion_externalAccess_Functions(object):
 	
 	@err_catcher(name=__name__)
 	def userSettings_saveSettings(self, origin, settings):
-		if "Fusion" not in settings:
-			settings["Fusion"] = {}
+		try:
+			if "Fusion" not in settings:
+				settings["Fusion"] = {}
 
-		bsPath = self.core.fixPath(origin.le_bldAutoSavePath.text())
-		if not bsPath.endswith(os.sep):
-			bsPath += os.sep
+			bsPath = self.core.fixPath(origin.le_bldAutoSavePath.text())
+			if not bsPath.endswith(os.sep):
+				bsPath += os.sep
 
-		if origin.chb_bldRperProject.isChecked():
-			if os.path.exists(self.core.prismIni):
-				k = "autosavepath_%s" % self.core.projectName
-				settings["Fusion"][k] = bsPath
-		else:
-			settings["Fusion"]["autosavepath"] = bsPath
+			if origin.chb_bldRperProject.isChecked():
+				if os.path.exists(self.core.prismIni):
+					k = "autosavepath_%s" % self.core.projectName
+					settings["Fusion"][k] = bsPath
+			else:
+				settings["Fusion"]["autosavepath"] = bsPath
 
-		settings["Fusion"]["autosaverender"] = origin.gb_bldAutoSave.isChecked()
-		settings["Fusion"][
-			"autosaveperproject"
-		] = origin.chb_bldRperProject.isChecked()
+			settings["Fusion"]["autosaverender"] = origin.gb_bldAutoSave.isChecked()
+			settings["Fusion"][
+				"autosaveperproject"
+			] = origin.chb_bldRperProject.isChecked()
+
+		except Exception as e:
+			logger.warning(f"ERROR: Could not save user settings:\n{e}")
+
 
 	@err_catcher(name=__name__)
 	def userSettings_loadSettings(self, origin, settings):
-		if "Fusion" in settings:
-			if "autosaverender" in settings["Fusion"]:
-				origin.gb_bldAutoSave.setChecked(settings["Fusion"]["autosaverender"])
+		try:
+			if "Fusion" in settings:
+				if "autosaverender" in settings["Fusion"]:
+					origin.gb_bldAutoSave.setChecked(settings["Fusion"]["autosaverender"])
 
-			if "autosaveperproject" in settings["Fusion"]:
-				origin.chb_bldRperProject.setChecked(
-					settings["Fusion"]["autosaveperproject"]
-				)
-
-			pData = "autosavepath_%s" % getattr(self.core, "projectName", "")
-			if pData in settings["Fusion"]:
-				if origin.chb_bldRperProject.isChecked():
-					origin.le_bldAutoSavePath.setText(settings["Fusion"][pData])
-
-			if "autosavepath" in settings["Fusion"]:
-				if not origin.chb_bldRperProject.isChecked():
-					origin.le_bldAutoSavePath.setText(
-						settings["Fusion"]["autosavepath"]
+				if "autosaveperproject" in settings["Fusion"]:
+					origin.chb_bldRperProject.setChecked(
+						settings["Fusion"]["autosaveperproject"]
 					)
+
+				pData = "autosavepath_%s" % getattr(self.core, "projectName", "")
+				if pData in settings["Fusion"]:
+					if origin.chb_bldRperProject.isChecked():
+						origin.le_bldAutoSavePath.setText(settings["Fusion"][pData])
+
+				if "autosavepath" in settings["Fusion"]:
+					if not origin.chb_bldRperProject.isChecked():
+						origin.le_bldAutoSavePath.setText(
+							settings["Fusion"]["autosavepath"]
+						)
+
+		except Exception as e:
+			logger.warning(f"ERROR: Failed to load user settings:\n{e}")
+
 
 	@err_catcher(name=__name__)
 	def getPresetScenes(self, presetScenes):
-		presetDir = os.path.join(self.pluginDirectory, "Presets")
-		scenes = self.core.entities.getPresetScenesFromFolder(presetDir)
-		presetScenes += scenes
+		try:
+			presetDir = os.path.join(self.pluginDirectory, "Presets")
+			scenes = self.core.entities.getPresetScenesFromFolder(presetDir)
+			presetScenes += scenes
+
+		except Exception as e:
+			logger.warning(f"ERROR: Failed to load scene presets:\n{e}")
+
 		
 	@err_catcher(name=__name__)
 	def getAutobackPath(self, origin):
@@ -192,7 +216,10 @@ class Prism_Fusion_externalAccess_Functions(object):
 	def getIconPathForFileType(self, extension):
 		if extension == ".autocomp":
 			icon = os.path.join(self.pluginDirectory, "UserInterfaces", "Fusion-Autosave.ico")
-			return icon
+			if os.path.isfile(icon):
+				return icon
+			else:
+				logger.warning("ERROR: Fusion auto-save icon not found")
 
 		return None
 
