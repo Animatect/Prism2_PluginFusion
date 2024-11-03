@@ -3540,14 +3540,13 @@ path = r\"%s\"
 		if popup:
 			self.popup = popup
 
-
 	@err_catcher(name=__name__)
 	def onStateManagerCalled(self, popup=None):
 		#Feedback in case it takes time to open
 		comp = self.getCurrentComp()
 		self.sm_checkCorrectComp(comp, displaypopup=False)
 		#Set the comp used when sm was oppened for reference when saving states.
-		self.comp = comp	
+		self.comp = comp
 		try:
 			self.popup.close()
 		except:
@@ -3633,6 +3632,7 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def onStateManagerClose(self, origin):
 		self.smUI = None
+		self.core.sm = None
 
 
 	@err_catcher(name=__name__)
@@ -3960,7 +3960,11 @@ path = r\"%s\"
 
 
 
-
+###########################################
+#                                         #
+################# CLASSES #################
+#                                         #
+###########################################	
 
 class CustomMessageBox(QDialog):
 	def __init__(self, text, title, buttons, parent=None, checked=False):
