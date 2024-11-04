@@ -2251,6 +2251,7 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def getImageData(self, sourceData):
+		print("1")
 		curfr = self.get_current_frame()
 		framepadding = self.core.framePadding
 		padding_string = self.get_frame_padding_string()
@@ -2258,15 +2259,18 @@ path = r\"%s\"
 		# Check if source data interprets the image sequence as individual images.
 		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
 		if len(image_strings) > 1:
+			print("1.1")
 			# isSequence = padding_string in sourceData[0]
 			imagepath = self.is_image_sequence(image_strings)
 
 			if imagepath:
+				print("1.2")
 				filePath = self.format_file_path(imagepath["file_path"], curfr, framepadding, padding_string)
 				firstFrame, lastFrame = imagepath["start_frame"], imagepath["end_frame"]
 				aovNm, layerNm = 'PrismLoader', 'PrismMedia'
 				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, imagepath["is_sequence"])
 		else:
+			print("1.3")
 			# Handle a single image by calling getPassData directly
 			return self.getPassData(sourceData[0])
 
@@ -2276,6 +2280,7 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def getPassData(self, sourceData):
+		print("2")
 		firstFrame, lastFrame = sourceData[1], sourceData[2]
 		curfr = firstFrame #self.get_current_frame()
 		framepadding = self.core.framePadding
@@ -2350,7 +2355,13 @@ path = r\"%s\"
 	def extract_aov_layer_names(self, filePath):
 		"""Extract the AOV and layer names from the file path."""
 		parts = os.path.dirname(filePath).split("/")
-		return parts[-1], parts[-3]
+		aovnm = parts[-1]
+		wronglayerNms = ["2dRender","3dRender"]
+		layerNm = parts[-3]
+		if layerNm in wronglayerNms:
+			layerNm = parts[-2]
+		
+		return aovnm, layerNm
 
 
 
