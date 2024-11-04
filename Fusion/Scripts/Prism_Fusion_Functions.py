@@ -2216,24 +2216,53 @@ path = r\"%s\"
 	
 		# from selection grab only loaders
 		loaders = comp.GetToolList(True, "Loader").values()
+		origloaders = loaders
 		
 		if not loaders:
 			return
 
 		# deselect all nodes
-		flow.Select()
-
+		# flow.Select()
 		dataSources = mediaBrowser.compGetImportPasses()
 		updatehandle = []
 		for sourceData in dataSources:
 			imageData = self.getPassData(sourceData)
-			updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'])
-			if updatedloader:
-				# Set up update feedback Dialog message
-				version1 = prevVersion
-				version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
-				nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
-				updatehandle.append(nodemessage)
+
+			# Deal with Multilayer exr.
+			framepadding = self.core.framePadding
+			padding_string = self.get_frame_padding_string()
+			validatedpath = self.format_file_path_with_validation(sourceData[0], sourceData[1], framepadding, padding_string, sourceData[1])
+			layernames = self.core.media.getLayersFromFile(validatedpath)
+			if len(layernames) > 0:
+				nodemessage = ''
+				version1 = None
+				for ly in layernames:
+					# print("ly: ", ly)
+					# we try the same data for each channel just to make sure, since the Clip is the same we just have to iterate and remove whatever is found.
+					updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'])
+					if updatedloader:
+						# Deselect updated one and try again.
+						flow.Select(updatedloader,False)
+						loaders = comp.GetToolList(True, "Loader").values()
+						# Set up update feedback Dialog message
+						if not version1:
+							version1 = prevVersion
+							version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
+						nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
+						updatehandle.append(nodemessage)
+					else:
+						# if we didnt find another one then there is no point in keep looking
+						break
+
+			# Non Multilayer Exr.
+			else:
+				updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'])
+				if updatedloader:
+					# Set up update feedback Dialog message
+					version1 = prevVersion
+					version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
+					nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
+					updatehandle.append(nodemessage)
 		
 		self.getUpdatedNodesFeedback(updatehandle)
 
@@ -2341,13 +2370,16 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def format_file_path_with_validation(self, path, frame, framepadding, padding_string, firstFrame):
 		"""Format the file path by validating its existence."""
-		formatted_first_frame = f"{firstFrame:0{framepadding}}."
-		modified_file_path = path.replace(padding_string, formatted_first_frame)
+		if firstFrame:
+			formatted_first_frame = f"{firstFrame:0{framepadding}}."
+			modified_file_path = path.replace(padding_string, formatted_first_frame)
 
-		if os.path.exists(modified_file_path):
-			return path.replace(padding_string, f"{frame:0{framepadding}}.")
+			if os.path.exists(modified_file_path):
+				return path.replace(padding_string, f"{frame:0{framepadding}}.")
+			else:
+				return path.replace("." + padding_string, ".")
 		else:
-			return path.replace("." + padding_string, ".")
+			return path
 
 
 	# Helper function to extract AOV and layer names
