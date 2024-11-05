@@ -33,6 +33,7 @@
 
 
 
+from doctest import debug
 import os
 import sys
 import json
@@ -431,6 +432,8 @@ class Prism_Fusion_Functions(object):
 			now = datetime.now()
 			# Format as MMDDHHMM
 			uid = now.strftime("%m%d%H%M")
+
+			logger.debug(f"Created Simple UID: {uid}")
 		
 			return uid
 		
@@ -441,6 +444,8 @@ class Prism_Fusion_Functions(object):
 			hashObject = hashlib.sha256(uid.bytes)
 			# Convert the hash to a hex string and truncate it to the desired length
 			shortUID = hashObject.hexdigest()[:length]
+
+			logger.debug(f"Created UID: {shortUID}")
 
 			return shortUID
 
@@ -507,6 +512,7 @@ class Prism_Fusion_Functions(object):
 
 		try:
 			self.fusion.LoadComp(filepath)
+			logger.debug(f"Loaded scenefile: {filepath}")
 		except:
 			logger.warning("ERROR: Failed to load Comp")
 
@@ -578,6 +584,7 @@ class Prism_Fusion_Functions(object):
 			if renderedThumbs:
 				renderedThumb = renderedThumbs[0]  # Assuming only one matching file
 				os.rename(renderedThumb, thumbPath)
+				logger.debug(f"Created Thumbnail from: {self.getNodeNameByTool(thumbTool)}")
 			
 		except Exception as e:
 			logger.warning(f"ERROR: Filed to create thumbnail:\n{e}")
@@ -820,6 +827,7 @@ class Prism_Fusion_Functions(object):
 						logger.debug(f"ERROR: Not able to position {nodeName}")
 
 			if sv:
+				logger.debug(f"Saver created for: {nodeName} - {nodeUID}")
 				return sv
 			else:
 				logger.warning(f"ERROR: Unable to create Saver for {nodeName}")
@@ -837,6 +845,8 @@ class Prism_Fusion_Functions(object):
 				comp.Lock()
 				sv.SetAttrs({'TOOLS_Name' : nodeName})
 				comp.Unlock()
+
+				logger.debug(f"Saver updated: {self.getNodeNameByUID(nodeUID)}")
 			else:
 				logger.warning(f"ERROR: Not able to update: {nodeName}")
 
@@ -859,6 +869,8 @@ class Prism_Fusion_Functions(object):
 
 				if sv.Input.GetConnectedOutput():
 					sv.Clip = outputPath
+					logger.debug(f"Configured Saver: {self.getNodeNameByUID(nodeUID)}")
+
 				else:
 					logger.debug(f"ERROR: Render Node is not connected: {nodeUID}")
 			else:
@@ -1354,6 +1366,7 @@ class Prism_Fusion_Functions(object):
 		newName = newName.replace('-', '_')
 
 		if check:
+			logger.debug(f"Name is Fusion-legal: {newName}")
 			return True, ""
 		
 		return newName
@@ -1369,6 +1382,7 @@ class Prism_Fusion_Functions(object):
 		for stateData in stateDataRaw["states"]:
 			if stateData.get("nodeUID") == nodeUID:
 				stateDetails = stateData
+				logger.debug(f"State data found for: {self.getNodeNameByUID(nodeUID)}")
 				return stateDetails
 
 		logging.warning(f"ERROR: No state details for:  {nodeUID}")
@@ -1418,12 +1432,14 @@ class Prism_Fusion_Functions(object):
 		if masterAction in ["Set as master", "Force Set as Master"]:
 			try:
 				self.core.mediaProducts.updateMasterVersion(outputName, mediaType="2drenders")
+				logger.debug(f"Updated Master for: {outputName}")
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to Set as Master:\n{e}")
 
 		elif masterAction in ["Add to master", "Force Add to Master"]:
 			try:
 				self.core.mediaProducts.addToMasterVersion(outputName, mediaType="2drenders")
+				logger.debug(f"Updated Master for: {outputName}")
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to Add to Master:\n{e}")
 
@@ -1458,9 +1474,6 @@ class Prism_Fusion_Functions(object):
 		try:
 			jobId = farmPlugin.getJobIdFromSubmitResult(result)
 		except:
-			pass
-
-		if not jobId:
 			logger.warning("ERROR: Unable to Submit Update Master to Farm")
 			return False
 
@@ -1524,11 +1537,13 @@ path = r\"%s\"
 						state=origin,
 						)
 					
-					return True
+					logger.debug(f"Created Farm Master Update job for: {jobName}")
 					
 				except Exception as e:
 					logger.warning(f"ERROR: Unable to Submit Update Master to Farm:\n{e}")
 					return False
+				
+		return True
 
 
 	#	Makes dict for later use in updating Master ver
@@ -1547,6 +1562,7 @@ path = r\"%s\"
 				stateData = state[1]
 
 				self.core.saveVersionInfo(filepath, details=stateData)
+				logger.debug(f"Created VersionInfo for: {filepath}")
 
 			except:
 				logger.warning(f"ERROR: Unable to generate VersionInfo file for: {filepath}")
@@ -1752,6 +1768,8 @@ path = r\"%s\"
 			#	Setup master version execution
 			self.saveMasterData(rSettings, stateData, self.outputPath)
 
+		logger.debug(f"Configured Render settings for comp: {comp.GetAttrs()['COMPS_Name']}")
+
 
 	@err_catcher(name=__name__)
 	def getHiQualOverride(self, rSettings):
@@ -1846,6 +1864,7 @@ path = r\"%s\"
 			if blurOvr is not None:
 				renderCmd['MotionBlur'] = blurOvr
 
+			logger.debug(f"Generated Render command: {renderCmd}")
 			return renderCmd
 		
 		except:
@@ -3686,6 +3705,7 @@ path = r\"%s\"
 	"""
 			try:
 				comp.SetData("prismstates",defaultState)
+				logger.debug("Saved the empty state data to the comp")
 			except:
 				logger.warning(f"ERROR: Unable to save default State Data to comp: {comp}")
 
@@ -3696,6 +3716,7 @@ path = r\"%s\"
 		if self.sm_checkCorrectComp(comp):
 			try:
 				comp.SetData("prismstates", buf + "_..._")
+				logger.debug(f"Saved the state data to the comp.")
 			except:
 				logger.warning(f"ERROR: Unable to save State Data to comp: {comp}")
 
@@ -3963,6 +3984,8 @@ path = r\"%s\"
 	#Right click menu from nodes on state manager to get previous versions.
 	@err_catcher(name=__name__)
 	def rclTree(self, pos, activeList):
+		logger.debug("Loading patched function: 'rclTree'")
+
 		sm = self.monkeypatchedsm
 		if sm:			
 			rcmenu = QMenu(sm)
@@ -4075,6 +4098,8 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def getVersionStackContextFromPath(self, filepath, mediaType=None):
+		logger.debug("Loading patched function: 'getVersionStackContextFromPath'")
+
 		# context = self.core.paths.getRenderProductData(filepath)
 		#The only modification was putting the mediaType as an argument for the context in the next line which replaces the previous one.
 		context = self.core.paths.getRenderProductData(filepath, mediaType=mediaType)
@@ -4101,6 +4126,9 @@ path = r\"%s\"
 		item=None,
 		baseText="Do you also want to delete the connected objects?\n\n",
 	):
+		
+		logger.debug("Loading patched function: 'preDelete'")
+
 		state = self.monkeypatchedimportstate
 		if len(state.nodes) <= 0 or state.stateMode == "ApplyCache":
 			return
@@ -4136,6 +4164,8 @@ path = r\"%s\"
 	# These two functions should take into account the dynamic padding, that is the only modification, next to changing self to a reference to the mediabrowser.
 	@err_catcher(name=__name__)
 	def compGetImportSource(self):
+		logger.debug("Loading patched function: 'compGetImportSource'")
+
 		mediabrowser = self.monkeypatchedmediabrowser # added this is refered as self in the original.
 		#
 		sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/") #
@@ -4164,6 +4194,8 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def compGetImportPasses(self):
+		logger.debug("Loading patched function: 'compGetImportPasses'")
+
 		mediabrowser = self.monkeypatchedmediabrowser # added this is refered as self in the original.
 		#
 		framepadding = self.core.framePadding #added

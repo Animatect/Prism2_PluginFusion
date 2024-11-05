@@ -35,12 +35,15 @@
 import os
 import sys
 import json
+import logging
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -105,28 +108,34 @@ class RenderGroupClass(object):
 
 		#	Set Defaults for New State	
 		else:
-			context = self.getCurrentContext()
-			if context.get("type") == "asset":
-				self.setRangeType("Single Frame")
-			elif context.get("type") == "shot":
-				self.setRangeType("Shot")
-			elif self.stateManager.standalone:
-				self.setRangeType("Custom")
-			else:
-				self.setRangeType("Scene")
+			try:
+				context = self.getCurrentContext()
+				if context.get("type") == "asset":
+					self.setRangeType("Single Frame")
+				elif context.get("type") == "shot":
+					self.setRangeType("Shot")
+				elif self.stateManager.standalone:
+					self.setRangeType("Custom")
+				else:
+					self.setRangeType("Scene")
 
-			start, end = self.getFrameRange("Scene")
-			if start is not None:
-				self.sp_rangeStart.setValue(start)
+				start, end = self.getFrameRange("Scene")
+				if start is not None:
+					self.sp_rangeStart.setValue(start)
 
-			if end is not None:
-				self.sp_rangeEnd.setValue(end)
+				if end is not None:
+					self.sp_rangeEnd.setValue(end)
 
-			if context.get("task"):
-				self.setTaskname(context.get("task"))
-				self.e_name.setText(context.get("task"))
+				if context.get("task"):
+					self.setTaskname(context.get("task"))
+					self.e_name.setText(context.get("task"))
 
-			self.chb_overrideFrameRange.setChecked(False)
+				self.chb_overrideFrameRange.setChecked(False)
+
+				logger.debug("Loading State Defaults")
+
+			except:
+				logger.warning("ERROR: Failed to load State defaults")
 
 		self.connectEvents()
 		self.setToolTips()
@@ -244,105 +253,111 @@ class RenderGroupClass(object):
 	#	Loads State data if it exists
 	@err_catcher(name=__name__)
 	def loadData(self, data):
-		if "contextType" in data:
-			self.setContextType(data["contextType"])
-		if "customContext" in data:
-			self.customContext = data["customContext"]
+		try:
+			if "contextType" in data:
+				self.setContextType(data["contextType"])
+			if "customContext" in data:
+				self.customContext = data["customContext"]
 
-		self.updateUi()
+			self.updateUi()
 
-		if "stateName" in data:
-			self.e_name.setText(data["stateName"])
-		elif "statename" in data:
-			self.e_name.setText(data["statename"] + " - {identifier}")
-		if "renderAsPrevVer" in data:
-			self.chb_renderAsPrevVer.setChecked(data["renderAsPrevVer"])
-		if "overrideFrameRange" in data:
-			self.chb_overrideFrameRange.setChecked(data["overrideFrameRange"])
-		if "overrideMaster" in data:
-			self.chb_overrideMaster.setChecked(data["overrideMaster"])
-		if "ovrMasterOption" in data:
-			idx = self.cb_master.findText(data["ovrMasterOption"])
-			if idx != -1:
-				self.cb_master.setCurrentIndex(idx)
-		if "overrideLocation" in data:
-			self.chb_overrideLocation.setChecked(data["overrideLocation"])
-		if "ovrLocOption" in data:
-			idx = self.cb_outPath.findText(data["ovrLocOption"])
-			if idx != -1:
-				self.cb_outPath.setCurrentIndex(idx)
-		if "overrideScaling" in data:
-			self.chb_overrideScaling.setChecked(data["overrideScaling"])
-		if "ovrScaleOption" in data:
-			idx = self.cb_renderScaling.findText(data["ovrScaleOption"])
-			if idx != -1:
-				self.cb_renderScaling.setCurrentIndex(idx)
-		if "overrideHiQ" in data:
-			self.chb_overrideQuality.setChecked(data["overrideHiQ"])
-		if "ovrHiQOption" in data:
-			idx = self.cb_renderQuality.findText(data["ovrHiQOption"])
-			if idx != -1:
-				self.cb_renderQuality.setCurrentIndex(idx)
-		if "overrideMB" in data:
-			self.chb_overrideRenderMB.setChecked(data["overrideMB"])
-		if "ovrMBOption" in data:
-			idx = self.cb_renderMB.findText(data["ovrMBOption"])
-			if idx != -1:
-				self.cb_renderMB.setCurrentIndex(idx)
-		if "rangeType" in data:
-			idx = self.cb_rangeType.findText(data["rangeType"])
-			if idx != -1:
-				self.cb_rangeType.setCurrentIndex(idx)
-				self.updateRange()
-		if "startframe" in data:
-			self.sp_rangeStart.setValue(int(data["startframe"]))
-		if "endframe" in data:
-			self.sp_rangeEnd.setValue(int(data["endframe"]))
-		if "frameExpression" in data:
-			self.le_frameExpression.setText(data["frameExpression"])
-		if "curoutputpath" in data:
-			idx = self.cb_outPath.findText(data["curoutputpath"])
-			if idx != -1:
-				self.cb_outPath.setCurrentIndex(idx)
-		if "renderStates" in data:
-			self.groupStates = data["renderStates"]
-		if "submitrender" in data:
-			self.gb_submit.setChecked(eval(data["submitrender"]))
-		if "rjmanager" in data:
-			idx = self.cb_manager.findText(data["rjmanager"])
-			if idx != -1:
-				self.cb_manager.setCurrentIndex(idx)
-			self.managerChanged(True)
-		if "rjprio" in data:
-			self.sp_rjPrio.setValue(int(data["rjprio"]))
-		if "rjframespertask" in data:
-			self.sp_rjFramesPerTask.setValue(int(data["rjframespertask"]))
-		if "rjtimeout" in data:
-			self.sp_rjTimeout.setValue(int(data["rjtimeout"]))
-		if "rjsuspended" in data:
-			self.chb_rjSuspended.setChecked(eval(data["rjsuspended"]))
-		if "osdependencies" in data:
-			self.chb_osDependencies.setChecked(eval(data["osdependencies"]))
-		if "osupload" in data:
-			self.chb_osUpload.setChecked(eval(data["osupload"]))
-		if "ospassets" in data:
-			self.chb_osPAssets.setChecked(eval(data["ospassets"]))
-		if "osslaves" in data:
-			self.e_osSlaves.setText(data["osslaves"])
-		if "dlconcurrent" in data:
-			self.sp_dlConcurrentTasks.setValue(int(data["dlconcurrent"]))
-		if "dlgpupt" in data:
-			self.sp_dlGPUpt.setValue(int(data["dlgpupt"]))
-			self.gpuPtChanged()
-		if "dlgpudevices" in data:
-			self.le_dlGPUdevices.setText(data["dlgpudevices"])
-			self.gpuDevicesChanged()
+			if "stateName" in data:
+				self.e_name.setText(data["stateName"])
+			elif "statename" in data:
+				self.e_name.setText(data["statename"] + " - {identifier}")
+			if "renderAsPrevVer" in data:
+				self.chb_renderAsPrevVer.setChecked(data["renderAsPrevVer"])
+			if "overrideFrameRange" in data:
+				self.chb_overrideFrameRange.setChecked(data["overrideFrameRange"])
+			if "overrideMaster" in data:
+				self.chb_overrideMaster.setChecked(data["overrideMaster"])
+			if "ovrMasterOption" in data:
+				idx = self.cb_master.findText(data["ovrMasterOption"])
+				if idx != -1:
+					self.cb_master.setCurrentIndex(idx)
+			if "overrideLocation" in data:
+				self.chb_overrideLocation.setChecked(data["overrideLocation"])
+			if "ovrLocOption" in data:
+				idx = self.cb_outPath.findText(data["ovrLocOption"])
+				if idx != -1:
+					self.cb_outPath.setCurrentIndex(idx)
+			if "overrideScaling" in data:
+				self.chb_overrideScaling.setChecked(data["overrideScaling"])
+			if "ovrScaleOption" in data:
+				idx = self.cb_renderScaling.findText(data["ovrScaleOption"])
+				if idx != -1:
+					self.cb_renderScaling.setCurrentIndex(idx)
+			if "overrideHiQ" in data:
+				self.chb_overrideQuality.setChecked(data["overrideHiQ"])
+			if "ovrHiQOption" in data:
+				idx = self.cb_renderQuality.findText(data["ovrHiQOption"])
+				if idx != -1:
+					self.cb_renderQuality.setCurrentIndex(idx)
+			if "overrideMB" in data:
+				self.chb_overrideRenderMB.setChecked(data["overrideMB"])
+			if "ovrMBOption" in data:
+				idx = self.cb_renderMB.findText(data["ovrMBOption"])
+				if idx != -1:
+					self.cb_renderMB.setCurrentIndex(idx)
+			if "rangeType" in data:
+				idx = self.cb_rangeType.findText(data["rangeType"])
+				if idx != -1:
+					self.cb_rangeType.setCurrentIndex(idx)
+					self.updateRange()
+			if "startframe" in data:
+				self.sp_rangeStart.setValue(int(data["startframe"]))
+			if "endframe" in data:
+				self.sp_rangeEnd.setValue(int(data["endframe"]))
+			if "frameExpression" in data:
+				self.le_frameExpression.setText(data["frameExpression"])
+			if "curoutputpath" in data:
+				idx = self.cb_outPath.findText(data["curoutputpath"])
+				if idx != -1:
+					self.cb_outPath.setCurrentIndex(idx)
+			if "renderStates" in data:
+				self.groupStates = data["renderStates"]
+			if "submitrender" in data:
+				self.gb_submit.setChecked(eval(data["submitrender"]))
+			if "rjmanager" in data:
+				idx = self.cb_manager.findText(data["rjmanager"])
+				if idx != -1:
+					self.cb_manager.setCurrentIndex(idx)
+				self.managerChanged(True)
+			if "rjprio" in data:
+				self.sp_rjPrio.setValue(int(data["rjprio"]))
+			if "rjframespertask" in data:
+				self.sp_rjFramesPerTask.setValue(int(data["rjframespertask"]))
+			if "rjtimeout" in data:
+				self.sp_rjTimeout.setValue(int(data["rjtimeout"]))
+			if "rjsuspended" in data:
+				self.chb_rjSuspended.setChecked(eval(data["rjsuspended"]))
+			if "osdependencies" in data:
+				self.chb_osDependencies.setChecked(eval(data["osdependencies"]))
+			if "osupload" in data:
+				self.chb_osUpload.setChecked(eval(data["osupload"]))
+			if "ospassets" in data:
+				self.chb_osPAssets.setChecked(eval(data["ospassets"]))
+			if "osslaves" in data:
+				self.e_osSlaves.setText(data["osslaves"])
+			if "dlconcurrent" in data:
+				self.sp_dlConcurrentTasks.setValue(int(data["dlconcurrent"]))
+			if "dlgpupt" in data:
+				self.sp_dlGPUpt.setValue(int(data["dlgpupt"]))
+				self.gpuPtChanged()
+			if "dlgpudevices" in data:
+				self.le_dlGPUdevices.setText(data["dlgpudevices"])
+				self.gpuDevicesChanged()
 
-		if "stateenabled" in data:
-			if type(data["stateenabled"]) == int:
-				self.state.setCheckState(
-					0, Qt.CheckState(data["stateenabled"]),
-				)
+			if "stateenabled" in data:
+				if type(data["stateenabled"]) == int:
+					self.state.setCheckState(
+						0, Qt.CheckState(data["stateenabled"]),
+					)
+
+			logger.debug("Loaded State Data into UI")
+		
+		except:
+			logger.warning("ERROR: Failed to load State Data into UI")
 
 		self.refreshRenderStateDisplay()
 
@@ -712,19 +727,26 @@ class RenderGroupClass(object):
 
 	@err_catcher(name=__name__)
 	def removeState(self, item):
-		# Get StateName from row
-		row = self.tw_renderStates.row(item)
-		stateName = item.text()  # Get the state name from the clicked item
+		try:
+			# Get StateName from row
+			row = self.tw_renderStates.row(item)
+			stateName = item.text()  # Get the state name from the clicked item
 
-		# Get the UID using the state name
-		selectedUID = self.getStateUidFromName(stateName)
-		
-		# Remove the UID from groupStates if it exists
-		if selectedUID in self.groupStates:
-			self.groupStates.remove(selectedUID)
+			# Get the UID using the state name
+			selectedUID = self.getStateUidFromName(stateName)
+			
+			# Remove the UID from groupStates if it exists
+			if selectedUID in self.groupStates:
+				self.groupStates.remove(selectedUID)
 
-		# Remove the item from the list widget
-		self.tw_renderStates.takeItem(row)
+			# Remove the item from the list widget
+			self.tw_renderStates.takeItem(row)
+
+			logger.debug(f"Removed '{stateName}' from the RenderGroup")
+
+		except:
+			logger.warning(f"Unable to remove '{stateName}' from the RenderGroup")
+
 		self.updateUi()
 
 
@@ -732,51 +754,64 @@ class RenderGroupClass(object):
 	def removeAllStates(self):
 		#	Clears list
 		self.groupStates = []
+		logger.debug("Removed all states from the RenderGroup")
 		self.updateUi()
 
 
 	#	Gets stateDate from comp
 	@err_catcher(name=__name__)
 	def getStateData(self):
-		stateDataRaw = json.loads(self.fusionFuncs.sm_readStates(self))
-
-		return stateDataRaw['states']
+		try:
+			stateDataRaw = json.loads(self.fusionFuncs.sm_readStates(self))
+			return stateDataRaw['states']
+		
+		except:
+			logger.warning("ERROR:  Unable to get state data from the comp.")
+			return None
 	
 
 	@err_catcher(name=__name__)
 	def getStateNameFromUID(self, UID):
-		stateData = self.getStateData()
+		try:
+			stateData = self.getStateData()
 
-		#	Itterates through states
-		for state in stateData:
-			if "nodeUID" in state and state["nodeUID"] == UID:
-				#	Create displayName format
-				stateName = f"{state['stateclass']} - {state['taskname']}"
-				return stateName
+			#	Itterates through states
+			for state in stateData:
+				if "nodeUID" in state and state["nodeUID"] == UID:
+					#	Create displayName format
+					stateName = f"{state['stateclass']} - {state['taskname']}"
+					return stateName
+		except:
+			logger.debug(f"ERROR: Unable to get state name from: {UID}")
 
 
 	@err_catcher(name=__name__)
 	def getStateUidFromName(self, stateName):
-		stateData = self.getStateData()
+		try:
+			stateData = self.getStateData()
 
-		#	Extract stateclass and taskname from stateName
-		for state in stateData:
-			if "stateclass" in state and "taskname" in state:
-				#	Create displayName format
-				displayName = f"{state['stateclass']} - {state['taskname']}"
-				if displayName == stateName:
-					return state["nodeUID"]
-	
+			#	Extract stateclass and taskname from stateName
+			for state in stateData:
+				if "stateclass" in state and "taskname" in state:
+					#	Create displayName format
+					displayName = f"{state['stateclass']} - {state['taskname']}"
+					if displayName == stateName:
+						return state["nodeUID"]
+		except:
+			logger.debug(f"ERROR: Unable to get state UID from: {stateName}")
 
 
 	@err_catcher(name=__name__)
 	def addRenderState(self):
 		import ItemList
+		stateList = []
 
 		#	Gets stateData
 		stateData = self.getStateData()
-		stateList = []
 
+		if not stateData:
+			return False
+		
 		for state in stateData:
 			#	Only passes allowed state types
 			if "stateclass" in state and state["stateclass"] in self.includedStateTypes:
@@ -822,6 +857,8 @@ class RenderGroupClass(object):
 				selectedUID = self.getStateUidFromName(i.text())
 				if selectedUID:
 					self.groupStates.append(selectedUID)
+					stateName = self.getStateNameFromUID(selectedUID)
+					logger.debug(f"Added '{stateName}' state to RenderGroup")
 
 		self.updateUi()
 		self.stateManager.saveStatesToScene()

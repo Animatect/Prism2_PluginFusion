@@ -317,11 +317,11 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def onStateLoaded(self):
 		if self.fusionFuncs.rendernodeExists(self.stateUID):
-			state = self.fusionFuncs.isPassThrough(nodeUID=self.stateUID)
-			if state:
-				self.state.setCheckState(0, Qt.Checked)
-			else:
+			passThrough = self.fusionFuncs.isPassThrough(nodeUID=self.stateUID)
+			if passThrough:
 				self.state.setCheckState(0, Qt.Unchecked)
+			else:
+				self.state.setCheckState(0, Qt.Checked)
 
 		self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
 
@@ -872,7 +872,7 @@ class ImageRenderClass(object):
 		outputName, _, _ = self.getOutputName(useVersion=useVersion)
 		if not outputName:
 			return
-		
+
 		extension = stateUI.cb_format.currentText()
 		fuseName = None
 
@@ -1548,17 +1548,22 @@ class ImageRenderClass(object):
 		if not self.isUsingMasterVersion():
 			return
 
+		stateName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
+
 		masterAction = self.cb_master.currentText()
 		if masterAction == "Set as master":
 			try:
 				self.core.mediaProducts.updateMasterVersion(outputName, mediaType="2drenders")
+				logger.debug(f"Updated Master for: {stateName}")
 			except Exception as e:
-				logger.warning(f"ERROR: Unable to Set as Master:\n{e}")
+				logger.warning(f"ERROR: Unable to Set as Master for {stateName}:\n{e}")
+
 		elif masterAction == "Add to master":
 			try:
 				self.core.mediaProducts.addToMasterVersion(outputName, mediaType="2drenders")
+				logger.debug(f"Updated Master for: {stateName}")
 			except Exception as e:
-				logger.warning(f"ERROR: Unable to Add to Master:\n{e}")
+				logger.warning(f"ERROR: Unable to Add to Master for {stateName}:\n{e}")
 
 
 	@err_catcher(name=__name__)
