@@ -9,7 +9,7 @@ https://prism-pipeline.com/
 
 <br/><br/>
 
-![Prism](Docs/Fusion-Prism.png)
+![Prism](Docs/DocsImages/Fusion-Prism.png)
 
 ## **Notes**
 
