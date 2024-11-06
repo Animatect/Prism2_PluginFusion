@@ -2242,7 +2242,6 @@ path = r\"%s\"
 					lastloaderlyr = lyrnm
 		comp.Unlock()
 
-
 	@err_catcher(name=__name__)
 	def fusionUpdateSelectedPasses(self, mediaBrowser, sortnodes=True):
 		comp = self.getCurrentComp()
@@ -2254,51 +2253,48 @@ path = r\"%s\"
 		
 		if not loaders:
 			return
-
+		
 		# deselect all nodes
 		# flow.Select()
 		dataSources = mediaBrowser.compGetImportPasses()
 		updatehandle = []
 		for sourceData in dataSources:
-			imageData = self.getPassData(sourceData)
+			imageData = self.getPassData(sourceData)			
+			updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'])
+			if updatedloader:
+				# Set up update feedback Dialog message
+				version1 = prevVersion
+				version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
+				nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
+				updatehandle.append(nodemessage)
 
-			# Deal with Multilayer exr.
-			framepadding = self.core.framePadding
-			padding_string = self.get_frame_padding_string()
-			validatedpath = self.format_file_path_with_validation(sourceData[0], sourceData[1], framepadding, padding_string, sourceData[1])
-			layernames = self.core.media.getLayersFromFile(validatedpath)
-			if len(layernames) > 0:
-				nodemessage = ''
-				version1 = None
-				for ly in layernames:
-					# print("ly: ", ly)
-					# we try the same data for each channel just to make sure, since the Clip is the same we just have to iterate and remove whatever is found.
-					updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'])
-					if updatedloader:
-						# Deselect updated one and try again.
-						flow.Select(updatedloader,False)
-						loaders = comp.GetToolList(True, "Loader").values()
-						# Set up update feedback Dialog message
-						if not version1:
+				# if multilayerEXR
+				if updatedloader.GetData("prismmultchanlayer"):
+					loader_channels = self.get_loader_channels(updatedloader)
+					layernames = list(set(self.get_channel_data(loader_channels)))
+					flow.Select(updatedloader, False)
+					loaders = comp.GetToolList(True, "Loader").values()
+					for ly in layernames:
+						# we try the same data for each channel just to make sure, since the Clip is the same we just have to iterate and remove whatever is found.
+						updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'], exrlayers=layernames)
+						if updatedloader:
+							# Deselect updated one and try again.
+							flow.Select(updatedloader,False)
+							loaders = comp.GetToolList(True, "Loader").values()
+							# Set up update feedback Dialog message
 							version1 = prevVersion
 							version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
-						nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
-						updatehandle.append(nodemessage)
-					else:
-						# if we didnt find another one then there is no point in keep looking
-						break
-
-			# Non Multilayer Exr.
-			else:
-				updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'])
-				if updatedloader:
-					# Set up update feedback Dialog message
-					version1 = prevVersion
-					version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
-					nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
-					updatehandle.append(nodemessage)
-		
+							nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
+							updatehandle.append(nodemessage)
+						else:
+							# if we didnt find another one then there is no point in keep looking
+							break
+					
+					self.getUpdatedNodesFeedback(updatehandle)
+					return
+	
 		self.getUpdatedNodesFeedback(updatehandle)
+		return
 
 
 	@err_catcher(name=__name__)
@@ -2427,11 +2423,17 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
-	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False):
+	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False, exrlayers=[]):
 		for loader in Loaderstocheck:
 			loaderClipPath = loader.Clip[0]
 			if filePath == loaderClipPath:
 				return loader, ".#nochange#."
+			
+			if len(exrlayers) > 0:
+				layer = loader.GetData("prismmultchanlayer")
+				if layer: 
+					if layer not in exrlayers:
+						return loader, ".#nochange#."
 			
 			if self.are_paths_equal_except_version(loaderClipPath, filePath, isSequence):
 				version1 = self.extract_version(loaderClipPath)
@@ -2452,7 +2454,7 @@ path = r\"%s\"
 
 		filePath = imageData['filePath']
 		firstFrame = imageData['firstFrame']
-		lastFrame = imageData['lastFrame']		
+		lastFrame = imageData['lastFrame']
 		aovNm = imageData['aovNm']
 		layerNm = imageData['layerNm']
 		isSequence = imageData['isSequence']
@@ -2770,6 +2772,7 @@ path = r\"%s\"
 		}
 
 		# Update the loader node channel settings and create loaders
+		# prefix is the name of the layer.
 		for prefix, channels in channel_data.items():
 			ldr = comp.Loader({'Clip': self.GetLoaderClip(tool)})
 			# Add Prism node identifier
@@ -2782,8 +2785,8 @@ path = r\"%s\"
 
 			# Refresh the OpenEXRFormat setting using real channel name data in a 2nd stage
 			for channel_name in channels:
-				channel = re.search(r"\.([^.]+)$", channel_name).group(1).lower()
-
+				channel = re.search(r"\.([^.]+)$", channel_name).group(1).lower() # r, g, b, etc...
+				
 				# Dictionary to map channel types to attribute names
 				channel_attributes = {
 					'r': 'RedName', 'red': 'RedName',
@@ -2794,7 +2797,7 @@ path = r\"%s\"
 					'y': 'GreenName',
 					'z': 'BlueName',
 				}
-
+				
 				# Handle channels using the mapping
 				if channel in channel_attributes:
 					setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[channel], channel_name)
@@ -2806,6 +2809,9 @@ path = r\"%s\"
 
 					if last_item in channel_attributes:
 						setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[last_item], channel_name)
+				
+				# Get an identifier for the layernm
+				ldr.SetData("prismmultchanlayer", prefix)
 
 			loaders_list.append(ldr)
 
