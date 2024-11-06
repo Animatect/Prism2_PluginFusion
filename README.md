@@ -23,7 +23,7 @@ TODO:  You can either download the latest stable release version from: [Latest R
 
 TODO:  or download the current code zipfile from the green "Code" button above or on [Github](https://Animatect/Prism2_PluginFusion)
 
-[Installation](https://github.com/Animatect/Prism2_PluginFusion/blob/33b8cb12c8c4c9f1270506f87758525a083c2e05/Docs/Installation)
+[Installation](https://github.com/Animatect/Prism2_PluginFusion/Docs/Installation.md)
 
 
 <br/>
