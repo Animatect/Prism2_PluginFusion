@@ -15,6 +15,7 @@ https://prism-pipeline.com/
 
 - This intergration has been tested with Fusion Studio versions 18 and 19.
 - This integration does not work with Resolve Fusion, thought it is planned for the future.
+- As of Prism version 2.0.12, the automatic Media Conversion is not able to function.  This should be working with the next Prism update.
 - To aid is use, tooltips are provided throughout.
 
 <br/>

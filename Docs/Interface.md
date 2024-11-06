@@ -1,4 +1,4 @@
-## **Interface**
+# **Interface**
 
 <br/>
 
@@ -20,6 +20,12 @@ The "RESET PRISM" button will restart/reload the Prism Functions inside of Fusio
 This integration into Fusion Studio uses Prism's State Manager and Project Browser for image rendering and importing.
 
 <br/>
+
+
+TODO:
+
+Autosave icon
+
 
 jump to:
 
