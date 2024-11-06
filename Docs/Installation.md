@@ -9,7 +9,7 @@ You can add the additional plugin search paths in Prism2 settings.  Go to Settin
 
 Once added, select the "Add existing plugin" (plus icon) and navigate to where you saved the Fusion folder.
 
-![Adding Plugin](Docs/DocsImages/Adding_Plugin.png)
+![Adding Plugin](DocsImages/Adding_Plugin.png)
 
 <br/>
 
