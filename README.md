@@ -7,18 +7,17 @@ You can find more information on the website:
 
 https://prism-pipeline.com/
 
-
+<br/><br/>
 
 ![Prism](Docs/Fusion-Prism.png)
-
-
 
 ## **Notes**
 
 - This intergration has been tested with Fusion Studio versions 18 and 19.
 - This integration does not work with Resolve Fusion, thought it is planned for the future.
 - To aid is use, tooltips are provided throughout.
-<br/><br/>
+
+<br/>
 
 ## **Installation**
 
@@ -28,35 +27,22 @@ TODO:  You can either download the latest stable release version from: [Latest R
 
 TODO:  or download the current code zipfile from the green "Code" button above or on [Github](https://Animatect/Prism2_PluginFusion)
 
-[**Installation Instructions**](Docs/Installation.md)
+<br/>
 
+[**Installation Instructions**](Docs/Installation.md)
 
 <br/>
 
 ## **Usage**
 
-### **Menu**
-Prism functions are accessed through the Prism menu in the top bar of Fusion Studio's UI.
+[**Interface**](Docs/Interface.md)
 
-TODO
+[**Rendering**](Docs/Rendering.md)
 
-TODO - NEW PIC AFTER MENU CLEANUP
-![Prism Menu](https://github.com/user-attachments/assets/3e5fca21-8ca6-458c-a593-b0398d207930)
+[**Importing**](Docs/Importing.md)
 
 
 <br/>
-
-### **Rendering**
-
-Prism's State Manager is used for rendering images from Fusion into the Prism pipeline and functions similar to other DCC integrations.  The main render state is the ImageRender which allows the user to
-
-
-### **Importing**
-
-
-
-
-<br/><br/>
 
 
 ## **Issues / Suggestions**
