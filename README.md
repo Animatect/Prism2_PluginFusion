@@ -9,6 +9,8 @@ https://prism-pipeline.com/
 
 
 
+![Prism](Docs/Fusion-Prism.png)
+
 
 
 ## **Notes**
@@ -26,7 +28,7 @@ TODO:  You can either download the latest stable release version from: [Latest R
 
 TODO:  or download the current code zipfile from the green "Code" button above or on [Github](https://Animatect/Prism2_PluginFusion)
 
-[**Installation Instructions**](https://github.com/Animatect/Prism2_PluginFusion/Docs/Installation.md)
+[**Installation Instructions**](Docs/Installation.md)
 
 
 <br/>
