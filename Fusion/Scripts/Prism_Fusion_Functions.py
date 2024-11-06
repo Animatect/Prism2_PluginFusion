@@ -2058,7 +2058,14 @@ path = r\"%s\"
 		dataSources = None
 		if currentAOV:
 			dataSources = mediaBrowser.compGetImportPasses()
-			
+		
+		# Check if media padding corresponds to the project:
+		source = data["source"]
+		if "#" in source:
+			if not self.check_numpadding_matching(source):
+				self.core.popup("The padding of the file you are trying to import\ndoes not seem to match the project padding\ncheck the project preferences.")
+				return
+
 		if currentAOV and len(dataSources) > 1:
 			buttons = ["Current AOV", "All AOVs", "Update Selected", "Cancel"]
 			result, checkbox_checked = self.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=checked)
@@ -2077,7 +2084,24 @@ path = r\"%s\"
 		else:
 			return
 
+	@err_catcher(name=__name__)
+	def check_numpadding_matching(self, filename):
+		projectframepadding = self.core.framePadding
+		# Regular expression to match the `.` followed by hashes `#` and ending in another `.` before extension
+		pattern = r"\.(#+)\."
 
+		# Search for the pattern in the filename
+		match = re.search(pattern, filename)
+		
+		if match:
+			# Count the number of `#` characters in the matched group
+			padding_length = len(match.group(1))
+			# print(f"Padding length (number of # characters): {padding_length}")
+			return padding_length==projectframepadding
+		else:
+			return False
+		
+		
 	@err_catcher(name=__name__)
 	def fusionImportSource(self, mediaBrowser, sortnodes=True):
 		comp = self.getCurrentComp()
@@ -3523,7 +3547,6 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def sm_readStates(self, origin):
 		comp = self.getCurrentComp()
-		print(comp)
 		if self.sm_checkCorrectComp(comp):
 			prismdata = comp.GetData("prismstates")
 
