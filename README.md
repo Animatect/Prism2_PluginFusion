@@ -8,6 +8,9 @@ You can find more information on the website:
 https://prism-pipeline.com/
 
 
+
+
+
 ## **Notes**
 
 - This intergration has been tested with Fusion Studio versions 18 and 19.
@@ -23,7 +26,7 @@ TODO:  You can either download the latest stable release version from: [Latest R
 
 TODO:  or download the current code zipfile from the green "Code" button above or on [Github](https://Animatect/Prism2_PluginFusion)
 
-[Installation](https://github.com/Animatect/Prism2_PluginFusion/Docs/Installation.md)
+[**Installation Instructions**](https://github.com/Animatect/Prism2_PluginFusion/Docs/Installation.md)
 
 
 <br/>
