@@ -1,4 +1,5 @@
 ## **Installation**
+
 <br/>
 
 Copy the directory named "Fusion" to a directory of your choice, or a Prism2 plugin directory.
@@ -25,3 +26,13 @@ Afterwards, you can select the Plugin autoload as desired:
 To add the integration, go to the "DCC Apps" -> "Fusion" tab.  Then click the "add" button and navigate to the folder containing Fusion's "Scripts" directory - this is usually at "../AppData/Roaming/Blackmagic Design/Fusion".  If there is more than one version of Fusion installed, it is advisable to set the executable in the "Override" box in the DCC settings.
 
 ![Add DCC apps](DocsImages/Add_DCC_Apps.png)
+
+<br/>
+
+jump to:
+
+[**Interface**](Docs/Interface.md)
+
+[**Rendering**](Docs/Rendering.md)
+
+[**Importing**](Docs/Importing.md)
