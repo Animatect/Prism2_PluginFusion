@@ -53,4 +53,7 @@ class Prism_Fusion_Variables(object):
         self.appIcon = os.path.join(
             self.pluginDirectory, "UserInterfaces", "Fusion.ico"
         )
+        self.prismAppIcon = os.path.join(
+            self.pluginDirectory, "UserInterfaces", "Fusion-Prism.ico"
+        )
 

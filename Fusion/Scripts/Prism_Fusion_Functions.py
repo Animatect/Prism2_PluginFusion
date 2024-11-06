@@ -3581,12 +3581,13 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def onUserSettingsOpen(self, origin):
-		pass
+		origin.setWindowIcon(QIcon(self.prismAppIcon))
 
 
 	@err_catcher(name=__name__)
 	def onProjectBrowserStartup(self, origin):
 		self.pbUI = origin
+		origin.setWindowIcon(QIcon(self.prismAppIcon))
 	
 
 	@err_catcher(name=__name__)
@@ -3628,6 +3629,7 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def onStateManagerOpen(self, origin):
+		origin.setWindowIcon(QIcon(self.prismAppIcon))
 		#Remove Export and Playblast buttons and states
 		origin.b_createExport.deleteLater()
 		origin.b_createPlayblast.deleteLater()
