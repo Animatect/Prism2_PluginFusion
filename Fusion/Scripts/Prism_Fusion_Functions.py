@@ -2040,6 +2040,16 @@ path = r\"%s\"
 		self.core.plugins.monkeyPatch(mediaBrowser.compGetImportPasses, self.compGetImportPasses, self, force=True)
 		#
 		comp = self.getCurrentComp()
+		
+		# Check if file is Linked
+		contexts = mediaBrowser.getCurRenders()
+		data = contexts[0]
+		path = data["path"]
+		isfile = os.path.isfile(os.path.join(path, "REDIRECT.txt"))
+		if isfile:
+			self.core.popup("Linked media is not supported at the momment.\nTry dragging the file directly from the project browser.")
+			return
+		# Setup Dialog
 		fString = "Please select an import option:"
 		checked = comp.GetData("isprismimportchbxcheck")
 		if not checked:
@@ -2047,8 +2057,8 @@ path = r\"%s\"
 		currentAOV = mediaBrowser.origin.getCurrentAOV()
 		dataSources = None
 		if currentAOV:
-			dataSources = mediaBrowser.compGetImportPasses()		
-
+			dataSources = mediaBrowser.compGetImportPasses()
+			
 		if currentAOV and len(dataSources) > 1:
 			buttons = ["Current AOV", "All AOVs", "Update Selected", "Cancel"]
 			result, checkbox_checked = self.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=checked)
@@ -2280,7 +2290,6 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def getImageData(self, sourceData):
-		print("1")
 		curfr = self.get_current_frame()
 		framepadding = self.core.framePadding
 		padding_string = self.get_frame_padding_string()
@@ -2288,18 +2297,15 @@ path = r\"%s\"
 		# Check if source data interprets the image sequence as individual images.
 		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
 		if len(image_strings) > 1:
-			print("1.1")
 			# isSequence = padding_string in sourceData[0]
 			imagepath = self.is_image_sequence(image_strings)
 
 			if imagepath:
-				print("1.2")
 				filePath = self.format_file_path(imagepath["file_path"], curfr, framepadding, padding_string)
 				firstFrame, lastFrame = imagepath["start_frame"], imagepath["end_frame"]
 				aovNm, layerNm = 'PrismLoader', 'PrismMedia'
 				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, imagepath["is_sequence"])
 		else:
-			print("1.3")
 			# Handle a single image by calling getPassData directly
 			return self.getPassData(sourceData[0])
 
@@ -2309,7 +2315,6 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def getPassData(self, sourceData):
-		print("2")
 		firstFrame, lastFrame = sourceData[1], sourceData[2]
 		curfr = firstFrame #self.get_current_frame()
 		framepadding = self.core.framePadding
