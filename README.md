@@ -23,9 +23,13 @@ https://prism-pipeline.com/
 
 This plugin is for Windows only, as Prism2 only supports Windows at this time.
 
-TODO:  You can either download the latest stable release version from: [Latest Release](https://github.com/Animatect/Prism2_PluginFusion/releases/latest)
+<br/>
 
-TODO:  or download the current code zipfile from the green "Code" button above or on [Github](https://Animatect/Prism2_PluginFusion)
+**TODO: Add link to release**
+
+You can either download the latest stable release version from: [Latest Release](https://github.com/Animatect/Prism2_PluginFusion/releases/latest)
+
+Or download the current code zipfile from the green "Code" button above or on [Github](https://Animatect/Prism2_PluginFusion)
 
 <br/>
 

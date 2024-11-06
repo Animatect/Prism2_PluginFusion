@@ -1,3 +1,5 @@
+## **Installation**
+<br/>
 
 Copy the directory named "Fusion" to a directory of your choice, or a Prism2 plugin directory.
 

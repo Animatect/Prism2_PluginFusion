@@ -1,3 +1,7 @@
+## **Interface**
+
+<br/>
+
 Prism functions are accessed through the Prism menu in the top bar of Fusion Studio's UI.
 
 TODO
