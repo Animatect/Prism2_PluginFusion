@@ -13,13 +13,13 @@ Once added, select the "Add existing plugin" (plus icon) and navigate to where y
 
 <br/>
 
-![Plugin Folder](https://github.com/user-attachments/assets/3858e04c-60e1-454c-91b1-7ba945d3d005)
+![Plugin Folder](DocsImages/Plugin_Folder.png)
 
 
 Afterwards, you can select the Plugin autoload as desired:
 
-![Autoload](https://github.com/user-attachments/assets/f254c8e9-9ff9-40ca-95f7-4a2fdb20946a)
+![Autoload](DocsImages/Autoload.png)
 
 To add the integration, go to the "DCC Apps" -> "Fusion" tab.  Then click the "add" button and navigate to the folder containing Fusion's "Scripts" directory - this is usually at "../AppData/Roaming/Blackmagic Design/Fusion".  If there is more than one version of Fusion installed, it is advisable to set the executable in the "Override" box in the DCC settings.
 
-![Add DCC apps](https://github.com/user-attachments/assets/8d4d16ac-38d9-4849-ba8d-d9be7a077fca)
+![Add DCC apps](DocsImages/Add_DCC_Apps.png)
