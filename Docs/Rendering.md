@@ -51,7 +51,7 @@ A scale override is provided to allow the user to quickly change the rendered re
 - Scale > 100%:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;A scale tool will be temporally added to the Comp before the Saver
 
 ### **Format:**
-The Fusion integration allows rendering to many popular image formats.  The "Format" dropdown allows the user to select the format type, and after it is selected the user may config the Saver's various options in the Fusion interface (inspector) such as codec and compression.
+The Fusion integration allows rendering to many popular image formats.  The "Format" dropdown allows the user to select the format type, and after it is selected the user may config the Saver's various options in the Fusion interface (Inspector) such as codec and compression.
 
 ### **Set Output Only:**
 This checkbox sets the ImageRender state to not render, which means during a publish the associated Saver's output filepath (including version) will be configured but a render will not be triggered.  This can be useful for some workflows where the Savers need to be configured, but the Render will be executed manually or by outside automation.
