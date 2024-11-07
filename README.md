@@ -31,7 +31,7 @@ This plugin is for Windows only, as Prism2 only supports Windows at this time.
 
 You can either download the latest stable release version from: [Latest Release](https://github.com/Animatect/Prism2_PluginFusion/releases/latest)
 
-Or download the current code zipfile from the green "Code" button above or on [Github](https://Animatect/Prism2_PluginFusion)
+Or download the current code zipfile from the green "Code" button above or on [Github](https://github.com/Animatect/Prism2_PluginFusion)
 
 <br/>
 
