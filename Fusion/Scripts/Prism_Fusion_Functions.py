@@ -2096,7 +2096,6 @@ path = r\"%s\"
 		if match:
 			# Count the number of `#` characters in the matched group
 			padding_length = len(match.group(1))
-			# print(f"Padding length (number of # characters): {padding_length}")
 			return padding_length==projectframepadding
 		else:
 			return False
@@ -2257,9 +2256,12 @@ path = r\"%s\"
 		# deselect all nodes
 		# flow.Select()
 		dataSources = mediaBrowser.compGetImportPasses()
+		if len(dataSources) == 0:
+			dataSources = mediaBrowser.compGetImportSource()
+
 		updatehandle = []
 		for sourceData in dataSources:
-			imageData = self.getPassData(sourceData)			
+			imageData = self.getPassData(sourceData)
 			updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'])
 			if updatedloader:
 				# Set up update feedback Dialog message
@@ -2623,8 +2625,8 @@ path = r\"%s\"
 		# Remove the version part from the paths for exact match comparison
 		padding = self.core.versionPadding
 		version_pattern = rf"v\d{{{padding}}}"
-		path1_without_version = re.sub(version_pattern, "", path1)
-		path2_without_version = re.sub(version_pattern, "", path2)
+		path1_without_version = re.sub(version_pattern, "", os.path.splitext(path1)[0])
+		path2_without_version = re.sub(version_pattern, "", os.path.splitext(path2)[0])
 		if isSequence:
 			# Use regex to remove numbers before any file extension (can vary in length)
 			path1_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path1_without_version)
@@ -3991,10 +3993,14 @@ path = r\"%s\"
 		sourceFolder = os.path.dirname(
 			os.path.dirname(mediabrowser.seq[0])
 		).replace("\\", "/")
+		# check if the mediaType is 2d #added
+		if "\\2dRender\\" in mediabrowser.seq[0]:
+			sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/")
 		passes = [
 			x
 			for x in os.listdir(sourceFolder)
 			if x[-5:] not in ["(mp4)", "(jpg)", "(png)"]
+			and not x.startswith("_")  # Exclude folders starting with "_" like _thumbs #added
 			and os.path.isdir(os.path.join(sourceFolder, x))
 		]
 		sourceData = []
