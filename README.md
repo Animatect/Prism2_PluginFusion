@@ -15,6 +15,7 @@ https://prism-pipeline.com/
 
 - This intergration has been tested with Fusion Studio versions 18 and 19.
 - This integration does not work with Resolve Fusion, thought it is planned for the future.
+- Sometimes the Startup Popup appears twice.  Sarting twice has no adverse affects.
 - As of Prism version 2.0.12, the automatic Media Conversion is not able to function.  This should be working with the next Prism update.
 - To aid is use, tooltips are provided throughout.
 
@@ -52,4 +53,4 @@ Or download the current code zipfile from the green "Code" button above or on [G
 
 ## **Issues / Suggestions**
 
-For any bug reports or suggestions, please add to the GitHub repo I/ssues or Projects tabs.
+For any bug reports or suggestions, please add to the GitHub repo Issues or Projects tabs.

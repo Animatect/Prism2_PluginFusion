@@ -65,6 +65,6 @@ If a user would like to render multiple Savers at once, see the RenderGroup belo
 
 jump to:
 
-[**Interface**](Docs/Interface.md)
+[**Interface**](Interface.md)
 
-[**Importing**](Docs/Importing.md)
+[**Importing**](Importing.md)

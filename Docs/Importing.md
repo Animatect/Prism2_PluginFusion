@@ -7,6 +7,6 @@
 
 jump to:
 
-[**Interface**](Docs/Interface.md)
+[**Interface**](Interface.md)
 
-[**Rendering**](Docs/Rendering.md)
+[**Rendering**](Rendering.md)

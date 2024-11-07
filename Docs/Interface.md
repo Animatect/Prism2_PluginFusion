@@ -29,6 +29,6 @@ Autosave icon
 
 jump to:
 
-[**Rendering**](Docs/Rendering.md)
+[**Rendering**](Rendering.md)
 
-[**Importing**](Docs/Importing.md)
+[**Importing**](Importing.md)
