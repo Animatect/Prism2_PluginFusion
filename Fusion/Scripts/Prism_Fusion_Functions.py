@@ -33,7 +33,6 @@
 
 
 
-from doctest import debug
 import os
 import sys
 import json
@@ -2035,8 +2034,18 @@ path = r\"%s\"
 			currFile = self.core.getCurrentFileName()
 			#	Gets temp filename
 			self.tempFilePath, tempDir = self.getFarmTempFilepath(currFile)
+			
 			#	Saves to temp comp
-			saveTempResult = comp.Save(self.tempFilePath)							#	TODO HANDLE SAVE ERROR
+			try:
+				saveTempResult = comp.Save(self.tempFilePath)
+				if saveTempResult:
+					logger.debug(f"Saved temp Comp for Farm submission to:\n{self.tempFilePath}")
+				else:
+					raise Exception
+			except:
+				logger.warning(f"ERROR: Failed to save temp Comp for Farm submission:\n{self.tempFilePath}")
+				comp.Unlock()
+				return
 
 			farmDetails = self.setupFarmDetails(origin, rSettings)
 
@@ -2212,8 +2221,11 @@ path = r\"%s\"
 				# Clips Reload
 				self.setPassThrough(node=node, passThrough=True)
 				self.setPassThrough(node=node, passThrough=False)
+
+				logger.debug(f"Reloaded Loader: {filePath}")
+
 			except:
-				logger.warning(f"ERROR: Failed to refresh loader: {loaderName}")
+				logger.warning(f"ERROR: Failed to reload Loader: {filePath}")
 
 
 	@err_catcher(name=__name__)
@@ -2223,9 +2235,10 @@ path = r\"%s\"
 			self.monkeypatchedmediabrowser = mediaBrowser
 			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportSource, self.compGetImportSource, self, force=True)
 			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportPasses, self.compGetImportPasses, self, force=True)
+			logger.debug("Patched functions in 'importImages()'")
+
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to load patched functions:\n{e}")
-		#
 
 		comp = self.getCurrentComp()
 		
@@ -2235,11 +2248,12 @@ path = r\"%s\"
 		path = data["path"]
 		isfile = os.path.isfile(os.path.join(path, "REDIRECT.txt"))
 		if isfile:
+			logger.debug("Importing of Linked Media is not supported")
 			self.core.popup("Linked media is not supported at the momment.\nTry dragging the file directly from the project browser.")
 			return
+		
 		# Setup Dialog
 		fString = "Please select an import option:"
-
 		try:
 			checked = comp.GetData("isPrismImportChbxCheck")
 		except:
@@ -2248,7 +2262,11 @@ path = r\"%s\"
 		if not checked:
 			checked = False		
 
-		currentAOV = mediaBrowser.origin.getCurrentAOV()
+		try:
+			currentAOV = mediaBrowser.origin.getCurrentAOV()
+		except:
+			logger.warning("ERROR: Unable to get the current AOV name.")
+
 		dataSources = None
 		if currentAOV:
 			dataSources = mediaBrowser.compGetImportPasses()
@@ -2257,7 +2275,7 @@ path = r\"%s\"
 		source = data["source"]
 		if "#" in source:
 			if not self.check_numpadding_matching(source):
-				self.core.popup("The padding of the file you are trying to import\ndoes not seem to match the project padding\ncheck the project preferences.")
+				self.core.popup("The padding of the file you are trying to import\ndoes not seem to match the project padding.\nCheck the project preferences.")
 				return
 
 		if currentAOV and len(dataSources) > 1:
@@ -2271,8 +2289,10 @@ path = r\"%s\"
 
 		if result == "Current AOV" or result == "Import Media":
 			self.fusionImportSource(mediaBrowser, sortnodes=not checkbox_checked)
+
 		elif result == "All AOVs":
 			self.fusionImportPasses(mediaBrowser, dataSources, sortnodes=not checkbox_checked)
+
 		elif result == "Update Selected":
 			self.fusionUpdateSelectedPasses(mediaBrowser, sortnodes=not checkbox_checked)
 		else:
@@ -2280,18 +2300,22 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def check_numpadding_matching(self, filename):
-		projectframepadding = self.core.framePadding
-		# Regular expression to match the `.` followed by hashes `#` and ending in another `.` before extension
-		pattern = r"\.(#+)\."
+		try:
+			projectframepadding = self.core.framePadding
+			# Regular expression to match the `.` followed by hashes `#` and ending in another `.` before extension
+			pattern = r"\.(#+)\."
 
-		# Search for the pattern in the filename
-		match = re.search(pattern, filename)
-		
-		if match:
-			# Count the number of `#` characters in the matched group
-			padding_length = len(match.group(1))
-			return padding_length==projectframepadding
-		else:
+			# Search for the pattern in the filename
+			match = re.search(pattern, filename)
+			
+			if match:
+				# Count the number of `#` characters in the matched group
+				padding_length = len(match.group(1))
+				return padding_length == projectframepadding
+			else:
+				return False
+		except:
+			logger.warning(f"ERROR: Unable to check frame padding for {filename}")
 			return False
 		
 		
@@ -2306,23 +2330,46 @@ path = r\"%s\"
 		# deselect all nodes
 		flow.Select()
 
-		sourceData = mediaBrowser.compGetImportSource()
+		try:
+			sourceData = mediaBrowser.compGetImportSource()
+		except:
+			logger.warning("ERROR: Unable to get sourceData from the MediaBrowser")
+			return
+
 		imageData = self.getImageData(sourceData)
 		if imageData:
 			updatehandle:list = [] # Required to return data on the updated nodes.
 			if sortnodes:
-				node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=leftmostNode, createwireless=sortnodes)
+				try:
+					node = self.processImageImport(
+									imageData,
+									updatehandle=updatehandle,
+									refNode=leftmostNode,
+									createwireless=sortnodes
+									)
+				except:
+					logger.warning("ERROR: Unable to process import images")
 			
 				if not leftmostNode:
 					leftmostNode = node
 				self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
 					
-			else:				
-				node = self.processImageImport(imageData, updatehandle=updatehandle, refNode=None, createwireless=sortnodes)
+			else:
+				try:
+					node = self.processImageImport(
+									imageData,
+									updatehandle=updatehandle,
+									refNode=None,
+									createwireless=sortnodes
+									)
+				except:
+					logger.warning("ERROR: Unable to process import images")
 
 			# deselect all nodes
 			flow.Select()
 			self.getUpdatedNodesFeedback(updatehandle)
+
+			logger.debug(f"Imported image: {imageData['filePath']}")
 
 
 	@err_catcher(name=__name__)
@@ -2344,32 +2391,56 @@ path = r\"%s\"
 
 		# dataSources = mediaBrowser.compGetImportPasses()
 		for sourceData in dataSources:
-			imageData = self.getPassData(sourceData)
+			try:
+				imageData = self.getPassData(sourceData)
+			except:
+				logger.warning("ERROR: Unable to import passes - failed to get pass data")
+				return
+			
 			# Return the last processed node.
-			leftmostNode = self.processImageImport(imageData, splithandle=splithandle, updatehandle=updatehandle, refNode=leftmostNode, createwireless=sortnodes)
-		
+			try:
+				leftmostNode = self.processImageImport(
+									imageData,
+									splithandle=splithandle,
+									updatehandle=updatehandle,
+									refNode=leftmostNode,
+									createwireless=sortnodes
+									)
+			except:
+				logger.warning("ERROR: Unable to import passes")
+				return
+			
 		self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
 
 		# deselect all nodes
 		flow.Select()
-		self.getUpdatedNodesFeedback(updatehandle)		
+		self.getUpdatedNodesFeedback(updatehandle)
+
+		currIdentifier = self.core.pb.mediaBrowser.getCurrentIdentifier()
+		logger.debug(f"Imported passes for: {currIdentifier['displayName']}")
 
 
 	@err_catcher(name=__name__)
 	def getUpdatedNodesFeedback(self, updatehandle):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
+
 		if len(updatehandle) > 0:
-			
-			message = "The following nodes were updated:\n\n"
-			for handle in updatehandle:
-				if ".#nochange#." in handle:
-					message += handle.split(":")[0] + ": Version didn't change\n" 
-				else:
-					message += f"{handle}\n"
-				flow.Select(comp.FindTool(handle.split(":")[0]), True)
-			# Display List of updated nodes.
-			self.createInformationDialog("Updated Nodes", message)
+			try:
+				message = "The following nodes were updated:\n\n"
+				for handle in updatehandle:
+					if ".#nochange#." in handle:
+						message += handle.split(":")[0] + ": Version didn't change\n" 
+					else:
+						message += f"{handle}\n"
+					flow.Select(comp.FindTool(handle.split(":")[0]), True)
+
+				# Display List of updated nodes.
+				logger.debug("Showing version update popup")
+				self.createInformationDialog("Updated Nodes", message)
+
+			except:
+				logger.warning("ERROR: Unable to display version update feedback")
 
 
 	@err_catcher(name=__name__)
@@ -2382,24 +2453,35 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def split_loader_name(self, name):
-		prefix = name.rsplit('_', 1)[0]  # everything to the left of the last "_"
-		suffix = name.rsplit('_', 1)[-1]  # everything to the right of the last "_"
-		return prefix, suffix
+		try:
+			prefix = name.rsplit('_', 1)[0]  # everything to the left of the last "_"
+			suffix = name.rsplit('_', 1)[-1]  # everything to the right of the last "_"
+			return prefix, suffix
+		except:
+			logger.warning(f"ERROR: Unable to split loader name {name}")
 
 
 	@err_catcher(name=__name__)
 	def sort_loaders(self, posRefNode, reconnectIn=True, sortnodes=True):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
+
 		comp.Lock()
+
 		#Get the leftmost loader within a threshold.
 		leftmostpos = flow.GetPosTable(posRefNode)[1]
 		bottommostpos = flow.GetPosTable(posRefNode)[2]
 		thresh = 100
+
 		# We get only the loaders within a threshold from the leftmost and who were created by prism.
-		loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh and l.GetData("isprismnode")]
-		loaderstop2bot = sorted(loaders, key=lambda ld: flow.GetPosTable(ld)[2])
-		layers = set([self.split_loader_name(ly.Name)[0] for ly in loaders])
+		try:
+			loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh and l.GetData("isprismnode")]
+			loaderstop2bot = sorted(loaders, key=lambda ld: flow.GetPosTable(ld)[2])
+			layers = set([self.split_loader_name(ly.Name)[0] for ly in loaders])
+		except:
+			logger.warning("ERROR: Cannot sort loaders - unable to resolve threshold in the flow")
+			return
+
 		sortedloaders = []
 		for ly in sorted(list(layers)):
 			lyloaders = [l for l in loaders if self.split_loader_name(l.Name)[0] == ly]
@@ -2411,30 +2493,38 @@ path = r\"%s\"
 		# Sorting the loader names
 		if len(sortedloaders) > 0:
 			lastloaderlyr = self.split_loader_name(sortedloaders[0].Name)[0]
-			if sortnodes:
-				newx = leftmostpos#flow.GetPosTable(loaderstop2bot[0])[1]
-				newy = flow.GetPosTable(loaderstop2bot[0])[2]
-				if not refInNodes:
-					newy = bottommostpos + 1.5
-				
-				for l in sortedloaders:
-					# we reconnect to solve an issue that creates "Ghost" connections until comp is reoppened.
-					innode =  comp.FindTool(l.Name+"_IN")
-					outnode = comp.FindTool(l.Name+"_OUT")
-					if innode and reconnectIn:
-						innode.ConnectInput('Input', l)
-					lyrnm = self.split_loader_name(l.Name)[0]
-					# we make sure we have at least an innode for this loader created by prism.
-					if innode and innode.GetData("isprismnode"):
-						if lyrnm != lastloaderlyr:
-							newy+=1
-						flow.SetPos(l, newx, newy)
-						flow.SetPos(innode, newx+2, newy)
-						if outnode:
-							flow.SetPos(outnode, newx+3, newy)
-					newy+=1
-					lastloaderlyr = lyrnm
+			try:
+				if sortnodes:
+					newx = leftmostpos#flow.GetPosTable(loaderstop2bot[0])[1]
+					newy = flow.GetPosTable(loaderstop2bot[0])[2]
+					if not refInNodes:
+						newy = bottommostpos + 1.5
+					
+					for l in sortedloaders:
+						# we reconnect to solve an issue that creates "Ghost" connections until comp is reoppened.
+						innode =  comp.FindTool(l.Name+"_IN")
+						outnode = comp.FindTool(l.Name+"_OUT")
+						if innode and reconnectIn:
+							innode.ConnectInput('Input', l)
+						lyrnm = self.split_loader_name(l.Name)[0]
+						# we make sure we have at least an innode for this loader created by prism.
+						if innode and innode.GetData("isprismnode"):
+							if lyrnm != lastloaderlyr:
+								newy+=1
+							flow.SetPos(l, newx, newy)
+							flow.SetPos(innode, newx+2, newy)
+							if outnode:
+								flow.SetPos(outnode, newx+3, newy)
+						newy+=1
+						lastloaderlyr = lyrnm
+
+					logger.debug("Sorted Nodes")
+
+			except:
+				logger.warning("ERROR: Failed to sort nodes")
+
 		comp.Unlock()
+
 
 	@err_catcher(name=__name__)
 	def fusionUpdateSelectedPasses(self, mediaBrowser, sortnodes=True):
@@ -2446,34 +2536,65 @@ path = r\"%s\"
 		origloaders = loaders
 		
 		if not loaders:
+			logger.warning("ERROR: Could not find any Loaders in the comp")
 			return
-		
-		# deselect all nodes
-		# flow.Select()
-		dataSources = mediaBrowser.compGetImportPasses()
-		if len(dataSources) == 0:
-			dataSources = mediaBrowser.compGetImportSource()
+
+		try:
+			dataSources = mediaBrowser.compGetImportPasses()
+			if len(dataSources) == 0:
+				dataSources = mediaBrowser.compGetImportSource()
+		except:
+			logger.warning("ERROR: Unable to get data sources from the MediaBrowser")
+			return
 
 		updatehandle = []
 		for sourceData in dataSources:
 			imageData = self.getPassData(sourceData)
-			updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'])
+			updatedloader, prevVersion =  self.updateLoaders(
+													loaders,
+													imageData['filePath'],
+													imageData['firstFrame'],
+													imageData['lastFrame'],
+													imageData['isSequence']
+													)
+
 			if updatedloader:
-				# Set up update feedback Dialog message
-				version1 = prevVersion
-				version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
-				nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
-				updatehandle.append(nodemessage)
+				try:
+					# Set up update feedback Dialog message
+					version1 = prevVersion
+					version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
+					nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
+					updatehandle.append(nodemessage)
+				except:
+					logger.warning("ERROR: Unable to update passes - cannot compare versions")
+					return
 
 				# if multilayerEXR
 				if updatedloader.GetData("prismmultchanlayer"):
-					loader_channels = self.get_loader_channels(updatedloader)
-					layernames = list(set(self.get_channel_data(loader_channels)))
-					flow.Select(updatedloader, False)
-					loaders = comp.GetToolList(True, "Loader").values()
+					try:
+						loader_channels = self.get_loader_channels(updatedloader)
+						layernames = list(set(self.get_channel_data(loader_channels)))
+						flow.Select(updatedloader, False)
+						loaders = comp.GetToolList(True, "Loader").values()
+					except:
+						logger.warning("ERROR: Unable to update passes - cannot resolve exr channels")
+						return
+					
 					for ly in layernames:
 						# we try the same data for each channel just to make sure, since the Clip is the same we just have to iterate and remove whatever is found.
-						updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'], exrlayers=layernames)
+						try:
+							updatedloader, prevVersion =  self.updateLoaders(
+													   loaders,
+													   imageData['filePath'],
+													   imageData['firstFrame'],
+													   imageData['lastFrame'],
+													   imageData['isSequence'],
+													   exrlayers=layernames
+													   )
+						except:
+							logger.warning("ERROR: Unable to update passes - cannot compare versions")
+							return
+						
 						if updatedloader:
 							# Deselect updated one and try again.
 							flow.Select(updatedloader,False)
@@ -2487,11 +2608,13 @@ path = r\"%s\"
 							# if we didnt find another one then there is no point in keep looking
 							break
 					
+						logger.debug(f"Updated Loader: {updatedloader.Name}")
+
 					self.getUpdatedNodesFeedback(updatehandle)
-					return
-	
+
 		self.getUpdatedNodesFeedback(updatehandle)
-		return
+		currIdentifier = self.core.pb.mediaBrowser.getCurrentIdentifier()
+		logger.debug(f"Updated selected passes for: {currIdentifier['displayName']}")
 
 
 	@err_catcher(name=__name__)
@@ -2505,29 +2628,36 @@ path = r\"%s\"
 		'isSequence': isSequence
 		}
 
+
 	@err_catcher(name=__name__)
 	def getImageData(self, sourceData):
 		curfr = self.get_current_frame()
 		framepadding = self.core.framePadding
 		padding_string = self.get_frame_padding_string()
 
-		# Check if source data interprets the image sequence as individual images.
-		image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
-		if len(image_strings) > 1:
-			# isSequence = padding_string in sourceData[0]
-			imagepath = self.is_image_sequence(image_strings)
+		try:
+			# Check if source data interprets the image sequence as individual images.
+			image_strings = [item[0] for item in sourceData if isinstance(item[0], str)]
 
-			if imagepath:
-				filePath = self.format_file_path(imagepath["file_path"], curfr, framepadding, padding_string)
-				firstFrame, lastFrame = imagepath["start_frame"], imagepath["end_frame"]
-				aovNm, layerNm = 'PrismLoader', 'PrismMedia'
-				return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, imagepath["is_sequence"])
-		else:
-			# Handle a single image by calling getPassData directly
-			return self.getPassData(sourceData[0])
+			if len(image_strings) > 1:
+				imagepath = self.is_image_sequence(image_strings)
 
-		QMessageBox.warning(self.core.messageParent, "Prism Integration", "No image sequence was loaded.")
-		return None
+				if imagepath:
+					filePath = self.format_file_path(imagepath["file_path"], curfr, framepadding, padding_string)
+					firstFrame, lastFrame = imagepath["start_frame"], imagepath["end_frame"]
+					aovNm, layerNm = 'PrismLoader', 'PrismMedia'
+
+					logger.debug(f"Retrieved image data for image sequence: {filePath}")
+					return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, imagepath["is_sequence"])
+			else:
+				# Handle a single image by calling getPassData directly
+				logger.debug(f"Retrieved image data for image: {sourceData[0]}")
+				return self.getPassData(sourceData[0])
+			
+		except:
+			logger.warning("ERROR: No image sequence was loaded.")
+			QMessageBox.warning(self.core.messageParent, "Prism Integration", "No image sequence was loaded.")
+			return None
 
 
 	@err_catcher(name=__name__)
@@ -2540,39 +2670,55 @@ path = r\"%s\"
 		numframepadsinpath = self.check_padding_in_filepath(sourceData[0])
 		isSequence = numframepadsinpath > 0
 
-		if isSequence:
-			filePath = self.format_file_path_with_validation(sourceData[0], curfr, framepadding, padding_string, firstFrame)
-		else:
-			filePath = sourceData[0]
+		try:
+			if isSequence:
+				filePath = self.format_file_path_with_validation(sourceData[0], curfr, framepadding, padding_string, firstFrame)
+			else:
+				filePath = sourceData[0]
+		except:
+			logger.warning("ERROR: Failed to get pass data")
+			return
 
-		aovNm, layerNm = self.extract_aov_layer_names(filePath)
+		try:
+			aovNm, layerNm = self.extract_aov_layer_names(filePath)
+		except:
+			logger.warning("ERROR: Failed to extract AOV Layer names")
+			return
+
+		logger.debug(f"Retrieved pass data for image: {aovNm}")
 		return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
 
 
 	# Helper function to know if a path has padding and the padding length.
 	@err_catcher(name=__name__)
 	def check_padding_in_filepath(self,filepath):
-		filepath = str(filepath)
-		# Get the file extension
-		_, file_extension = os.path.splitext(filepath)
+		try:
+			filepath = str(filepath)
+			# Get the file extension
+			_, file_extension = os.path.splitext(filepath)
 
-		# Regular expression to match consecutive '#' characters before the extension
-		pattern = rf"(#+)\{file_extension}$"
-		match = re.search(pattern, filepath)
+			# Regular expression to match consecutive '#' characters before the extension
+			pattern = rf"(#+)\{file_extension}$"
+			match = re.search(pattern, filepath)
 
-		if match:
-			num_hashes = len(match.group(1))
-			# File path has {num_hashes} consecutive '#' characters before the extension.
-			return num_hashes
-		else:
-			# No consecutive '#' characters found before the extension.
-			return 0
+			if match:
+				num_hashes = len(match.group(1))
+				# File path has {num_hashes} consecutive '#' characters before the extension.
+				return num_hashes
+			else:
+				# No consecutive '#' characters found before the extension.
+				return 0
+		except:
+			logger.warning("ERROR:  Failed to check padding in filepath")
+			return None
+		
 
 	# Helper function get frame number
 	@err_catcher(name=__name__)
 	def get_current_frame(self):
 		comp = self.getCurrentComp()
 		return int(comp.CurrentTime)
+
 
 	# Helper function get frame padding string
 	@err_catcher(name=__name__)
@@ -2581,66 +2727,84 @@ path = r\"%s\"
 		padding_string = '#' * framepadding + '.'
 		return str(padding_string)
 
+
 	# Helper function to format file path with frame number
 	@err_catcher(name=__name__)
 	def format_file_path(self, path, frame, framepadding, padding_string):
 		"""Format the file path to replace padding_string with the current frame."""
-		return path.replace(padding_string, f"{frame:0{framepadding}}.")
+		try:
+			return path.replace(padding_string, f"{frame:0{framepadding}}.")
+		except:
+			logger.warning("ERROR: Failed to format file path string")
+			return ""
 
 
 	# Helper function to handle padding string replacement based on file existence
 	@err_catcher(name=__name__)
 	def format_file_path_with_validation(self, path, frame, framepadding, padding_string, firstFrame):
 		"""Format the file path by validating its existence."""
-		if firstFrame:
-			formatted_first_frame = f"{firstFrame:0{framepadding}}."
-			modified_file_path = path.replace(padding_string, formatted_first_frame)
+		try:
+			if firstFrame:
+				formatted_first_frame = f"{firstFrame:0{framepadding}}."
+				modified_file_path = path.replace(padding_string, formatted_first_frame)
 
-			if os.path.exists(modified_file_path):
-				return path.replace(padding_string, f"{frame:0{framepadding}}.")
+				if os.path.exists(modified_file_path):
+					return path.replace(padding_string, f"{frame:0{framepadding}}.")
+				else:
+					return path.replace("." + padding_string, ".")
 			else:
-				return path.replace("." + padding_string, ".")
-		else:
-			return path
+				return path
+		except:
+			logger.warning("ERROR: Failed to format file path with validation")
+			return ""
 
 
 	# Helper function to extract AOV and layer names
 	@err_catcher(name=__name__)
-	def extract_aov_layer_names(self, filePath):										#	EDITED
+	def extract_aov_layer_names(self, filePath):
 		"""Extract the AOV and layer names from the file path."""
-		parts = os.path.dirname(filePath).split("/")
-		aovnm = parts[-1]
-		wronglayerNms = ["2dRender","3dRender"]
-		layerNm = parts[-3]
-		if layerNm in wronglayerNms:
-			layerNm = parts[-2]
+		try:
+			parts = os.path.dirname(filePath).split("/")
+			aovnm = parts[-1]
+			wronglayerNms = ["2dRender","3dRender"]
+			layerNm = parts[-3]
+			if layerNm in wronglayerNms:
+				layerNm = parts[-2]
+			
+			return aovnm, layerNm
 		
-		return aovnm, layerNm
-
+		except:
+			logger.warning("ERROR: Failed to extract AOV layer names")
+			return None
 
 
 	@err_catcher(name=__name__)
 	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False, exrlayers=[]):
-		for loader in Loaderstocheck:
-			loaderClipPath = loader.Clip[0]
-			if filePath == loaderClipPath:
-				return loader, ".#nochange#."
-			
-			if len(exrlayers) > 0:
-				layer = loader.GetData("prismmultchanlayer")
-				if layer: 
-					if layer not in exrlayers:
-						return loader, ".#nochange#."
-			
-			if self.are_paths_equal_except_version(loaderClipPath, filePath, isSequence):
-				version1 = self.extract_version(loaderClipPath)
-				version2 = self.extract_version(filePath)
+		try:
+			for loader in Loaderstocheck:
+				loaderClipPath = loader.Clip[0]
+				if filePath == loaderClipPath:
+					return loader, ".#nochange#."
+				
+				if len(exrlayers) > 0:
+					layer = loader.GetData("prismmultchanlayer")
+					if layer: 
+						if layer not in exrlayers:
+							return loader, ".#nochange#."
+				
+				if self.are_paths_equal_except_version(loaderClipPath, filePath, isSequence):
+					version1 = self.extract_version(loaderClipPath)
+					version2 = self.extract_version(filePath)
 
-				self.reloadLoader(loader, filePath, firstFrame, lastFrame)
-				if not version1 == version2:
-					return loader, version1
-			
-		return None, ""
+					self.reloadLoader(loader, filePath, firstFrame, lastFrame)
+					if not version1 == version2:
+						return loader, version1
+				
+			return None, ""
+		
+		except:
+			logger.warning("ERROR: Failed to update loaders")
+			return None
 	
 
 	@err_catcher(name=__name__)
@@ -2666,74 +2830,88 @@ path = r\"%s\"
 
 		# If an updated node was produced.
 		if updatedloader:
-			# Update Multilayer.
-			if extension == ".exr":
-				# check for multichannels to update all plitted nodes.
-				extraloader = updatedloader
-				checkedloaders:list = [updatedloader.Name]
-				if len(self.get_loader_channels(updatedloader)) > 0:
-					while  extraloader:
-						allremainingLoaders = [t for t in allLoaders if not t.Name in checkedloaders]
-						extraloader, extraversion = self.updateLoaders(allremainingLoaders, filePath, firstFrame, lastFrame, isSequence)
-						if extraloader:
-							checkedloaders.append(extraloader.Name)
+			try:
+				# Update Multilayer.
+				if extension == ".exr":
+					# check for multichannels to update all plitted nodes.
+					extraloader = updatedloader
+					checkedloaders:list = [updatedloader.Name]
+					if len(self.get_loader_channels(updatedloader)) > 0:
+						while  extraloader:
+							allremainingLoaders = [t for t in allLoaders if not t.Name in checkedloaders]
+							extraloader, extraversion = self.updateLoaders(allremainingLoaders, filePath, firstFrame, lastFrame, isSequence)
+							if extraloader:
+								checkedloaders.append(extraloader.Name)
 
-			# Set up update feedback Dialog message
-			version1 = prevVersion
-			version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
-			nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
-			updatehandle.append(nodemessage)
+				# Set up update feedback Dialog message
+				version1 = prevVersion
+				version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
+				nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
+				updatehandle.append(nodemessage)
 
-			return updatedloader
+				return updatedloader
+			except:
+				logger.warning("ERROR: Unable to process image import")
+				return
 
 		# if paths were not updated then we create new nodes.
-		comp.Lock()
-		node = comp.AddTool("Loader")
-		# Set a Prism node identifier:
-		if createwireless:
-			node.SetData("isprismnode", True)
-		self.reloadLoader(node, filePath, firstFrame, lastFrame)
-		node.SetAttrs({"TOOLS_Name": layerNm + "_" + aovNm})
-		if refNode:
-			if refNode.GetAttrs('TOOLS_RegID') =='Loader':
-				self.setNodePosition(node, x_offset = 0, y_offset = 1, refNode=refNode)
+		try:
+			comp.Lock()
+			node = comp.AddTool("Loader")
+			# Set a Prism node identifier:
+			if createwireless:
+				node.SetData("isprismnode", True)
+			self.reloadLoader(node, filePath, firstFrame, lastFrame)
+			node.SetAttrs({"TOOLS_Name": layerNm + "_" + aovNm})
+			if refNode:
+				if refNode.GetAttrs('TOOLS_RegID') =='Loader':
+					self.setNodePosition(node, x_offset = 0, y_offset = 1, refNode=refNode)
+				else:
+					self.setNodePosition(node, x_offset = -5, y_offset = 0, refNode=refNode)
 			else:
-				self.setNodePosition(node, x_offset = -5, y_offset = 0, refNode=refNode)
-		else:
-			self.setNodePosition(node, x_offset = 0, y_offset = 0, refNode=None)
-		
-		comp.Unlock()
+				self.setNodePosition(node, x_offset = 0, y_offset = 0, refNode=None)
+
+			comp.Unlock()
+
+		except:
+			logger.warning("ERROR: Failed to create loader node.")
+			comp.Unlock()
+			return
 		
 		# IF IS EXR
 		if extension == ".exr":
-			# check for multichannels
-			channels = self.get_loader_channels(node)
-			if len(channels) > 0:
-				buttons = ["Yes", "No"]
-				# if we need to manage the split dialog from outside and this is the first time the question is asked.
-				if splithandle and splithandle['splitfirstasked']:
-					splithandle['splitfirstasked'] = False
-					fString = splithandle['fstring']
-					result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+			try:
+				# check for multichannels
+				channels = self.get_loader_channels(node)
+				if len(channels) > 0:
+					buttons = ["Yes", "No"]
+					# if we need to manage the split dialog from outside and this is the first time the question is asked.
+					if splithandle and splithandle['splitfirstasked']:
+						splithandle['splitfirstasked'] = False
+						fString = splithandle['fstring']
+						result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 
-				elif splithandle and splithandle['splitchosen']:
-					result = "Yes"
-				elif splithandle and not splithandle['splitchosen']:
-					result = "No"
+					elif splithandle and splithandle['splitchosen']:
+						result = "Yes"
+					elif splithandle and not splithandle['splitchosen']:
+						result = "No"
 
-				else:
-					fString = "This EXR seems to have multiple channels:\n" + "Do you want to split the EXR channels into individual nodes?"
-					result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+					else:
+						fString = "This EXR seems to have multiple channels:\n" + "Do you want to split the EXR channels into individual nodes?"
+						result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 
-				if result == "Yes":
-					if splithandle:
-						splithandle['splitchosen'] = True
-					loaders_list = self.process_multichannel(node, createwireless=createwireless)
-					if len(loaders_list)>0:
-						return loaders_list[-1]
- 
-				elif splithandle:
-					splithandle['splitchosen'] = False
+					if result == "Yes":
+						if splithandle:
+							splithandle['splitchosen'] = True
+						loaders_list = self.process_multichannel(node, createwireless=createwireless)
+						if len(loaders_list)>0:
+							return loaders_list[-1]
+	
+					elif splithandle:
+						splithandle['splitchosen'] = False
+			except:
+				logger.warning("ERROR: Failed to process Multilayer EXR")
+				return None
 
 		# create wireless
 		if createwireless:
@@ -2788,6 +2966,8 @@ path = r\"%s\"
 
 			ad.ConnectInput('Input', tool)
 
+			logger.debug(f"Created Wireless nodes for: {tool.Name}")
+
 		except Exception as e:
 			logger.warning(f"ERROR:  Could not add wireless nodes:\n{e}")
 
@@ -2810,6 +2990,7 @@ path = r\"%s\"
 			else:
 				return leftmost
 		except:
+			logger.warning("ERROR: Failed to find leftmost lower node")
 			return None
 		
 
@@ -2823,68 +3004,82 @@ path = r\"%s\"
 		if match:
 			return int(match.group(1))
 		else:
+			logger.warning(f"ERROR: Failed to extract version from filepath: {filepath}")
 			return None
 		
 
 	@err_catcher(name=__name__)
 	def are_paths_equal_except_version(self, path1, path2, isSequence):	
-		# Remove the version part from the paths for exact match comparison
-		padding = self.core.versionPadding
-		version_pattern = rf"v\d{{{padding}}}"
-		path1_without_version = re.sub(version_pattern, "", os.path.splitext(path1)[0])
-		path2_without_version = re.sub(version_pattern, "", os.path.splitext(path2)[0])
-		if isSequence:
-			# Use regex to remove numbers before any file extension (can vary in length)
-			path1_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path1_without_version)
-			path2_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path2_without_version)
-		# Check if the non-version parts are an exact match
-		if path1_without_version == path2_without_version:
-			# Versions are the same, and non-version parts are an exact match
-			return True
-		else:
-			# Versions are the same, but non-version parts are different
+		try:
+			# Remove the version part from the paths for exact match comparison
+			padding = self.core.versionPadding
+			version_pattern = rf"v\d{{{padding}}}"
+			path1_without_version = re.sub(version_pattern, "", os.path.splitext(path1)[0])
+			path2_without_version = re.sub(version_pattern, "", os.path.splitext(path2)[0])
+			if isSequence:
+				# Use regex to remove numbers before any file extension (can vary in length)
+				path1_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path1_without_version)
+				path2_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path2_without_version)
+			# Check if the non-version parts are an exact match
+			if path1_without_version == path2_without_version:
+				# Versions are the same, and non-version parts are an exact match
+				return True
+			else:
+				# Versions are the same, but non-version parts are different
+				return False
+			
+		except:
+			logger.warning("ERROR: Failed to compare versions")
 			return False
 
 	@err_catcher(name=__name__)
 	def get_pattern_prefix(self, file_path):
-		# Extract the file extension
-		_, file_extension = os.path.splitext(file_path)
-		padding = self.core.versionPadding
+		try:
+			# Extract the file extension
+			_, file_extension = os.path.splitext(file_path)
+			padding = self.core.versionPadding
 
-		# Regex pattern to capture the prefix and the frame number
-		# Example: sq_030-sh_010_Compositing_v001.0001.exr
-		regex_pattern = rf'^(.+)v\d{{{padding}}}\.(\d{{{padding}}}){re.escape(file_extension)}$'
-		pattern = re.compile(regex_pattern)
-		match = pattern.match(file_path)
+			# Regex pattern to capture the prefix and the frame number
+			# Example: sq_030-sh_010_Compositing_v001.0001.exr
+			regex_pattern = rf'^(.+)v\d{{{padding}}}\.(\d{{{padding}}}){re.escape(file_extension)}$'
+			pattern = re.compile(regex_pattern)
+			match = pattern.match(file_path)
 
-		# Return the prefix and frame number if matched
-		return (match.group(1), int(match.group(2))) if match else (None, None)
+			# Return the prefix and frame number if matched
+			return (match.group(1), int(match.group(2))) if match else (None, None)
+		
+		except:
+			logger.warning("ERROR: Failed to get pattern prefix")
+			return None, None
 		
 
 	@err_catcher(name=__name__)
 	def is_image_sequence(self, strings):
-		# Get the prefix and frame number of the first file
-		first_image_prefix, first_frame = self.get_pattern_prefix(strings[0])
+		try:
+			# Get the prefix and frame number of the first file
+			first_image_prefix, first_frame = self.get_pattern_prefix(strings[0])
 
-		# Check if all files share the same prefix and find their frame numbers
-		frame_numbers = []
-		for item in strings:
-			prefix, frame = self.get_pattern_prefix(item)
-			if prefix != first_image_prefix or frame is None:
-				return None  # Not an image sequence
-			frame_numbers.append(frame)
+			# Check if all files share the same prefix and find their frame numbers
+			frame_numbers = []
+			for item in strings:
+				prefix, frame = self.get_pattern_prefix(item)
+				if prefix != first_image_prefix or frame is None:
+					return None  # Not an image sequence
+				frame_numbers.append(frame)
 
-		# Get the first and last frame numbers
-		start_frame = min(frame_numbers)
-		end_frame = max(frame_numbers)
+			# Get the first and last frame numbers
+			start_frame = min(frame_numbers)
+			end_frame = max(frame_numbers)
 
-		# Return the first file path (assumed as the main reference), and frame range details
-		return {
-			"file_path": strings[0],
-			"start_frame": start_frame,
-			"end_frame": end_frame,
-			"is_sequence": True
-		} if start_frame != end_frame else None
+			# Return the first file path (assumed as the main reference), and frame range details
+			return {
+				"file_path": strings[0],
+				"start_frame": start_frame,
+				"end_frame": end_frame,
+				"is_sequence": True
+				} if start_frame != end_frame else None
+		except:
+			logger.warning("ERROR: Failed to get is image sequence")
 		
 
 	# EXR CHANNEL MANAGEMENT #
@@ -2918,21 +3113,26 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def get_channel_data(self,loader_channels):
-		channel_data = {}
+		try:
+			channel_data = {}
 
-		for channel_name in loader_channels:
-			# Get prefix and channel from full channel name using regex
-			match = re.match(r"(.+)\.(.+)", channel_name)
-			if match:
-				prefix, channel = match.groups()
+			for channel_name in loader_channels:
+				# Get prefix and channel from full channel name using regex
+				match = re.match(r"(.+)\.(.+)", channel_name)
+				if match:
+					prefix, channel = match.groups()
 
-				# Use setdefault to initialize channels if prefix is encountered for the first time
-				channels = channel_data.setdefault(prefix, [])
+					# Use setdefault to initialize channels if prefix is encountered for the first time
+					channels = channel_data.setdefault(prefix, [])
 
-				# Add full channel name to assigned channels of current prefix
-				channels.append(channel_name)
+					# Add full channel name to assigned channels of current prefix
+					channels.append(channel_name)
 
-		return channel_data
+			return channel_data
+		
+		except:
+			logger.warning("ERROR: Failed to get channel data")
+			return None
 	
 
 	@err_catcher(name=__name__)
@@ -2941,27 +3141,33 @@ path = r\"%s\"
 		if loader_clip:        
 			return loader_clip
 		
-		print("Loader contains no clips to explore")
-		return 
+		logger.warning("EERROR: Loader contains no clips to explore")
 	
 
 	@err_catcher(name=__name__)
 	def move_loaders(self,org_x_pos, org_y_pos, loaders):
-		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
-		y_pos_add = 1
+		try:
+			comp = self.getCurrentComp()
+			flow = comp.CurrentFrame.FlowView
+			y_pos_add = 1
 
-		for count, ldr in enumerate(loaders, start=0):
-			flow.SetPos(ldr, org_x_pos, org_y_pos + y_pos_add * count)
+			for count, ldr in enumerate(loaders, start=0):
+				flow.SetPos(ldr, org_x_pos, org_y_pos + y_pos_add * count)
+		except:
+			logger.warning("ERROR: Failed to move loaders")
 
 
 	@err_catcher(name=__name__)
 	def process_multichannel(self, tool, createwireless=True):
-		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
-		loader_channels = self.get_loader_channels(tool)
-		channel_data = self.get_channel_data(loader_channels)
-		x_pos, y_pos = flow.GetPosTable(tool).values()
+		try:
+			comp = self.getCurrentComp()
+			flow = comp.CurrentFrame.FlowView
+			loader_channels = self.get_loader_channels(tool)
+			channel_data = self.get_channel_data(loader_channels)
+			x_pos, y_pos = flow.GetPosTable(tool).values()
+		except:
+			logger.warning("ERROR: Failed to process multichannel EXR - could not get data")
+			return
 
 		loaders_list = []
 
@@ -2982,48 +3188,56 @@ path = r\"%s\"
 		# Update the loader node channel settings and create loaders
 		# prefix is the name of the layer.
 		for prefix, channels in channel_data.items():
-			ldr = comp.Loader({'Clip': self.GetLoaderClip(tool)})
-			# Add Prism node identifier
-			ldr.SetData("isprismnode", True)
+			try:
+				logger.debug(f"Splitting EXR Channel: {prefix}")
 
-			# Replace invalid EXR channel names with placeholders
-			ldr.SetAttrs({'TOOLB_NameSet': True, 'TOOLS_Name': tool.Name.rsplit('_', 1)[0] + "_" + prefix})# rsplit splits from the right using in this case the first ocurrence.
-			for name, placeholder in invalid_names.items():
-				setattr(ldr.Clip1.OpenEXRFormat, name, placeholder)
+				ldr = comp.Loader({'Clip': self.GetLoaderClip(tool)})
+				# Add Prism node identifier
+				ldr.SetData("isprismnode", True)
 
-			# Refresh the OpenEXRFormat setting using real channel name data in a 2nd stage
-			for channel_name in channels:
-				channel = re.search(r"\.([^.]+)$", channel_name).group(1).lower() # r, g, b, etc...
-				
-				# Dictionary to map channel types to attribute names
-				channel_attributes = {
-					'r': 'RedName', 'red': 'RedName',
-					'g': 'GreenName', 'green': 'GreenName',
-					'b': 'BlueName', 'blue': 'BlueName',
-					'a': 'AlphaName', 'alpha': 'AlphaName',
-					'x': 'RedName',
-					'y': 'GreenName',
-					'z': 'BlueName',
-				}
-				
-				# Handle channels using the mapping
-				if channel in channel_attributes:
-					setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[channel], channel_name)
+				# Replace invalid EXR channel names with placeholders
+				ldr.SetAttrs({'TOOLB_NameSet': True, 'TOOLS_Name': tool.Name.rsplit('_', 1)[0] + "_" + prefix})# rsplit splits from the right using in this case the first ocurrence.
+				for name, placeholder in invalid_names.items():
+					setattr(ldr.Clip1.OpenEXRFormat, name, placeholder)
 
-				# Handle C4D style channels
-				else:
-					my_table_of_phrases = re.split(r'\.', channel_name)
-					last_item = my_table_of_phrases[-1]
+				# Refresh the OpenEXRFormat setting using real channel name data in a 2nd stage
+				for channel_name in channels:
+					channel = re.search(r"\.([^.]+)$", channel_name).group(1).lower() # r, g, b, etc...
+					
+					# Dictionary to map channel types to attribute names
+					channel_attributes = {
+						'r': 'RedName', 'red': 'RedName',
+						'g': 'GreenName', 'green': 'GreenName',
+						'b': 'BlueName', 'blue': 'BlueName',
+						'a': 'AlphaName', 'alpha': 'AlphaName',
+						'x': 'RedName',
+						'y': 'GreenName',
+						'z': 'BlueName',
+					}
+					
+					# Handle channels using the mapping
+					if channel in channel_attributes:
+						setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[channel], channel_name)
+						logger.debug(f"Mapped {prefix} -- {channel_name}  to  {channel_attributes[channel]}")
 
-					if last_item in channel_attributes:
-						setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[last_item], channel_name)
-				
-				# Get an identifier for the layernm
-				ldr.SetData("prismmultchanlayer", prefix)
+					# Handle C4D style channels
+					else:
+						my_table_of_phrases = re.split(r'\.', channel_name)
+						last_item = my_table_of_phrases[-1]
 
-			loaders_list.append(ldr)
+						if last_item in channel_attributes:
+							setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[last_item], channel_name)
+					
+					# Get an identifier for the layernm
+					ldr.SetData("prismmultchanlayer", prefix)
+
+				loaders_list.append(ldr)
+			except:
+				logger.warning("ERROR: Failed to process multichannel EXR - failed to assign channels")
+				return
 
 		self.move_loaders(x_pos, y_pos, loaders_list)
+
 		# create IN and OUT nodes.
 		for node in loaders_list:
 			if createwireless:
@@ -3035,6 +3249,8 @@ path = r\"%s\"
 		
 		comp.Unlock()
 		comp.EndUndo()
+
+		logger.debug(f"Processed multichannel EXR: {tool.Name}")
 		
 		return loaders_list
 
