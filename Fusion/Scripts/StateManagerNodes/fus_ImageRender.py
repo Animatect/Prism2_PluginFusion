@@ -670,6 +670,24 @@ class ImageRenderClass(object):
 			if not isLegal:
 				self.core.popup(errorStr)
 				return
+			
+			#	Gets user entered name
+			enteredName = self.nameWin.e_item.text()
+			#	Gets Fusion Legal name
+			fusLegalName = self.fusionFuncs.getFusLegalName(enteredName)
+
+			#	Compares the names
+			if enteredName != fusLegalName:
+				nameChangeString = ("The Fusion Saver name will be changed from:\n\n"
+									f"       {enteredName}  to  {fusLegalName}     \n\n\n"
+									"Accept the change?")
+
+				#	Shows popup of the name change
+				result = self.core.popupQuestion(nameChangeString, title="Name Changed")
+
+				#	If it is not accepted it will not change the name
+				if result != "Yes":
+					return
 
 			self.setTaskname(self.nameWin.e_item.text())
 			self.nameChanged(self.e_name.text())
