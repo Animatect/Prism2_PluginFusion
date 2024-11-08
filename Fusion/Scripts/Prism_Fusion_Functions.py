@@ -2228,6 +2228,16 @@ path = r\"%s\"
 		#
 
 		comp = self.getCurrentComp()
+		
+		# Check if file is Linked
+		contexts = mediaBrowser.getCurRenders()
+		data = contexts[0]
+		path = data["path"]
+		isfile = os.path.isfile(os.path.join(path, "REDIRECT.txt"))
+		if isfile:
+			self.core.popup("Linked media is not supported at the momment.\nTry dragging the file directly from the project browser.")
+			return
+		# Setup Dialog
 		fString = "Please select an import option:"
 
 		try:
@@ -2241,7 +2251,14 @@ path = r\"%s\"
 		currentAOV = mediaBrowser.origin.getCurrentAOV()
 		dataSources = None
 		if currentAOV:
-			dataSources = mediaBrowser.compGetImportPasses()		
+			dataSources = mediaBrowser.compGetImportPasses()
+		
+		# Check if media padding corresponds to the project:
+		source = data["source"]
+		if "#" in source:
+			if not self.check_numpadding_matching(source):
+				self.core.popup("The padding of the file you are trying to import\ndoes not seem to match the project padding\ncheck the project preferences.")
+				return
 
 		if currentAOV and len(dataSources) > 1:
 			buttons = ["Current AOV", "All AOVs", "Update Selected", "Cancel"]
@@ -2261,7 +2278,23 @@ path = r\"%s\"
 		else:
 			return
 
+	@err_catcher(name=__name__)
+	def check_numpadding_matching(self, filename):
+		projectframepadding = self.core.framePadding
+		# Regular expression to match the `.` followed by hashes `#` and ending in another `.` before extension
+		pattern = r"\.(#+)\."
 
+		# Search for the pattern in the filename
+		match = re.search(pattern, filename)
+		
+		if match:
+			# Count the number of `#` characters in the matched group
+			padding_length = len(match.group(1))
+			return padding_length==projectframepadding
+		else:
+			return False
+		
+		
 	@err_catcher(name=__name__)
 	def fusionImportSource(self, mediaBrowser, sortnodes=True):
 		comp = self.getCurrentComp()
@@ -2403,7 +2436,6 @@ path = r\"%s\"
 					lastloaderlyr = lyrnm
 		comp.Unlock()
 
-
 	@err_catcher(name=__name__)
 	def fusionUpdateSelectedPasses(self, mediaBrowser, sortnodes=True):
 		comp = self.getCurrentComp()
@@ -2411,14 +2443,17 @@ path = r\"%s\"
 	
 		# from selection grab only loaders
 		loaders = comp.GetToolList(True, "Loader").values()
+		origloaders = loaders
 		
 		if not loaders:
 			return
-
+		
 		# deselect all nodes
-		flow.Select()
-
+		# flow.Select()
 		dataSources = mediaBrowser.compGetImportPasses()
+		if len(dataSources) == 0:
+			dataSources = mediaBrowser.compGetImportSource()
+
 		updatehandle = []
 		for sourceData in dataSources:
 			imageData = self.getPassData(sourceData)
@@ -2429,8 +2464,34 @@ path = r\"%s\"
 				version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
 				nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
 				updatehandle.append(nodemessage)
-		
+
+				# if multilayerEXR
+				if updatedloader.GetData("prismmultchanlayer"):
+					loader_channels = self.get_loader_channels(updatedloader)
+					layernames = list(set(self.get_channel_data(loader_channels)))
+					flow.Select(updatedloader, False)
+					loaders = comp.GetToolList(True, "Loader").values()
+					for ly in layernames:
+						# we try the same data for each channel just to make sure, since the Clip is the same we just have to iterate and remove whatever is found.
+						updatedloader, prevVersion =  self.updateLoaders(loaders, imageData['filePath'], imageData['firstFrame'], imageData['lastFrame'], imageData['isSequence'], exrlayers=layernames)
+						if updatedloader:
+							# Deselect updated one and try again.
+							flow.Select(updatedloader,False)
+							loaders = comp.GetToolList(True, "Loader").values()
+							# Set up update feedback Dialog message
+							version1 = prevVersion
+							version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
+							nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
+							updatehandle.append(nodemessage)
+						else:
+							# if we didnt find another one then there is no point in keep looking
+							break
+					
+					self.getUpdatedNodesFeedback(updatehandle)
+					return
+	
 		self.getUpdatedNodesFeedback(updatehandle)
+		return
 
 
 	@err_catcher(name=__name__)
@@ -2531,13 +2592,16 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def format_file_path_with_validation(self, path, frame, framepadding, padding_string, firstFrame):
 		"""Format the file path by validating its existence."""
-		formatted_first_frame = f"{firstFrame:0{framepadding}}."
-		modified_file_path = path.replace(padding_string, formatted_first_frame)
+		if firstFrame:
+			formatted_first_frame = f"{firstFrame:0{framepadding}}."
+			modified_file_path = path.replace(padding_string, formatted_first_frame)
 
-		if os.path.exists(modified_file_path):
-			return path.replace(padding_string, f"{frame:0{framepadding}}.")
+			if os.path.exists(modified_file_path):
+				return path.replace(padding_string, f"{frame:0{framepadding}}.")
+			else:
+				return path.replace("." + padding_string, ".")
 		else:
-			return path.replace("." + padding_string, ".")
+			return path
 
 
 	# Helper function to extract AOV and layer names
@@ -2545,28 +2609,28 @@ path = r\"%s\"
 	def extract_aov_layer_names(self, filePath):										#	EDITED
 		"""Extract the AOV and layer names from the file path."""
 		parts = os.path.dirname(filePath).split("/")
-
-		#	Get Fusion name for AOV
-		aovNm = self.getFusLegalName(parts[-1])
-
-		#	Checks for case with no AOV, ie layer is "2dRenders" directory
-		lyerNm = parts[-3]
-		if lyerNm == "2dRender":
-			lyerNm = parts[-2]
-
-		#	Get Fusion name for Layer
-		lyerNm = self.getFusLegalName(lyerNm)
-
-		return aovNm, lyerNm
+		aovnm = parts[-1]
+		wronglayerNms = ["2dRender","3dRender"]
+		layerNm = parts[-3]
+		if layerNm in wronglayerNms:
+			layerNm = parts[-2]
+		
+		return aovnm, layerNm
 
 
 
 	@err_catcher(name=__name__)
-	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False):
+	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False, exrlayers=[]):
 		for loader in Loaderstocheck:
 			loaderClipPath = loader.Clip[0]
 			if filePath == loaderClipPath:
 				return loader, ".#nochange#."
+			
+			if len(exrlayers) > 0:
+				layer = loader.GetData("prismmultchanlayer")
+				if layer: 
+					if layer not in exrlayers:
+						return loader, ".#nochange#."
 			
 			if self.are_paths_equal_except_version(loaderClipPath, filePath, isSequence):
 				version1 = self.extract_version(loaderClipPath)
@@ -2587,7 +2651,7 @@ path = r\"%s\"
 
 		filePath = imageData['filePath']
 		firstFrame = imageData['firstFrame']
-		lastFrame = imageData['lastFrame']		
+		lastFrame = imageData['lastFrame']
 		aovNm = imageData['aovNm']
 		layerNm = imageData['layerNm']
 		isSequence = imageData['isSequence']
@@ -2767,8 +2831,8 @@ path = r\"%s\"
 		# Remove the version part from the paths for exact match comparison
 		padding = self.core.versionPadding
 		version_pattern = rf"v\d{{{padding}}}"
-		path1_without_version = re.sub(version_pattern, "", path1)
-		path2_without_version = re.sub(version_pattern, "", path2)
+		path1_without_version = re.sub(version_pattern, "", os.path.splitext(path1)[0])
+		path2_without_version = re.sub(version_pattern, "", os.path.splitext(path2)[0])
 		if isSequence:
 			# Use regex to remove numbers before any file extension (can vary in length)
 			path1_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path1_without_version)
@@ -2916,6 +2980,7 @@ path = r\"%s\"
 		}
 
 		# Update the loader node channel settings and create loaders
+		# prefix is the name of the layer.
 		for prefix, channels in channel_data.items():
 			ldr = comp.Loader({'Clip': self.GetLoaderClip(tool)})
 			# Add Prism node identifier
@@ -2928,8 +2993,8 @@ path = r\"%s\"
 
 			# Refresh the OpenEXRFormat setting using real channel name data in a 2nd stage
 			for channel_name in channels:
-				channel = re.search(r"\.([^.]+)$", channel_name).group(1).lower()
-
+				channel = re.search(r"\.([^.]+)$", channel_name).group(1).lower() # r, g, b, etc...
+				
 				# Dictionary to map channel types to attribute names
 				channel_attributes = {
 					'r': 'RedName', 'red': 'RedName',
@@ -2940,7 +3005,7 @@ path = r\"%s\"
 					'y': 'GreenName',
 					'z': 'BlueName',
 				}
-
+				
 				# Handle channels using the mapping
 				if channel in channel_attributes:
 					setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[channel], channel_name)
@@ -2952,6 +3017,9 @@ path = r\"%s\"
 
 					if last_item in channel_attributes:
 						setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[last_item], channel_name)
+				
+				# Get an identifier for the layernm
+				ldr.SetData("prismmultchanlayer", prefix)
 
 			loaders_list.append(ldr)
 
@@ -3733,7 +3801,6 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def sm_readStates(self, origin):
 		comp = self.getCurrentComp()
-		print(comp)
 		if self.sm_checkCorrectComp(comp):
 			try:
 				prismdata = comp.GetData("prismstates")
@@ -3771,12 +3838,13 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def onUserSettingsOpen(self, origin):
-		pass
+		origin.setWindowIcon(QIcon(self.prismAppIcon))
 
 
 	@err_catcher(name=__name__)
 	def onProjectBrowserStartup(self, origin):
 		self.pbUI = origin
+		origin.setWindowIcon(QIcon(self.prismAppIcon))
 	
 
 	@err_catcher(name=__name__)
@@ -3819,6 +3887,7 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def onStateManagerOpen(self, origin):
+		origin.setWindowIcon(QIcon(self.prismAppIcon))
 		#Remove Export and Playblast buttons and states
 		origin.b_createExport.deleteLater()
 		origin.b_createPlayblast.deleteLater()
@@ -4202,10 +4271,14 @@ path = r\"%s\"
 		sourceFolder = os.path.dirname(
 			os.path.dirname(mediabrowser.seq[0])
 		).replace("\\", "/")
+		# check if the mediaType is 2d #added
+		if "\\2dRender\\" in mediabrowser.seq[0]:
+			sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/")
 		passes = [
 			x
 			for x in os.listdir(sourceFolder)
 			if x[-5:] not in ["(mp4)", "(jpg)", "(png)"]
+			and not x.startswith("_")  # Exclude folders starting with "_" like _thumbs #added
 			and os.path.isdir(os.path.join(sourceFolder, x))
 		]
 		sourceData = []
