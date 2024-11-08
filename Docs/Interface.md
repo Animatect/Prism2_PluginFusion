@@ -2,33 +2,51 @@
 
 <br/>
 
-Prism functions are accessed through the Prism menu in the top bar of Fusion Studio's UI.  The menu will look familar to Prism users and contain the normal Prism functions.
-
-
-![Prism Menu](DocsImages/Prism_Menu.png)
-
-<br/>
-
-When Fusion is opened, and popup will display to allow the user to launch the Prism integration.
+When Fusion is opened, a popup will display to allow the user to launch the Prism integration.
 
 ![Startup Popup](DocsImages/Startup_Popup.png)
 
-The Prism functions are running in a dedicated process, so please note that only one Prism Fusion window can be open at a time.  For example if a user has the State Manager open through Fusion, it must be closed before the Project Browser ma be opened.
+<br/>
 
-The "RESET PRISM" button will restart/reload the Prism Functions inside of Fusion, and can be used if there are any glitches with Prism while Fusion is open.
-
-This integration into Fusion Studio uses Prism's State Manager and Project Browser for image rendering and importing.
+### **Prism Menu:**
 
 <br/>
 
+![Prism Menu](DocsImages/Prism_Menu.png)
 
-TODO:
+Prism functions are accessed through the Prism menu in the top bar of Fusion Studio's UI.  The menu will look familiar to Prism users and contain the normal Prism functions.
 
-Autosave icon
+The Prism functions are running in a dedicated process, so note that only one Prism Fusion window can be open at a time.  For example, if a user has the State Manager open through Fusion, it must be closed before the Project Browser may be opened.
+
+### **Menu Options:**
+
+- **Save Version:** Captures a thumbnail from the Comp and saves it to a new incremented version in Prism's project structure.
+
+- **Save Comment:**  Opens a dialogue to allow the user to enter a comment and/or description of the new version.  It also allows the user to select a screenshot to be used for the thumbnail.  It then saves to a new version as above.
+
+- **Project Browser:**  Launches the Prism Project Browser.  This allows the user to import images into Fusion from the Prism project (see [**Importing Docs**](Importing.md)).
+
+- **State Manager:**  Launches the Prism State Manager.  This allows the user to render images into the Prism project structure (see [**Rendering Docs**](Rendering.md)).
+
+- **Settings:**  Launches the Prism Settings window.
+
+- **RESET PRISM:**  will restart/reload the Prism Functions inside of Fusion, and can be used if there are any glitches with Prism while Fusion is open.  This can also be used to start Prism if the startup dialogue was not used when Fusion was opened.
+
+<br/>
+
+### **Fusion AutoSave:**
+
+![AutoSave Icon](DocsImages/AutoSave_Icon.png)
+
+Fusion has a native auto-save function that will periodically save the Comp to a temp file in the same directory as the original Comp.  This file with have an extension of ".autocomp", and is displayed in Prism's Project Browser with a custom icon.
+
+
+<br/>
+
 
 
 jump to:
 
-[**Rendering**](Rendering.md)
+[**Rendering Docs**](Rendering.md)
 
-[**Importing**](Importing.md)
+[**Importing Docs**](Importing.md)

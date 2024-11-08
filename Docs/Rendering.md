@@ -21,7 +21,7 @@ Each ImageRender state is linked to its respective Saver tool in the Comp, and t
 ### **Status Color:**
 When an ImageRender is initially added to the State Manager, the button is red which indicates that the Saver does not exist in the Comp.  Clicking the red "SetRenderNode" button will add the linked Saver and configure its filepath using Prism's project structure. The button will then turn Green indicating that the Saver is correctly configured and linked to the ImageRender state.
 
-If the state's name does not match the Saver's name (and thus the correct filepath), the button will display Orange. For example after changing the Identifier name, this will then not match the linked Saver and it will turn Orange.  Clicking the button will then reconfigure the Saver with the new name and the button will display Green.
+If the state's name does not match the Saver's name (and thus the correct filepath), the button will display Orange. For example, after changing the Identifier name, this will then not match the linked Saver and it will turn Orange.  Clicking the button will then reconfigure the Saver with the new name and the button will display Green.
 
 RED:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Saver does not exist<br/>
 ORANGE:&nbsp;&nbsp;&nbsp;Saver name does not match the State Identifier<br/>
@@ -69,7 +69,7 @@ If a user would like to render multiple Savers at once, see the RenderGroup belo
 ## **RenderGroup**
 Compositing software workflows differs from other types of DCC software by using image outputs various places throughout the image generation flow, with many workflows requiring rendering multiple output images simultaneously.
 
-The Prism Fusion integration has a state called "RenderGroup" which allows multiple states (and thus multiple Savers) to be rendered at once.  The RenderGroup can save render time and resources, and allow a user to group various Savers into one state.  The RenderGroup can be rendered on the local machine or sent to a render farm.
+The Prism Fusion integration has a state called "RenderGroup" which allows multiple states (and thus multiple Savers) to be rendered at once.  The RenderGroup can save render time and resources, and allow a user to group various Savers into one state.  The RenderGroup can be rendered on the local machine or sent to a render farm (see "Deadline Farm Render" below).
 
 The name of the RenderGroup is just for organization and will not affect the naming or filepath of the Render States.
 
@@ -114,6 +114,6 @@ Anybody who has used Fusion Studio with Deadline will probably have experienced 
 
 jump to:
 
-[**Interface**](Interface.md)
+[**Interface Docs**](Interface.md)
 
-[**Importing**](Importing.md)
+[**Importing Docs**](Importing.md)

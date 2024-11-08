@@ -15,10 +15,11 @@ https://prism-pipeline.com/
 
 - Loader and Saver version management.
 - Rendering through Prism's State Manager.
+- Image loading into Fusion through Prism's Project Browser.
 - Farm Render submission through Deadline.
-- This intergration has been tested with Fusion Studio versions 18 and 19.
-- This integration does not work with Resolve Fusion, thought it is planned for the future.
-- Sometimes the Startup Popup appears twice.  Sarting twice has no adverse affects.
+- Tested with Fusion Studio versions 18 and 19.
+- This integration does not work with Resolve Fusion, though it is planned for the future.
+- Sometimes the Startup Popup appears twice.  Sarting twice has no adverse effects.
 - As of Prism version 2.0.12, the automatic Media Conversion is not able to function.  This should be working with the next Prism update.
 - To aid is use, tooltips are provided throughout.
 
@@ -30,11 +31,9 @@ This plugin is for Windows only, as Prism2 only supports Windows at this time.
 
 <br/>
 
-**TODO: Add link to release**
+- You can either download the latest stable release version from: [Latest Release](https://github.com/Animatect/Prism2_PluginFusion/releases/latest)
 
-You can either download the latest stable release version from: [Latest Release](https://github.com/Animatect/Prism2_PluginFusion/releases/latest)
-
-Or download the current code zipfile from the green "Code" button above or on [Github](https://github.com/Animatect/Prism2_PluginFusion)
+- Or download the current code zipfile from the green "Code" button above or on [Github](https://github.com/Animatect/Prism2_PluginFusion)
 
 <br/>
 
@@ -44,11 +43,11 @@ Or download the current code zipfile from the green "Code" button above or on [G
 
 ## **Usage**
 
-[**Interface**](Docs/Interface.md)
+[**Interface Docs**](Docs/Interface.md)
 
-[**Rendering**](Docs/Rendering.md)
+[**Rendering Docs**](Docs/Rendering.md)
 
-[**Importing**](Docs/Importing.md)
+[**Importing Docs**](Docs/Importing.md)
 
 
 <br/>
@@ -56,4 +55,4 @@ Or download the current code zipfile from the green "Code" button above or on [G
 
 ## **Issues / Suggestions**
 
-For any bug reports or suggestions, please add to the GitHub repo Issues or Projects tabs.
+For any bug reports or suggestions, please add to the GitHub repo "Issues" or "Projects" tabs.

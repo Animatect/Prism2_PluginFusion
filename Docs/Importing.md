@@ -8,11 +8,9 @@ To import into Fusion first launch the Project Browser from the Prism menu in Fu
 Depending on the type of image file (video file, image sequence, still image) various options will be displayed allowing the user to import as desired (see sections below).
 
 ### **Positioning:**
-By default, the image import will try and position all Loaders to the left side of the Comp and stack them vertically to stay uncluttered (see "Import Without Wireless/Sorting" below to disable).
+By default, the image import will try and position all Loaders to the left side of the Comp and stack them vertically to keep the flow node-graph uncluttered (see "Import Without Wireless/Sorting" below to disable).
 
 ![Flow-AutoPosition](DocsImages/Flow-AutoPosition.png)
-
-
 
 
 ### **Import Without Wireless/Sorting:**
@@ -20,10 +18,11 @@ By default, the image import will try and position all Loaders to the left side 
 
 By default, this checkbox is unchecked and will provide additional automation to the import.  The automation will consist of positioning the Loader in a stack to the left side of the Flow in the Comp, and adds a set of Wireless nodes (In and Out) to the Loader.
 
-By checking this checkbox the auto positioning/stacking will be disabled, and place the Loader into the Flow the native "Fusion" way.  This means if a node is selected, it will add the Loader and connect it to the selected node.  If no node is selected, the Loader will be added to the last clicked position in the Flow.
+By checking this option the auto positioning/stacking will be disabled, and place the Loader into the Flow the native "Fusion" way.  This means if a node is selected, it will add the Loader and connect it to the selected node.  If no node is selected, the Loader will be added to the last clicked position in the Flow.
 
-Also if the checkbox is checked, the auto Wireless nodes will not be added and the Loader will be added alone as a single node.
+In addition to the positioning being disabled, the auto Wireless nodes will not be added and the Loader will be added alone as a single node.
 
+<br/>
 
 ### **Import Options:**
 ![Import-Single](DocsImages/Import-Single.png)
@@ -43,12 +42,11 @@ Depending on the type of image file and file structure, the user will be prompte
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;![Import-UpdateSelected](DocsImages/Import-UpdateSelected.png)
 
-
 <br/>
 
 
 jump to:
 
-[**Interface**](Interface.md)
+[**Interface Docs**](Interface.md)
 
-[**Rendering**](Rendering.md)
+[**Rendering Docs**](Rendering.md)
