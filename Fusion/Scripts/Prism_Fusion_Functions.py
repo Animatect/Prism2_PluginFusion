@@ -1368,7 +1368,7 @@ class Prism_Fusion_Functions(object):
 		if check:
 			logger.debug(f"Name is Fusion-legal: {newName}")
 			return True, ""
-		
+				
 		return newName
 
 
@@ -2063,7 +2063,7 @@ path = r\"%s\"
 		try:
 			shutil.rmtree(tempDir)
 		except:
-			self.core.popup(f"Unable to remove temp directory:  {tempDir}")                #    TESTING	TODO  Handle error
+			logger.warning(f"Unable to remove temp directory:  {tempDir}")
 
 		#	Remove any temp Scale nodes
 		self.deleteTempScaleTools()
