@@ -114,10 +114,10 @@ class Prism_Fusion_Integration(object):
 		if self.core.ps:
 			userSettingDialog = self.core.ps.findChild(QWidget, "dlg_UserSettings")
 			if userSettingDialog:
-				if hasattr(userSettingDialog, 'gb_bldInstallDevTools'):
-					gb_bldInstallDevTools = getattr(userSettingDialog, 'gb_bldInstallDevTools')
+				if hasattr(userSettingDialog, 'chk_installDevTools'):
+					chk_installDevTools = getattr(userSettingDialog, 'chk_installDevTools')
 					# self.core.popup(str(gb_bldInstallDevTools.isChecked()))
-					if gb_bldInstallDevTools.isChecked():
+					if chk_installDevTools.isChecked():
 						scripts.extend(self.devscripts)
 						configs.extend(self.devconfigs)
 		try:
@@ -161,7 +161,7 @@ class Prism_Fusion_Integration(object):
 					init.write(initStr)
 			
 			# .scriptlib Files
-			for i in ["PrismInit.scriptlib"]:
+			for i in ["PrismInit.scriptlib", "PrismAutostart.config"]:
 				origFile = os.path.join(integrationBase, i)
 				targetFile = os.path.join(installPath, "Scripts", i)
 
@@ -274,6 +274,7 @@ class Prism_Fusion_Integration(object):
 				)
 			
 			pFiles.append(os.path.join(installPath, "Scripts", "PrismInit.scriptlib"))
+			pFiles.append(os.path.join(installPath, "Scripts", "PrismAutostart.config"))
 
 			for file in self.scripts:
 				pFiles.append(
