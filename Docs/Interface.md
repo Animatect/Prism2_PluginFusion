@@ -2,13 +2,38 @@
 
 <br/>
 
-When Fusion is opened, a popup will display to allow the user to launch the Prism integration.
-
-![Startup Popup](DocsImages/Startup_Popup.png)
+## **Prism Startup Mode:**
 
 <br/>
 
-### **Prism Menu:**
+There are three modes for Prism launching in Fusion: "Automatic", "Prompt", and "Manual".  The desired behaviour can be selected in the "DCC apps" tab of the Prism User Settings.
+
+![Startup Modes](DocsImages/StartupMode.png)
+
+### **Automatic**
+
+When in Automatic mode, Prism will be launched everytime Fusion is started.
+
+<br/>
+
+### **Prompt**
+
+When in Prompt mode, a popup will display to allow the user to launch the Prism when Fusion is started.
+
+![Startup Popup](DocsImages/Startup_Popup.png)
+
+### **Manual**
+
+When in Manual mode, Prism will not start when Fusion is opened.  But Prism can be started anytime by using the "RESET PRISM" button in the Prism menu.
+
+![Startup Popup](DocsImages/Prism_Menu.png)
+
+
+
+
+<br/>
+
+## **Prism Menu:**
 
 <br/>
 
@@ -34,7 +59,7 @@ The Prism functions are running in a dedicated process, so note that only one Pr
 
 <br/>
 
-### **Fusion AutoSave:**
+## **Fusion AutoSave:**
 
 ![AutoSave Icon](DocsImages/AutoSave_Icon.png)
 
