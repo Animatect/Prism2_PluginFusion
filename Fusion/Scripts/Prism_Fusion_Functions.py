@@ -2178,6 +2178,8 @@ path = r\"%s\"
 				flow.Select(comp.FindTool(handle.split(":")[0]), True)
 			# Display List of updated nodes.
 			self.createInformationDialog("Updated Nodes", message)
+		else:
+			self.core.popup("No nodes were updated.", severity="info")
 
 
 	@err_catcher(name=__name__)
@@ -2258,9 +2260,7 @@ path = r\"%s\"
 		
 		dataSources = mediaBrowser.compGetImportPasses()
 		if len(dataSources) == 0:
-			print("1")
 			dataSources = mediaBrowser.compGetImportSource()
-		print("datasources: ",dataSources)
 
 		updatehandle = []
 		for sourceData in dataSources:
@@ -2270,7 +2270,6 @@ path = r\"%s\"
 				# Set up update feedback Dialog message
 				version1 = prevVersion
 				version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
-				print("v1: ", version1, " ,v2: ", version2)
 				nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
 				updatehandle.append(nodemessage)
 
@@ -2432,27 +2431,21 @@ path = r\"%s\"
 	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False, exrlayers=[]):
 		for loader in Loaderstocheck:
 			loaderClipPath = loader.Clip[0]
-			print("filePath: ", filePath, "loaderClipPath: ", loaderClipPath)
 			if filePath == loaderClipPath:
-				print("updt_lds_1")
 				return loader, ".#nochange#."
 			
 			if len(exrlayers) > 0:
 				layer = loader.GetData("prismmultchanlayer")
 				if layer: 
 					if layer not in exrlayers:
-						print("updt_lds_2")
 						return loader, ".#nochange#."
 			
 			if self.are_paths_equal_except_version(loaderClipPath, filePath, isSequence):
 				version1 = self.extract_version(loaderClipPath)
 				version2 = self.extract_version(filePath)
-				print("upd_ld_lv1: ", version1, " ,upd_ld_v2: ", version2)
 				self.reloadLoader(loader, filePath, firstFrame, lastFrame)
 				if not version1 == version2:
-					print("updt_lds_3")
 					return loader, version1
-		print("updt_lds_4")
 		return None, ""
 	
 
@@ -3625,7 +3618,6 @@ path = r\"%s\"
 			print(str(os.path.normpath(path)))
 			print(str(os.path.normpath(loaderClipPath)), "\n")
 			if str(os.path.normpath(path)) in str(os.path.normpath(loaderClipPath)):
-				print("select me")
 				flow.Select(loader, True)
 		selection = len(comp.GetToolList(True))>0
 		if not selection:
