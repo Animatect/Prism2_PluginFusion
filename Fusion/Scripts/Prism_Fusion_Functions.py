@@ -2155,6 +2155,8 @@ path = r\"%s\"
 			imageData = self.getPassData(sourceData)
 			# Return the last processed node.
 			leftmostNode = self.processImageImport(imageData, splithandle=splithandle, updatehandle=updatehandle, refNode=leftmostNode, createwireless=sortnodes)
+			# temporary fix for not asking for exr splitting on AllAOVs, splithandle=None instead of splithandle=splithandle.
+			# leftmostNode = self.processImageImport(imageData, splithandle=None, updatehandle=updatehandle, refNode=leftmostNode, createwireless=sortnodes)
 		
 		self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
 
@@ -2164,7 +2166,7 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
-	def getUpdatedNodesFeedback(self, updatehandle):
+	def getUpdatedNodesFeedback(self, updatehandle, calledfromupdate=False):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 		if len(updatehandle) > 0:
@@ -2179,7 +2181,8 @@ path = r\"%s\"
 			# Display List of updated nodes.
 			self.createInformationDialog("Updated Nodes", message)
 		else:
-			self.core.popup("No nodes were updated.", severity="info")
+			if calledfromupdate:
+				self.core.popup("No nodes were updated.", severity="info")
 
 
 	@err_catcher(name=__name__)
@@ -2295,10 +2298,10 @@ path = r\"%s\"
 							# if we didnt find another one then there is no point in keep looking
 							break
 					
-					self.getUpdatedNodesFeedback(updatehandle)
+					self.getUpdatedNodesFeedback(updatehandle, calledfromupdate=True)
 					return
 	
-		self.getUpdatedNodesFeedback(updatehandle)
+		self.getUpdatedNodesFeedback(updatehandle, calledfromupdate=True)
 		return
 
 
