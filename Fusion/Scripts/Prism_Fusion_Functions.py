@@ -3489,7 +3489,7 @@ path = r\"%s\"
 
 		comp.Lock()
 		
-		#	ADD UlODER NODE
+		#	Add uLoader node
 		usdTool = comp.AddTool("uLoader")
 
 		#	Set import file path
@@ -4231,11 +4231,41 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def onStateManagerOpen(self, origin):
 		origin.setWindowIcon(QIcon(self.prismAppIcon))
-		#Remove Export and Playblast buttons and states
+		#	Remove Import buttons
+		# origin.b_createImport.deleteLater()
+		origin.b_shotCam.deleteLater()
+
+		#	Remove Export and Playblast buttons
 		origin.b_createExport.deleteLater()
 		origin.b_createPlayblast.deleteLater()
 
-		# Create a new button
+
+
+		#	Create Import Image buton
+		origin.b_importImage = QPushButton(origin.w_CreateImports)
+		origin.b_importImage.setObjectName("b_importImage")
+		origin.b_importImage.setText("Import Image")
+		#	Add to the beginning of the layout
+		origin.horizontalLayout_3.insertWidget(0, origin.b_importImage)
+		#	Add connection to button
+		origin.b_importImage.clicked.connect(lambda: self.addImportImageState(origin))
+
+		#	Create Import 3d buton
+		# origin.b_import3d = QPushButton(origin.w_CreateImports)
+		# origin.b_import3d.setObjectName("b_import3d")
+		# origin.b_import3d.setText("Import 3d")
+		# #	Add to the 2nd position of the layout
+		# origin.horizontalLayout_3.insertWidget(1, origin.b_import3d)
+		# #	Add connection to button
+		# origin.b_import3d.clicked.connect(lambda: self.addImport3dState(origin))
+
+
+		# #	Change text of Import Button
+		# origin.b_createImport.setText("Import 3d")
+		# #	Remove native Prism connection from button
+		# origin.b_createImport.clicked.disconnect()
+
+		# Create a new button for RenderGroup
 		origin.b_renderGroup = QPushButton(origin.w_CreateExports)
 		origin.b_renderGroup.setObjectName("b_renderGroup")
 		origin.b_renderGroup.setText("RenderGroup")
@@ -4253,8 +4283,8 @@ path = r\"%s\"
 
 		# origin.createState(appStates["stateType"], parent=parent, setActive=True, **appStates.get("kwargs", {}))
 
+		#	Delete unused States
 		sm = self.core.getStateManager()
-
 		removestates = ['Code', 'Export', 'Playblast']
 		for state in removestates:
 			if state in sm.stateTypes.keys():
@@ -4362,11 +4392,37 @@ path = r\"%s\"
 			
 
 	@err_catcher(name=__name__)
+	def addImportImageState(self, origin):
+		# origin.createState("RenderGroup")
+
+		#	TODO  MAKE OPEN PROJECTBROWSER
+
+		self.core.popup("Importing Images through the State Manager is not yet supported.\n\n"
+				  		"Please import through the Project Browser Media tab")                        #    TODO Implement Image Import
+		
+
+
+	@err_catcher(name=__name__)
+	def addImport3dState(self, origin):
+
+		origin.createState("ImportFile", parent=self, setActive=True)					#	TODO - TEMP - This is the default action
+		
+		# states = origin.stateTypes
+
+		# self.core.popup(f"import3dStates:  {states}")                                      #    TESTING
+
+		# for state in states:
+		# 	import3dStates += getattr(origin.stateTypes[state], "stateCategories", {}).get(stateType, [])
+
+
+	@err_catcher(name=__name__)
 	def addRenderGroup(self, origin):
 		origin.createState("RenderGroup")
 
 
+
 			
+
 
 	##########################################
 	#                                        #
