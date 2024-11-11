@@ -1546,7 +1546,7 @@ path = r\"%s\"
 					return False
 				
 		return True
-
+	
 
 	#	Makes dict for later use in updating Master ver
 	@err_catcher(name=__name__)
@@ -1962,16 +1962,21 @@ path = r\"%s\"
 		#	Execute master version if applicable
 		masterResult = self.executeGroupMaster()
 
-		#	Return error string back to Core
+		#	Returns result string back to Core for UI
+		#	Cannot figure out why there is a 'False' in the return string, but it is needed.
 		if renderResult and versionResult and masterResult:
+			logger.debug("Success: rendered Local GroupRender.")
 			return "Result=Success"
 		else:
 			if not renderResult:
-				return "Error (Local Group Render failed)"
+				logger.warning("Error (Local Group Render failed)")
+				return "Error (Local Group Render failed)", False
 			if not versionResult:
-				return "Error (Failed to create versionInfo)"
+				logger.warning("Error (Failed to create versionInfo)")
+				return "Error (Failed to create versionInfo)", False
 			if not masterResult:
-				return "Error (Failed to update Master)"
+				logger.warning("Error (Failed to update Master)")
+				return "Error (Failed to update Master)", False
 
 
 	#	Generates a temp file and dir for farm submission
@@ -2098,16 +2103,34 @@ path = r\"%s\"
 		if submitResult and executeMaster:
 			masterResult = self.submitFarmGroupMaster(origin, farmPlugin, submitResult, farmDetails)
 
-		#	Return error string back to Core
-		if submitResult and versionResult and masterResult:
-			return "Result=Success"
+		#	Returns result string back to Core for UI
+		#	Cannot figure out why there is a 'False' in the return string, but it is needed.
+		if executeMaster:
+			if submitResult and versionResult and masterResult:
+				logger.debug("Farm submission sucessful")
+				return "Result=Success"
+			else:
+				if not submitResult:
+					logger.warning("Error (Failed to submitGroup Render to Farm)")
+					return "error (Failed to submitGroup Render to Farm)", False
+				if not versionResult:
+					logger.warning("Error (Failed to create versionInfo Farm job)")
+					return "error (Failed to create versionInfo Farm job)", False
+				if not masterResult:
+					logger.warning("Error (Failed to update Master Farm job)")
+					return "error (Failed to update Master Farm job)", False
 		else:
-			if not submitResult:
-				return "Error (Failed to submitGroup Render to Farm)"
-			if not versionResult:
-				return "Error (Failed to create versionInfo Farm job)"
-			if not masterResult:
-				return "Error (Failed to update Master Farm job)"
+			if submitResult and versionResult:
+				logger.debug("Farm submission sucessful")
+				return "Result=Success"
+			else:
+				if not submitResult:
+					logger.warning("Error (Failed to submitGroup Render to Farm)")
+					return "error (Failed to submitGroup Render to Farm)", False
+				if not versionResult:
+					logger.warning("Error (Failed to create versionInfo Farm job)")
+					return "error (Failed to create versionInfo Farm job)", False
+
 
 
 	#	NOT USED HERE
