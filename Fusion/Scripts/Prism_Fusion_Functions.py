@@ -118,6 +118,9 @@ class Prism_Fusion_Functions(object):
 		self.core.registerCallback(
 			"getIconPathForFileType", self.getIconPathForFileType, plugin=self
 		)
+		self.core.registerCallback(
+			"openPBListContextMenu", self.openPBListContextMenu, plugin=self
+		)
 		
 		self.importHandlers = {
 			".abc": {"importFunction": self.importAlembic},
@@ -2253,8 +2256,6 @@ path = r\"%s\"
 		if not loaders:
 			return
 		
-		# deselect all nodes
-		# flow.Select()
 		dataSources = mediaBrowser.compGetImportPasses()
 		if len(dataSources) == 0:
 			print("1")
@@ -3609,11 +3610,44 @@ path = r\"%s\"
 			return prismdata.split("_..._")[1]
 
 
+	@err_catcher(name=__name__)
+	def selecttasknodes(self, path):
+		print("TASK NODES WILL BE SELECTED WHEN CLIP HAS THE PATH ", path)
+		comp = self.getCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+		# deselect all nodes
+		flow.Select()
+
+		loaders = comp.GetToolList(False, "Loader").values()
+		for loader in loaders:
+			print(loader.Name)
+			loaderClipPath = loader.Clip[0]
+			print(str(os.path.normpath(path)))
+			print(str(os.path.normpath(loaderClipPath)), "\n")
+			if str(os.path.normpath(path)) in str(os.path.normpath(loaderClipPath)):
+				print("select me")
+				flow.Select(loader, True)
+		selection = len(comp.GetToolList(True))>0
+		if not selection:
+			self.core.popup("There are no loaders for this task.", severity="info")
+		
 	################################################
 	#                                              #
 	#        	       CALLBACKS                   #
 	#                                              #
 	################################################
+
+	@err_catcher(name=__name__)
+	def openPBListContextMenu(self, origin, rcmenu, lw, item, path):
+		# print("openPBListContextMenu")
+		# print("path: ", path)
+		entity = origin.getCurrentEntity()
+		if lw == origin.tw_identifier:
+			refresh = origin.updateTasks
+			if entity.get("type") in ["asset", "shot"]:
+				depAct = QAction("Select Task Nodes....", origin)
+				depAct.triggered.connect(lambda: self.selecttasknodes(path))
+				rcmenu.addAction(depAct)
 
 	@err_catcher(name=__name__)
 	def onUserSettingsOpen(self, origin):
