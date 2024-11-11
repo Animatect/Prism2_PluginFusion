@@ -2154,9 +2154,7 @@ path = r\"%s\"
 		for sourceData in dataSources:
 			imageData = self.getPassData(sourceData)
 			# Return the last processed node.
-			leftmostNode = self.processImageImport(imageData, splithandle=splithandle, updatehandle=updatehandle, refNode=leftmostNode, createwireless=sortnodes)
-			# temporary fix for not asking for exr splitting on AllAOVs, splithandle=None instead of splithandle=splithandle.
-			# leftmostNode = self.processImageImport(imageData, splithandle=None, updatehandle=updatehandle, refNode=leftmostNode, createwireless=sortnodes)
+			leftmostNode = self.processImageImport(imageData, splithandle=splithandle, updatehandle=updatehandle, refNode=leftmostNode, createwireless=sortnodes, processmultilayerexr=False)
 		
 		self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
 
@@ -2453,7 +2451,7 @@ path = r\"%s\"
 	
 
 	@err_catcher(name=__name__)
-	def processImageImport(self, imageData, splithandle=None, updatehandle:list=[], refNode=None, createwireless=True):
+	def processImageImport(self, imageData, splithandle=None, updatehandle:list=[], refNode=None, createwireless=True, processmultilayerexr=True):
 		# Do in this function the actual importing or update of the image.		
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
@@ -2473,7 +2471,7 @@ path = r\"%s\"
 		if updatedloader:
 			# Update Multilayer.
 			if extension == ".exr":
-				# check for multichannels to update all plitted nodes.
+				# check for multichannels to update all splitted nodes.
 				extraloader = updatedloader
 				checkedloaders:list = [updatedloader.Name]
 				if len(self.get_loader_channels(updatedloader)) > 0:
@@ -2510,7 +2508,7 @@ path = r\"%s\"
 		comp.Unlock()
 		
 		# IF IS EXR
-		if extension == ".exr":
+		if extension == ".exr" and processmultilayerexr:
 			# check for multichannels
 			channels = self.get_loader_channels(node)
 			if len(channels) > 0:
