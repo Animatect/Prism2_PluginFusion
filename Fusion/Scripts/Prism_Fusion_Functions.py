@@ -2257,7 +2257,9 @@ path = r\"%s\"
 		# flow.Select()
 		dataSources = mediaBrowser.compGetImportPasses()
 		if len(dataSources) == 0:
+			print("1")
 			dataSources = mediaBrowser.compGetImportSource()
+		print("datasources: ",dataSources)
 
 		updatehandle = []
 		for sourceData in dataSources:
@@ -2267,6 +2269,7 @@ path = r\"%s\"
 				# Set up update feedback Dialog message
 				version1 = prevVersion
 				version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
+				print("v1: ", version1, " ,v2: ", version2)
 				nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
 				updatehandle.append(nodemessage)
 
@@ -2428,23 +2431,27 @@ path = r\"%s\"
 	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False, exrlayers=[]):
 		for loader in Loaderstocheck:
 			loaderClipPath = loader.Clip[0]
+			print("filePath: ", filePath, "loaderClipPath: ", loaderClipPath)
 			if filePath == loaderClipPath:
+				print("updt_lds_1")
 				return loader, ".#nochange#."
 			
 			if len(exrlayers) > 0:
 				layer = loader.GetData("prismmultchanlayer")
 				if layer: 
 					if layer not in exrlayers:
+						print("updt_lds_2")
 						return loader, ".#nochange#."
 			
 			if self.are_paths_equal_except_version(loaderClipPath, filePath, isSequence):
 				version1 = self.extract_version(loaderClipPath)
 				version2 = self.extract_version(filePath)
-
+				print("upd_ld_lv1: ", version1, " ,upd_ld_v2: ", version2)
 				self.reloadLoader(loader, filePath, firstFrame, lastFrame)
 				if not version1 == version2:
+					print("updt_lds_3")
 					return loader, version1
-			
+		print("updt_lds_4")
 		return None, ""
 	
 
@@ -2611,11 +2618,17 @@ path = r\"%s\"
 	def extract_version(self, filepath):
 		# Extract the version information using a regular expression
 		padding = self.core.versionPadding
-		pattern = rf"v(\d{{{padding}}})"  # Using f-string for dynamic regex pattern
-		match = re.search(pattern, filepath)
+		version_pattern = rf"v(\d{{{padding}}})"  # Using f-string for dynamic regex pattern
+		master_pattern  = r"(?:\\|\/|_)master(?:\\|\/|_|$)"  # Matches "\master\", "/master/", "_master"
+		match = re.search(version_pattern, filepath)
 
 		if match:
 			return int(match.group(1))
+		
+		# Check the full path for any "\master\" or "_master" pattern if no version was found
+		master_match = re.search(master_pattern, filepath, re.IGNORECASE)
+		if master_match:
+			return "master"
 		else:
 			return None
 		
@@ -2625,8 +2638,23 @@ path = r\"%s\"
 		# Remove the version part from the paths for exact match comparison
 		padding = self.core.versionPadding
 		version_pattern = rf"v\d{{{padding}}}"
-		path1_without_version = re.sub(version_pattern, "", os.path.splitext(path1)[0])
-		path2_without_version = re.sub(version_pattern, "", os.path.splitext(path2)[0])
+		master_dir_pattern = r'(?<=/|\\)master(?=/|\\)'
+		master_file_pattern = r'_master(?=\.)'
+		path1_without_version = re.sub(version_pattern, "", path1)
+		path2_without_version = re.sub(version_pattern, "", path2)
+		path1_version = self.extract_version(path1)
+		path2_version = self.extract_version(path2)
+		print("sev1: ", path1_version, " ,sev2: ", path2_version)
+		if path1_version and path1_version == "master":
+			print("p1_ismaster")
+			path1_without_version = re.sub(master_dir_pattern, '', path1)  # Remove "master" from directory path
+			path1_without_version = re.sub(master_file_pattern, '_', path1_without_version)  # Remove "master" from filename
+		if path2_version and path2_version == "master":
+			print("p2_ismaster")
+			path2_without_version = re.sub(master_dir_pattern, '', path2)  # Remove "master" from directory path
+			path2_without_version = re.sub(master_file_pattern, '_', path2_without_version)  # Remove "master" from filename
+		print("p1_without_v: ", path1_without_version)
+		print("p2_without_v: ", path2_without_version)
 		if isSequence:
 			# Use regex to remove numbers before any file extension (can vary in length)
 			path1_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path1_without_version)
@@ -3964,7 +3992,8 @@ path = r\"%s\"
 		sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/") #
 		sources = self.core.media.getImgSources(sourceFolder)
 		sourceData = []
-
+		print("sourcefolder: ", sourceFolder)
+		print("sources: ", sources)
 		framepadding = self.core.framePadding #added
 		for curSourcePath in sources:
 			if "#" * framepadding in curSourcePath: # changed
@@ -3982,6 +4011,7 @@ path = r\"%s\"
 				lastFrame = None
 
 			sourceData.append([filePath, firstFrame, lastFrame])
+			print("sd: ", sourceData)
 
 		return sourceData
 
