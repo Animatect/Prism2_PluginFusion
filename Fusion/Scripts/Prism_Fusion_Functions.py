@@ -121,6 +121,9 @@ class Prism_Fusion_Functions(object):
 		self.core.registerCallback(
 			"openPBListContextMenu", self.openPBListContextMenu, plugin=self
 		)
+		self.core.registerCallback(
+			"onMediaBrowserOpen", self.onMediaBrowserOpen, plugin=self
+		)
 		
 		self.importHandlers = {
 			".abc": {"importFunction": self.importAlembic},
@@ -176,7 +179,24 @@ class Prism_Fusion_Functions(object):
 			# "BMPFormat": "bmp",             # Windows BMP
 			# "YUVFormat": "yuv",             # YUV
 
-
+	fusionToolsColorsDict = {
+		'Orange': {'R': 0.9215686274509803, 'G': 0.43137254901960786, 'B': 0.0 },
+		'Apricot': {'R': 1.0, 'G': 0.6588235294117647, 'B': 0.2 },
+		'Yellow': {'R': 0.8862745098039215, 'G': 0.6627450980392157, 'B': 0.10980392156862745},
+		'Lime': {'R': 0.6235294117647059, 'G': 0.7764705882352941, 'B': 0.08235294117647059},
+		'Olive': {'R': 0.37254901960784315, 'G': 0.6, 'B': 0.12549019607843137},
+		'Green': {'R': 0.26666666666666666, 'G': 0.5607843137254902, 'B': 0.396078431372549},
+		'Teal': {'R': 0.0, 'G': 0.596078431372549, 'B': 0.6},
+		'Navy': {'R': 0.08235294117647059, 'G': 0.3843137254901961, 'B': 0.5176470588235295},
+		'Blue': {'R': 0.4745098039215686, 'G': 0.6588235294117647, 'B': 0.8156862745098039},
+		'Purple': {'R': 0.6, 'G': 0.45098039215686275, 'B': 0.6274509803921569},
+		'Violet': {'R': 0.5843137254901961, 'G': 0.29411764705882354, 'B': 0.803921568627451},
+		'Pink': {'R': 0.9137254901960784, 'G': 0.5490196078431373, 'B': 0.7098039215686275},
+		'Tan': {'R': 0.7254901960784313, 'G': 0.6901960784313725, 'B': 0.592156862745098},
+		'Beige': {'R': 0.7764705882352941, 'G': 0.6274509803921569, 'B': 0.4666666666666667},
+		'Brown': {'R': 0.6, 'G': 0.4, 'B': 0.0},
+		'Chocolate': {'R': 0.5490196078431373, 'G': 0.35294117647058826, 'B': 0.24705882352941178}
+	}
 
 	@err_catcher(name=__name__)
 	def startup(self, origin):
@@ -2639,17 +2659,12 @@ path = r\"%s\"
 		path2_without_version = re.sub(version_pattern, "", path2)
 		path1_version = self.extract_version(path1)
 		path2_version = self.extract_version(path2)
-		print("sev1: ", path1_version, " ,sev2: ", path2_version)
 		if path1_version and path1_version == "master":
-			print("p1_ismaster")
 			path1_without_version = re.sub(master_dir_pattern, '', path1)  # Remove "master" from directory path
 			path1_without_version = re.sub(master_file_pattern, '_', path1_without_version)  # Remove "master" from filename
 		if path2_version and path2_version == "master":
-			print("p2_ismaster")
 			path2_without_version = re.sub(master_dir_pattern, '', path2)  # Remove "master" from directory path
 			path2_without_version = re.sub(master_file_pattern, '_', path2_without_version)  # Remove "master" from filename
-		print("p1_without_v: ", path1_without_version)
-		print("p2_without_v: ", path2_without_version)
 		if isSequence:
 			# Use regex to remove numbers before any file extension (can vary in length)
 			path1_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path1_without_version)
@@ -3602,11 +3617,102 @@ path = r\"%s\"
 		if self.sm_checkCorrectComp(comp):
 			prismdata = comp.GetData("prismstates")
 			return prismdata.split("_..._")[1]
+		
+
+	
+	################################################
+	#                                              #
+	#               COMP  DICTIONARY               #
+	#                                              #
+	################################################
+
+	@err_catcher(name=__name__)
+	def createDefaultPrismFileDb(self):
+		comp = self.getCurrentComp()
+		defaultdb = {
+			"fileValues": {
+				"identifiersColors": {
+					"asset": {},
+					"shot": {}
+				}
+			}
+		}
+		json_string = json.dumps(defaultdb)
+		comp.SetData("prismfiledb", json_string)
 
 
 	@err_catcher(name=__name__)
+	def loadPrismFileDb(self):
+		comp = self.getCurrentComp()
+		prismfiledb = comp.GetData("prismfiledb")
+		if prismfiledb:
+			return prismfiledb
+		else:
+			self.createDefaultPrismFileDb()
+			return comp.GetData("prismfiledb")
+	
+	@err_catcher(name=__name__)
+	def savePrismFileDb(self, json_data):
+		comp = self.getCurrentComp()
+		json_string =  json.dumps(json_data, indent=4)
+		comp.SetData("prismfiledb", json_string)
+
+	@err_catcher(name=__name__)
+	def addPrismDbIdentifier(self, category, name, color):
+		json_string = self.loadPrismFileDb()
+		json_data = json.loads(json_string)
+		if category in ["asset", "shot"]:
+			json_data["fileValues"]["identifiersColors"][category][name] = color
+			self.savePrismFileDb(json_data)
+
+	@err_catcher(name=__name__)
+	def getPrismDbIdentifierColor(self, category, name):
+		json_string = self.loadPrismFileDb()
+		json_data = json.loads(json_string)
+		if category in json_data["fileValues"]["identifiersColors"]:
+			if name in json_data["fileValues"]["identifiersColors"][category]:
+				color = json_data["fileValues"]["identifiersColors"][category][name]
+				return color
+		
+		return None
+
+
+	################################################
+	#                                              #
+	#              MEDIA BROWSER MENU              #
+	#                                              #
+	################################################
+	
+	@err_catcher(name=__name__)
+	def calculate_luminance(self, color:dict):
+		r,g,b = color['R'], color['G'], color['B']
+		# No need for normalization if RGB values are already in [0, 1]
+		luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+		return luminance
+
+	@err_catcher(name=__name__)
+	def is_background_bright(self, color:dict, threshold=0.5):
+		luminance = self.calculate_luminance(color)
+		return luminance > threshold
+
+	@err_catcher(name=__name__)
+	def create_color_icon(self, color, diameter=8):
+		# Create a QPixmap to draw the circle
+		pixmap = QPixmap(diameter, diameter)
+		pixmap.fill(QColor("transparent"))  # Transparent background
+		
+		# Draw the circle
+		painter = QPainter(pixmap)
+		painter.setRenderHint(QPainter.Antialiasing)
+		painter.setBrush(color)
+		painter.setPen(QColor("transparent"))  # No border
+		painter.drawEllipse(0, 0, diameter, diameter)
+		painter.end()
+		
+		return pixmap
+
+	@err_catcher(name=__name__)
 	def selecttasknodes(self, path):
-		print("TASK NODES WILL BE SELECTED WHEN CLIP HAS THE PATH ", path)
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 		# deselect all nodes
@@ -3614,21 +3720,62 @@ path = r\"%s\"
 
 		loaders = comp.GetToolList(False, "Loader").values()
 		for loader in loaders:
-			print(loader.Name)
 			loaderClipPath = loader.Clip[0]
-			print(str(os.path.normpath(path)))
-			print(str(os.path.normpath(loaderClipPath)), "\n")
 			if str(os.path.normpath(path)) in str(os.path.normpath(loaderClipPath)):
 				flow.Select(loader, True)
 		selection = len(comp.GetToolList(True))>0
 		if not selection:
 			self.core.popup("There are no loaders for this task.", severity="info")
-		
+
+	@err_catcher(name=__name__)
+	def colortasknodes(self, path, color, item, category):
+		comp = self.getCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+		loaders = comp.GetToolList(False, "Loader").values()
+
+		colored = 0
+		for loader in loaders:
+			loaderClipPath = loader.Clip[0]
+			if str(os.path.normpath(path)) in str(os.path.normpath(loaderClipPath)):
+				loader.TileColor = color
+				colored += 1
+				
+		if colored == 0:
+			self.core.popup("There are no loaders for this task.", severity="info")
+		else:
+			self.coloritem(item, color)
+			self.addPrismDbIdentifier(category, item.text(0), color)
+
+	@err_catcher(name=__name__)
+	def coloritem(self, item, color):			
+		qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
+		item.setBackground(0, qcolor)
+		item.setForeground(0, QColor(230, 230, 230))
+		if self.is_background_bright(color):
+			item.setForeground(0, QColor(30, 30, 30))
+
 	################################################
 	#                                              #
 	#        	       CALLBACKS                   #
 	#                                              #
 	################################################
+	
+	def onMediaBrowserOpen(self, origin):
+		self.monkeypatchedmediabrowser = origin
+		self.core.plugins.monkeyPatch(origin.updateTasks, self.updateTasks, self, force=True)
+
+	@err_catcher(name=__name__)
+	def onMediaBrowserTaskUpdate(self, origin):
+		lw = origin.tw_identifier #listwidget
+		entity = origin.getCurrentEntity()
+		if lw == origin.tw_identifier:
+			category = entity.get("type")
+			if category in ["asset", "shot"]:
+				for i in range(lw.topLevelItemCount()):
+					item = lw.topLevelItem(i)
+					color = self.getPrismDbIdentifierColor(category, item.text(0))
+					if color:
+						self.coloritem(item, color)
 
 	@err_catcher(name=__name__)
 	def openPBListContextMenu(self, origin, rcmenu, lw, item, path):
@@ -3637,10 +3784,36 @@ path = r\"%s\"
 		entity = origin.getCurrentEntity()
 		if lw == origin.tw_identifier:
 			refresh = origin.updateTasks
-			if entity.get("type") in ["asset", "shot"]:
+			category = entity.get("type")
+			if category in ["asset", "shot"]:
 				depAct = QAction("Select Task Nodes....", origin)
 				depAct.triggered.connect(lambda: self.selecttasknodes(path))
 				rcmenu.addAction(depAct)
+
+
+				menuSelTaskC = QMenu("Select Task Color", origin)
+				menuSelTaskC.setStyleSheet("""
+					QMenu::item {
+						padding-left: 5px;  /* Reduce left padding of item text */
+						padding-right: 5px; /* Optional, adjust to control space around icon */
+					}
+					QMenu::icon {
+						margin-right: -5px; /* Bring icon closer to text */
+					}
+				""")
+				for key in self.fusionToolsColorsDict.keys():
+					name = key
+					color = self.fusionToolsColorsDict[key]
+					qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
+					depAct = QAction(name, origin)
+					# we can pass name as a default argument in the lambda to "freeze" its value for each iteration
+					# even if the action isn't checkable, the triggered signal passes checked as an argument by default.
+					depAct.triggered.connect(lambda checked=False, color=color: self.colortasknodes(path, color, item, category))
+					icon = self.create_color_icon(qcolor)
+					depAct.setIcon(icon)
+					menuSelTaskC.addAction(depAct)
+
+				rcmenu.addMenu(menuSelTaskC)
 
 	@err_catcher(name=__name__)
 	def onUserSettingsOpen(self, origin):
@@ -3659,6 +3832,9 @@ path = r\"%s\"
 			self.popup.close()
 		except:
 			pass
+		# self.core.plugins.monkeyPatch(self.core.pb.mediaBrowser.entered, self.entered, self, force=True)
+		# self.core.plugins.monkeyPatch(self.core.pb.mediaBrowser.updateTasks, self.updateTasks, self, force=True)
+		
 
 
 	def onProjectBrowserClose(self, origin):
@@ -4097,9 +4273,11 @@ path = r\"%s\"
 
 		return sourceData
 
-
-
-
+	@err_catcher(name=__name__)
+	def updateTasks(self, *args, **kwargs):
+		mediabrowser = self.monkeypatchedmediabrowser#self.core.pb.mediaBrowser
+		self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
+		self.onMediaBrowserTaskUpdate(mediabrowser)
 
 
 ###########################################
