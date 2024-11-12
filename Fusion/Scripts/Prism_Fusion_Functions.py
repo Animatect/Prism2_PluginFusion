@@ -4232,14 +4232,12 @@ path = r\"%s\"
 	def onStateManagerOpen(self, origin):
 		origin.setWindowIcon(QIcon(self.prismAppIcon))
 		#	Remove Import buttons
-		# origin.b_createImport.deleteLater()
+		origin.b_createImport.deleteLater()
 		origin.b_shotCam.deleteLater()
 
 		#	Remove Export and Playblast buttons
 		origin.b_createExport.deleteLater()
 		origin.b_createPlayblast.deleteLater()
-
-
 
 		#	Create Import Image buton
 		origin.b_importImage = QPushButton(origin.w_CreateImports)
@@ -4251,19 +4249,13 @@ path = r\"%s\"
 		origin.b_importImage.clicked.connect(lambda: self.addImportImageState(origin))
 
 		#	Create Import 3d buton
-		# origin.b_import3d = QPushButton(origin.w_CreateImports)
-		# origin.b_import3d.setObjectName("b_import3d")
-		# origin.b_import3d.setText("Import 3d")
-		# #	Add to the 2nd position of the layout
-		# origin.horizontalLayout_3.insertWidget(1, origin.b_import3d)
-		# #	Add connection to button
-		# origin.b_import3d.clicked.connect(lambda: self.addImport3dState(origin))
-
-
-		# #	Change text of Import Button
-		# origin.b_createImport.setText("Import 3d")
-		# #	Remove native Prism connection from button
-		# origin.b_createImport.clicked.disconnect()
+		origin.b_import3d = QPushButton(origin.w_CreateImports)
+		origin.b_import3d.setObjectName("b_import3d")
+		origin.b_import3d.setText("Import 3d")
+		#	Add to the 2nd position of the layout
+		origin.horizontalLayout_3.insertWidget(1, origin.b_import3d)
+		#	Add connection to button
+		origin.b_import3d.clicked.connect(lambda: self.addImport3dState(origin))
 
 		# Create a new button for RenderGroup
 		origin.b_renderGroup = QPushButton(origin.w_CreateExports)
@@ -4326,6 +4318,7 @@ path = r\"%s\"
 			except:
 				pass
 
+		##	Resize Main Vert Splitter
 		#	Check if SM has a splitter resize method
 		if hasattr(self.smUI, 'splitter') and hasattr(self.smUI.splitter, 'setSizes'):
 			try:
@@ -4392,27 +4385,74 @@ path = r\"%s\"
 			
 
 	@err_catcher(name=__name__)
-	def addImportImageState(self, origin):
-		# origin.createState("RenderGroup")
+	def addImportImageState(self, origin):					#	TODO - Add importing through SM functionality.
+		title = "Import Image"
+		msg = ("Importing Images through the State Manager is not yet supported.\n\n"
+				"Please import through the Project Browser Media tab")
+		buttons = ["Open Project Browser", "Cancel"]
 
-		#	TODO  MAKE OPEN PROJECTBROWSER
+		#	Execute popup Question
+		result = self.core.popupQuestion(msg, buttons=buttons, title=title, icon=QMessageBox.Warning)
 
-		self.core.popup("Importing Images through the State Manager is not yet supported.\n\n"
-				  		"Please import through the Project Browser Media tab")                        #    TODO Implement Image Import
-		
+		if result == "Open Project Browser":
+			#	Opens Project Browser
+			try:
+				logger.debug("Opening Project Browser")
+				origin.core.projectBrowser()
+				origin.close()
+				#	Switch to Media Tab
+				if origin.core.pb:
+					origin.core.pb.showTab("Media")
+			except:
+				logger.warning("ERROR: Unable to Open Project Browser.")
+
 
 
 	@err_catcher(name=__name__)
 	def addImport3dState(self, origin):
+		stateType = "Import"
+		import3dStates = []
 
-		origin.createState("ImportFile", parent=self, setActive=True)					#	TODO - TEMP - This is the default action
+		curSel = origin.getCurrentItem(origin.activeList)
+		if (origin.activeList == origin.tw_import
+			and curSel is not None
+			and curSel.ui.className == "Folder"
+			):
+			parent = curSel
+		else:
+			parent = None
+
+		states = origin.stateTypes
+		for state in states:
+			import3dStates += getattr(origin.stateTypes[state], "stateCategories", {}).get(stateType, [])
+
+		if len(import3dStates) == 1:
+			origin.createState(import3dStates[0]["stateType"], parent=parent, setActive=True)
+		else:
+			menu = QMenu(origin)
+			for importState in import3dStates:
+				actSet = QAction(importState["label"], origin)
+				actSet.triggered.connect(lambda x=None,
+							st=importState: origin.createState(st["stateType"],
+							parent=parent,
+							setActive=True,
+							**st.get("kwargs",{}))
+					)
+				menu.addAction(actSet)
+
+			getattr(self.core.appPlugin, "sm_openStateFromNode", lambda x, y, stateType: None)(
+				self, menu, stateType=stateType
+				)
+
+			if not menu.isEmpty():
+				menu.exec_(QCursor.pos())
+
+		origin.activeList.setFocus()
+
+
 		
-		# states = origin.stateTypes
 
-		# self.core.popup(f"import3dStates:  {states}")                                      #    TESTING
 
-		# for state in states:
-		# 	import3dStates += getattr(origin.stateTypes[state], "stateCategories", {}).get(stateType, [])
 
 
 	@err_catcher(name=__name__)
