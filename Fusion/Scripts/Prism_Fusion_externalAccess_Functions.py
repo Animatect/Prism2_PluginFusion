@@ -85,13 +85,67 @@ class Prism_Fusion_externalAccess_Functions(object):
 
 	@err_catcher(name=__name__)
 	def userSettings_loadUI(self, origin, tab):
-		origin.gb_bldInstallDevTools = QGroupBox("Install Prism Developer Menu With Plugin")
-		lo_bldAutoSave = QVBoxLayout()
-		origin.gb_bldInstallDevTools.setLayout(lo_bldAutoSave)
-		origin.gb_bldInstallDevTools.setCheckable(True)
-		origin.gb_bldInstallDevTools.setChecked(False)
+		#	Group box for the Prism options
+		origin.gb_prismFusionOptions = QGroupBox()
+		lo_prismFusionOptions = QVBoxLayout()
+		origin.gb_prismFusionOptions.setLayout(lo_prismFusionOptions)
 
-		tab.layout().addWidget(origin.gb_bldInstallDevTools)
+		#	Start mode layout
+		lo_prismStartMode = QHBoxLayout()
+		origin.l_prismStartMode = QLabel("Prism Start Mode:       ")
+		origin.cb_prismStartMode = QComboBox()
+		
+		#	Add options to the combo box
+		origin.cb_prismStartMode.addItems(["automatic", "prompt", "manual"])
+		origin.cb_prismStartMode.setCurrentIndex(1)
+		
+		#	Add label and combo box to the horizontal layout
+		lo_prismStartMode.addWidget(origin.l_prismStartMode)
+		lo_prismStartMode.addWidget(origin.cb_prismStartMode)
+		
+		#	Add spacer on the right side
+		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		lo_prismStartMode.addItem(spacer)
+		
+		#	Add start layout to the groupbox
+		lo_prismFusionOptions.addLayout(lo_prismStartMode)
+		
+		#	Add a small vert spacer between the combo box layout and checkbox layout
+		vertSpacer = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
+		lo_prismFusionOptions.addItem(vertSpacer)
+		
+		#	Create a horz layout for the Dev Menu
+		lo_installDevTools = QHBoxLayout()
+		origin.l_installDevTools = QLabel("Install Prism Developer Menu With Plugin:")
+		origin.chk_installDevTools = QCheckBox()
+		
+		#	Add label and checkbox to the horz layout
+		lo_installDevTools.addWidget(origin.l_installDevTools)
+		lo_installDevTools.addWidget(origin.chk_installDevTools)
+
+		#	Add spacer on the right side
+		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		lo_installDevTools.addItem(spacer)
+		
+		#	Add the Dev menu layout to the group box layout
+		lo_prismFusionOptions.addLayout(lo_installDevTools)
+		
+		#	Add the Prism Fusion Options group box to the tab layout
+		tab.layout().addWidget(origin.gb_prismFusionOptions)
+
+		#	ToolTips
+		tip = ("Prism launch behaviour when Fusion opens:\n\n"
+		 		"   Automatic:   Prism starts whenever Fusion is opened.\n"
+				"   Prompt:       A popup will be displayed to start Prism when Fusion is opened.\n"
+				"   Manual:       Prism is started using the 'RESET PRISM' menu item in the Prism menu of Fusion.")
+		origin.l_prismStartMode.setToolTip(tip)
+		origin.cb_prismStartMode.setToolTip(tip)
+
+		tip = "Install Prism Development menu to Fusion when adding the integration."
+		origin.l_installDevTools.setToolTip(tip)
+		origin.chk_installDevTools.setToolTip(tip)
+
+
 		# origin.gb_bldAutoSave = QGroupBox("Auto save renderings")
 		# lo_bldAutoSave = QVBoxLayout()
 		# origin.gb_bldAutoSave.setLayout(lo_bldAutoSave)
@@ -148,9 +202,12 @@ class Prism_Fusion_externalAccess_Functions(object):
 				settings["Fusion"]["autosavepath"] = bsPath
 
 			settings["Fusion"]["autosaverender"] = origin.gb_bldAutoSave.isChecked()
-			settings["Fusion"][
-				"autosaveperproject"
-			] = origin.chb_bldRperProject.isChecked()
+			settings["Fusion"]["autosaveperproject"] = origin.chb_bldRperProject.isChecked()
+
+			#	Saves Prism Start Mode option
+			settings["Fusion"]["prismStartMode"] = origin.cb_prismStartMode.currentText()
+			self.setStartmodeConfig(origin.cb_prismStartMode.currentText())
+
 
 		except Exception as e:
 			logger.warning(f"ERROR: Could not save user settings:\n{e}")
@@ -178,6 +235,15 @@ class Prism_Fusion_externalAccess_Functions(object):
 						origin.le_bldAutoSavePath.setText(
 							settings["Fusion"]["autosavepath"]
 						)
+				
+				#	Loads Fusion start mode  setting from Prism Config file if exists
+				if "prismStartMode" in settings["Fusion"]:
+					idx = origin.cb_prismStartMode.findText(settings["Fusion"]["prismStartMode"])
+					if idx != -1:
+						origin.cb_prismStartMode.setCurrentIndex(idx)
+				#	Defaults to Prompt mode
+				else:
+					origin.cb_prismStartMode.setCurrentIndex(1)
 
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to load user settings:\n{e}")
@@ -227,3 +293,39 @@ class Prism_Fusion_externalAccess_Functions(object):
 	@err_catcher(name=__name__)
 	def copySceneFile(self, origin, origFile, targetPath, mode="copy"):
 		pass
+
+
+	# Saves the Start mode to the Scripts config file
+	@err_catcher(name=__name__)
+	def setStartmodeConfig(self, mode):
+		# Gets user preferences dir (usually My Documents in Windows)
+		prefDir = self.core.getUserPrefDir()
+		# Gets the Prism InstallLocations file
+		self.installLocPath = os.path.join(prefDir, "InstallLocations" + self.core.configs.preferredExtension)
+		# Returns the DCC integrations
+		integrations = self.core.readYaml(path=self.installLocPath) or {}
+
+		# Retrieve Fusion paths, or return if Fusion integration is missing or empty
+		fusionPaths = integrations.get("Fusion")
+		if not fusionPaths:
+			logger.warning("ERROR: It does not appear that an integration for Fusion has been added yet.")
+			return
+
+		# Iterate over each Fusion path and save the config file
+		for fusionPath in fusionPaths:
+			# Define the PrismAutostart.config filepath
+			scriptPath = os.path.join(fusionPath, "Scripts")
+			saveConfigPath = os.path.join(scriptPath, "PrismAutostart.config")
+
+			# Check if the Scripts directory exists, else log an error and skip to the next path
+			if not os.path.exists(scriptPath):
+				logger.warning(f"ERROR: Unable to find Scripts directory at {scriptPath}")
+				continue
+
+			# Attempt to write the mode to the config file
+			try:
+				with open(saveConfigPath, "w") as configFile:
+					configFile.write(f"autoStart: {mode}")
+				logger.debug(f"Successfully saved mode '{mode}' to {saveConfigPath}")
+			except Exception as e:
+				logger.warning(f"ERROR: Failed to write to config file at {saveConfigPath}: {e}")
