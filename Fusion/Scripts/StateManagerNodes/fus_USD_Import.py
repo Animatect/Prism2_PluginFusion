@@ -58,6 +58,7 @@ class USD_ImportClass(object):
         openProductsBrowser=True,
         settings=None,
     ):
+        
         self.state = state
         self.stateMode = "USD_Import"                           #   TODO  Handle setting stateMode for the UI label.
 
@@ -122,9 +123,6 @@ class USD_ImportClass(object):
 
         if stateData is not None:
             self.loadData(stateData)
-        else:
-            #   Add UUID to state
-            self.stateUID = self.fuseFuncts.createUUID()
 
         self.nameChanged()
         self.updateUi()
@@ -157,6 +155,7 @@ class USD_ImportClass(object):
             self.e_name.setText(data["statename"])
         if "stateUID" in data:
             self.stateUID = data["stateUID"]
+            self.core.popup(f"self.stateUID:  {self.stateUID}")                                      #    TESTING
         if "statemode" in data:
             self.setStateMode(data["statemode"])
         if "filepath" in data:
@@ -342,6 +341,10 @@ class USD_ImportClass(object):
 
     @err_catcher(name=__name__)
     def importObject(self, update=False, path=None, settings=None):
+
+        if not update:
+            self.stateUID = self.fuseFuncts.createUUID()
+
         result = True
         if self.stateManager.standalone:
             return result
@@ -379,8 +382,6 @@ class USD_ImportClass(object):
 
         cacheData = self.core.paths.getCachePathData(impFileName)
 
-        self.core.popup(f"cacheData:  {cacheData}")                                      #    TESTING
-
         self.taskName = cacheData.get("task")
         doImport = True
 
@@ -390,12 +391,12 @@ class USD_ImportClass(object):
         productVersion = cacheData["version"]
         nodeName = f"{productName}_{productVersion}"
 
-        importResult = self.core.appPlugin.importUSD(self,
-                                                     impFileName,
-                                                     UUID=self.stateUID,
-                                                     nodeName=nodeName,
-                                                     version=productVersion,
-                                                     update=False)
+        importResult = self.fuseFuncts.importUSD(self,
+                                                impFileName,
+                                                UUID=self.stateUID,
+                                                nodeName=nodeName,
+                                                version=productVersion,
+                                                update=False)
 
         if not importResult:
             result = None

@@ -63,6 +63,9 @@ import pyautogui
 import pyperclip
 from PrismUtils.Decorators import err_catcher as err_catcher
 
+#	Import Prism Fusion Libraries
+import Libs.Prism_Fusion_lib_3d as Fus3d
+
 logger = logging.getLogger(__name__)
 
 
@@ -3522,67 +3525,75 @@ path = r\"%s\"
 
 
 
+	# @err_catcher(name=__name__)
+	# def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):
+	# 	comp = self.getCurrentComp()
+
+	# 	comp.Lock()
+		
+	# 	#	Add uLoader node
+	# 	usdTool = comp.AddTool("uLoader")
+
+	# 	#	Set import file path
+	# 	usdTool["Filename"] = importPath
+
+	# 	#	Set node name
+	# 	usdTool.SetAttrs({"TOOLS_Name": nodeName})
+
+	# 	#	Add custom UUID
+	# 	usdTool.SetData('PrImportUID', UUID)
+
+
+
+	# 	comp.Unlock()
+
+
+	# 	return {"result": True, "doImport": True}
+
+
+	#	JUST TESTING VIA A PASS THROUGH
 	@err_catcher(name=__name__)
 	def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):
-		comp = self.getCurrentComp()
-
-		comp.Lock()
-		
-		#	Add uLoader node
-		usdTool = comp.AddTool("uLoader")
-
-		#	Set import file path
-		usdTool["Filename"] = importPath
-
-		#	Set node name
-		usdTool.SetAttrs({"TOOLS_Name": nodeName})
-
-		#	Add custom UUID
-		usdTool.SetData('PrImportUID', UUID)
-
-
-
-		comp.Unlock()
-
-
-		return {"result": True, "doImport": True}
-
-
-
-
+		return Fus3d.importUSD(self, origin, importPath, UUID, nodeName, version, update=False)
 
 
 	@err_catcher(name=__name__)
-	def importFBX(self, importPath, origin):
-
-		comp = self.getCurrentComp()
-
-		comp.Lock()
-
-		#	Add FBX Mesh node
-		fbxTool = comp.AddTool("SurfaceFBXMesh")
-
-		#	Set import mesh file path
-		fbxTool["ImportFile"] = importPath
-
-		#	Get versionInfo data
-		versionInfoData = self.core.products.getProductDataFromFilepath(importPath)
-		productName = versionInfoData["product"]
-		productVersion = versionInfoData["version"]
-
-		#	Set node name
-		toolName = f"{productName}_{productVersion}"
-		fbxTool.SetAttrs({"TOOLS_Name": toolName})
-
-		#	Add custom UUID
-		fbxTool.SetData('PrImportUID', self.createUUID())
+	def importFBX(self, origin, importPath, UUID, nodeName, version, update=False):
+		return Fus3d.importFBX(self, origin, importPath, UUID, nodeName, version, update=False)
 
 
 
+	# @err_catcher(name=__name__)
+	# def importFBX(self, importPath, origin):
 
-		comp.Unlock()
+	# 	comp = self.getCurrentComp()
 
-		return {"result": True, "doImport": True}
+	# 	comp.Lock()
+
+	# 	#	Add FBX Mesh node
+	# 	fbxTool = comp.AddTool("SurfaceFBXMesh")
+
+	# 	#	Set import mesh file path
+	# 	fbxTool["ImportFile"] = importPath
+
+	# 	#	Get versionInfo data
+	# 	versionInfoData = self.core.products.getProductDataFromFilepath(importPath)
+	# 	productName = versionInfoData["product"]
+	# 	productVersion = versionInfoData["version"]
+
+	# 	#	Set node name
+	# 	toolName = f"{productName}_{productVersion}"
+	# 	fbxTool.SetAttrs({"TOOLS_Name": toolName})
+
+	# 	#	Add custom UUID
+	# 	fbxTool.SetData('PrImportUID', self.createUUID())
+
+
+
+
+	# 	comp.Unlock()
+
+	# 	return {"result": True, "doImport": True}
 
 
 

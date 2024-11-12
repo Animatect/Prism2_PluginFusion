@@ -131,7 +131,7 @@ class Ui_wg_FBX_Import(object):
         self.b_browse = QPushButton(self.w_importLatest)
         self.b_browse.setObjectName(u"b_browse")
         self.b_browse.setFocusPolicy(Qt.NoFocus)
-        self.b_browse.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.b_browse.setContextMenuPolicy(Qt.NoContextMenu)
 
         self.horizontalLayout_7.addWidget(self.b_browse)
 
@@ -172,136 +172,32 @@ class Ui_wg_FBX_Import(object):
         self.horizontalLayout_10 = QHBoxLayout(self.f_keepRefEdits)
         self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
         self.horizontalLayout_10.setContentsMargins(9, 0, 9, 0)
-        self.l_keepRefEdits = QLabel(self.f_keepRefEdits)
-        self.l_keepRefEdits.setObjectName(u"l_keepRefEdits")
-
-        self.horizontalLayout_10.addWidget(self.l_keepRefEdits)
-
-        self.horizontalSpacer_5 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-        self.horizontalLayout_10.addItem(self.horizontalSpacer_5)
-
         self.chb_keepRefEdits = QCheckBox(self.f_keepRefEdits)
         self.chb_keepRefEdits.setObjectName(u"chb_keepRefEdits")
         self.chb_keepRefEdits.setChecked(True)
 
         self.horizontalLayout_10.addWidget(self.chb_keepRefEdits)
 
+        self.label = QLabel(self.f_keepRefEdits)
+        self.label.setObjectName(u"label")
+
+        self.horizontalLayout_10.addWidget(self.label)
+
 
         self.verticalLayout_6.addWidget(self.f_keepRefEdits)
-
-        self.f_nameSpaces = QWidget(self.gb_options)
-        self.f_nameSpaces.setObjectName(u"f_nameSpaces")
-        self.horizontalLayout_12 = QHBoxLayout(self.f_nameSpaces)
-        self.horizontalLayout_12.setObjectName(u"horizontalLayout_12")
-        self.horizontalLayout_12.setContentsMargins(9, 0, 9, 0)
-        self.l_keepRefEdits_2 = QLabel(self.f_nameSpaces)
-        self.l_keepRefEdits_2.setObjectName(u"l_keepRefEdits_2")
-
-        self.horizontalLayout_12.addWidget(self.l_keepRefEdits_2)
-
-        self.horizontalSpacer_7 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-        self.horizontalLayout_12.addItem(self.horizontalSpacer_7)
-
-        self.chb_autoNameSpaces = QCheckBox(self.f_nameSpaces)
-        self.chb_autoNameSpaces.setObjectName(u"chb_autoNameSpaces")
-        self.chb_autoNameSpaces.setChecked(False)
-
-        self.horizontalLayout_12.addWidget(self.chb_autoNameSpaces)
-
-        self.horizontalSpacer_3 = QSpacerItem(5, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
-
-        self.horizontalLayout_12.addItem(self.horizontalSpacer_3)
-
-        self.b_nameSpaces = QPushButton(self.f_nameSpaces)
-        self.b_nameSpaces.setObjectName(u"b_nameSpaces")
-        self.b_nameSpaces.setFocusPolicy(Qt.NoFocus)
-
-        self.horizontalLayout_12.addWidget(self.b_nameSpaces)
-
-
-        self.verticalLayout_6.addWidget(self.f_nameSpaces)
-
-        self.f_abcPath = QWidget(self.gb_options)
-        self.f_abcPath.setObjectName(u"f_abcPath")
-        self.horizontalLayout_11 = QHBoxLayout(self.f_abcPath)
-        self.horizontalLayout_11.setObjectName(u"horizontalLayout_11")
-        self.horizontalLayout_11.setContentsMargins(9, 0, 9, 0)
-        self.l_abcPath = QLabel(self.f_abcPath)
-        self.l_abcPath.setObjectName(u"l_abcPath")
-
-        self.horizontalLayout_11.addWidget(self.l_abcPath)
-
-        self.horizontalSpacer_6 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-        self.horizontalLayout_11.addItem(self.horizontalSpacer_6)
-
-        self.chb_abcPath = QCheckBox(self.f_abcPath)
-        self.chb_abcPath.setObjectName(u"chb_abcPath")
-
-        self.horizontalLayout_11.addWidget(self.chb_abcPath)
-
-
-        self.verticalLayout_6.addWidget(self.f_abcPath)
-
-        self.w_trackObjects = QWidget(self.gb_options)
-        self.w_trackObjects.setObjectName(u"w_trackObjects")
-        self.horizontalLayout_9 = QHBoxLayout(self.w_trackObjects)
-        self.horizontalLayout_9.setObjectName(u"horizontalLayout_9")
-        self.horizontalLayout_9.setContentsMargins(9, 0, 9, 0)
-        self.l_trackObjects = QLabel(self.w_trackObjects)
-        self.l_trackObjects.setObjectName(u"l_trackObjects")
-
-        self.horizontalLayout_9.addWidget(self.l_trackObjects)
-
-        self.horizontalSpacer_9 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
-        self.horizontalLayout_9.addItem(self.horizontalSpacer_9)
-
-        self.chb_trackObjects = QCheckBox(self.w_trackObjects)
-        self.chb_trackObjects.setObjectName(u"chb_trackObjects")
-        self.chb_trackObjects.setChecked(True)
-
-        self.horizontalLayout_9.addWidget(self.chb_trackObjects)
-
-
-        self.verticalLayout_6.addWidget(self.w_trackObjects)
 
 
         self.verticalLayout_2.addWidget(self.gb_options)
 
-        self.gb_objects = QGroupBox(self.gb_import)
-        self.gb_objects.setObjectName(u"gb_objects")
-        self.verticalLayout_4 = QVBoxLayout(self.gb_objects)
-        self.verticalLayout_4.setObjectName(u"verticalLayout_4")
-        self.verticalLayout_4.setContentsMargins(9, 9, 9, 9)
-        self.lw_objects = QListWidget(self.gb_objects)
-        self.lw_objects.setObjectName(u"lw_objects")
-        self.lw_objects.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.lw_objects.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
-        self.lw_objects.setHorizontalScrollMode(QAbstractItemView.ScrollPerPixel)
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
-        self.verticalLayout_4.addWidget(self.lw_objects)
-
-        self.b_selectAll = QPushButton(self.gb_objects)
-        self.b_selectAll.setObjectName(u"b_selectAll")
-
-        self.verticalLayout_4.addWidget(self.b_selectAll)
-
-
-        self.verticalLayout_2.addWidget(self.gb_objects)
+        self.verticalLayout_2.addItem(self.verticalSpacer)
 
 
         self.verticalLayout.addWidget(self.gb_import)
 
         QWidget.setTabOrder(self.e_name, self.chb_autoUpdate)
         QWidget.setTabOrder(self.chb_autoUpdate, self.chb_keepRefEdits)
-        QWidget.setTabOrder(self.chb_keepRefEdits, self.chb_autoNameSpaces)
-        QWidget.setTabOrder(self.chb_autoNameSpaces, self.chb_abcPath)
-        QWidget.setTabOrder(self.chb_abcPath, self.chb_trackObjects)
-        QWidget.setTabOrder(self.chb_trackObjects, self.lw_objects)
-        QWidget.setTabOrder(self.lw_objects, self.b_selectAll)
 
         self.retranslateUi(wg_FBX_Import)
 
@@ -324,16 +220,7 @@ class Ui_wg_FBX_Import(object):
         self.b_importLatest.setText(QCoreApplication.translate("wg_FBX_Import", u"Import latest Version", None))
         self.b_import.setText(QCoreApplication.translate("wg_FBX_Import", u"Re-Import", None))
         self.gb_options.setTitle(QCoreApplication.translate("wg_FBX_Import", u"Options", None))
-        self.l_keepRefEdits.setText(QCoreApplication.translate("wg_FBX_Import", u"Keep Reference Edits:", None))
         self.chb_keepRefEdits.setText("")
-        self.l_keepRefEdits_2.setText(QCoreApplication.translate("wg_FBX_Import", u"Maya Namespaces:", None))
-        self.chb_autoNameSpaces.setText(QCoreApplication.translate("wg_FBX_Import", u"Auto", None))
-        self.b_nameSpaces.setText(QCoreApplication.translate("wg_FBX_Import", u"Remove", None))
-        self.l_abcPath.setText(QCoreApplication.translate("wg_FBX_Import", u"Alembic - Update path only (if exists)", None))
-        self.chb_abcPath.setText("")
-        self.l_trackObjects.setText(QCoreApplication.translate("wg_FBX_Import", u"Keep track of connected objects:", None))
-        self.chb_trackObjects.setText("")
-        self.gb_objects.setTitle(QCoreApplication.translate("wg_FBX_Import", u"Objects", None))
-        self.b_selectAll.setText(QCoreApplication.translate("wg_FBX_Import", u"Select all", None))
+        self.label.setText(QCoreApplication.translate("wg_FBX_Import", u"TEMP PLACEHOLDER", None))
     # retranslateUi
 
