@@ -59,10 +59,12 @@ class USD_ImportClass(object):
         settings=None,
     ):
         self.state = state
-        self.stateMode = "USD_Import"
+        self.stateMode = "USD_Import"                           #   TODO  Handle setting stateMode for the UI label.
 
         self.core = core
         self.stateManager = stateManager
+        self.fuseFuncts = self.core.appPlugin
+
         self.taskName = ""
         self.setName = ""
 
@@ -78,9 +80,6 @@ class USD_ImportClass(object):
 
         self.nodes = []
         self.nodeNames = []
-
-        self.f_abcPath.setVisible(False)
-        self.f_keepRefEdits.setVisible(False)
 
         self.oldPalette = self.b_importLatest.palette()
         self.updatePalette = QPalette()
@@ -118,19 +117,24 @@ class USD_ImportClass(object):
         ):
             return False
 
-        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
+        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)                 #   USED???
         self.connectEvents()
 
         if stateData is not None:
             self.loadData(stateData)
+        else:
+            #   Add UUID to state
+            self.stateUID = self.fuseFuncts.createUUID()
 
         self.nameChanged()
         self.updateUi()
+
 
     @err_catcher(name=__name__)
     def setStateMode(self, stateMode):
         self.stateMode = stateMode
         self.l_class.setText(stateMode)
+
 
     @err_catcher(name=__name__)
     def requestImportPaths(self):
@@ -146,10 +150,13 @@ class USD_ImportClass(object):
         importPath = [ts.productPath]
         return importPath
 
+
     @err_catcher(name=__name__)
     def loadData(self, data):
         if "statename" in data:
             self.e_name.setText(data["statename"])
+        if "stateUID" in data:
+            self.stateUID = data["stateUID"]
         if "statemode" in data:
             self.setStateMode(data["statemode"])
         if "filepath" in data:
@@ -157,22 +164,6 @@ class USD_ImportClass(object):
                 self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
             )(data["filepath"])
             self.setImportPath(data["filepath"])
-        if "keepedits" in data:
-            self.chb_keepRefEdits.setChecked(eval(data["keepedits"]))
-        if "autonamespaces" in data:
-            self.chb_autoNameSpaces.setChecked(eval(data["autonamespaces"]))
-        if "updateabc" in data:
-            self.chb_abcPath.setChecked(eval(data["updateabc"]))
-        if "trackobjects" in data:
-            self.chb_trackObjects.setChecked(eval(data["trackobjects"]))
-        if "connectednodes" in data:
-            if self.core.isStr(data["connectednodes"]):
-                data["connectednodes"] = eval(data["connectednodes"])
-            self.nodes = [
-                x[1]
-                for x in data["connectednodes"]
-                if self.core.appPlugin.isNodeValid(self, x[1])
-            ]
         if "taskname" in data:
             self.taskName = data["taskname"]
         if "nodenames" in data:
@@ -184,27 +175,19 @@ class USD_ImportClass(object):
 
         self.core.callback("onStateSettingsLoaded", self, data)
 
+
     @err_catcher(name=__name__)
     def connectEvents(self):
         self.e_name.textChanged.connect(self.nameChanged)
         self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
+        #   This is the "Browse" button
         self.b_browse.clicked.connect(self.browse)
         self.b_browse.customContextMenuRequested.connect(self.openFolder)
+        #   This is the "Re-Import" button
         self.b_import.clicked.connect(self.importObject)
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
-        self.chb_keepRefEdits.stateChanged.connect(self.stateManager.saveStatesToScene)
-        self.chb_autoNameSpaces.stateChanged.connect(self.autoNameSpaceChanged)
-        self.chb_abcPath.stateChanged.connect(self.stateManager.saveStatesToScene)
-        self.chb_trackObjects.toggled.connect(self.updateTrackObjects)
-        self.b_selectAll.clicked.connect(self.lw_objects.selectAll)
-        if not self.stateManager.standalone:
-            self.b_nameSpaces.clicked.connect(
-                lambda: self.core.appPlugin.sm_import_removeNameSpaces(self)
-            )
-            self.lw_objects.itemSelectionChanged.connect(
-                lambda: self.core.appPlugin.selectNodes(self)
-            )
+
 
     @err_catcher(name=__name__)
     def nameChanged(self, text=None):
@@ -244,10 +227,12 @@ class USD_ImportClass(object):
 
         self.state.setText(0, name)
 
+
     @err_catcher(name=__name__)
     def getSortKey(self):
         cacheData = self.core.paths.getCachePathData(self.getImportPath())
         return cacheData.get("product")
+
 
     @err_catcher(name=__name__)
     def browse(self):
@@ -264,6 +249,7 @@ class USD_ImportClass(object):
                 self.setImportPath(importPath)
             self.updateUi()
 
+
     @err_catcher(name=__name__)
     def openFolder(self, pos):
         path = self.getImportPath()
@@ -271,6 +257,7 @@ class USD_ImportClass(object):
             path = os.path.dirname(path)
 
         self.core.openFolder(path)
+
 
     @err_catcher(name=__name__)
     def getImportPath(self):
@@ -280,6 +267,7 @@ class USD_ImportClass(object):
 
         return path
 
+
     @err_catcher(name=__name__)
     def setImportPath(self, path):
         self.importPath = path
@@ -288,11 +276,13 @@ class USD_ImportClass(object):
         self.updateUi()
         self.stateManager.saveStatesToScene()
 
+
     @err_catcher(name=__name__)
     def isShotCam(self, path=None):
         if not path:
             path = self.getImportPath()
         return path.endswith(".abc") and "/_ShotCam/" in path
+
 
     @err_catcher(name=__name__)
     def autoUpdateChanged(self, checked):
@@ -307,12 +297,6 @@ class USD_ImportClass(object):
 
         self.stateManager.saveStatesToScene()
 
-    @err_catcher(name=__name__)
-    def autoNameSpaceChanged(self, checked):
-        self.b_nameSpaces.setEnabled(not checked)
-        if not self.stateManager.standalone:
-            self.core.appPlugin.sm_import_removeNameSpaces(self)
-            self.stateManager.saveStatesToScene()
 
     @err_catcher(name=__name__)
     def runSanityChecks(self, cachePath):
@@ -325,6 +309,7 @@ class USD_ImportClass(object):
             return False
 
         return True
+
 
     @err_catcher(name=__name__)
     def checkFrameRange(self, cachePath):
@@ -353,6 +338,7 @@ class USD_ImportClass(object):
             return False
 
         return True
+
 
     @err_catcher(name=__name__)
     def importObject(self, update=False, path=None, settings=None):
@@ -392,23 +378,24 @@ class USD_ImportClass(object):
             return
 
         cacheData = self.core.paths.getCachePathData(impFileName)
+
+        self.core.popup(f"cacheData:  {cacheData}")                                      #    TESTING
+
         self.taskName = cacheData.get("task")
         doImport = True
 
-        if self.chb_trackObjects.isChecked():
-            getattr(self.core.appPlugin, "sm_import_updateObjects", lambda x: None)(
-                self
-            )
+        
+		#	Set node name
+        productName = cacheData["product"]
+        productVersion = cacheData["version"]
+        nodeName = f"{productName}_{productVersion}"
 
-        # temporary workaround until all plugin handle the settings argument
-        if self.core.appPlugin.pluginName == "Maya":
-            importResult = self.core.appPlugin.sm_import_importToApp(
-                self, doImport=doImport, update=update, impFileName=impFileName, settings=settings
-            )
-        else:
-            importResult = self.core.appPlugin.sm_import_importToApp(
-                self, doImport=doImport, update=update, impFileName=impFileName
-            )
+        importResult = self.core.appPlugin.importUSD(self,
+                                                     impFileName,
+                                                     UUID=self.stateUID,
+                                                     nodeName=nodeName,
+                                                     version=productVersion,
+                                                     update=False)
 
         if not importResult:
             result = None
@@ -433,9 +420,6 @@ class USD_ImportClass(object):
                     msgStr += i + "\n"
                 self.core.popup(msgStr)
 
-            if self.chb_autoNameSpaces.isChecked():
-                self.core.appPlugin.sm_import_removeNameSpaces(self)
-
             if not result:
                 msgStr = "Import failed: %s" % impFileName
                 self.core.popup(msgStr, title="ImportFile")
@@ -453,6 +437,7 @@ class USD_ImportClass(object):
         self.stateManager.saveStatesToScene()
 
         return result
+
 
     @err_catcher(name=__name__)
     def importLatest(self, refreshUi=True, selectedStates=True):
@@ -483,6 +468,7 @@ class USD_ImportClass(object):
 
         self.stateManager.applyChangesToSelection = prevState
 
+
     @err_catcher(name=__name__)
     def checkLatestVersion(self):
         path = self.getImportPath()
@@ -495,6 +481,7 @@ class USD_ImportClass(object):
             latestVersionData = {}
 
         return curVersionData, latestVersionData
+
 
     @err_catcher(name=__name__)
     def setStateColor(self, status):
@@ -509,6 +496,7 @@ class USD_ImportClass(object):
 
         self.statusColor = statusColor
         self.stateManager.tw_import.repaint()
+
 
     @err_catcher(name=__name__)
     def updateUi(self):
@@ -566,58 +554,10 @@ class USD_ImportClass(object):
                 else:
                     self.b_importLatest.setPalette(self.oldPalette)
 
-        isCache = self.stateMode == "ApplyCache"
-        self.f_nameSpaces.setVisible(not isCache)
-
-        self.lw_objects.clear()
-
-        if self.chb_trackObjects.isChecked():
-            self.gb_objects.setVisible(True)
-            getattr(self.core.appPlugin, "sm_import_updateObjects", lambda x: None)(
-                self
-            )
-
-            for i in self.nodes:
-                item = QListWidgetItem(self.core.appPlugin.getNodeName(self, i))
-                getattr(
-                    self.core.appPlugin,
-                    "sm_import_updateListItem",
-                    lambda x, y, z: None,
-                )(self, item, i)
-
-                self.lw_objects.addItem(item)
-        else:
-            self.gb_objects.setVisible(False)
-
         self.nameChanged()
         self.setStateColor(status)
         getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
-    @err_catcher(name=__name__)
-    def updateTrackObjects(self, state):
-        if not state:
-            if len(self.nodes) > 0:
-                msg = QMessageBox(
-                    QMessageBox.Question,
-                    "Track objects",
-                    "When you disable object tracking Prism won't be able to delete or replace the imported objects at a later point in time. You cannot undo this action. Are you sure you want to disable object tracking?",
-                    QMessageBox.Cancel,
-                )
-                msg.addButton("Continue", QMessageBox.YesRole)
-                msg.setParent(self.core.messageParent, Qt.Window)
-                action = msg.exec_()
-
-                if action != 0:
-                    self.chb_trackObjects.setChecked(True)
-                    return
-
-            self.nodes = []
-            getattr(
-                self.core.appPlugin, "sm_import_disableObjectTracking", lambda x: None
-            )(self)
-
-        self.updateUi()
-        self.stateManager.saveStatesToScene()
 
     @err_catcher(name=__name__)
     def preDelete(
@@ -652,23 +592,15 @@ class USD_ImportClass(object):
                 if action == 0:
                     self.core.appPlugin.deleteNodes(self, validNodes)
 
+
     @err_catcher(name=__name__)
     def getStateProps(self):
-        connectedNodes = []
-        if self.chb_trackObjects.isChecked():
-            for i in range(self.lw_objects.count()):
-                connectedNodes.append([self.lw_objects.item(i).text(), self.nodes[i]])
-
         return {
             "statename": self.e_name.text(),
+            "stateUID": self.stateUID,
             "statemode": self.stateMode,
             "filepath": self.getImportPath(),
             "autoUpdate": str(self.chb_autoUpdate.isChecked()),
-            "keepedits": str(self.chb_keepRefEdits.isChecked()),
-            "autonamespaces": str(self.chb_autoNameSpaces.isChecked()),
-            "updateabc": str(self.chb_abcPath.isChecked()),
-            "trackobjects": str(self.chb_trackObjects.isChecked()),
-            "connectednodes": connectedNodes,
             "taskname": self.taskName,
             "nodenames": str(self.nodeNames),
             "setname": self.setName,

@@ -3482,10 +3482,8 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
-	def importUSD(self, importPath, origin):
+	def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):
 		comp = self.getCurrentComp()
-
-		self.core.popup(f"importPath:  {importPath}")                                      #    TESTING
 
 		comp.Lock()
 		
@@ -3495,27 +3493,19 @@ path = r\"%s\"
 		#	Set import file path
 		usdTool["Filename"] = importPath
 
-		#	Get versionInfo data
-		versionInfoData = self.core.products.getProductDataFromFilepath(importPath)
-		productName = versionInfoData["product"]
-		productVersion = versionInfoData["version"]
-
 		#	Set node name
-		toolName = f"{productName}_{productVersion}"
-		usdTool.SetAttrs({"TOOLS_Name": toolName})
+		usdTool.SetAttrs({"TOOLS_Name": nodeName})
 
 		#	Add custom UUID
-		usdTool.SetData('PrImportUID', self.createUUID())
+		usdTool.SetData('PrImportUID', UUID)
 
 
 
 		comp.Unlock()
 
 
+		return {"result": True, "doImport": True}
 
-
-
-		return True
 
 
 
@@ -3551,7 +3541,7 @@ path = r\"%s\"
 
 		comp.Unlock()
 
-		return True
+		return {"result": True, "doImport": True}
 
 
 
@@ -3627,7 +3617,6 @@ path = r\"%s\"
 			# Do the importing
 			result = self.importHandlers[ext]["importFunction"](impFileName, origin)
 
-			self.core.popup(f"result of import function: {result}")                                      #    TESTING
 
 
 
@@ -4164,7 +4153,6 @@ path = r\"%s\"
 							"You may have to remove associated Savers from the comp manually.")
 
 
-
 	@err_catcher(name=__name__)
 	def getImportPaths(self, origin):
 		comp = self.getCurrentComp()
@@ -4440,9 +4428,9 @@ path = r\"%s\"
 					)
 				menu.addAction(actSet)
 
-			getattr(self.core.appPlugin, "sm_openStateFromNode", lambda x, y, stateType: None)(
-				self, menu, stateType=stateType
-				)
+			# getattr(self.core.appPlugin, "sm_openStateFromNode", lambda x, y, stateType: None)(			#	NOT USED???
+			# 	self, menu, stateType=stateType
+			# 	)
 
 			if not menu.isEmpty():
 				menu.exec_(QCursor.pos())
