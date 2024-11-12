@@ -4795,6 +4795,7 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def updateTasks(self, *args, **kwargs):
+		logger.debug("Loading patched function: 'mediaBrowser.updateTasks'")
 		mediabrowser = self.monkeypatchedmediabrowser#self.core.pb.mediaBrowser
 		self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
 		self.onMediaBrowserTaskUpdate(mediabrowser)
