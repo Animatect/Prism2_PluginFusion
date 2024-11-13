@@ -127,8 +127,9 @@ class Prism_Fusion_Functions(object):
 				"openPBListContextMenu", self.openPBListContextMenu, plugin=self
 			)
 			self.core.registerCallback(
-				"onMediaBrowserOpen", self.onMediaBrowserOpen, plugin=self
+				"onMediaBrowserTaskUpdate", self.onMediaBrowserTaskUpdate, plugin=self
 			)
+
 			logger.debug("Registered callbacks")
 
 		except Exception as e:
@@ -4250,13 +4251,9 @@ path = r\"%s\"
 	#        	       CALLBACKS                   #
 	#                                              #
 	################################################
-	
-	def onMediaBrowserOpen(self, origin):
-		self.monkeypatchedmediabrowser = origin
-		self.core.plugins.monkeyPatch(origin.updateTasks, self.updateTasks, self, force=True)
 
 	@err_catcher(name=__name__)
-	def onMediaBrowserTaskUpdate(self, origin):
+	def onMediaBrowserTaskUpdate(self, origin, curTask):
 		lw = origin.tw_identifier #listwidget
 		entity = origin.getCurrentEntity()
 		if lw == origin.tw_identifier:
@@ -4267,6 +4264,7 @@ path = r\"%s\"
 					color = self.getPrismDbIdentifierColor(category, item.text(0))
 					if color:
 						self.coloritem(item, color)
+
 
 	@err_catcher(name=__name__)
 	def openPBListContextMenu(self, origin, rcmenu, lw, item, path):
@@ -4306,6 +4304,7 @@ path = r\"%s\"
 
 				rcmenu.addMenu(menuSelTaskC)
 
+
 	@err_catcher(name=__name__)
 	def onUserSettingsOpen(self, origin):
 		origin.setWindowIcon(QIcon(self.prismAppIcon))
@@ -4323,9 +4322,6 @@ path = r\"%s\"
 			self.popup.close()
 		except:
 			pass
-		# self.core.plugins.monkeyPatch(self.core.pb.mediaBrowser.entered, self.entered, self, force=True)
-		# self.core.plugins.monkeyPatch(self.core.pb.mediaBrowser.updateTasks, self.updateTasks, self, force=True)
-		
 
 
 	def onProjectBrowserClose(self, origin):
@@ -4792,13 +4788,6 @@ path = r\"%s\"
 			sourceData.append([filePath, firstFrame, lastFrame])
 
 		return sourceData
-
-	@err_catcher(name=__name__)
-	def updateTasks(self, *args, **kwargs):
-		logger.debug("Loading patched function: 'mediaBrowser.updateTasks'")
-		mediabrowser = self.monkeypatchedmediabrowser#self.core.pb.mediaBrowser
-		self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
-		self.onMediaBrowserTaskUpdate(mediabrowser)
 
 
 ###########################################
