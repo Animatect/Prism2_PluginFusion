@@ -40,6 +40,7 @@ from PrismUtils.Decorators import err_catcher as err_catcher
 
 logger = logging.getLogger(__name__)
 
+
 @err_catcher(name=__name__)
 def createDefaultPrismFileDb(comp):
     #   This template needs to have the required keys.

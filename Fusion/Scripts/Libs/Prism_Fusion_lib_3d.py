@@ -36,8 +36,8 @@ from PrismUtils.Decorators import err_catcher as err_catcher
 
 
 @err_catcher(name=__name__)
-def importUSD(self, origin, importPath, UUID, nodeName, version):
-    comp = self.getCurrentComp()
+def importUSD(plugin, origin, importPath, UUID, nodeName, version):
+    comp = plugin.getCurrentComp()
 
     comp.Lock()
 
@@ -59,13 +59,13 @@ def importUSD(self, origin, importPath, UUID, nodeName, version):
 
 
 @err_catcher(name=__name__)
-def updateUSD(self, origin, importPath, UUID, nodeName, version):
-    comp = self.getCurrentComp()
+def updateUSD(plugin, origin, importPath, UUID, nodeName, version):
+    comp = plugin.getCurrentComp()
 
     comp.Lock()
 
     #	Get uLoader node
-    usdTool = self.getNodeByUID(UUID)
+    usdTool = plugin.getNodeByUID(UUID)
 
     #	Set import file path
     usdTool["Filename"] = importPath
@@ -80,8 +80,8 @@ def updateUSD(self, origin, importPath, UUID, nodeName, version):
 
 
 @err_catcher(name=__name__)
-def importFBX(self, origin, importPath, UUID, nodeName, version, update=False):
-    comp = self.getCurrentComp()
+def importFBX(plugin, origin, importPath, UUID, nodeName, version, update=False):
+    comp = plugin.getCurrentComp()
 
     comp.Lock()
 
