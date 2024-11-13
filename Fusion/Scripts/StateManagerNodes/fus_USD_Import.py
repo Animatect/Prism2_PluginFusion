@@ -33,12 +33,16 @@
 
 
 import os
+import logging
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
+
+logger = logging.getLogger(__name__)
+
 
 
 class USD_ImportClass(object):
@@ -155,7 +159,6 @@ class USD_ImportClass(object):
             self.e_name.setText(data["statename"])
         if "stateUID" in data:
             self.stateUID = data["stateUID"]
-            self.core.popup(f"self.stateUID:  {self.stateUID}")                                      #    TESTING
         if "statemode" in data:
             self.setStateMode(data["statemode"])
         if "filepath" in data:
@@ -396,7 +399,7 @@ class USD_ImportClass(object):
                                                 UUID=self.stateUID,
                                                 nodeName=nodeName,
                                                 version=productVersion,
-                                                update=False)
+                                                update=update)
 
         if not importResult:
             result = None
@@ -561,37 +564,29 @@ class USD_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def preDelete(
-        self,
-        item=None,
-        baseText="Do you also want to delete the connected objects?\n\n",
-    ):
-        if len(self.nodes) > 0 and self.stateMode != "ApplyCache":
-            message = baseText
-            validNodes = [
-                x for x in self.nodes if self.core.appPlugin.isNodeValid(self, x)
-            ]
-            if len(validNodes) > 0:
-                for idx, val in enumerate(validNodes):
-                    if idx > 5:
-                        message += "..."
-                        break
-                    else:
-                        message += self.core.appPlugin.getNodeName(self, val) + "\n"
+    def preDelete(self, item=None):
+        try:
+            if not self.core.uiAvailable:
+                action = 0
+                logger.debug(f"Deleting node: {item}")
 
-                if not self.core.uiAvailable:
-                    action = 0
-                    print("delete objects:\n\n%s" % message)
-                else:
-                    msg = QMessageBox(
-                        QMessageBox.Question, "Delete state", message, QMessageBox.No
-                    )
-                    msg.addButton("Yes", QMessageBox.YesRole)
-                    msg.setParent(self.core.messageParent, Qt.Window)
-                    action = msg.exec_()
+            else:
+                nodeUID = self.stateUID
+                nodeName = self.fuseFuncts.getNodeNameByUID(nodeUID)
 
-                if action == 0:
-                    self.core.appPlugin.deleteNodes(self, validNodes)
+                message = f"Would you like to also remove the associated uLoader: {nodeName}?"
+
+                msg = QMessageBox(
+                    QMessageBox.Question, "Delete state", message, QMessageBox.No
+                )
+                msg.addButton("Yes", QMessageBox.YesRole)
+                msg.setParent(self.core.messageParent, Qt.Window)
+                action = msg.exec_()
+
+            if action == 0:
+                self.fuseFuncts.deleteNode(nodeUID)
+        except:
+            logger.warning("ERROR: Unable to remove uLoader from Comp")
 
 
     @err_catcher(name=__name__)

@@ -64,6 +64,7 @@ import pyperclip
 from PrismUtils.Decorators import err_catcher as err_catcher
 
 #	Import Prism Fusion Libraries
+import Libs.Prism_Fusion_lib_CompDb as CompDb
 import Libs.Prism_Fusion_lib_3d as Fus3d
 
 logger = logging.getLogger(__name__)
@@ -903,6 +904,24 @@ class Prism_Fusion_Functions(object):
 					logger.debug(f"ERROR: Render Node is not connected: {nodeUID}")
 			else:
 				logger.warning(f"ERROR: Render Node does not exist: {nodeUID}")
+
+
+	#	Removes Node from Comp
+	@err_catcher(name=__name__)
+	def deleteNode(self, nodeUID):
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			tool = self.getNodeByUID(nodeUID)
+			if tool:
+				try:
+					toolName = self.getNodeNameByUID(nodeUID)
+					tool.Delete()
+					# if not tool:
+					CompDb.removePrismDbNodeInfo(comp, "import3d", nodeUID)
+					logger.debug(f"Removed tool '{toolName}")
+				except:
+					logger.warning(f"ERROR:  Unable to remove tool: {nodeUID}")
+
 	
 
 	################################################
@@ -2231,15 +2250,15 @@ path = r\"%s\"
 		return "1.0"
 	
 
-	@err_catcher(name=__name__)
-	def deleteNodes(self, origin, handles, num=0):
-		comp = self.getCurrentComp()
-		for i in handles:	
-			if self.sm_checkCorrectComp(comp):
-				toolnm = i["name"]
-				tool = comp.FindTool(toolnm)
-				if tool:
-					tool.Delete()
+	# @err_catcher(name=__name__)
+	# def deleteNodes(self, origin, handles, num=0):
+	# 	comp = self.getCurrentComp()
+	# 	for i in handles:	
+	# 		if self.sm_checkCorrectComp(comp):
+	# 			toolnm = i["name"]
+	# 			tool = comp.FindTool(toolnm)
+	# 			if tool:
+	# 				tool.Delete()
 
 
 	################################################
@@ -3516,10 +3535,6 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def importAlembic(self, importPath, origin):
-
-
-
-
 		return self.importFormatByUI(origin=origin, formatCall="AbcImport", filepath=importPath, global_scale=100, options=self.abc_options)
 	
 
@@ -3528,33 +3543,37 @@ path = r\"%s\"
 	# @err_catcher(name=__name__)
 	# def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):
 	# 	comp = self.getCurrentComp()
-
 	# 	comp.Lock()
-		
 	# 	#	Add uLoader node
 	# 	usdTool = comp.AddTool("uLoader")
-
 	# 	#	Set import file path
 	# 	usdTool["Filename"] = importPath
-
 	# 	#	Set node name
 	# 	usdTool.SetAttrs({"TOOLS_Name": nodeName})
-
 	# 	#	Add custom UUID
 	# 	usdTool.SetData('PrImportUID', UUID)
-
-
-
 	# 	comp.Unlock()
-
-
 	# 	return {"result": True, "doImport": True}
 
 
-	#	JUST TESTING VIA A PASS THROUGH
 	@err_catcher(name=__name__)
-	def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):
-		return Fus3d.importUSD(self, origin, importPath, UUID, nodeName, version, update=False)
+	def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):				#	TODO HANDLE ERRORS
+		comp = self.getCurrentComp()
+
+		nodeData = {"nodeName": nodeName,
+			  		"version": version,
+					"filepath": importPath}
+		
+		if not update:
+			addResult = CompDb.addPrismDbNodeInfo(comp, "import3d", UUID, nodeData)
+			result = Fus3d.importUSD(self, origin, importPath, UUID, nodeName, version)
+		
+		else:
+			CompDb.updatePrismDbNodeInfo(comp, "import3d", UUID, nodeData)
+			result = Fus3d.updateUSD(self, origin, importPath, UUID, nodeName, version)
+
+
+		return result
 
 
 	@err_catcher(name=__name__)
@@ -3565,44 +3584,23 @@ path = r\"%s\"
 
 	# @err_catcher(name=__name__)
 	# def importFBX(self, importPath, origin):
-
 	# 	comp = self.getCurrentComp()
-
 	# 	comp.Lock()
-
 	# 	#	Add FBX Mesh node
 	# 	fbxTool = comp.AddTool("SurfaceFBXMesh")
-
 	# 	#	Set import mesh file path
 	# 	fbxTool["ImportFile"] = importPath
-
 	# 	#	Get versionInfo data
 	# 	versionInfoData = self.core.products.getProductDataFromFilepath(importPath)
 	# 	productName = versionInfoData["product"]
 	# 	productVersion = versionInfoData["version"]
-
 	# 	#	Set node name
 	# 	toolName = f"{productName}_{productVersion}"
 	# 	fbxTool.SetAttrs({"TOOLS_Name": toolName})
-
 	# 	#	Add custom UUID
 	# 	fbxTool.SetData('PrImportUID', self.createUUID())
-
-
-
-
 	# 	comp.Unlock()
-
 	# 	return {"result": True, "doImport": True}
-
-
-
-
-
-
-
-
-
 		# return self.importFormatByUI(origin = origin, formatCall="FBXImport", filepath=importPath, global_scale=100)
 	
 
@@ -4220,55 +4218,67 @@ path = r\"%s\"
 	#                                              #
 	################################################
 
-	@err_catcher(name=__name__)
-	def createDefaultPrismFileDb(self):
-		comp = self.getCurrentComp()
-		defaultdb = {
-			"fileValues": {
-				"identifiersColors": {
-					"asset": {},
-					"shot": {}
-				}
-			}
-		}
-		json_string = json.dumps(defaultdb)
-		comp.SetData("prismfiledb", json_string)
+	# @err_catcher(name=__name__)
+	# def createDefaultPrismFileDb(self):
+	# 	comp = self.getCurrentComp()
+	# 	defaultdb = {
+	# 		"fileValues": {
+	# 			"identifiersColors": {
+	# 				"asset": {},
+	# 				"shot": {}
+	# 			}
+	# 		}
+	# 	}
+	# 	json_string = json.dumps(defaultdb)
+	# 	comp.SetData("prismfiledb", json_string)
 
 
-	@err_catcher(name=__name__)
-	def loadPrismFileDb(self):
-		comp = self.getCurrentComp()
-		prismfiledb = comp.GetData("prismfiledb")
-		if prismfiledb:
-			return prismfiledb
-		else:
-			self.createDefaultPrismFileDb()
-			return comp.GetData("prismfiledb")
+	# @err_catcher(name=__name__)
+	# def loadPrismFileDb(self):
+	# 	comp = self.getCurrentComp()
+	# 	prismfiledb = comp.GetData("prismfiledb")
+	# 	if prismfiledb:
+	# 		return prismfiledb
+	# 	else:
+	# 		self.createDefaultPrismFileDb()
+	# 		return comp.GetData("prismfiledb")
 	
-	@err_catcher(name=__name__)
-	def savePrismFileDb(self, json_data):
-		comp = self.getCurrentComp()
-		json_string =  json.dumps(json_data, indent=4)
-		comp.SetData("prismfiledb", json_string)
 
-	@err_catcher(name=__name__)
-	def addPrismDbIdentifier(self, category, name, color):
-		json_string = self.loadPrismFileDb()
-		json_data = json.loads(json_string)
-		if category in ["asset", "shot"]:
-			json_data["fileValues"]["identifiersColors"][category][name] = color
-			self.savePrismFileDb(json_data)
+	# @err_catcher(name=__name__)
+	# def savePrismFileDb(self, json_data):
+	# 	comp = self.getCurrentComp()
+	# 	json_string =  json.dumps(json_data, indent=4)
+	# 	comp.SetData("prismfiledb", json_string)
 
-	@err_catcher(name=__name__)
-	def getPrismDbIdentifierColor(self, category, name):
-		json_string = self.loadPrismFileDb()
-		json_data = json.loads(json_string)
-		if category in json_data["fileValues"]["identifiersColors"]:
-			if name in json_data["fileValues"]["identifiersColors"][category]:
-				color = json_data["fileValues"]["identifiersColors"][category][name]
-				return color
+
+	# @err_catcher(name=__name__)
+	# def addPrismDbIdentifier(self, category, name, color):
+	# 	json_string = self.loadPrismFileDb()
+	# 	json_data = json.loads(json_string)
+	# 	if category in ["asset", "shot"]:
+	# 		json_data["fileValues"]["identifiersColors"][category][name] = color
+	# 		self.savePrismFileDb(json_data)
+
+
+	# @err_catcher(name=__name__)
+	# def addPrismDbNodeInfo(self, type, UUID, nodeName, version, filepath):
+	# 	json_string = self.loadPrismFileDb()
+	# 	json_data = json.loads(json_string)
+
+	# 	json_data["nodes"]
+
 		
-		return None
+
+	# @err_catcher(name=__name__)
+	# def getPrismDbIdentifierColor(self, category, name):
+	# 	json_string = self.loadPrismFileDb()
+	# 	json_data = json.loads(json_string)
+	# 	if category in json_data["fileValues"]["identifiersColors"]:
+	# 		if name in json_data["fileValues"]["identifiersColors"][category]:
+	# 			color = json_data["fileValues"]["identifiersColors"][category][name]
+	# 			return color
+		
+	# 	return None
 
 
 	################################################
@@ -4338,7 +4348,7 @@ path = r\"%s\"
 			self.core.popup("There are no loaders for this task.", severity="info")
 		else:
 			self.coloritem(item, color)
-			self.addPrismDbIdentifier(category, item.text(0), color)
+			CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
 
 	@err_catcher(name=__name__)
 	def coloritem(self, item, color):			
@@ -4360,6 +4370,7 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def onMediaBrowserTaskUpdate(self, origin):
+		comp = self.getCurrentComp()
 		lw = origin.tw_identifier #listwidget
 		entity = origin.getCurrentEntity()
 		if lw == origin.tw_identifier:
@@ -4367,7 +4378,7 @@ path = r\"%s\"
 			if category in ["asset", "shot"]:
 				for i in range(lw.topLevelItemCount()):
 					item = lw.topLevelItem(i)
-					color = self.getPrismDbIdentifierColor(category, item.text(0))
+					color = CompDb.getPrismDbIdentifierColor(comp, category, item.text(0))
 					if color:
 						self.coloritem(item, color)
 

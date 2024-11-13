@@ -36,7 +36,7 @@ from PrismUtils.Decorators import err_catcher as err_catcher
 
 
 @err_catcher(name=__name__)
-def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):
+def importUSD(self, origin, importPath, UUID, nodeName, version):
     comp = self.getCurrentComp()
 
     comp.Lock()
@@ -51,7 +51,27 @@ def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):
     usdTool.SetAttrs({"TOOLS_Name": nodeName})
 
     #	Add custom UUID
-    usdTool.SetData('PrImportUID', UUID)
+    usdTool.SetData('Prism_UUID', UUID)
+
+    comp.Unlock()
+
+    return {"result": True, "doImport": True}
+
+
+@err_catcher(name=__name__)
+def updateUSD(self, origin, importPath, UUID, nodeName, version):
+    comp = self.getCurrentComp()
+
+    comp.Lock()
+
+    #	Get uLoader node
+    usdTool = self.getNodeByUID(UUID)
+
+    #	Set import file path
+    usdTool["Filename"] = importPath
+
+    #	Set node name
+    usdTool.SetAttrs({"TOOLS_Name": nodeName})
 
     comp.Unlock()
 
@@ -75,7 +95,7 @@ def importFBX(self, origin, importPath, UUID, nodeName, version, update=False):
     fbxTool.SetAttrs({"TOOLS_Name": nodeName})
 
     #	Add custom UUID
-    fbxTool.SetData('PrImportUID', UUID)
+    fbxTool.SetData('Prism_UUID', UUID)
 
     comp.Unlock()
 
