@@ -586,7 +586,7 @@ class USD_ImportClass(object):
     def preDelete(self, item=None):
         try:
             #   Defaults to Delete the Node
-            delAction = 0
+            delAction = "Yes"
 
             if not self.core.uiAvailable:
                 logger.debug(f"Deleting node: {item}")
@@ -598,15 +598,10 @@ class USD_ImportClass(object):
                 #   If the Loader exists, show popup question
                 if nodeName:
                     message = f"Would you like to also remove the associated uLoader: {nodeName}?"
+                    buttons = ["Yes", "No"]
+                    result = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
 
-                    msg = QMessageBox(
-                        QMessageBox.Question, "Delete state", message, QMessageBox.No
-                    )
-                    msg.addButton("Yes", QMessageBox.YesRole)
-                    msg.setParent(self.core.messageParent, Qt.Window)
-                    delAction = msg.exec_()
-
-            if delAction == 0:
+            if delAction == "Yes":
                 self.fuseFuncts.deleteNode(nodeUID)
         except:
             logger.warning("ERROR: Unable to remove uLoader from Comp")
