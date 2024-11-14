@@ -2450,7 +2450,8 @@ path = r\"%s\"
 									splithandle=splithandle,
 									updatehandle=updatehandle,
 									refNode=leftmostNode,
-									createwireless=sortnodes
+									createwireless=sortnodes,
+									processmultilayerexr=False
 									)
 			except:
 				logger.warning("ERROR: Unable to import passes")
