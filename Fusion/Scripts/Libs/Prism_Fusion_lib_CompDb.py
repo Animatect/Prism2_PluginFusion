@@ -147,6 +147,10 @@ def removePrismDbNodeInfo(comp, type, UUID):
     try:
         if UUID in cpData["nodes"][type]:
             del cpData["nodes"][type][UUID]
+            logger.debug(f"Removed {UUID} from the Comp Database")
+            savePrismFileDb(comp, cpData)
+        else:
+            logger.debug(f"{UUID} does not exist in the Comp Database")
             
     except:
         logger.warning(f"ERROR: Unable to remove {UUID} from the Comp Database")

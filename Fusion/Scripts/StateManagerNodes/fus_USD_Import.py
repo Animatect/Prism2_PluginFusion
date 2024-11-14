@@ -34,6 +34,7 @@
 
 import os
 import logging
+from tkinter import N
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -123,10 +124,16 @@ class USD_ImportClass(object):
             return False
 
         getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)                 #   USED???
+
         self.connectEvents()
 
         if stateData is not None:
             self.loadData(stateData)
+
+        tip = ("Create a simple Fusion USD scene.\n\n"
+               "This will add and connect:\n"
+               "A uMerge and a uRenderer")
+        self.b_createUsdScene.setToolTip(tip)
 
         self.nameChanged()
         self.updateUi()
@@ -186,9 +193,10 @@ class USD_ImportClass(object):
         self.b_browse.clicked.connect(self.browse)
         self.b_browse.customContextMenuRequested.connect(self.openFolder)
         #   This is the "Re-Import" button
-        self.b_import.clicked.connect(self.importObject)
+        self.b_import.clicked.connect(lambda: self.importObject(update=True))
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
+        self.b_createUsdScene.clicked.connect(self.createUsdScene)
 
 
     @err_catcher(name=__name__)
@@ -375,9 +383,9 @@ class USD_ImportClass(object):
             self.core.popup("Invalid importpath:\n\n%s" % impFileName)
             return
 
-        if not hasattr(self.core.appPlugin, "sm_import_importToApp"):
-            self.core.popup("Import into %s is not supported." % self.core.appPlugin.pluginName)
-            return
+        # if not hasattr(self.core.appPlugin, "sm_import_importToApp"):
+        #     self.core.popup("Import into %s is not supported." % self.core.appPlugin.pluginName)
+        #     return
 
         result = self.runSanityChecks(impFileName)
         if not result:
@@ -485,6 +493,17 @@ class USD_ImportClass(object):
             latestVersionData = {}
 
         return curVersionData, latestVersionData
+    
+
+    #   Creates simple USD Scene with uMerge and URenderer
+    @err_catcher(name=__name__)
+    def createUsdScene(self):
+        if self.stateManager.standalone:
+            return
+        
+        UUID = self.stateUID
+        
+        result = self.fuseFuncts.createUsdScene(self, UUID)
 
 
     @err_catcher(name=__name__)
@@ -566,24 +585,28 @@ class USD_ImportClass(object):
     @err_catcher(name=__name__)
     def preDelete(self, item=None):
         try:
+            #   Defaults to Delete the Node
+            delAction = 0
+
             if not self.core.uiAvailable:
-                action = 0
                 logger.debug(f"Deleting node: {item}")
 
             else:
                 nodeUID = self.stateUID
                 nodeName = self.fuseFuncts.getNodeNameByUID(nodeUID)
 
-                message = f"Would you like to also remove the associated uLoader: {nodeName}?"
+                #   If the Loader exists, show popup question
+                if nodeName:
+                    message = f"Would you like to also remove the associated uLoader: {nodeName}?"
 
-                msg = QMessageBox(
-                    QMessageBox.Question, "Delete state", message, QMessageBox.No
-                )
-                msg.addButton("Yes", QMessageBox.YesRole)
-                msg.setParent(self.core.messageParent, Qt.Window)
-                action = msg.exec_()
+                    msg = QMessageBox(
+                        QMessageBox.Question, "Delete state", message, QMessageBox.No
+                    )
+                    msg.addButton("Yes", QMessageBox.YesRole)
+                    msg.setParent(self.core.messageParent, Qt.Window)
+                    delAction = msg.exec_()
 
-            if action == 0:
+            if delAction == 0:
                 self.fuseFuncts.deleteNode(nodeUID)
         except:
             logger.warning("ERROR: Unable to remove uLoader from Comp")

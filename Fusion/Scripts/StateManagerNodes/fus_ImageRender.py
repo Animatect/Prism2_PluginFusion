@@ -316,7 +316,7 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def onStateLoaded(self):
-		if self.fusionFuncs.rendernodeExists(self.stateUID):
+		if self.fusionFuncs.nodeExists(self.stateUID):
 			passThrough = self.fusionFuncs.isPassThrough(nodeUID=self.stateUID)
 			if passThrough:
 				self.state.setCheckState(0, Qt.Unchecked)
@@ -794,7 +794,7 @@ class ImageRenderClass(object):
 		# disabled = twitem.checkState(0) != Qt.Checked
 		try:
 			nodeUID = self.stateUID
-			if self.fusionFuncs.rendernodeExists(nodeUID):
+			if self.fusionFuncs.nodeExists(nodeUID):
 				self.fusionFuncs.setPassThrough(nodeUID=nodeUID, passThrough=disabled)
 			else:
 				self.setRendernode()
@@ -822,7 +822,7 @@ class ImageRenderClass(object):
 		nodeUID = self.stateUID
 
 		#	If the Saver exists
-		if self.fusionFuncs.rendernodeExists(nodeUID):
+		if self.fusionFuncs.nodeExists(nodeUID):
 			self.b_setRendernode.setText(nodeName)
 			self.fusionFuncs.updateRendernode(nodeName, nodeUID)
 
@@ -853,7 +853,7 @@ class ImageRenderClass(object):
 	def statusColorNodeButton(self):
 		try:
 			#	Checks if Saver exists
-			if self.fusionFuncs.rendernodeExists(self.stateUID):
+			if self.fusionFuncs.nodeExists(self.stateUID):
 				toolName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
 
 				#	Compares Identifier name to Saver name

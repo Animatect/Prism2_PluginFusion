@@ -33,12 +33,15 @@
 
 
 import os
+import logging
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
+
+logger = logging.getLogger(__name__)
 
 
 class FBX_ImportClass(object):
@@ -119,10 +122,16 @@ class FBX_ImportClass(object):
             return False
 
         getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)                 #   USED???
+
         self.connectEvents()
 
         if stateData is not None:
             self.loadData(stateData)
+
+        tip = ("Create a simple Fusion 3d scene.\n\n"
+               "This will add and connect:\n"
+               "A Merge3d and a Renderer3d")
+        self.b_createFbxScene.setToolTip(tip)
 
         self.nameChanged()
         self.updateUi()
@@ -183,9 +192,10 @@ class FBX_ImportClass(object):
         self.b_browse.clicked.connect(self.browse)
         self.b_browse.customContextMenuRequested.connect(self.openFolder)
         #   This is the "Re-Import" button
-        self.b_import.clicked.connect(self.importObject)
+        self.b_import.clicked.connect(lambda: self.importObject(update=True))
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
+        self.b_createFbxScene.clicked.connect(self.createFbxScene)
 
 
     @err_catcher(name=__name__)
@@ -372,9 +382,9 @@ class FBX_ImportClass(object):
             self.core.popup("Invalid importpath:\n\n%s" % impFileName)
             return
 
-        if not hasattr(self.core.appPlugin, "sm_import_importToApp"):
-            self.core.popup("Import into %s is not supported." % self.core.appPlugin.pluginName)
-            return
+        # if not hasattr(self.core.appPlugin, "sm_import_importToApp"):
+        #     self.core.popup("Import into %s is not supported." % self.core.appPlugin.pluginName)
+        #     return
 
         result = self.runSanityChecks(impFileName)
         if not result:
@@ -396,7 +406,7 @@ class FBX_ImportClass(object):
                                                 UUID=self.stateUID,
                                                 nodeName=nodeName,
                                                 version=productVersion,
-                                                update=False)
+                                                update=update)
 
         if not importResult:
             result = None
@@ -484,6 +494,17 @@ class FBX_ImportClass(object):
         return curVersionData, latestVersionData
 
 
+    #   Creates simple 3d Scene with Merge3d and Renderer3d
+    @err_catcher(name=__name__)
+    def createFbxScene(self):
+        if self.stateManager.standalone:
+            return
+        
+        UUID = self.stateUID
+        
+        result = self.fuseFuncts.createFbxScene(self, UUID)
+
+
     @err_catcher(name=__name__)
     def setStateColor(self, status):
         if status == "ok":
@@ -561,37 +582,33 @@ class FBX_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def preDelete(
-        self,
-        item=None,
-        baseText="Do you also want to delete the connected objects?\n\n",
-    ):
-        if len(self.nodes) > 0 and self.stateMode != "ApplyCache":
-            message = baseText
-            validNodes = [
-                x for x in self.nodes if self.core.appPlugin.isNodeValid(self, x)
-            ]
-            if len(validNodes) > 0:
-                for idx, val in enumerate(validNodes):
-                    if idx > 5:
-                        message += "..."
-                        break
-                    else:
-                        message += self.core.appPlugin.getNodeName(self, val) + "\n"
+    def preDelete(self, item=None):
+        try:
+            #   Defaults to Delete the Node
+            delAction = 0
+            
+            if not self.core.uiAvailable:
+                logger.debug(f"Deleting node: {item}")
 
-                if not self.core.uiAvailable:
-                    action = 0
-                    print("delete objects:\n\n%s" % message)
-                else:
+            else:
+                nodeUID = self.stateUID
+                nodeName = self.fuseFuncts.getNodeNameByUID(nodeUID)
+
+                #   If the Loader exists, show popup question
+                if nodeName:
+                    message = f"Would you like to also remove the associated Loader3d: {nodeName}?"
+
                     msg = QMessageBox(
                         QMessageBox.Question, "Delete state", message, QMessageBox.No
                     )
                     msg.addButton("Yes", QMessageBox.YesRole)
                     msg.setParent(self.core.messageParent, Qt.Window)
-                    action = msg.exec_()
+                    delAction = msg.exec_()
 
-                if action == 0:
-                    self.core.appPlugin.deleteNodes(self, validNodes)
+            if delAction == 0:
+                self.fuseFuncts.deleteNode(nodeUID)
+        except:
+            logger.warning("ERROR: Unable to remove Loader3d from Comp")
 
 
     @err_catcher(name=__name__)

@@ -66,7 +66,7 @@ class Ui_wg_USD_Import(object):
 
         self.horizontalLayout_5.addWidget(self.label_3)
 
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_5.addItem(self.horizontalSpacer)
 
@@ -88,7 +88,7 @@ class Ui_wg_USD_Import(object):
 
         self.horizontalLayout_6.addWidget(self.label_6)
 
-        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_6.addItem(self.horizontalSpacer_2)
 
@@ -110,7 +110,7 @@ class Ui_wg_USD_Import(object):
 
         self.horizontalLayout_14.addWidget(self.l_autoUpdate)
 
-        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_14.addItem(self.horizontalSpacer_10)
 
@@ -172,16 +172,18 @@ class Ui_wg_USD_Import(object):
         self.horizontalLayout_10 = QHBoxLayout(self.f_keepRefEdits)
         self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
         self.horizontalLayout_10.setContentsMargins(9, 0, 9, 0)
-        self.chb_keepRefEdits = QCheckBox(self.f_keepRefEdits)
-        self.chb_keepRefEdits.setObjectName(u"chb_keepRefEdits")
-        self.chb_keepRefEdits.setChecked(True)
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
-        self.horizontalLayout_10.addWidget(self.chb_keepRefEdits)
+        self.horizontalLayout_10.addItem(self.horizontalSpacer_3)
 
-        self.label = QLabel(self.f_keepRefEdits)
-        self.label.setObjectName(u"label")
+        self.b_createUsdScene = QPushButton(self.f_keepRefEdits)
+        self.b_createUsdScene.setObjectName(u"b_createUsdScene")
 
-        self.horizontalLayout_10.addWidget(self.label)
+        self.horizontalLayout_10.addWidget(self.b_createUsdScene)
+
+        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.horizontalLayout_10.addItem(self.horizontalSpacer_4)
 
 
         self.verticalLayout_6.addWidget(self.f_keepRefEdits)
@@ -197,7 +199,6 @@ class Ui_wg_USD_Import(object):
         self.verticalLayout.addWidget(self.gb_import)
 
         QWidget.setTabOrder(self.e_name, self.chb_autoUpdate)
-        QWidget.setTabOrder(self.chb_autoUpdate, self.chb_keepRefEdits)
 
         self.retranslateUi(wg_USD_Import)
 
@@ -220,7 +221,7 @@ class Ui_wg_USD_Import(object):
         self.b_importLatest.setText(QCoreApplication.translate("wg_USD_Import", u"Import latest Version", None))
         self.b_import.setText(QCoreApplication.translate("wg_USD_Import", u"Re-Import", None))
         self.gb_options.setTitle(QCoreApplication.translate("wg_USD_Import", u"Options", None))
-        self.chb_keepRefEdits.setText("")
-        self.label.setText(QCoreApplication.translate("wg_USD_Import", u"TEMP PLACEHOLDER", None))
+        self.b_createUsdScene.setText(QCoreApplication.translate("wg_USD_Import", u"Create Scene", None))
     # retranslateUi
+
 

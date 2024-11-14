@@ -889,7 +889,7 @@ class RenderGroupClass(object):
 	def stateStatusColor(self, stateUID):
 		try:
 			#	Checks if Saver exists
-			if self.fusionFuncs.rendernodeExists(stateUID):
+			if self.fusionFuncs.nodeExists(stateUID):
 				return {"background": "#54754c", "foreground": "#FFFFFF"}
 			else:
 				raise Exception
@@ -1246,7 +1246,7 @@ class RenderGroupClass(object):
 				#	Gets the State names in group
 				renderStatesNames.append(self.getStateNameFromUID(nodeUID))
 				#	If the associated Saver does not exist
-				if not self.fusionFuncs.rendernodeExists(nodeUID):
+				if not self.fusionFuncs.nodeExists(nodeUID):
 					missingSaverList.append(self.getStateNameFromUID(nodeUID))
 
 			#	Makes the warning string for Group states
