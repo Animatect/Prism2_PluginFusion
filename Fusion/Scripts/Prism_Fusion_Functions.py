@@ -196,6 +196,7 @@ class Prism_Fusion_Functions(object):
 			# "YUVFormat": "yuv",             # YUV
 
 		self.fusionToolsColorsDict = {
+			'Clear Color': {'R': 0.0111, 'G': 0.0111, 'B': 0.0111 },
 			'Orange': {'R': 0.9215686274509803, 'G': 0.43137254901960786, 'B': 0.0 },
 			'Apricot': {'R': 1.0, 'G': 0.6588235294117647, 'B': 0.2 },
 			'Yellow': {'R': 0.8862745098039215, 'G': 0.6627450980392157, 'B': 0.10980392156862745},
@@ -3878,7 +3879,13 @@ path = r\"%s\"
 			CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
 
 	@err_catcher(name=__name__)
-	def coloritem(self, item, color):			
+	def coloritem(self, item, color):
+		#	Check if R, G, and B are all 0.0111 to clear the color
+		if color['R'] == 0.0111 and color['G'] == 0.0111 and color['B'] == 0.0111:
+			item.setBackground(0, QBrush())
+			item.setForeground(0, QBrush())
+			return
+
 		qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
 		item.setBackground(0, qcolor)
 		item.setForeground(0, QColor(230, 230, 230))
