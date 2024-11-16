@@ -401,11 +401,15 @@ class FBX_ImportClass(object):
         productVersion = cacheData["version"]
         nodeName = f"{productName}_{productVersion}"
 
+        nodeData = {"nodeName": nodeName,
+            "version": productVersion,
+            "filepath": impFileName,
+            "product": productName,
+            "format": "FBX"}
+
         importResult = self.fuseFuncts.importFBX(self,
-                                                impFileName,
                                                 UUID=self.stateUID,
-                                                nodeName=nodeName,
-                                                version=productVersion,
+                                                nodeData=nodeData,
                                                 update=update)
 
         if not importResult:

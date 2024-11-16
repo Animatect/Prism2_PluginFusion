@@ -36,7 +36,7 @@ from PrismUtils.Decorators import err_catcher as err_catcher
 
 
 @err_catcher(name=__name__)
-def importUSD(plugin, origin, importPath, UUID, nodeName, version):
+def importUSD(plugin, origin, UUID, nodeData):
     comp = plugin.getCurrentComp()
 
     comp.Lock()
@@ -45,10 +45,10 @@ def importUSD(plugin, origin, importPath, UUID, nodeName, version):
     usdTool = comp.AddTool("uLoader")
 
     #	Set import file path
-    usdTool["Filename"] = importPath
+    usdTool["Filename"] = nodeData["filepath"]
 
     #	Set node name
-    usdTool.SetAttrs({"TOOLS_Name": nodeName})
+    usdTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
 
     #	Add custom UUID
     usdTool.SetData('Prism_UUID', UUID)
@@ -59,7 +59,7 @@ def importUSD(plugin, origin, importPath, UUID, nodeName, version):
 
 
 @err_catcher(name=__name__)
-def updateUSD(plugin, origin, importPath, UUID, nodeName, version):
+def updateUSD(plugin, origin, UUID, nodeData):
     comp = plugin.getCurrentComp()
 
     comp.Lock()
@@ -68,10 +68,10 @@ def updateUSD(plugin, origin, importPath, UUID, nodeName, version):
     usdTool = plugin.getNodeByUID(UUID)
 
     #	Set import file path
-    usdTool["Filename"] = importPath
+    usdTool["Filename"] = nodeData["filepath"]
 
     #	Set node name
-    usdTool.SetAttrs({"TOOLS_Name": nodeName})
+    usdTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
 
     comp.Unlock()
 
@@ -109,7 +109,7 @@ def createUsdScene(plugin, origin, UUID):
 
 
 @err_catcher(name=__name__)
-def importFBX(plugin, origin, importPath, UUID, nodeName, version):
+def importFBX(plugin, origin, UUID, nodeData):
     comp = plugin.getCurrentComp()
 
     comp.Lock()
@@ -118,10 +118,10 @@ def importFBX(plugin, origin, importPath, UUID, nodeName, version):
     fbxTool = comp.AddTool("SurfaceFBXMesh")
 
     #	Set import mesh file path
-    fbxTool["ImportFile"] = importPath
+    fbxTool["ImportFile"] = nodeData["filepath"]
 
     #	Set node name
-    fbxTool.SetAttrs({"TOOLS_Name": nodeName})
+    fbxTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
 
     #	Add custom UUID
     fbxTool.SetData('Prism_UUID', UUID)
@@ -132,7 +132,7 @@ def importFBX(plugin, origin, importPath, UUID, nodeName, version):
 
 
 @err_catcher(name=__name__)
-def updateFBX(plugin, origin, importPath, UUID, nodeName, version):
+def updateFBX(plugin, origin, UUID, nodeData):
     comp = plugin.getCurrentComp()
 
     comp.Lock()
@@ -141,10 +141,10 @@ def updateFBX(plugin, origin, importPath, UUID, nodeName, version):
     fbxTool = plugin.getNodeByUID(UUID)
 
     #	Set import file path
-    fbxTool["Filename"] = importPath
+    fbxTool["Filename"] = nodeData["filepath"]
 
     #	Set node name
-    fbxTool.SetAttrs({"TOOLS_Name": nodeName})
+    fbxTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
 
     comp.Unlock()
 
@@ -182,7 +182,7 @@ def createFbxScene(plugin, origin, UUID):
 
 
 @err_catcher(name=__name__)
-def importABC(plugin, origin, importPath, UUID, nodeName, version):
+def importABC(plugin, origin, UUID, nodeData):
     comp = plugin.getCurrentComp()
 
     comp.Lock()
@@ -191,10 +191,10 @@ def importABC(plugin, origin, importPath, UUID, nodeName, version):
     abcTool = comp.AddTool("SurfaceAlembicMesh")
 
     #	Set import mesh file path
-    abcTool["Filename"] = importPath
+    abcTool["Filename"] = nodeData["filepath"]
 
     #	Set node name
-    abcTool.SetAttrs({"TOOLS_Name": nodeName})
+    abcTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
 
     #	Add custom UUID
     abcTool.SetData('Prism_UUID', UUID)
@@ -205,7 +205,7 @@ def importABC(plugin, origin, importPath, UUID, nodeName, version):
 
 
 @err_catcher(name=__name__)
-def updateABC(plugin, origin, importPath, UUID, nodeName, version):
+def updateABC(plugin, origin, UUID, nodeData):
     comp = plugin.getCurrentComp()
 
     comp.Lock()
@@ -214,10 +214,10 @@ def updateABC(plugin, origin, importPath, UUID, nodeName, version):
     abcTool = plugin.getNodeByUID(UUID)
 
     #	Set import file path
-    abcTool["Filename"] = importPath
+    abcTool["Filename"] = nodeData["filepath"]
 
     #	Set node name
-    abcTool.SetAttrs({"TOOLS_Name": nodeName})
+    abcTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
 
     comp.Unlock()
 

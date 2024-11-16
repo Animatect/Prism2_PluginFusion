@@ -172,7 +172,7 @@ class ImageRenderClass(object):
 
 				self.chb_resOverride.setChecked(False)
 
-				self.setUniqueName(f"{self.className} - Compositing")
+				self.setUniqueName(f"{self.className} - {self.getTaskname()}")
 
 				self.stateUID = self.fusionFuncs.createUUID()
 
@@ -300,7 +300,7 @@ class ImageRenderClass(object):
 
 
 		# Setup the enabled disabled checkboxes
-		# nodename = self.get_rendernode_name()
+		# nodename = self.getRendernodeName()
 		# if self.fusionFuncs.rendernode_exists(nodename):
 		# 	state = self.fusionFuncs.getNodePassthrough(nodename)
 		# 	if state:
@@ -807,18 +807,27 @@ class ImageRenderClass(object):
 
 
 	@err_catcher(name=__name__)
-	def get_rendernode_name(self):
-		identifier = self.getTaskname()
-		legalName = self.fusionFuncs.getFusLegalName(identifier)
-		nodeName = f"PrSAVER_{legalName}"
+	def getRendernodeName(self):
+		try:
+			identifier = self.getTaskname()
 
-		return nodeName
+			if identifier != "":
+				legalName = self.fusionFuncs.getFusLegalName(identifier)
+				nodeName = f"PrSAVER_{legalName}"
+
+				return nodeName
+			
+			else:
+				return None
+		
+		except:
+			return None
 	
 
 	#	Adds and configures RenderNode
 	@err_catcher(name=__name__)
 	def setRendernode(self, create=False):
-		nodeName = self.get_rendernode_name()
+		nodeName = self.getRendernodeName()
 		nodeUID = self.stateUID
 
 		#	If the Saver exists
@@ -851,20 +860,26 @@ class ImageRenderClass(object):
 	#	Checks the Saver's data and colors the button
 	@err_catcher(name=__name__)
 	def statusColorNodeButton(self):
+
+
 		try:
+			renderNodeName = self.getRendernodeName()
+
 			#	Checks if Saver exists
 			if self.fusionFuncs.nodeExists(self.stateUID):
 				toolName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
 
 				#	Compares Identifier name to Saver name
-				if toolName == self.get_rendernode_name():
+				if toolName == renderNodeName:
 					#	If they are the same then Green
 					self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
+					logger.debug(f"Saver matches Identifier for {renderNodeName}")
 					return True
 				
 				else:
 					#	If different then Orange
 					self.b_setRendernode.setStyleSheet("background-color: orange; color: white;")
+					logger.debug(f"Saver name does not match Identifier {renderNodeName}")
 					return "ERROR: Saver name does not match Indentifier"
 
 			#	If the Saver does not exist	
@@ -874,6 +889,7 @@ class ImageRenderClass(object):
 		except:
 			#	If Saver does not exists or error then RED
 			self.b_setRendernode.setStyleSheet("background-color: red; color: white;")
+			logger.debug(f"Saver does not exist for:  {renderNodeName}")
 			return "ERROR:  Saver does not exist"
 
 

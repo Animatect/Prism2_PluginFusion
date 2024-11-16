@@ -64,6 +64,7 @@ import pyperclip
 from PrismUtils.Decorators import err_catcher as err_catcher
 
 #	Import Prism Fusion Libraries
+import Libs.Prism_Fusion_lib_Fus as Fus
 import Libs.Prism_Fusion_lib_CompDb as CompDb
 import Libs.Prism_Fusion_lib_3d as Fus3d
 
@@ -196,7 +197,7 @@ class Prism_Fusion_Functions(object):
 			# "YUVFormat": "yuv",             # YUV
 
 		self.fusionToolsColorsDict = {
-			'Clear Color': {'R': 0.0111, 'G': 0.0111, 'B': 0.0111 },
+			'Clear Color': {'R': 0.000011, 'G': 0.000011, 'B': 0.000011 },
 			'Orange': {'R': 0.9215686274509803, 'G': 0.43137254901960786, 'B': 0.0 },
 			'Apricot': {'R': 1.0, 'G': 0.6588235294117647, 'B': 0.2 },
 			'Yellow': {'R': 0.8862745098039215, 'G': 0.6627450980392157, 'B': 0.10980392156862745},
@@ -294,79 +295,103 @@ class Prism_Fusion_Functions(object):
 			return None
 	
 
+	@err_catcher(name=__name__)
+	def getSceneExtension(self, origin):
+		return self.sceneFormats[0]
+
+
+	##########################################################
+	##														##
+	##	 Wrappers for External calls to Library Functions	##
+	##														##
+	##########################################################
+
 	#	Returns the filename of the current comp
 	@err_catcher(name=__name__)
 	def getCurrentFileName(self, origin=None, path=True):
 		curComp = self.getCurrentComp()
-		try:
-			if curComp is None:
-				currentFileName = ""
-			else:
-				currentFileName = self.getCurrentComp().GetAttrs()["COMPS_FileName"]
-				# logger.debug(f"Current filename: {currentFileName}")
-
-			return currentFileName
+		return Fus.getCurrentFileName(curComp)
 		
-		except Exception as e:
-			logger.warning(f"ERROR: Failed to get current filename:\n{e}")
-	
 
 	@err_catcher(name=__name__)
-	def getSceneExtension(self, origin):
-		return self.sceneFormats[0]
+	def openScene(self, origin, filepath, force=False):
+		return Fus.openScene(self.fusion, self.sceneFormats, filepath, force=force)
 	
 
 	@err_catcher(name=__name__)
 	def saveScene(self, origin, filepath, details={}):
-		try:
-			#Save function returns True on success, False on failure
-			result = self.getCurrentComp().Save(filepath)
-			if result:
-				logger.debug(f"Saved file to {filepath}")
-				return True
-			else:
-				raise Exception
-		except:
-			logger.warning(f"ERROR: Failed to save {filepath}")
-			return False
+		curComp = self.getCurrentComp()
+		return Fus.saveScene(curComp, filepath, details)
 	
 
 	@err_catcher(name=__name__)
 	def getFrameRange(self, origin):
-		try:
-			startframe = self.getCurrentComp().GetAttrs()["COMPN_GlobalStart"]
-			endframe = self.getCurrentComp().GetAttrs()["COMPN_GlobalEnd"]
-			return [startframe, endframe]
-		except:
-			logger.warning("ERROR: Failed to get current frame range")
-			return [None, None]
-	
+		curComp = self.getCurrentComp()
+		return Fus.getFrameRange(curComp)
 
-	#	Sets the supplied framerange to the comp
+
 	@err_catcher(name=__name__)
 	def setFrameRange(self, origin, startFrame, endFrame):
 		comp = self.getCurrentComp()
-		comp.Lock()
-		try:
-			comp.SetAttrs(
-				{
-					"COMPN_GlobalStart": startFrame,
-					"COMPN_RenderStart": startFrame,
-					"COMPN_GlobalEnd": endFrame,
-					"COMPN_RenderEnd": endFrame
-				}
-			)
-			comp.SetPrefs(
-				{
-					"Comp.Unsorted.GlobalStart": startFrame,
-					"Comp.Unsorted.GlobalEnd": endFrame,
-				}
-			)
-		except Exception as e:
-			logger.warning(f"ERROR: Could not set framerange in the comp:\n{e}")
+		Fus.setFrameRange(comp, startFrame, endFrame)
 
-		comp.Unlock()
+	@err_catcher(name=__name__)
+	def getFPS(self, origin):
+		comp = self.getCurrentComp()
+		return Fus.getFPS(comp)
+	
 
+	@err_catcher(name=__name__)
+	def setFPS(self, origin, fps):
+		comp = self.getCurrentComp()
+		Fus.setFPS(comp, fps)
+
+
+	@err_catcher(name=__name__)
+	def getResolution(self):
+		comp = self.getCurrentComp()
+		return Fus.getResolution(comp)
+
+
+	@err_catcher(name=__name__)
+	def setResolution(self, width=None, height=None):
+		comp = self.getCurrentComp()
+		Fus.setResolution(comp, width, height)
+
+
+	#	Checks if a matching tool exists in the comp
+	@err_catcher(name=__name__)
+	def nodeExists(self, nodeUID):
+		comp = self.getCurrentComp()
+		return CompDb.nodeExists(comp, nodeUID)
+	
+
+	@err_catcher(name=__name__)
+	def getNodeByUID(self, nodeUID):
+		comp = self.getCurrentComp()
+		return CompDb.getNodeByUID(comp, nodeUID)
+	
+
+	@err_catcher(name=__name__)
+	def getNodeNameByUID(self, nodeUID):
+		comp = self.getCurrentComp()
+		return CompDb.getNodeNameByUID(comp, nodeUID)
+	
+
+	@err_catcher(name=__name__)
+	def isPassThrough(self, nodeUID):
+		comp = self.getCurrentComp()
+		return CompDb.isPassThrough(comp, nodeUID)
+
+
+	@err_catcher(name=__name__)
+	def setPassThrough(self, nodeUID=None, node=None, passThrough=False):
+		comp = self.getCurrentComp()
+		CompDb.setPassThrough(comp, nodeUID=nodeUID, node=node, passThrough=passThrough)
+
+
+
+		
 
 	#	Returns the framerange key/value to be used in the render command
 	@err_catcher(name=__name__)
@@ -407,50 +432,6 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to construct framerange renderCmd:\n{e}")
 			return ""
-
-
-	@err_catcher(name=__name__)
-	def getFPS(self, origin):
-		try:
-			return self.getCurrentComp().GetPrefs()["Comp"]["FrameFormat"]["Rate"]
-		except Exception as e:
-			logger.warning(f"ERROR: Failed to get the fps from comp:\n{e}")
-			return None
-	
-
-	@err_catcher(name=__name__)
-	def setFPS(self, origin, fps):
-		try:
-			return self.getCurrentComp().SetPrefs({"Comp.FrameFormat.Rate": fps})
-		except:
-			logger.warning(f"ERROR: Failed to set the fps to the comp:\n{e}")
-
-
-	@err_catcher(name=__name__)
-	def getResolution(self):
-		try:
-			width = self.getCurrentComp().GetPrefs()[
-				"Comp"]["FrameFormat"]["Width"]
-			height = self.getCurrentComp().GetPrefs()[
-				"Comp"]["FrameFormat"]["Height"]
-			return [width, height]
-		
-		except Exception as e:
-			logger.warning(f"ERROR: Failed to get the current resolution from the comp:\n{e}")
-			return [None, None]
-
-
-	@err_catcher(name=__name__)
-	def setResolution(self, width=None, height=None):
-		try:
-			self.getCurrentComp().SetPrefs(
-				{
-					"Comp.FrameFormat.Width": width,
-					"Comp.FrameFormat.Height": height,
-				}
-			)
-		except Exception as e:
-			logger.warning(f"ERROR: Failed to set the resolution to the comp:\n{e}")
 
 
 	#	Creates UUID
@@ -535,18 +516,7 @@ class Prism_Fusion_Functions(object):
 			return None
 
 
-	@err_catcher(name=__name__)
-	def openScene(self, origin, filepath, force=False):
-		if os.path.splitext(filepath)[1] not in self.sceneFormats:
-			return False
 
-		try:
-			self.fusion.LoadComp(filepath)
-			logger.debug(f"Loaded scenefile: {filepath}")
-		except:
-			logger.warning("ERROR: Failed to load Comp")
-
-		return True
 	
 
 	################################################
@@ -566,7 +536,6 @@ class Prism_Fusion_Functions(object):
 
 		#   Get Fusion API stuff
 		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
 
 		comp.Lock()
 		comp.StartUndo()
@@ -582,7 +551,7 @@ class Prism_Fusion_Functions(object):
 				origSaverList = self.origSaverStates("save", comp, origSaverList)
 
 				# Add a Saver tool to the composition
-				thumbSaver = comp.AddTool("Saver", -32768, -32768, 1)
+				thumbSaver = Fus.addTool(comp, "Saver")
 
 				# Connect the Saver tool to the currently selected tool
 				thumbSaver.Input = thumbTool
@@ -591,7 +560,7 @@ class Prism_Fusion_Functions(object):
 				thumbSaver.Clip = os.path.join(tempDir, thumbName + ".jpg")
 
 				#   Get current frame number
-				currFrame = comp.CurrentTime
+				currFrame = Fus.getCurrentFrame(comp)
 
 				origStartFrame = comp.GetAttrs("COMPN_RenderStart")
 				origEndFrame = comp.GetAttrs("COMPN_RenderEnd")
@@ -614,7 +583,7 @@ class Prism_Fusion_Functions(object):
 			if renderedThumbs:
 				renderedThumb = renderedThumbs[0]  # Assuming only one matching file
 				os.rename(renderedThumb, thumbPath)
-				logger.debug(f"Created Thumbnail from: {self.getNodeNameByTool(thumbTool)}")
+				logger.debug(f"Created Thumbnail from: {CompDb.getNodeNameByTool(thumbTool)}")
 			
 		except Exception as e:
 			logger.warning(f"ERROR: Filed to create thumbnail:\n{e}")
@@ -651,16 +620,16 @@ class Prism_Fusion_Functions(object):
 	def origSaverStates(self, mode, comp, origSaverList):
 		saverList = self.getSaverList(comp)
 		for tool in saverList:
-			toolName = self.getNodeNameByTool(tool)
+			toolName = CompDb.getNodeNameByTool(tool)
 
 			if mode == "save":
 				# Save the current pass-through state
-				origSaverList[toolName] = self.isPassThrough(node=tool)
-				self.setPassThrough(node=tool, passThrough=True)
+				origSaverList[toolName] = CompDb.isPassThrough(comp, node=tool)
+				CompDb.setPassThrough(comp, node=tool, passThrough=True)
 			elif mode == "load":
 				# Restore the original pass-through state
 				if toolName in origSaverList:
-					self.setPassThrough(node=tool, passThrough=origSaverList[toolName])
+					CompDb.setPassThrough(comp, node=tool, passThrough=origSaverList[toolName])
 
 		return origSaverList
 
@@ -686,7 +655,7 @@ class Prism_Fusion_Functions(object):
 
 		# 2. Check for any saver that is not pass-through
 		for tool in comp.GetToolList(False).values():
-			if self.isSaver(tool) and not self.isPassThrough(node=tool):
+			if self.isSaver(tool) and not CompDb.isPassThrough(comp, node=tool):
 				return tool
 
 		# 3. Check for any saver, even if pass-through
@@ -753,79 +722,81 @@ class Prism_Fusion_Functions(object):
 		return False
 	
 
-	# Checks if tool is set to pass-through mode
-	@err_catcher(name=__name__)
-	def isPassThrough(self, nodeUID=None, node=None):
-		if nodeUID:
-			node = self.getNodeByUID(nodeUID)
+	# # Checks if tool is set to pass-through mode
+	# @err_catcher(name=__name__)
+	# def isPassThrough(self, nodeUID=None, node=None):
+	# 	if nodeUID:
+	# 		node = CompDb.getNodeByUID(nodeUID)
 
-		return node and node.GetAttrs({"TOOLS_Name"})["TOOLB_PassThrough"]
+	# 	return node and node.GetAttrs({"TOOLS_Name"})["TOOLB_PassThrough"]
 
 
-	#	Sets the Fusion node's passthrough
-	@err_catcher(name=__name__)
-	def setPassThrough(self, nodeUID=None, node=None, passThrough=False):
-		if nodeUID:
-			node = self.getNodeByUID(nodeUID)
-		node.SetAttrs({"TOOLB_PassThrough": passThrough})
+	# #	Sets the Fusion node's passthrough
+	# @err_catcher(name=__name__)
+	# def setPassThrough(self, nodeUID=None, node=None, passThrough=False):
+	# 	if nodeUID:
+	# 		node = self.getNodeByUID(nodeUID)
+	# 	node.SetAttrs({"TOOLB_PassThrough": passThrough})
 
 
 	#	Checks if a matching tool exists in the comp
-	@err_catcher(name=__name__)
-	def nodeExists(self, nodeUID):
-		if self.getNodeByUID(nodeUID):
-			return True
+	# @err_catcher(name=__name__)
+	# def nodeExists(self, nodeUID):
+	# 	if self.getNodeByUID(nodeUID):
+	# 		return True
 		
-		return False
+	# 	return False
 	
 	#	
-	@err_catcher(name=__name__)
-	def getNodeType(self, tool):
-		try:
-			return tool.GetAttrs("TOOLS_RegID")
-		except:
-			logger.warning("ERROR: Cannot retrieve node type")
-			return None
+	# @err_catcher(name=__name__)
+	# def getNodeType(self, tool):
+	# 	try:
+	# 		return tool.GetAttrs("TOOLS_RegID")
+	# 	except:
+	# 		logger.warning("ERROR: Cannot retrieve node type")
+	# 		return None
 	
 
-	@err_catcher(name=__name__)
-	def getNodeByUID(self, nodeUID):
-		comp = self.getCurrentComp()
-		try:
-			# Iterate through all tools in the composition
-			tools = comp.GetToolList(False)
+	# @err_catcher(name=__name__)
+	# def getNodeByUID(self, nodeUID):
+	# 	comp = self.getCurrentComp()
+	# 	try:
+	# 		# Iterate through all tools in the composition
+	# 		tools = comp.GetToolList(False)
 
-			for tool_name, tool in tools.items():  # tool_name is the key, tool is the value
-				toolUID = tool.GetData('Prism_UUID')
+	# 		for tool_name, tool in tools.items():  # tool_name is the key, tool is the value
+	# 			toolUID = tool.GetData('Prism_UUID')
 
-			# Check if the tool has the attribute 'Prism_UUID' and if it matches the provided UID
-				if toolUID == nodeUID:
-					return tool
+	# 		# Check if the tool has the attribute 'Prism_UUID' and if it matches the provided UID
+	# 			if toolUID == nodeUID:
+	# 				return tool
 				
-			raise Exception
+	# 		raise Exception
 		
-		except:
-			logger.warning(f"ERROR: No node found for {nodeUID}")
-			return None
+	# 	except:
+	# 		logger.warning(f"ERROR: No node found for {nodeUID}")
+	# 		return None
 	
 
-	@err_catcher(name=__name__)
-	def getNodeNameByUID(self, nodeUID):
-		tool = self.getNodeByUID(nodeUID)
-		toolName = self.getNodeNameByTool(tool)
+	# @err_catcher(name=__name__)
+	# def getNodeNameByUID(self, nodeUID):
+	# 	tool = self.getNodeByUID(nodeUID)
+	# 	toolName = CompDb.getNodeNameByTool(tool)
 
-		return toolName
+	# 	return toolName
 	
-	
-	@err_catcher(name=__name__)
-	def getNodeNameByTool(self, tool):
-		try:
-			toolName = tool.GetAttrs()["TOOLS_Name"]
-			return toolName
-		except:
-			logger.warning(f"ERROR: Cannot get name for {tool}")
-			return None
-	
+
+	# @err_catcher(name=__name__)
+	# def getNodeNameByTool(self, tool):
+	# 	try:
+	# 		toolName = tool.GetAttrs()["TOOLS_Name"]
+	# 		return toolName
+	# 	except:
+	# 		logger.warning(f"ERROR: Cannot get name for {tool}")
+	# 		return None
+		
+
+
 
 	#	Returns Fusion-legal Saver name base on State name
 	@err_catcher(name=__name__)
@@ -841,7 +812,7 @@ class Prism_Fusion_Functions(object):
 	def createRendernode(self, nodeName, nodeUID):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			if not self.nodeExists(nodeUID):
+			if not CompDb.nodeExists(comp, nodeUID):
 				comp.Lock()
 				sv = comp.Saver()
 				sv.SetAttrs({'TOOLS_Name' : nodeName})
@@ -869,14 +840,14 @@ class Prism_Fusion_Functions(object):
 	def updateRendernode(self, nodeName, nodeUID):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			sv = self.getNodeByUID(nodeUID)
+			sv = CompDb.getNodeByUID(comp, nodeUID)
 
 			if sv:
 				comp.Lock()
 				sv.SetAttrs({'TOOLS_Name' : nodeName})
 				comp.Unlock()
 
-				logger.debug(f"Saver updated: {self.getNodeNameByUID(nodeUID)}")
+				logger.debug(f"Saver updated: {CompDb.getNodeNameByUID(comp, nodeUID)}")
 			else:
 				logger.warning(f"ERROR: Not able to update: {nodeName}")
 
@@ -888,7 +859,7 @@ class Prism_Fusion_Functions(object):
 	def configureRenderNode(self, nodeUID, outputPath, fuseName=None):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			sv = self.getNodeByUID(nodeUID)
+			sv = CompDb.getNodeByUID(comp, nodeUID)
 			if sv:
 				sv.Clip = outputPath
 				if fuseName:
@@ -899,7 +870,7 @@ class Prism_Fusion_Functions(object):
 
 				if sv.Input.GetConnectedOutput():
 					sv.Clip = outputPath
-					logger.debug(f"Configured Saver: {self.getNodeNameByUID(nodeUID)}")
+					logger.debug(f"Configured Saver: {CompDb.getNodeNameByUID(comp, nodeUID)}")
 
 				else:
 					logger.debug(f"ERROR: Render Node is not connected: {nodeUID}")
@@ -912,11 +883,11 @@ class Prism_Fusion_Functions(object):
 	def deleteNode(self, nodeUID):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			if self.nodeExists(nodeUID):
+			if CompDb.nodeExists(comp, nodeUID):
 				#	Delete the Tool from the Comp
 				try:
-					tool = self.getNodeByUID(nodeUID)
-					toolName = self.getNodeNameByUID(nodeUID)
+					tool = CompDb.getNodeByUID(comp, nodeUID)
+					toolName = CompDb.getNodeNameByUID(comp, nodeUID)
 					tool.Delete()
 					logger.debug(f"Removed tool '{toolName}")
 
@@ -924,7 +895,7 @@ class Prism_Fusion_Functions(object):
 					logger.warning(f"ERROR:  Unable to remove tool from Comp: {nodeUID}")
 
 			#	Remove the Tool from the Comp Database
-			CompDb.removePrismDbNodeInfo(comp, "import3d", nodeUID)
+			CompDb.removeNodeFromDB(comp, "import3d", nodeUID)
 	
 
 	################################################
@@ -1425,6 +1396,7 @@ class Prism_Fusion_Functions(object):
 	#	Gets individual State data from the comp state data based on the UUID
 	@err_catcher(name=__name__)
 	def getMatchingStateDataFromUID(self, nodeUID):
+		comp = self.getCurrentComp()
 		stateDataRaw = json.loads(self.sm_readStates(self))
 
 		# Iterate through the states to find the matching state dictionary
@@ -1432,7 +1404,7 @@ class Prism_Fusion_Functions(object):
 		for stateData in stateDataRaw["states"]:
 			if stateData.get("nodeUID") == nodeUID:
 				stateDetails = stateData
-				logger.debug(f"State data found for: {self.getNodeNameByUID(nodeUID)}")
+				logger.debug(f"State data found for: {CompDb.getNodeNameByUID(comp, nodeUID)}")
 				return stateDetails
 
 		logging.warning(f"ERROR: No state details for:  {nodeUID}")
@@ -1736,11 +1708,11 @@ path = r\"%s\"
 
 			#	Exits if unable to get state data
 			if not stateData:
-				nodeName = self.getNodeNameByUID(nodeUID)
+				nodeName = CompDb.getNodeNameByUID(comp, nodeUID)
 				logger.warning(f"ERROR: Unable to configure RenderComp for {nodeName}")
 
-			sv = self.getNodeByUID(nodeUID)
-			self.setPassThrough(nodeUID=nodeUID, passThrough=False)
+			sv = CompDb.getNodeByUID(comp, nodeUID)
+			CompDb.setPassThrough(comp, nodeUID=nodeUID, passThrough=False)
 
 			#	Add Scale tool if scale override is above 100%
 			scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
@@ -1929,7 +1901,7 @@ path = r\"%s\"
 			self.tempScaleTools = []
 			origCompSettings = self.saveOrigCompSettings(comp)
 
-			sv = self.getNodeByUID(rSettings["nodeUID"])
+			sv = CompDb.getNodeByUID(comp, rSettings["nodeUID"])
 			if sv:
 				#if sv has input
 				if sv.Input.GetConnectedOutput():
@@ -2271,12 +2243,12 @@ path = r\"%s\"
 	################################################
 
 	@err_catcher(name=__name__)
-	def reloadLoader(self, node, filePath, firstframe, lastframe):
-		if self.getNodeType(node) == 'Loader':
+	def reloadLoader(self, comp, node, filePath, firstframe, lastframe):
+		if CompDb.getNodeType(node) == 'Loader':
 			try:
 				node = node
 				loaderPath = filePath
-				loaderName = self.getNodeNameByTool(node)
+				loaderName = CompDb.getNodeNameByTool(node)
 
 				# Rename the clipname to force reload duration
 				node.Clip[self.fusion.TIME_UNDEFINED] = loaderPath
@@ -2292,8 +2264,8 @@ path = r\"%s\"
 					node.HoldLastFrame = 0
 
 				# Clips Reload
-				self.setPassThrough(node=node, passThrough=True)
-				self.setPassThrough(node=node, passThrough=False)
+				CompDb.setPassThrough(comp, node=node, passThrough=True)
+				CompDb.setPassThrough(comp, node=node, passThrough=False)
 
 				logger.debug(f"Reloaded Loader: {filePath}")
 
@@ -2315,10 +2287,26 @@ path = r\"%s\"
 
 		comp = self.getCurrentComp()
 		
+		#	Get Identifier Context Data - contains:
+			#	aov: current aov
+			#	displayName: adds the 2d or exteral to the name
+			#	extension
+			#	identifier
+			#	itemType: shot or asset
+			#	locations
+			#	mediaType: 3drenders, 2drenders, externalMedia
+			#	path: dir containing media. is aov dir if aov, ver number if no aov
+			#	version
+		contextRaw = mediaBrowser.getCurRenders()
+		if isinstance(contextRaw, list):
+			context = contextRaw[0] if len(contextRaw) > 0 else None
+		else:
+			context = contextRaw
+
+		self.core.popup(f"context:  {context}")                                      #    TESTING
+
 		# Check if file is Linked
-		contexts = mediaBrowser.getCurRenders()
-		data = contexts[0]
-		path = data["path"]
+		path = context["path"]
 		isfile = os.path.isfile(os.path.join(path, "REDIRECT.txt"))
 		if isfile:
 			logger.debug("Importing of Linked Media is not supported")
@@ -2343,9 +2331,11 @@ path = r\"%s\"
 		dataSources = None
 		if currentAOV:
 			dataSources = mediaBrowser.compGetImportPasses()
+
+		self.core.popup(f"dataSources:  {dataSources}")                                      #    TESTING
 		
 		# Check if media padding corresponds to the project:
-		source = data["source"]
+		source = context["source"]
 		if "#" in source:
 			if not self.check_numpadding_matching(source):
 				self.core.popup("The padding of the file you are trying to import\ndoes not seem to match the project padding.\nCheck the project preferences.")
@@ -2361,13 +2351,13 @@ path = r\"%s\"
 		comp.SetData("isPrismImportChbxCheck", checkbox_checked)
 
 		if result == "Current AOV" or result == "Import Media":
-			self.fusionImportSource(mediaBrowser, sortnodes=not checkbox_checked)
+			self.fusionImportSource(mediaBrowser, context, sortnodes=not checkbox_checked)
 
 		elif result == "All AOVs":
-			self.fusionImportPasses(mediaBrowser, dataSources, sortnodes=not checkbox_checked)
+			self.fusionImportPasses(mediaBrowser, context, dataSources, sortnodes=not checkbox_checked)
 
 		elif result == "Update Selected":
-			self.fusionUpdateSelectedPasses(mediaBrowser, sortnodes=not checkbox_checked)
+			self.fusionUpdateSelectedPasses(mediaBrowser, context, sortnodes=not checkbox_checked)
 		else:
 			return
 
@@ -2393,7 +2383,7 @@ path = r\"%s\"
 		
 		
 	@err_catcher(name=__name__)
-	def fusionImportSource(self, mediaBrowser, sortnodes=True):
+	def fusionImportSource(self, mediaBrowser, context, sortnodes=True):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
@@ -2405,39 +2395,39 @@ path = r\"%s\"
 
 		try:
 			sourceData = mediaBrowser.compGetImportSource()
+
+			self.core.popup(f"sourceData: {sourceData}")                                      #    TESTING
+
 		except:
 			logger.warning("ERROR: Unable to get sourceData from the MediaBrowser")
 			return
 
 		imageData = self.getImageData(sourceData)
+
 		if imageData:
+			refNode = None
 			updatehandle:list = [] # Required to return data on the updated nodes.
-			if sortnodes:
-				try:
-					node = self.processImageImport(
-									imageData,
-									updatehandle=updatehandle,
-									refNode=leftmostNode,
-									createwireless=sortnodes
-									)
-				except:
-					logger.warning("ERROR: Unable to process import images")
 			
+			if sortnodes:
+				refNode = leftmostNode
+				
+			try:
+				node = self.processImageImport(
+								imageData,
+								context, 
+								updatehandle=updatehandle,
+								refNode=refNode,
+								createwireless=sortnodes
+								)
+			except:
+				logger.warning("ERROR: Unable to process import images")
+				return
+			
+			if sortnodes:
 				if not leftmostNode:
 					leftmostNode = node
 				self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
 					
-			else:
-				try:
-					node = self.processImageImport(
-									imageData,
-									updatehandle=updatehandle,
-									refNode=None,
-									createwireless=sortnodes
-									)
-				except:
-					logger.warning("ERROR: Unable to process import images")
-
 			# deselect all nodes
 			flow.Select()
 			self.getUpdatedNodesFeedback(updatehandle)
@@ -2446,7 +2436,7 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
-	def fusionImportPasses(self, mediaBrowser, dataSources, sortnodes=True):
+	def fusionImportPasses(self, mediaBrowser, context, dataSources, sortnodes=True):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
@@ -2474,6 +2464,7 @@ path = r\"%s\"
 			try:
 				leftmostNode = self.processImageImport(
 									imageData,
+									context,
 									splithandle=splithandle,
 									updatehandle=updatehandle,
 									refNode=leftmostNode,
@@ -2604,7 +2595,7 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
-	def fusionUpdateSelectedPasses(self, mediaBrowser, sortnodes=True):
+	def fusionUpdateSelectedPasses(self, mediaBrowser, context, sortnodes=True):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 	
@@ -2628,6 +2619,7 @@ path = r\"%s\"
 		for sourceData in dataSources:
 			imageData = self.getPassData(sourceData)
 			updatedloader, prevVersion =  self.updateLoaders(
+													comp,
 													loaders,
 													imageData['filePath'],
 													imageData['firstFrame'],
@@ -2661,13 +2653,14 @@ path = r\"%s\"
 						# we try the same data for each channel just to make sure, since the Clip is the same we just have to iterate and remove whatever is found.
 						try:
 							updatedloader, prevVersion =  self.updateLoaders(
-													   loaders,
-													   imageData['filePath'],
-													   imageData['firstFrame'],
-													   imageData['lastFrame'],
-													   imageData['isSequence'],
-													   exrlayers=layernames
-													   )
+														comp,
+													   	loaders,
+													   	imageData['filePath'],
+														imageData['firstFrame'],
+														imageData['lastFrame'],
+														imageData['isSequence'],
+														exrlayers=layernames
+														)
 						except:
 							logger.warning("ERROR: Unable to update passes - cannot compare versions")
 							return
@@ -2856,7 +2849,7 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
-	def updateLoaders(self, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False, exrlayers=[]):
+	def updateLoaders(self, comp, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False, exrlayers=[]):
 		try:
 			for loader in Loaderstocheck:
 				loaderClipPath = loader.Clip[0]
@@ -2873,7 +2866,7 @@ path = r\"%s\"
 					version1 = self.extract_version(loaderClipPath)
 					version2 = self.extract_version(filePath)
 
-					self.reloadLoader(loader, filePath, firstFrame, lastFrame)
+					self.reloadLoader(comp, loader, filePath, firstFrame, lastFrame)
 					if not version1 == version2:
 						return loader, version1
 				
@@ -2885,7 +2878,7 @@ path = r\"%s\"
 	
 
 	@err_catcher(name=__name__)
-	def processImageImport(self, imageData, splithandle=None, updatehandle:list=[], refNode=None, createwireless=True, processmultilayerexr=True):
+	def processImageImport(self, imageData, context, splithandle=None, updatehandle:list=[], refNode=None, createwireless=True, processmultilayerexr=True):
 		# Do in this function the actual importing or update of the image.		
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
@@ -2901,7 +2894,7 @@ path = r\"%s\"
 		# Check if path without version exists in a loader and if so generate a popup to update with new version.
 		allLoaders = comp.GetToolList(False, "Loader").values()
 		try:
-			updatedloader, prevVersion = self.updateLoaders(allLoaders, filePath, firstFrame, lastFrame, isSequence)
+			updatedloader, prevVersion = self.updateLoaders(comp, allLoaders, filePath, firstFrame, lastFrame, isSequence)
 		except:
 			updatedloader = prevVersion = None
 
@@ -2916,7 +2909,7 @@ path = r\"%s\"
 					if len(self.get_loader_channels(updatedloader)) > 0:
 						while  extraloader:
 							allremainingLoaders = [t for t in allLoaders if not t.Name in checkedloaders]
-							extraloader, extraversion = self.updateLoaders(allremainingLoaders, filePath, firstFrame, lastFrame, isSequence)
+							extraloader, extraversion = self.updateLoaders(comp, allremainingLoaders, filePath, firstFrame, lastFrame, isSequence)
 							if extraloader:
 								checkedloaders.append(extraloader.Name)
 
@@ -2938,8 +2931,10 @@ path = r\"%s\"
 			# Set a Prism node identifier:
 			if createwireless:
 				node.SetData("isprismnode", True)
-			self.reloadLoader(node, filePath, firstFrame, lastFrame)
-			node.SetAttrs({"TOOLS_Name": layerNm + "_" + aovNm})
+			self.reloadLoader(comp, node, filePath, firstFrame, lastFrame)
+			nodeName = layerNm + "_" + aovNm
+			node.SetAttrs({"TOOLS_Name": nodeName})
+
 			if refNode:
 				if refNode.GetAttrs('TOOLS_RegID') =='Loader':
 					self.setNodePosition(node, x_offset = 0, y_offset = 1, refNode=refNode)
@@ -2990,16 +2985,37 @@ path = r\"%s\"
 				logger.warning("ERROR: Failed to process Multilayer EXR")
 				return None
 
+		#	Add UUID to Loader
+		nodeUID = self.createUUID()
+		node.SetData('Prism_UUID', nodeUID)
+
+
+		#	Add Node Data to Comp Database
+		version = version2 if 'version2' in locals() else prevVersion
+
+		# self.core.popup(f"context:  {context}")                                      #    TESTING
+
+		nodeData = {"nodeName": nodeName,
+					"version": context["version"],
+					"filepath": filePath,
+					"format": extension,
+					"mediaId": context["identifier"],
+					"displayName": context["displayName"],
+					"connectedNodes": ""}
+
+		CompDb.addNodeToDB(comp, "import2d", nodeUID, nodeData)
+
 		# create wireless
 		if createwireless:
-			self.createWireless(node)
+			self.createWireless(nodeUID)
+
 		flow.Select(node, True)
 		
 		return node
 	
 
 	@err_catcher(name=__name__)
-	def createWireless(self, tool):
+	def createWireless(self, nodeUID):
 		wirelessCopy = """{
 	Tools = ordered() {
 		neverreferencednameonwirelesslink = Fuse.Wireless {
@@ -3023,7 +3039,7 @@ path = r\"%s\"
 }"""
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
-		# ad = comp.AutoDomain()
+		tool = CompDb.getNodeByUID(comp, nodeUID)
 
 		try:
 			pyperclip.copy(wirelessCopy)
@@ -3042,6 +3058,17 @@ path = r\"%s\"
 				node.SetData("isprismnode", True)
 
 			ad.ConnectInput('Input', tool)
+
+			#	Set UUID's to Wireless Nodes
+			wirelessInUID = self.createUUID()
+			ad.SetData('Prism_UUID', wirelessInUID)
+			wirelessOutUID = self.createUUID()
+			wl.SetData('Prism_UUID', wirelessOutUID)
+
+			#	Add Wireless Nodes to Comp Database
+			nodeData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
+			nodeData["connectedNodes"] = [wirelessInUID, wirelessOutUID]
+			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
 
 			logger.debug(f"Created Wireless nodes for: {tool.Name}")
 
@@ -3354,22 +3381,19 @@ path = r\"%s\"
 	################################################
 
 
-	@err_catcher(name=__name__)
-	def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):				#	TODO HANDLE ERRORS
-		comp = self.getCurrentComp()
+	#	TODO LOOK AT COMBINING THESE CALLS
 
-		nodeData = {"nodeName": nodeName,
-			  		"version": version,
-					"filepath": importPath,
-					"format": "USD"}
-		
+	@err_catcher(name=__name__)
+	def importUSD(self, origin, UUID, nodeData, update=False):				#	TODO HANDLE ERRORS
+		comp = self.getCurrentComp()
+	
 		if not update:
-			addResult = CompDb.addPrismDbNodeInfo(comp, "import3d", UUID, nodeData)
-			result = Fus3d.importUSD(self, origin, importPath, UUID, nodeName, version)
+			addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
+			result = Fus3d.importUSD(self, origin, UUID, nodeData)
 		
 		else:
-			CompDb.updatePrismDbNodeInfo(comp, "import3d", UUID, nodeData)
-			result = Fus3d.updateUSD(self, origin, importPath, UUID, nodeName, version)
+			CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
+			result = Fus3d.updateUSD(self, origin, UUID, nodeData)
 
 		return result
 	
@@ -3380,21 +3404,16 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
-	def importFBX(self, origin, importPath, UUID, nodeName, version, update=False):
+	def importFBX(self, origin, UUID, nodeData, update=False):				#	TODO HANDLE ERRORS
 		comp = self.getCurrentComp()
-
-		nodeData = {"nodeName": nodeName,
-			  		"version": version,
-					"filepath": importPath,
-					"format": "FBX"}
-		
+	
 		if not update:
-			addResult = CompDb.addPrismDbNodeInfo(comp, "import3d", UUID, nodeData)
-			result = Fus3d.importFBX(self, origin, importPath, UUID, nodeName, version)
+			addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
+			result = Fus3d.importFBX(self, origin, UUID, nodeData)
 		
 		else:
-			CompDb.updatePrismDbNodeInfo(comp, "import3d", UUID, nodeData)
-			result = Fus3d.updateFBX(self, origin, importPath, UUID, nodeName, version)
+			CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
+			result = Fus3d.updateFBX(self, origin, UUID, nodeData)
 
 		return result
 
@@ -3405,22 +3424,18 @@ path = r\"%s\"
 	
 
 	@err_catcher(name=__name__)
-	def importABC(self, origin, importPath, UUID, nodeName, version, update=False):
+	def importABC(self, origin, UUID, nodeData, update=False):				#	TODO HANDLE ERRORS
 		comp = self.getCurrentComp()
-
-		nodeData = {"nodeName": nodeName,
-			  		"version": version,
-					"filepath": importPath,
-					"format": "ABC"}
-		
+	
 		if not update:
-			addResult = CompDb.addPrismDbNodeInfo(comp, "import3d", UUID, nodeData)
-			result = Fus3d.importABC(self, origin, importPath, UUID, nodeName, version)
+			addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
+			result = Fus3d.importABC(self, origin, UUID, nodeData)
 		
 		else:
-			CompDb.updatePrismDbNodeInfo(comp, "import3d", UUID, nodeData)
-			result = Fus3d.updateABC(self, origin, importPath, UUID, nodeName, version)
+			CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
+			result = Fus3d.updateABC(self, origin, UUID, nodeData)
 
+		return result
 		return result
 	
 	
@@ -3739,75 +3754,6 @@ path = r\"%s\"
 			return prismdata.split("_..._")[1]
 		
 
-	
-	################################################
-	#                                              #
-	#               COMP  DICTIONARY               #
-	#                                              #
-	################################################
-
-	# @err_catcher(name=__name__)
-	# def createDefaultPrismFileDb(self):
-	# 	comp = self.getCurrentComp()
-	# 	defaultdb = {
-	# 		"fileValues": {
-	# 			"identifiersColors": {
-	# 				"asset": {},
-	# 				"shot": {}
-	# 			}
-	# 		}
-	# 	}
-	# 	json_string = json.dumps(defaultdb)
-	# 	comp.SetData("prismfiledb", json_string)
-
-
-	# @err_catcher(name=__name__)
-	# def loadPrismFileDb(self):
-	# 	comp = self.getCurrentComp()
-	# 	prismfiledb = comp.GetData("prismfiledb")
-	# 	if prismfiledb:
-	# 		return prismfiledb
-	# 	else:
-	# 		self.createDefaultPrismFileDb()
-	# 		return comp.GetData("prismfiledb")
-	
-
-	# @err_catcher(name=__name__)
-	# def savePrismFileDb(self, json_data):
-	# 	comp = self.getCurrentComp()
-	# 	json_string =  json.dumps(json_data, indent=4)
-	# 	comp.SetData("prismfiledb", json_string)
-
-
-	# @err_catcher(name=__name__)
-	# def addPrismDbIdentifier(self, category, name, color):
-	# 	json_string = self.loadPrismFileDb()
-	# 	json_data = json.loads(json_string)
-	# 	if category in ["asset", "shot"]:
-	# 		json_data["fileValues"]["identifiersColors"][category][name] = color
-	# 		self.savePrismFileDb(json_data)
-
-
-	# @err_catcher(name=__name__)
-	# def addPrismDbNodeInfo(self, type, UUID, nodeName, version, filepath):
-	# 	json_string = self.loadPrismFileDb()
-	# 	json_data = json.loads(json_string)
-
-	# 	json_data["nodes"]
-
-		
-
-	# @err_catcher(name=__name__)
-	# def getPrismDbIdentifierColor(self, category, name):
-	# 	json_string = self.loadPrismFileDb()
-	# 	json_data = json.loads(json_string)
-	# 	if category in json_data["fileValues"]["identifiersColors"]:
-	# 		if name in json_data["fileValues"]["identifiersColors"][category]:
-	# 			color = json_data["fileValues"]["identifiersColors"][category][name]
-	# 			return color
-		
-	# 	return None
-
 
 	################################################
 	#                                              #
@@ -3842,46 +3788,69 @@ path = r\"%s\"
 		painter.end()
 		
 		return pixmap
+	
 
 	@err_catcher(name=__name__)
-	def selecttasknodes(self, path):
+	def selecttasknodes(self, nodeUIDs):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 		# deselect all nodes
 		flow.Select()
 
-		loaders = comp.GetToolList(False, "Loader").values()
-		for loader in loaders:
-			loaderClipPath = loader.Clip[0]
-			if str(os.path.normpath(path)) in str(os.path.normpath(loaderClipPath)):
-				flow.Select(loader, True)
-		selection = len(comp.GetToolList(True))>0
-		if not selection:
+		toolsToSelectUID = CompDb.getAllConnectedNodes(comp, nodeUIDs)
+		
+		if not toolsToSelectUID:
+			logger.debug("There are not Loaders associated with this task.")
 			self.core.popup("There are no loaders for this task.", severity="info")
-
-	@err_catcher(name=__name__)
-	def colortasknodes(self, path, color, item, category):
-		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
-		loaders = comp.GetToolList(False, "Loader").values()
-
-		colored = 0
-		for loader in loaders:
-			loaderClipPath = loader.Clip[0]
-			if str(os.path.normpath(path)) in str(os.path.normpath(loaderClipPath)):
-				loader.TileColor = color
-				colored += 1
+			return
 				
-		if colored == 0:
-			self.core.popup("There are no loaders for this task.", severity="info")
-		else:
-			self.coloritem(item, color)
-			CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
+		#	Set the color for each tool
+		for toolUID in toolsToSelectUID:
+			try:
+				if CompDb.nodeExists(comp, toolUID):
+					tool = CompDb.getNodeByUID(comp, toolUID)
+					flow.Select(tool, True)
+			except:
+				pass
+
 
 	@err_catcher(name=__name__)
-	def coloritem(self, item, color):
-		#	Check if R, G, and B are all 0.0111 to clear the color
-		if color['R'] == 0.0111 and color['G'] == 0.0111 and color['B'] == 0.0111:
+	def colorTaskNodes(self, nodeUIDs, color, item, category):
+		comp = self.getCurrentComp()
+
+		toolsToColorUID = CompDb.getAllConnectedNodes(comp, nodeUIDs)
+		
+		if not toolsToColorUID:
+			logger.debug("There are not Loaders associated with this task.")
+			self.core.popup("There are no loaders for this task.", severity="info")
+			return
+				
+		#	If the RGB is the Clear Color code
+		if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
+			for toolUID in toolsToColorUID:
+				tool = CompDb.getNodeByUID(comp, toolUID)
+				tool.TileColor = None
+
+		#	Set the color for each tool
+		else:
+			for toolUID in toolsToColorUID:
+				try:
+					if CompDb.nodeExists(comp, toolUID):
+						tool = CompDb.getNodeByUID(comp, toolUID)
+						tool.TileColor = color
+						logger.debug(f"Set color of tool: {CompDb.getNodeNameByUID(comp, toolUID)}")
+				except:
+					logger.debug(f"Cannot set color of tool: {toolUID}")
+
+		#	Color the Project Browser Task
+		self.colorItem(item, color)
+		CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
+
+
+	@err_catcher(name=__name__)
+	def colorItem(self, item, color):
+		#	Check if R, G, and B are all 0.000011 to clear the color
+		if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
 			item.setBackground(0, QBrush())
 			item.setForeground(0, QBrush())
 			return
@@ -3891,6 +3860,8 @@ path = r\"%s\"
 		item.setForeground(0, QColor(230, 230, 230))
 		if self.is_background_bright(color):
 			item.setForeground(0, QColor(30, 30, 30))
+
+
 
 	################################################
 	#                                              #
@@ -3911,23 +3882,29 @@ path = r\"%s\"
 					item = lw.topLevelItem(i)
 					color = CompDb.getPrismDbIdentifierColor(comp, category, item.text(0))
 					if color:
-						self.coloritem(item, color)
+						self.colorItem(item, color)
 
 
 	@err_catcher(name=__name__)
 	def openPBListContextMenu(self, origin, rcmenu, lw, item, path):
-		# print("openPBListContextMenu")
-		# print("path: ", path)
 		entity = origin.getCurrentEntity()
 		if lw == origin.tw_identifier:
-			refresh = origin.updateTasks
 			category = entity.get("type")
 			if category in ["asset", "shot"]:
+				comp = self.getCurrentComp()
+
+				#	Get Display Name from Item
+				displayName = item.text(0)
+
+				#	Get NodeUID based on Media Identifier
+				mediaNodeUIDs = CompDb.getNodeUidFromMediaDisplayname(comp, "import2d", displayName)
+
+				#	Setup rcl "Select Nodes" items
 				depAct = QAction("Select Task Nodes....", origin)
-				depAct.triggered.connect(lambda: self.selecttasknodes(path))
+				depAct.triggered.connect(lambda: self.selecttasknodes(mediaNodeUIDs))
 				rcmenu.addAction(depAct)
 
-
+				#	Setup rcl "Color Nodes" items
 				menuSelTaskC = QMenu("Select Task Color", origin)
 				menuSelTaskC.setStyleSheet("""
 					QMenu::item {
@@ -3941,11 +3918,13 @@ path = r\"%s\"
 				for key in self.fusionToolsColorsDict.keys():
 					name = key
 					color = self.fusionToolsColorsDict[key]
+
 					qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
 					depAct = QAction(name, origin)
+
 					# we can pass name as a default argument in the lambda to "freeze" its value for each iteration
 					# even if the action isn't checkable, the triggered signal passes checked as an argument by default.
-					depAct.triggered.connect(lambda checked=False, color=color: self.colortasknodes(path, color, item, category))
+					depAct.triggered.connect(lambda checked=False, color=color: self.colorTaskNodes(mediaNodeUIDs, color, item, category))
 					icon = self.create_color_icon(qcolor)
 					depAct.setIcon(icon)
 					menuSelTaskC.addAction(depAct)

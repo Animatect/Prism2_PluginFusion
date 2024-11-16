@@ -401,11 +401,15 @@ class ABC_ImportClass(object):
         productVersion = cacheData["version"]
         nodeName = f"{productName}_{productVersion}"
 
+        nodeData = {"nodeName": nodeName,
+                    "version": productVersion,
+                    "filepath": impFileName,
+                    "product": productName,
+                    "format": "ABC"}
+
         importResult = self.fuseFuncts.importABC(self,
-                                                impFileName,
                                                 UUID=self.stateUID,
-                                                nodeName=nodeName,
-                                                version=productVersion,
+                                                nodeData=nodeData,
                                                 update=update)
 
         if not importResult:
