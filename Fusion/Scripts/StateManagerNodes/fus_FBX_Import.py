@@ -69,6 +69,8 @@ class FBX_ImportClass(object):
         self.stateManager = stateManager
         self.fuseFuncts = self.core.appPlugin
 
+        self.supportedFormats = [".fbx"]
+
         self.taskName = ""
         self.setName = ""
 
@@ -109,6 +111,12 @@ class FBX_ImportClass(object):
                         stateManager.importFile(importPath)
 
         if importPath:
+            _, extension = os.path.splitext(importPath)
+
+            if extension.lower() not in self.supportedFormats:
+                self.core.popup(f"{extension.upper()} is not supported with this Import State")           #   TESTING
+                return False
+            
             self.setImportPath(importPath)
             result = self.importObject(settings=settings)
 
@@ -164,7 +172,6 @@ class FBX_ImportClass(object):
             self.e_name.setText(data["statename"])
         if "stateUID" in data:
             self.stateUID = data["stateUID"]
-            self.core.popup(f"self.stateUID:  {self.stateUID}")                                      #    TESTING
         if "statemode" in data:
             self.setStateMode(data["statemode"])
         if "filepath" in data:
@@ -602,10 +609,12 @@ class FBX_ImportClass(object):
                 if nodeName:
                     message = f"Would you like to also remove the associated Loader3d: {nodeName}?"
                     buttons = ["Yes", "No"]
-                    result = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
+                    buttonToBool = {"Yes": True, "No": False}
 
-            if delAction == "Yes":
-                self.fuseFuncts.deleteNode(nodeUID)
+                    response = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
+                    delAction = buttonToBool.get(response, False)
+
+                    self.fuseFuncts.deleteNode("import3d", nodeUID, delAction=delAction)
         except:
             logger.warning("ERROR: Unable to remove Loader3d from Comp")
 

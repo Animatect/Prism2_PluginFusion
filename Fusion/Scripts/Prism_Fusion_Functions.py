@@ -92,48 +92,27 @@ class Prism_Fusion_Functions(object):
 
 		#	Register Callbacks
 		try:
-			self.core.registerCallback(
-				"onUserSettingsOpen", self.onUserSettingsOpen, plugin=self.plugin
-			)
-			self.core.registerCallback(
-				"onProjectBrowserStartup", self.onProjectBrowserStartup, plugin=self.plugin
-			)
-			self.core.registerCallback(
-				"onProjectBrowserClose", self.onProjectBrowserClose, plugin=self.plugin
-			)		
-			self.core.registerCallback(
-				"onProjectBrowserShow", self.onProjectBrowserShow, plugin=self.plugin
-			)
-			self.core.registerCallback(
-				"onProjectBrowserCalled", self.onProjectBrowserCalled, plugin=self.plugin
-			)
-			self.core.registerCallback(
-				"onStateManagerCalled", self.onStateManagerCalled, plugin=self.plugin
-			)
-			self.core.registerCallback(
-				"onStateManagerOpen", self.onStateManagerOpen, plugin=self.plugin
-			)
-			self.core.registerCallback(
-				"onStateManagerClose", self.onStateManagerClose, plugin=self.plugin
-			)
-			self.core.registerCallback(
-				"onStateManagerShow", self.onStateManagerShow, plugin=self.plugin
-			)
-			self.core.registerCallback(
-				"onStateCreated", self.onStateCreated, plugin=self.plugin
-			)
-			self.core.registerCallback(
-				"onStateDeleted", self.onStateDeleted, plugin=self.plugin
-			)
-			self.core.registerCallback(
-				"getIconPathForFileType", self.getIconPathForFileType, plugin=self
-			)
-			self.core.registerCallback(
-				"openPBListContextMenu", self.openPBListContextMenu, plugin=self
-			)
-			self.core.registerCallback(
-				"onMediaBrowserTaskUpdate", self.onMediaBrowserTaskUpdate, plugin=self
-			)
+			callbacks = [
+						("onUserSettingsOpen", self.onUserSettingsOpen),
+						("onProjectBrowserStartup", self.onProjectBrowserStartup),
+						("onProjectBrowserClose", self.onProjectBrowserClose),
+						("onProjectBrowserShow", self.onProjectBrowserShow),
+						("onProjectBrowserCalled", self.onProjectBrowserCalled),
+						("onStateManagerCalled", self.onStateManagerCalled),
+						("onStateManagerOpen", self.onStateManagerOpen),
+						("onStateManagerClose", self.onStateManagerClose),
+						("onStateManagerShow", self.onStateManagerShow),
+						("onStateCreated", self.onStateCreated),
+						# ("onStateDeleted", self.onStateDeleted),
+						("getIconPathForFileType", self.getIconPathForFileType),
+						("openPBListContextMenu", self.openPBListContextMenu),
+						("onMediaBrowserTaskUpdate", self.onMediaBrowserTaskUpdate),
+				]
+
+			# Iterate through the list to register callbacks
+			for callback_name, method in callbacks:
+				self.core.registerCallback(callback_name, method, plugin=self.plugin)
+
 			logger.debug("Registered callbacks")
 
 		except Exception as e:
@@ -257,48 +236,6 @@ class Prism_Fusion_Functions(object):
 		origin.startAutosaveTimer()
 
 
-	@err_catcher(name=__name__)
-	def autosaveEnabled(self, origin):
-		# get autosave enabled
-		return False
-	
-
-    #   Adds custom icon for Fusion auto-backup files
-	@err_catcher(name=__name__)
-	def getIconPathForFileType(self, extension):
-		if extension == ".autocomp":
-			icon = os.path.join(self.pluginDirectory, "UserInterfaces", "Fusion-Autosave.ico")
-			if os.path.isfile(icon):
-				return icon
-			else:
-				logger.warning("ERROR: Fusion auto-save icon not found")
-
-		return None
-	
-
-	@err_catcher(name=__name__)
-	def sceneOpen(self, origin):
-		# if self.core.shouldAutosaveTimerRun():
-		# 	origin.startAutosaveTimer()
-		pass
-
-
-	#	Returns Current Comp
-	@err_catcher(name=__name__)
-	def getCurrentComp(self):
-		try:
-			curComp = self.fusion.GetCurrentComp()
-			# logger.debug(f"CurrentComp: {curComp.GetAttrs('COMPS_Name')}")
-			return curComp
-		except Exception as e:
-			logger.warning(f"ERROR: Failed to resolve the current Fusion comp:\n{e}")
-			return None
-	
-
-	@err_catcher(name=__name__)
-	def getSceneExtension(self, origin):
-		return self.sceneFormats[0]
-
 
 	##########################################################
 	##														##
@@ -358,8 +295,6 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		Fus.setResolution(comp, width, height)
 
-
-	#	Checks if a matching tool exists in the comp
 	@err_catcher(name=__name__)
 	def nodeExists(self, nodeUID):
 		comp = self.getCurrentComp()
@@ -390,7 +325,124 @@ class Prism_Fusion_Functions(object):
 		CompDb.setPassThrough(comp, nodeUID=nodeUID, node=node, passThrough=passThrough)
 
 
+	@err_catcher(name=__name__)
+	def setDefaultState(self):
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			CompDb.setDefaultState(comp)
 
+
+	@err_catcher(name=__name__)
+	def sm_saveStates(self, origin, buf):
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			CompDb.sm_saveStates(comp, buf)
+
+
+	@err_catcher(name=__name__)
+	def sm_saveImports(self, origin, importPaths):
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			CompDb.sm_saveImports(comp, importPaths)
+
+
+	@err_catcher(name=__name__)
+	def sm_readStates(self, origin):
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			return CompDb.sm_readStates(comp)
+
+
+	#	Gets called from SM to remove all States
+	@err_catcher(name=__name__)
+	def sm_deleteStates(self, origin):
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			#	Sets the states datablock to empty default state
+			CompDb.setDefaultState(comp)
+			self.core.popup("All States have been removed.\n"
+							"You may have to remove associated Loaders and Savers\n"
+							"from the comp manually.")
+
+
+	@err_catcher(name=__name__)
+	def getImportPaths(self, origin):
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			return CompDb.getImportPaths(comp)
+
+
+#########################################
+		
+
+	@err_catcher(name=__name__)
+	def autosaveEnabled(self, origin):
+		# get autosave enabled
+		return False
+	
+
+    #   Adds custom icon for Fusion auto-backup files
+	@err_catcher(name=__name__)
+	def getIconPathForFileType(self, extension):
+		if extension == ".autocomp":
+			icon = os.path.join(self.pluginDirectory, "UserInterfaces", "Fusion-Autosave.ico")
+			if os.path.isfile(icon):
+				return icon
+			else:
+				logger.warning("ERROR: Fusion auto-save icon not found")
+
+		return None
+	
+
+	@err_catcher(name=__name__)
+	def sceneOpen(self, origin):
+		# if self.core.shouldAutosaveTimerRun():
+		# 	origin.startAutosaveTimer()
+		pass
+
+
+	#	Returns Current Comp
+	@err_catcher(name=__name__)
+	def getCurrentComp(self):
+		try:
+			curComp = self.fusion.GetCurrentComp()
+			# logger.debug(f"CurrentComp: {curComp.GetAttrs('COMPS_Name')}")
+			return curComp
+		except Exception as e:
+			logger.warning(f"ERROR: Failed to resolve the current Fusion comp:\n{e}")
+			return None
+		
+
+	@err_catcher(name=__name__)
+	def sm_checkCorrectComp(self, comp, displaypopup=True):
+		if self.comp:
+			try:
+				if self.comp.GetAttrs("COMPS_Name") == comp.GetAttrs("COMPS_Name"):
+					return True
+				else:
+					raise Exception
+			except:
+				logger.warning("ERROR: The State Manager was originally opened in another comp.\n" 
+								"It will now close and open again to avoid corrupting this comp's state data.")
+				if displaypopup:
+					self.core.popup("The State Manager was originally opened in another comp.\n"
+									"It will now close and open again to avoid corrupting this comp's state data.")
+					self.core.closeSM(restart=True)
+				return False
+			
+		return True
+	
+	
+	@err_catcher(name=__name__)
+	def sm_getExternalFiles(self, origin):
+		extFiles = []
+		return [extFiles, []]
+
+	
+
+	@err_catcher(name=__name__)
+	def getSceneExtension(self, origin):
+		return self.sceneFormats[0]
 		
 
 	#	Returns the framerange key/value to be used in the render command
@@ -459,6 +511,22 @@ class Prism_Fusion_Functions(object):
 			logger.debug(f"Created UID: {shortUID}")
 
 			return shortUID
+		
+
+	@err_catcher(name=__name__)
+	def getAppVersion(self, origin):
+		try:
+			return self.fusion.Version
+		except:
+			return None
+		
+		
+	@err_catcher(name=__name__)
+	def getFuseFormat(self, extension):
+		for fmt in self.outputFormats:
+			if fmt["extension"] == extension.lower():
+				fuseFormat = fmt["fuseName"]
+				return fuseFormat
 
 
 	# @err_catcher(name=__name__)
@@ -508,15 +576,6 @@ class Prism_Fusion_Functions(object):
 	# 			self.core.messageParent, "Information", mStr)
 
 
-	@err_catcher(name=__name__)
-	def getAppVersion(self, origin):
-		try:
-			return self.fusion.Version
-		except:
-			return None
-
-
-
 	
 
 	################################################
@@ -562,19 +621,17 @@ class Prism_Fusion_Functions(object):
 				#   Get current frame number
 				currFrame = Fus.getCurrentFrame(comp)
 
-				origStartFrame = comp.GetAttrs("COMPN_RenderStart")
-				origEndFrame = comp.GetAttrs("COMPN_RenderEnd")
+				#	Get Comps render range
+				origStartFrame, origEndFrame = Fus.getRenderRange(comp)
 
 				# Temporarily set the render range to the current frame
-				comp.SetAttrs({'COMPN_RenderStart' : currFrame})
-				comp.SetAttrs({'COMPN_RenderEnd' : currFrame})
+				Fus.setRenderRange(comp, currFrame, currFrame)
 
 				# Render the current frame
 				comp.Render()
 
 				# Restore the original render range
-				comp.SetAttrs({'COMPN_RenderStart' : origStartFrame})
-				comp.SetAttrs({'COMPN_RenderEnd' : origEndFrame})
+				Fus.setRenderRange(comp, origStartFrame, origEndFrame)
 
 			#   Deals with the frame number suffix added by Fusion rener
 			pattern = os.path.join(tempDir, thumbName + "*.jpg")
@@ -664,7 +721,7 @@ class Prism_Fusion_Functions(object):
 				return tool
 
 		# 4. Fallback to the final tool in the flow
-		return self.getLastTool(comp) or None
+		return Fus.getLastTool(comp) or None
 
 
 
@@ -682,121 +739,13 @@ class Prism_Fusion_Functions(object):
 			return False
 		try:
 			# Check if tool name is 'Saver' (should work if node is renamed)
-			if tool.GetAttrs({"TOOLS_Name"})["TOOLS_RegID"] == "Saver":
+			if CompDb.getNodeType(tool) == "Saver":
 				return True
 			else:
 				return False
 		except:
 			return False
 	
-
-	#   Tries to find last tool in the flow
-	@err_catcher(name=__name__)
-	def getLastTool(self, comp):
-		try:
-			for tool in comp.GetToolList(False).values():
-				if not self.hasConnectedOutputs(tool):
-					return tool
-			return None
-		except:
-			return None
-		
-
-	#   Finds if tool has any outputs connected
-	@err_catcher(name=__name__)
-	def hasConnectedOutputs(self, tool):
-		if not tool:
-			return False
-
-		outputList = tool.GetOutputList()
-		for output in outputList.values():
-			if output is not None and hasattr(output, 'GetConnectedInput'):
-				# Check if the output has any connected inputs in other tools
-				try:
-					connection = output.GetConnectedInputs()
-					if connection != {}:
-						return True
-				except:
-					return False
-
-		return False
-	
-
-	# # Checks if tool is set to pass-through mode
-	# @err_catcher(name=__name__)
-	# def isPassThrough(self, nodeUID=None, node=None):
-	# 	if nodeUID:
-	# 		node = CompDb.getNodeByUID(nodeUID)
-
-	# 	return node and node.GetAttrs({"TOOLS_Name"})["TOOLB_PassThrough"]
-
-
-	# #	Sets the Fusion node's passthrough
-	# @err_catcher(name=__name__)
-	# def setPassThrough(self, nodeUID=None, node=None, passThrough=False):
-	# 	if nodeUID:
-	# 		node = self.getNodeByUID(nodeUID)
-	# 	node.SetAttrs({"TOOLB_PassThrough": passThrough})
-
-
-	#	Checks if a matching tool exists in the comp
-	# @err_catcher(name=__name__)
-	# def nodeExists(self, nodeUID):
-	# 	if self.getNodeByUID(nodeUID):
-	# 		return True
-		
-	# 	return False
-	
-	#	
-	# @err_catcher(name=__name__)
-	# def getNodeType(self, tool):
-	# 	try:
-	# 		return tool.GetAttrs("TOOLS_RegID")
-	# 	except:
-	# 		logger.warning("ERROR: Cannot retrieve node type")
-	# 		return None
-	
-
-	# @err_catcher(name=__name__)
-	# def getNodeByUID(self, nodeUID):
-	# 	comp = self.getCurrentComp()
-	# 	try:
-	# 		# Iterate through all tools in the composition
-	# 		tools = comp.GetToolList(False)
-
-	# 		for tool_name, tool in tools.items():  # tool_name is the key, tool is the value
-	# 			toolUID = tool.GetData('Prism_UUID')
-
-	# 		# Check if the tool has the attribute 'Prism_UUID' and if it matches the provided UID
-	# 			if toolUID == nodeUID:
-	# 				return tool
-				
-	# 		raise Exception
-		
-	# 	except:
-	# 		logger.warning(f"ERROR: No node found for {nodeUID}")
-	# 		return None
-	
-
-	# @err_catcher(name=__name__)
-	# def getNodeNameByUID(self, nodeUID):
-	# 	tool = self.getNodeByUID(nodeUID)
-	# 	toolName = CompDb.getNodeNameByTool(tool)
-
-	# 	return toolName
-	
-
-	# @err_catcher(name=__name__)
-	# def getNodeNameByTool(self, tool):
-	# 	try:
-	# 		toolName = tool.GetAttrs()["TOOLS_Name"]
-	# 		return toolName
-	# 	except:
-	# 		logger.warning(f"ERROR: Cannot get name for {tool}")
-	# 		return None
-		
-
-
 
 	#	Returns Fusion-legal Saver name base on State name
 	@err_catcher(name=__name__)
@@ -809,68 +758,75 @@ class Prism_Fusion_Functions(object):
 	
 	#	Creates Saver with UUID associated with ImageRender state
 	@err_catcher(name=__name__)
-	def createRendernode(self, nodeName, nodeUID):
+	def createRendernode(self, nodeUID, nodeData):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			if not CompDb.nodeExists(comp, nodeUID):
 				comp.Lock()
-				sv = comp.Saver()
-				sv.SetAttrs({'TOOLS_Name' : nodeName})
-				sv.SetData('Prism_UUID', nodeUID)
+
+				#	Add Saver to Comp
+				sv = Fus.addTool(comp, "Saver", nodeData)
+
 				comp.Unlock()
 
-				if not self.posRelativeToNode(sv):
+				#	Add node to Comp Database
+				CompDb.addNodeToDB(comp, "render2d", nodeUID, nodeData)
+
+				#	Position Saver
+				if not Fus.posRelativeToNode(comp, sv):
 					try:
 						#Move Render Node to the Right of the scene	
-						self.setNodePosition(sv, find_min=False, x_offset=10, ignore_node_type="Saver")
-						self.stackNodesByType(sv)
+						Fus.setNodePosition(comp, sv, find_min=False, x_offset=10, ignore_node_type="Saver")
+						Fus.stackNodesByType(comp, sv)
 					except:
-						logger.debug(f"ERROR: Not able to position {nodeName}")
+						logger.debug(f"ERROR: Not able to position {nodeData['nodeName']}")
 
 			if sv:
-				logger.debug(f"Saver created for: {nodeName} - {nodeUID}")
+				logger.debug(f"Saver created for: {nodeData['nodeName']} - {nodeUID}")
 				return sv
 			else:
-				logger.warning(f"ERROR: Unable to create Saver for {nodeName}")
+				logger.warning(f"ERROR: Unable to create Saver for {nodeData['nodeName']}")
 				return False
 
 
 	#	Updates Saver node name
 	@err_catcher(name=__name__)
-	def updateRendernode(self, nodeName, nodeUID):
+	def updateRendernode(self, nodeUID, nodeData):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			sv = CompDb.getNodeByUID(comp, nodeUID)
 
 			if sv:
 				comp.Lock()
-				sv.SetAttrs({'TOOLS_Name' : nodeName})
+				#	Update Saver Info
+				Fus.updateTool(sv, nodeData)
 				comp.Unlock()
 
-				logger.debug(f"Saver updated: {CompDb.getNodeNameByUID(comp, nodeUID)}")
+				#	Update Node in Comp Database
+				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
+
+				logger.debug(f"Saver updated: {nodeData['nodeName']}")
 			else:
-				logger.warning(f"ERROR: Not able to update: {nodeName}")
+				logger.warning(f"ERROR: Not able to update: {nodeData['nodeName']}")
 
 			return sv
 		
 
 	#	Configures Saver filepath and image format
 	@err_catcher(name=__name__)
-	def configureRenderNode(self, nodeUID, outputPath, fuseName=None):
+	def configureRenderNode(self, nodeUID, nodeData):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			sv = CompDb.getNodeByUID(comp, nodeUID)
 			if sv:
-				sv.Clip = outputPath
-				if fuseName:
-					try:
-						sv["OutputFormat"] = fuseName
-					except:
-						logger.warning(f"ERROR: Could not set node format to {fuseName}")
+				#	Update Saver
+				Fus.updateTool(sv, nodeData)
+				#	Update Comp Database
+				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
 
-				if sv.Input.GetConnectedOutput():
-					sv.Clip = outputPath
-					logger.debug(f"Configured Saver: {CompDb.getNodeNameByUID(comp, nodeUID)}")
+				#	Check if Saver is connected to something
+				if Fus.hasConnectedInput(sv):
+					logger.debug(f"Configured Saver: {nodeData['nodeName']}")
 
 				else:
 					logger.debug(f"ERROR: Render Node is not connected: {nodeUID}")
@@ -880,14 +836,15 @@ class Prism_Fusion_Functions(object):
 
 	#	Removes Node from Comp
 	@err_catcher(name=__name__)
-	def deleteNode(self, nodeUID):
+	def deleteNode(self, type, nodeUID, delAction):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			if CompDb.nodeExists(comp, nodeUID):
+			if delAction and CompDb.nodeExists(comp, nodeUID):
 				#	Delete the Tool from the Comp
 				try:
 					tool = CompDb.getNodeByUID(comp, nodeUID)
 					toolName = CompDb.getNodeNameByUID(comp, nodeUID)
+
 					tool.Delete()
 					logger.debug(f"Removed tool '{toolName}")
 
@@ -895,7 +852,7 @@ class Prism_Fusion_Functions(object):
 					logger.warning(f"ERROR:  Unable to remove tool from Comp: {nodeUID}")
 
 			#	Remove the Tool from the Comp Database
-			CompDb.removeNodeFromDB(comp, "import3d", nodeUID)
+			CompDb.removeNodeFromDB(comp, type, nodeUID)
 	
 
 	################################################
@@ -1068,41 +1025,41 @@ class Prism_Fusion_Functions(object):
 	
 
 	#	Arranges nodes in a vertcal stack
-	@err_catcher(name=__name__)
-	def stackNodesByType(self, nodetostack, yoffset=3, tooltype="Saver"):
-		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
+	# @err_catcher(name=__name__)
+	# def stackNodesByType(self, nodetostack, yoffset=3, tooltype="Saver"):
+	# 	comp = self.getCurrentComp()
+	# 	flow = comp.CurrentFrame.FlowView
 
-		origx, origy = flow.GetPosTable(nodetostack).values()
+	# 	origx, origy = flow.GetPosTable(nodetostack).values()
 
-		toollist = comp.GetToolList().values()
+	# 	toollist = comp.GetToolList().values()
 		
-		thresh_y_position = -float('inf')
-		upmost_node = None		
+	# 	thresh_y_position = -float('inf')
+	# 	upmost_node = None		
 
-		# Find the upmost node
-		for node in toollist:
-			try:
-				if node.Name == nodetostack.Name:
-						continue
+	# 	# Find the upmost node
+	# 	for node in toollist:
+	# 		try:
+	# 			if node.Name == nodetostack.Name:
+	# 					continue
 				
-				if node.GetAttrs("TOOLS_RegID") == tooltype:
-					postable = flow.GetPosTable(node)
-					y = thresh_y_position
-					#check if node has a postable.
-					if postable:
-						# Get the node's position
-						x,y = postable.values()
+	# 			if node.GetAttrs("TOOLS_RegID") == tooltype:
+	# 				postable = flow.GetPosTable(node)
+	# 				y = thresh_y_position
+	# 				#check if node has a postable.
+	# 				if postable:
+	# 					# Get the node's position
+	# 					x,y = postable.values()
 
-						if y > thresh_y_position:
-							thresh_y_position = y
-							upmost_node = node
-			except Exception as e:
-				logger.warning(f"ERROR: Unable to stack nodes:\n{e}")
+	# 					if y > thresh_y_position:
+	# 						thresh_y_position = y
+	# 						upmost_node = node
+	# 		except Exception as e:
+	# 			logger.warning(f"ERROR: Unable to stack nodes:\n{e}")
 
-		if upmost_node:
-			#set pos to the leftmost or rightmost node
-			flow.SetPos(nodetostack, origx, thresh_y_position + yoffset)
+	# 	if upmost_node:
+	# 		#set pos to the leftmost or rightmost node
+	# 		flow.SetPos(nodetostack, origx, thresh_y_position + yoffset)
 
 
 
@@ -1409,21 +1366,6 @@ class Prism_Fusion_Functions(object):
 
 		logging.warning(f"ERROR: No state details for:  {nodeUID}")
 		return None
-
-
-	# #	Gets individual State data from the comp state data based on the Saver name
-	# @err_catcher(name=__name__)
-	# def getMatchingStateDataFromName(self, nodeUID):										#	TODO NOT USED
-	# 	stateDataRaw = json.loads(self.sm_readStates(self))
-
-	# 	# Iterate through the states to find the matching state dictionary
-	# 	stateDetails = None
-	# 	for stateData in stateDataRaw["states"]:
-	# 		if stateData.get("rendernode") == nodeUID:
-	# 			stateDetails = stateData
-	# 			return stateDetails
-
-	# 	logging.warning(f"No state details for:  {nodeUID}")
 
 
 	@err_catcher(name=__name__)
@@ -1780,8 +1722,13 @@ path = r\"%s\"
 
 			#	Get version filepath for Saver
 			self.outputPath = outputPathData["path"]
-			#	Configure Saver with new filepath
-			self.configureRenderNode(nodeUID, self.outputPath, fuseName=None)
+
+			#	Configure Saver with new filepath						#	TODO
+			nodeData = {"filepath": self.outputPath,
+			   			"format": extension,
+						"FuseFormat": self.getFuseFormat(extension)}
+
+			self.configureRenderNode(nodeUID, nodeData)
 
 			stateData["comment"] = self.monkeypatchedsm.publishComment
 			renderDir = os.path.dirname(self.outputPath)
@@ -1903,7 +1850,7 @@ path = r\"%s\"
 
 			sv = CompDb.getNodeByUID(comp, rSettings["nodeUID"])
 			if sv:
-				#if sv has input
+				#if sv has input												#	TODO SET TO USE LIB
 				if sv.Input.GetConnectedOutput():
 					sv.Clip = outputName
 				else:
@@ -2225,15 +2172,15 @@ path = r\"%s\"
 		return "1.0"
 	
 
-	# @err_catcher(name=__name__)
-	# def deleteNodes(self, origin, handles, num=0):
-	# 	comp = self.getCurrentComp()
-	# 	for i in handles:	
-	# 		if self.sm_checkCorrectComp(comp):
-	# 			toolnm = i["name"]
-	# 			tool = comp.FindTool(toolnm)
-	# 			if tool:
-	# 				tool.Delete()
+	@err_catcher(name=__name__)
+	def deleteNodes(self, origin, handles, num=0):
+		comp = self.getCurrentComp()
+		for i in handles:	
+			if self.sm_checkCorrectComp(comp):
+				toolnm = i["name"]
+				tool = comp.FindTool(toolnm)
+				if tool:
+					tool.Delete()
 
 
 	################################################
@@ -2331,9 +2278,7 @@ path = r\"%s\"
 		dataSources = None
 		if currentAOV:
 			dataSources = mediaBrowser.compGetImportPasses()
-
-		self.core.popup(f"dataSources:  {dataSources}")                                      #    TESTING
-		
+	
 		# Check if media padding corresponds to the project:
 		source = context["source"]
 		if "#" in source:
@@ -2395,9 +2340,6 @@ path = r\"%s\"
 
 		try:
 			sourceData = mediaBrowser.compGetImportSource()
-
-			self.core.popup(f"sourceData: {sourceData}")                                      #    TESTING
-
 		except:
 			logger.warning("ERROR: Unable to get sourceData from the MediaBrowser")
 			return
@@ -2937,11 +2879,11 @@ path = r\"%s\"
 
 			if refNode:
 				if refNode.GetAttrs('TOOLS_RegID') =='Loader':
-					self.setNodePosition(node, x_offset = 0, y_offset = 1, refNode=refNode)
+					Fus.setNodePosition(comp, node, x_offset = 0, y_offset = 1, refNode=refNode)
 				else:
-					self.setNodePosition(node, x_offset = -5, y_offset = 0, refNode=refNode)
+					Fus.setNodePosition(comp, node, x_offset = -5, y_offset = 0, refNode=refNode)
 			else:
-				self.setNodePosition(node, x_offset = 0, y_offset = 0, refNode=None)
+				Fus.setNodePosition(comp, node, x_offset = 0, y_offset = 0, refNode=None)
 
 			comp.Unlock()
 
@@ -2993,7 +2935,7 @@ path = r\"%s\"
 		#	Add Node Data to Comp Database
 		version = version2 if 'version2' in locals() else prevVersion
 
-		# self.core.popup(f"context:  {context}")                                      #    TESTING
+		self.core.popup(f"context:  {context}")                                      #    TESTING
 
 		nodeData = {"nodeName": nodeName,
 					"version": context["version"],
@@ -3496,262 +3438,6 @@ path = r\"%s\"
 	# 		origin.createPressed("Render")
 
 
-	################################################
-	#                                              #
-	#        	    NODE POSITIONING               #
-	#                                              #
-	################################################
-
-	#Get last click on comp view.
-	@err_catcher(name=__name__)
-	def find_LastClickPosition(self):
-		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
-		posNode = comp.AddToolAction("Background")
-		x,y = flow.GetPosTable(posNode).values()
-		posNode.Delete()
-
-		return x,y
-		# return -32768, -32768
-
-
-	@err_catcher(name=__name__)
-	def find_extreme_loader(self):
-		# Get the current composition
-		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView()
-
-		# Initialize variables to track the leftmost lower Loader node
-		leftmost_lower_loader = None
-		min_x = -float('inf')
-		min_y = float('inf')
-
-		# Iterate through all tools in the composition
-		for tool in comp.GetToolList().values():
-			# Check if the tool is of type "Loader"
-			if tool.GetAttrs()['TOOLS_RegID'] == 'Loader':
-				# Get the position of the Loader node
-				position = flow.GetPosTable(tool)
-				
-				if position:
-					x, y = position[1], position[2]
-					# Check if this Loader node is the leftmost lower node
-					if (y < min_y) or (y == min_y and x < min_x):
-						min_x = x
-						min_y = y
-						leftmost_lower_loader = tool
-
-		# Output the leftmost lower Loader node
-		return leftmost_lower_loader
-
-
-	@err_catcher(name=__name__)
-	def find_extreme_position(self, thisnode=None, ignore_node_type=None, find_min=True):
-		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
-
-		if find_min:
-			thresh_x_position, thresh_y_position = float('inf'), float('inf')
-		else: 
-			thresh_x_position, thresh_y_position = -float('inf'), float('inf')
-
-		extreme_node = None
-
-		all_nodes = comp.GetToolList(False).values()
-
-		for node in all_nodes:
-			if thisnode and node.Name == thisnode.Name:
-				continue
-
-			if ignore_node_type and node.GetAttrs("TOOLS_RegID") == ignore_node_type:
-				continue
-
-			postable = flow.GetPosTable(node)
-			x, y = postable.values() if postable else (thresh_x_position, thresh_y_position)
-
-			x_thresh = x < thresh_x_position if find_min else x > thresh_x_position
-			y_thresh = y < thresh_y_position
-
-			if x_thresh:
-				thresh_x_position = x
-				extreme_node = node
-
-			if y_thresh:
-				thresh_y_position = y
-
-		return extreme_node, thresh_x_position, thresh_y_position
-
-
-	@err_catcher(name=__name__)
-	def set_node_position(self, flow, smnode, x, y):
-		flow.SetPos(smnode, x, y)
-
-
-	@err_catcher(name=__name__)
-	def matchNodePos(self, nodeTomove, nodeInPos):
-		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
-		x,y = flow.GetPosTable(nodeInPos).values()
-		self.set_node_position(flow, nodeTomove, x, y)
-
-
-	#The name of this function comes for its initial use to position the "state manager node" that what used before using SetData.
-	@err_catcher(name=__name__)
-	def setNodePosition(self, node, find_min=True, x_offset=-2, y_offset=0, ignore_node_type=None, refNode=None):
-		# Get the active composition
-		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
-
-		if not comp:
-			# No active composition
-			return
-
-		# Get all nodes in the composition
-		all_nodes = comp.GetToolList(False).values()
-
-		if not all_nodes:
-			flow.SetPos(node, 0, 0)
-			return
-
-		# xmost_node, thresh_x_position, thresh_y_position = self.find_extreme_position(node, ignore_node_type, find_min)
-
-		# if xmost_node:
-		if refNode:
-			thresh_x_position, thresh_y_position = postable = flow.GetPosTable(refNode).values()
-			self.set_node_position(flow, node, thresh_x_position + x_offset, thresh_y_position + y_offset)
-		else:
-			flow.Select()
-			x,y = self.find_LastClickPosition()
-			flow.SetPos(node, x, y)
-
-
-	@err_catcher(name=__name__)
-	def posRelativeToNode(self, node, xoffset=3):
-		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
-		#check if there is selection
-		if len(comp.GetToolList(True).values()) > 0:
-			try:
-				activeNode = comp.ActiveTool()
-			except:
-				activeNode = comp.GetToolList(True)[1]
-			if not activeNode.Name == node.Name:
-				postable = flow.GetPosTable(activeNode)
-				if postable:
-					x, y = postable.values()
-					flow.SetPos(node, x + xoffset, y)
-					try:
-						node.ConnectInput('Input', activeNode)
-					except:
-						pass
-					return True
-
-		return False
-
-
-	################################################
-	#                                              #
-	#        	  STATE MANAGER STUFF              #
-	#                                              #
-	################################################
-
-	@err_catcher(name=__name__)
-	def sm_checkCorrectComp(self, comp, displaypopup=True):
-		if self.comp:
-			try:
-				if self.comp.GetAttrs("COMPS_Name") == comp.GetAttrs("COMPS_Name"):
-					return True
-				else:
-					raise Exception
-			except:
-				logger.warning("ERROR: The State Manager was originally opened in another comp.\n" 
-								"It will now close and open again to avoid corrupting this comp's state data.")
-				if displaypopup:
-					self.core.popup("The State Manager was originally opened in another comp.\n"
-									"It will now close and open again to avoid corrupting this comp's state data.")
-					self.core.closeSM(restart=True)
-				return False
-			
-		return True
-	
-	
-	@err_catcher(name=__name__)
-	def sm_getExternalFiles(self, origin):
-		extFiles = []
-		return [extFiles, []]
-	
-
-	@err_catcher(name=__name__)
-	def setDefaultState(self):
-		comp = self.getCurrentComp()
-		if self.sm_checkCorrectComp(comp):
-			defaultState = """{
-		"states": [
-			{
-				"statename": "publish",
-				"comment": "",
-				"description": ""
-			}
-		]
-	}_..._
-	"""
-			try:
-				comp.SetData("prismstates",defaultState)
-				logger.debug("Saved the empty state data to the comp")
-			except:
-				logger.warning(f"ERROR: Unable to save default State Data to comp: {comp}")
-
-
-	@err_catcher(name=__name__)
-	def sm_saveStates(self, origin, buf):
-		comp = self.getCurrentComp()
-		if self.sm_checkCorrectComp(comp):
-			try:
-				comp.SetData("prismstates", buf + "_..._")
-				logger.debug(f"Saved the state data to the comp.")
-			except:
-				logger.warning(f"ERROR: Unable to save State Data to comp: {comp}")
-
-
-	@err_catcher(name=__name__)
-	def sm_saveImports(self, origin, importPaths):
-		comp = self.getCurrentComp()
-		if self.sm_checkCorrectComp(comp):
-			prismdata = comp.GetData("prismstates")
-			prismdata += importPaths.replace("\\\\", "\\")
-			comp.SetData("prismstates", prismdata)
-
-
-	@err_catcher(name=__name__)
-	def sm_readStates(self, origin):
-		comp = self.getCurrentComp()
-		if self.sm_checkCorrectComp(comp):
-			try:
-				prismdata = comp.GetData("prismstates")
-				return prismdata.split("_..._")[0]
-			except:
-				logger.warning(f"ERROR:  Unable to read State Data from comp: {comp}")
-				return 
-
-
-	#	Gets called from SM to remove all States
-	@err_catcher(name=__name__)
-	def sm_deleteStates(self, origin):
-		comp = self.getCurrentComp()
-		if self.sm_checkCorrectComp(comp):
-			#	Sets the states datablock to empty default state
-			self.setDefaultState()
-			self.core.popup("All States have been removed.\n"
-							"You may have to remove associated Loaders and Savers\n"
-							"from the comp manually.")
-
-
-	@err_catcher(name=__name__)
-	def getImportPaths(self, origin):
-		comp = self.getCurrentComp()
-		if self.sm_checkCorrectComp(comp):
-			prismdata = comp.GetData("prismstates")
-			return prismdata.split("_..._")[1]
 		
 
 
@@ -4043,7 +3729,7 @@ path = r\"%s\"
 		#Set the comp used when sm was opened for reference when saving states.
 		self.comp = comp
 		#Set State Manager Data on first open.
-		if comp.GetData("prismstates") is None:
+		if CompDb.sm_readStates(comp) is None:
 			self.setDefaultState()
 
 		self.monkeypatchedsm = origin
@@ -4120,21 +3806,23 @@ path = r\"%s\"
 					curState.setCheckState(0, Qt.Unchecked)
 
 
-	@err_catcher(name=__name__)
-	def onStateDeleted(self, origin, stateui):
-		comp = self.getCurrentComp()
-		if stateui.className == "ImageRender":
-			try:
-				node = comp.FindTool(stateui.b_setRendernode.text())
-				if node:
-					fString = "Do you want to also delete the Saver node\nassociated with this render:"
-					buttons = ["Yes", "No"]
-					result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
-					if result == "Yes":
-						node.Delete()
-			except:
-				logger.warning(f"ERROR: Unable to remove Saver: {node.Name}")
-		# elif stateui.className == "ImportFile":
+	# @err_catcher(name=__name__)
+	# def onStateDeleted(self, origin, stateui):
+	# 	comp = self.getCurrentComp()
+	# 	if stateui.className == "ImageRender":
+	# 		try:
+	# 			node = CompDb.get
+	# 			node = comp.FindTool(stateui.b_setRendernode.text())
+	# 			if node:
+	# 				fString = "Do you want to also delete the Saver node\nassociated with this render:"
+	# 				buttons = ["Yes", "No"]
+	# 				result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+	# 				if result == "Yes":
+	# 					node.Delete()
+	# 					CompDb.removeNodeFromDB(comp, "render2d", )
+	# 		except:
+	# 			logger.warning(f"ERROR: Unable to remove Saver: {node.Name}")
+	# 	# elif stateui.className == "ImportFile":
 			
 
 	#	This is for the Import Image button on SM.
@@ -4359,6 +4047,7 @@ path = r\"%s\"
 
 				rcmenu.exec_(sm.activeList.mapToGlobal(pos))
 
+
 	@err_catcher(name=__name__)
 	def getVersionStackContextFromPath(self, filepath, mediaType=None):
 		logger.debug("Loading patched function: 'getVersionStackContextFromPath'")
@@ -4388,7 +4077,7 @@ path = r\"%s\"
 		self,
 		item=None,
 		baseText="Do you also want to delete the connected objects?\n\n",
-	):
+		):
 		
 		logger.debug("Loading patched function: 'preDelete'")
 

@@ -833,14 +833,31 @@ class ImageRenderClass(object):
 		#	If the Saver exists
 		if self.fusionFuncs.nodeExists(nodeUID):
 			self.b_setRendernode.setText(nodeName)
-			self.fusionFuncs.updateRendernode(nodeName, nodeUID)
+
+			#	Create Node Data
+			nodeData = {"nodeName": nodeName,
+			   			"format": self.cb_format.currentText()
+				}
+						   
+
+			self.fusionFuncs.updateRendernode(nodeUID, nodeData)
 
 		#	If it does not exist
 		else:
 			#	If Create then call createRendernode
 			if create:
+
+				#	Create Node Data
+				nodeData = {
+					"nodeName": nodeName,
+					"nodeUID": nodeUID,
+					"version": "",
+					"filepath": "",
+					"format": "",
+					}
+
 				try:
-					result = self.fusionFuncs.createRendernode(nodeName, nodeUID)
+					result = self.fusionFuncs.createRendernode(nodeUID, nodeData)
 					self.b_setRendernode.setText(nodeName)
 				except:
 					pass
@@ -903,7 +920,9 @@ class ImageRenderClass(object):
 		
 		nodeUID = self.stateUID
 
-		outputName, _, _ = self.getOutputName(useVersion=useVersion)
+		# outputName, _, _ = self.getOutputName(useVersion=useVersion)
+		outputName, dir, version = self.getOutputName(useVersion=useVersion)
+
 		if not outputName:
 			return
 
@@ -911,12 +930,15 @@ class ImageRenderClass(object):
 		fuseName = None
 
 		try:
-			for fmt in self.outputFormats:
-				if fmt["extension"] == extension.lower():
-					fuseName = fmt["fuseName"]
-					break
-
-			self.fusionFuncs.configureRenderNode(nodeUID, outputName, fuseName)
+			nodeData = {
+				"nodeName": nodeName,
+				"version": version,
+				"filepath": outputName,
+				"format": extension,
+				"fuseFormat": self.fusionFuncs.getFuseFormat(extension)
+				}
+			
+			self.fusionFuncs.configureRenderNode(nodeUID, nodeData)
 			self.stateManager.saveStatesToScene()
 
 		except:
@@ -1618,6 +1640,34 @@ class ImageRenderClass(object):
 					self.b_changeTask.setPalette(self.oldPalette)
 		except:
 			logger.warning("ERROR: Unable to set Task Warning color.")
+
+	#	Called Directly from StateManager
+	@err_catcher(name=__name__)
+	def preDelete(self, item=None):
+		try:
+			#   Defaults to Delete the Node
+			delAction = "Yes"
+
+			if not self.core.uiAvailable:
+				logger.debug(f"Deleting node: {item}")
+
+			else:
+				nodeUID = self.stateUID
+				nodeName = self.fusionFuncs.getNodeNameByUID(nodeUID)
+
+				#   If the Loader exists, show popup question
+				if nodeName:
+					message = f"Would you like to also remove the associated Saver: {nodeName}?"
+					buttons = ["Yes", "No"]
+					buttonToBool = {"Yes": True, "No": False}
+
+					response = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
+					delAction = buttonToBool.get(response, False)
+				
+				self.fusionFuncs.deleteNode("render2d", nodeUID, delAction=delAction)
+
+		except:
+			logger.warning("ERROR: Unable to remove Saver from Comp")
 
 
 	#This function is used to get the settings that are going to be saved to the state file.
