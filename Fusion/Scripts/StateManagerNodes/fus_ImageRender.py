@@ -172,7 +172,7 @@ class ImageRenderClass(object):
 
 				self.chb_resOverride.setChecked(False)
 
-				self.setUniqueName(f"{self.className} - Compositing")
+				self.setUniqueName(f"{self.className} - {self.getTaskname()}")
 
 				self.stateUID = self.fusionFuncs.createUUID()
 
@@ -300,7 +300,7 @@ class ImageRenderClass(object):
 
 
 		# Setup the enabled disabled checkboxes
-		# nodename = self.get_rendernode_name()
+		# nodename = self.getRendernodeName()
 		# if self.fusionFuncs.rendernode_exists(nodename):
 		# 	state = self.fusionFuncs.getNodePassthrough(nodename)
 		# 	if state:
@@ -807,31 +807,57 @@ class ImageRenderClass(object):
 
 
 	@err_catcher(name=__name__)
-	def get_rendernode_name(self):
-		identifier = self.getTaskname()
-		legalName = self.fusionFuncs.getFusLegalName(identifier)
-		nodeName = f"PrSAVER_{legalName}"
+	def getRendernodeName(self):
+		try:
+			identifier = self.getTaskname()
 
-		return nodeName
+			if identifier != "":
+				legalName = self.fusionFuncs.getFusLegalName(identifier)
+				nodeName = f"PrSAVER_{legalName}"
+
+				return nodeName
+			
+			else:
+				return None
+		
+		except:
+			return None
 	
 
 	#	Adds and configures RenderNode
 	@err_catcher(name=__name__)
 	def setRendernode(self, create=False):
-		nodeName = self.get_rendernode_name()
+		nodeName = self.getRendernodeName()
 		nodeUID = self.stateUID
 
 		#	If the Saver exists
 		if self.fusionFuncs.nodeExists(nodeUID):
 			self.b_setRendernode.setText(nodeName)
-			self.fusionFuncs.updateRendernode(nodeName, nodeUID)
+
+			#	Create Node Data
+			nodeData = {"nodeName": nodeName,
+			   			"format": self.cb_format.currentText()
+				}
+						   
+
+			self.fusionFuncs.updateRendernode(nodeUID, nodeData)
 
 		#	If it does not exist
 		else:
 			#	If Create then call createRendernode
 			if create:
+
+				#	Create Node Data
+				nodeData = {
+					"nodeName": nodeName,
+					"nodeUID": nodeUID,
+					"version": "",
+					"filepath": "",
+					"format": "",
+					}
+
 				try:
-					result = self.fusionFuncs.createRendernode(nodeName, nodeUID)
+					result = self.fusionFuncs.createRendernode(nodeUID, nodeData)
 					self.b_setRendernode.setText(nodeName)
 				except:
 					pass
@@ -852,19 +878,22 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def statusColorNodeButton(self):
 		try:
+			renderNodeName = self.getRendernodeName()
+
 			#	Checks if Saver exists
 			if self.fusionFuncs.nodeExists(self.stateUID):
 				toolName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
-
 				#	Compares Identifier name to Saver name
-				if toolName == self.get_rendernode_name():
+				if toolName == renderNodeName:
 					#	If they are the same then Green
 					self.b_setRendernode.setStyleSheet("background-color: green; color: white;")
+					logger.debug(f"Saver matches Identifier for {renderNodeName}")
 					return True
 				
 				else:
 					#	If different then Orange
 					self.b_setRendernode.setStyleSheet("background-color: orange; color: white;")
+					logger.debug(f"Saver name does not match Identifier {renderNodeName}")
 					return "ERROR: Saver name does not match Indentifier"
 
 			#	If the Saver does not exist	
@@ -874,6 +903,7 @@ class ImageRenderClass(object):
 		except:
 			#	If Saver does not exists or error then RED
 			self.b_setRendernode.setStyleSheet("background-color: red; color: white;")
+			logger.debug(f"Saver does not exist for:  {renderNodeName}")
 			return "ERROR:  Saver does not exist"
 
 
@@ -887,7 +917,8 @@ class ImageRenderClass(object):
 		
 		nodeUID = self.stateUID
 
-		outputName, _, _ = self.getOutputName(useVersion=useVersion)
+		outputName, dir, version = self.getOutputName(useVersion=useVersion)
+
 		if not outputName:
 			return
 
@@ -895,12 +926,15 @@ class ImageRenderClass(object):
 		fuseName = None
 
 		try:
-			for fmt in self.outputFormats:
-				if fmt["extension"] == extension.lower():
-					fuseName = fmt["fuseName"]
-					break
+			nodeData = {
+				"nodeName": nodeName,
+				"version": version,
+				"filepath": outputName,
+				"format": extension,
+				"fuseFormat": self.fusionFuncs.getFuseFormat(extension)
+				}
 
-			self.fusionFuncs.configureRenderNode(nodeUID, outputName, fuseName)
+			self.fusionFuncs.configureRenderNode(nodeUID, nodeData)
 			self.stateManager.saveStatesToScene()
 
 		except:
@@ -1453,6 +1487,9 @@ class ImageRenderClass(object):
 			details["identifier"] = self.getTaskname()
 			details["comment"] = self.stateManager.publishComment
 
+			_, extension = os.path.splitext(outputName)
+			fuseFormat = self.fusionFuncs.getFuseFormat(extension)
+
 			if self.mediaType == "3drenders":
 				infopath = os.path.dirname(outputPath)
 			else:
@@ -1469,6 +1506,9 @@ class ImageRenderClass(object):
 			rSettings = {
 				"outputName": outputName,
 				"nodeUID": self.stateUID,
+				"version": hVersion,
+				"format": extension,
+				"fuseFormat": fuseFormat,
 				"startFrame": startFrame,
 				"endFrame": endFrame,
 				"frames": frames,
@@ -1602,6 +1642,34 @@ class ImageRenderClass(object):
 					self.b_changeTask.setPalette(self.oldPalette)
 		except:
 			logger.warning("ERROR: Unable to set Task Warning color.")
+
+	#	Called Directly from StateManager
+	@err_catcher(name=__name__)
+	def preDelete(self, item=None):
+		try:
+			#   Defaults to Delete the Node
+			delAction = "Yes"
+
+			if not self.core.uiAvailable:
+				logger.debug(f"Deleting node: {item}")
+
+			else:
+				nodeUID = self.stateUID
+				nodeName = self.fusionFuncs.getNodeNameByUID(nodeUID)
+
+				#   If the Loader exists, show popup question
+				if nodeName:
+					message = f"Would you like to also remove the associated Saver: {nodeName}?"
+					buttons = ["Yes", "No"]
+					buttonToBool = {"Yes": True, "No": False}
+
+					response = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
+					delAction = buttonToBool.get(response, False)
+				
+				self.fusionFuncs.deleteNode("render2d", nodeUID, delAction=delAction)
+
+		except:
+			logger.warning("ERROR: Unable to remove Saver from Comp")
 
 
 	#This function is used to get the settings that are going to be saved to the state file.

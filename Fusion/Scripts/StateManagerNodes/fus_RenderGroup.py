@@ -605,11 +605,11 @@ class RenderGroupClass(object):
 		result = self.nameWin.exec_()
 
 		if result == 1:
-			#	Checks if entered name is Fusion legal
-			isLegal, errorStr = self.getFusLegalName(self.nameWin.e_item.text(), check=True)
-			if not isLegal:
-				self.core.popup(errorStr)
-				return
+			# #	Checks if entered name is Fusion legal
+			# isLegal, errorStr = self.getFusLegalName(self.nameWin.e_item.text(), check=True)
+			# if not isLegal:
+			# 	self.core.popup(errorStr)
+			# 	return
 
 			self.setTaskname(self.nameWin.e_item.text())
 			self.nameChanged(self.e_name.text())
