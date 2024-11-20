@@ -2422,7 +2422,8 @@ path = r\"%s\"
 									splithandle=splithandle,
 									updatehandle=updatehandle,
 									refNode=leftmostNode,
-									createwireless=sortnodes
+									createwireless=sortnodes,
+									processmultilayerexr=False
 									)
 				
 
