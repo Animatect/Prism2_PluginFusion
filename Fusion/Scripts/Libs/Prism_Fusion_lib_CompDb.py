@@ -160,6 +160,8 @@ def savePrismFileDb(comp, cpData:dict):
         cpData_str =  json.dumps(cpData, indent=4)
         comp.SetData("PrismDB", cpData_str)
         logger.debug("Saved Prism Comp Database to Comp")
+
+        # print(f"\n***  Prism Database:\n{print(comp.GetData('PrismDB'))}\n")                            #   TESTING
     except:
         logger.warning("ERROR: Failed to save Prism Comp Database to Comp")
 
@@ -199,6 +201,11 @@ def getPrismDbIdentifierColor(comp, category:str, name:str) -> Union[Color, None
 @err_catcher(name=__name__)
 def addNodeToDB(comp, type:str, UUID:str, nodeData:dict) -> bool:
     cpData = loadPrismFileDb(comp)
+
+    #   Remove the UID from the data since it is the main key
+    for key in ["nodeUID", "toolUID"]:
+        if key in nodeData:
+            del nodeData[key]
 
     try:
         #   Checks is there is already an item in the DB
@@ -288,17 +295,30 @@ def removeNodeFromDB(comp, type:str, UUID:str):
 def updateNodeInfo(comp, type:str, UUID:str, nodeData:dict) -> bool:
     cpData = loadPrismFileDb(comp)
 
+    #   Remove the UID from the data since it is the main key
+    nodeDataCopy = nodeData.copy()
+    for key in ["nodeUID", "toolUID"]:
+        if key in nodeDataCopy:
+            del nodeDataCopy[key]
+
     try:
+        #   Updates existing keys as needed
         if UUID in cpData["nodes"][type]:
-            cpData["nodes"][type][UUID].update(nodeData)
-            logger.debug(f"Updated {nodeData['nodeName']} data.")
+            cpData["nodes"][type][UUID].update(nodeDataCopy)
+
+            if "nodeName" in nodeDataCopy:
+                logger.debug(f"Updated {nodeDataCopy['nodeName']} data.")
+            else:
+                logger.debug(f"Updated {UUID} data.")
+            
             savePrismFileDb(comp, cpData)
             return True
+        
         else:
             logger.debug(f"The is no data for node: {UUID}")
             return False
-    except:
-        logger.warning("ERROR: Failed to update Node Data")
+    except Exception as e:
+        logger.warning(f"ERROR: Failed to update Node Data for {UUID}\n{e}")
         return False
         
 

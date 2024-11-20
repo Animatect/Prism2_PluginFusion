@@ -44,6 +44,7 @@ logger = logging.getLogger(__name__)
 #   For Python Type Hints
 FusionComp = Dict
 Tool = Any
+ToolOption = Any
 Color = int
 UUID = str
 Toolname = str
@@ -217,7 +218,7 @@ def getCurrentFrame(comp) -> int:
 
 
 @err_catcher(name=__name__)
-def addTool(comp, toolType:str, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1) -> Tool:
+def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, autoConnect=1) -> Tool:
     try:
         tool = comp.AddTool(toolType, xPos, yPos, autoConnect)
 
@@ -318,6 +319,36 @@ def hasConnectedInput(tool) -> bool:
     except:
         logger.warning(f"ERROR: Unable to check inputs for {tool}")
         return False    
+
+
+#   Finds if tool has an input connected
+@err_catcher(name=__name__)
+def connectTools(toolFrom, toolTo):
+    try:
+        toolTo.FindMainInput(1).ConnectTo(toolFrom)
+    except:
+        logger.warning(f"ERROR: Could not connect {toolFrom} into {toolTo}")
+
+
+#   Finds if tool has an input connected
+@err_catcher(name=__name__)
+def getToolOutput(tool) -> ToolOption:
+    try:
+        return tool.FindMainOutput(1)
+    except:
+        logger.warning(f"ERROR: Could not get tool output for {tool}")
+        return None
+
+
+#   Finds if tool has an input connected
+@err_catcher(name=__name__)
+def getToolBefore(tool) -> Tool:
+    try:
+        return tool.FindMainInput(1).GetConnectedOutput()
+    except:
+        logger.warning(f"ERROR: Could not get the tool connected to {tool}")
+        return None
+
 
 
 #   The name of this function comes for its initial use to position

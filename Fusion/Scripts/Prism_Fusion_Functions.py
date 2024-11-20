@@ -486,7 +486,7 @@ class Prism_Fusion_Functions(object):
 			return ""
 
 
-	#	Creates UUID
+	#	Creates UUID													#	ADD TO CompDB
 	@err_catcher(name=__name__)
 	def createUUID(self, simple=False, length=8):
 		#	Creates simple Date/Time UID
@@ -826,7 +826,11 @@ class Prism_Fusion_Functions(object):
 
 				#	Check if Saver is connected to something
 				if Fus.hasConnectedInput(sv):
-					logger.debug(f"Configured Saver: {nodeData['nodeName']}")
+					if "nodeName" in nodeData:
+						logger.debug(f"Configured Saver: {nodeData['nodeName']}")
+					else:
+						logger.debug(f"Configured Saver: {nodeUID}")
+
 
 				else:
 					logger.debug(f"ERROR: Render Node is not connected: {nodeUID}")
@@ -1591,20 +1595,17 @@ path = r\"%s\"
 		try:
 			if sv:
 				#	Add a Scale tool
-				scaleTool = comp.AddTool("Scale")
+				scaleTool = Fus.addTool(comp, "Scale", autoConnect=0)
 				#	Add tool to temp list for later deletion
 				self.tempScaleTools.append(scaleTool)
+				#	Set Scale Sizing
 				scaleTool.SetInput("XSize", scaleOvrCode)
 
-				# Get the output of the Scale tool
-				scaleOutput = scaleTool.FindMainOutput(1)
-
 				# Rewire the connections
-				prev_input = sv.FindMainInput(1).GetConnectedOutput()  # Get the input connected to Saver
-
+				prev_input = Fus.getToolBefore(sv)
 				if prev_input:
-					scaleTool.FindMainInput(1).ConnectTo(prev_input)  # Connect the previous input to Scale
-					sv.FindMainInput(1).ConnectTo(scaleOutput)  # Connect Scale to this specific Saver
+					Fus.connectTools(prev_input, scaleTool)
+					Fus.connectTools(scaleTool, sv)
 				else:
 					logger.debug(f"No input found connected to {sv.Name}.")
 		
@@ -1647,10 +1648,10 @@ path = r\"%s\"
 		for nodeUID in renderStates:
 			#	Get State data from Comp
 			stateData = self.getMatchingStateDataFromUID(nodeUID)
+			nodeName = CompDb.getNodeNameByUID(comp, nodeUID)
 
 			#	Exits if unable to get state data
 			if not stateData:
-				nodeName = CompDb.getNodeNameByUID(comp, nodeUID)
 				logger.warning(f"ERROR: Unable to configure RenderComp for {nodeName}")
 
 			sv = CompDb.getNodeByUID(comp, nodeUID)
@@ -1660,7 +1661,6 @@ path = r\"%s\"
 			scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
 			if scaleOvrType == "scale":
 				self.addScaleNode(comp, sv, scaleOvrCode)
-
 
 			#	Set frame padding format for Fusion
 			extension = stateData["outputFormat"]
@@ -1724,9 +1724,10 @@ path = r\"%s\"
 			self.outputPath = outputPathData["path"]
 
 			#	Configure Saver with new filepath						#	TODO
-			nodeData = {"filepath": self.outputPath,
+			nodeData = {"nodeName": nodeName,
+						"filepath": self.outputPath,
 			   			"format": extension,
-						"FuseFormat": self.getFuseFormat(extension)}
+						"fuseFormat": self.getFuseFormat(extension)}
 
 			self.configureRenderNode(nodeUID, nodeData)
 
@@ -1848,13 +1849,23 @@ path = r\"%s\"
 			self.tempScaleTools = []
 			origCompSettings = self.saveOrigCompSettings(comp)
 
-			sv = CompDb.getNodeByUID(comp, rSettings["nodeUID"])
+			nodeUID = rSettings["nodeUID"]
+
+			sv = CompDb.getNodeByUID(comp, nodeUID)
+
 			if sv:
-				#if sv has input												#	TODO SET TO USE LIB
-				if sv.Input.GetConnectedOutput():
-					sv.Clip = outputName
-				else:
+				nodeData = {"filepath": outputName,
+							"version": rSettings["version"],
+			   				"format": rSettings["format"],
+							"fuseFormat": rSettings["fuseFormat"]
+							}
+				
+				self.configureRenderNode(nodeUID, nodeData)
+				# sv.Clip = outputName
+
+				if not Fus.hasConnectedInput(sv):
 					return "Error (Render Node is not connected)"
+				
 			else:
 				return "Error (Render Node does not exist)"
 			
@@ -2250,7 +2261,7 @@ path = r\"%s\"
 		else:
 			context = contextRaw
 
-		self.core.popup(f"context:  {context}")                                      #    TESTING
+		# self.core.popup(f"context:  {context}")                                      #    TESTING
 
 		# Check if file is Linked
 		path = context["path"]
@@ -2364,10 +2375,11 @@ path = r\"%s\"
 			except:
 				logger.warning("ERROR: Unable to process import images")
 				return
-			
+
 			if sortnodes:
 				if not leftmostNode:
 					leftmostNode = node
+
 				self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
 					
 			# deselect all nodes
@@ -2412,10 +2424,12 @@ path = r\"%s\"
 									refNode=leftmostNode,
 									createwireless=sortnodes
 									)
+				
+
 			except:
 				logger.warning("ERROR: Unable to import passes")
 				return
-			
+		
 		self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
 
 		# deselect all nodes
@@ -2917,9 +2931,10 @@ path = r\"%s\"
 					if result == "Yes":
 						if splithandle:
 							splithandle['splitchosen'] = True
-						loaders_list = self.process_multichannel(node, createwireless=createwireless)
+						loaders_list = self.process_multichannel(context, node, createwireless=createwireless)
 						if len(loaders_list)>0:
-							return loaders_list[-1]
+							leftMostNode = CompDb.getNodeByUID(comp, loaders_list[-1])
+							return leftMostNode
 	
 					elif splithandle:
 						splithandle['splitchosen'] = False
@@ -2934,8 +2949,6 @@ path = r\"%s\"
 
 		#	Add Node Data to Comp Database
 		version = version2 if 'version2' in locals() else prevVersion
-
-		self.core.popup(f"context:  {context}")                                      #    TESTING
 
 		nodeData = {"nodeName": nodeName,
 					"version": context["version"],
@@ -3212,14 +3225,15 @@ path = r\"%s\"
 			flow = comp.CurrentFrame.FlowView
 			y_pos_add = 1
 
-			for count, ldr in enumerate(loaders, start=0):
+			for count, nodeUID in enumerate(loaders, start=0):
+				ldr = CompDb.getNodeByUID(comp, nodeUID)
 				flow.SetPos(ldr, org_x_pos, org_y_pos + y_pos_add * count)
 		except:
 			logger.warning("ERROR: Failed to move loaders")
 
 
 	@err_catcher(name=__name__)
-	def process_multichannel(self, tool, createwireless=True):
+	def process_multichannel(self, context, tool, createwireless=True):
 		try:
 			comp = self.getCurrentComp()
 			flow = comp.CurrentFrame.FlowView
@@ -3255,6 +3269,14 @@ path = r\"%s\"
 				ldr = comp.Loader({'Clip': self.GetLoaderClip(tool)})
 				# Add Prism node identifier
 				ldr.SetData("isprismnode", True)
+
+
+
+				#	Add UUID to Loader
+				nodeUID = self.createUUID()
+				ldr.SetData('Prism_UUID', nodeUID)
+
+
 
 				# Replace invalid EXR channel names with placeholders
 				ldr.SetAttrs({'TOOLB_NameSet': True, 'TOOLS_Name': tool.Name.rsplit('_', 1)[0] + "_" + prefix})# rsplit splits from the right using in this case the first ocurrence.
@@ -3292,7 +3314,7 @@ path = r\"%s\"
 					# Get an identifier for the layernm
 					ldr.SetData("prismmultchanlayer", prefix)
 
-				loaders_list.append(ldr)
+				loaders_list.append(nodeUID)
 			except:
 				logger.warning("ERROR: Failed to process multichannel EXR - failed to assign channels")
 				return
@@ -3300,14 +3322,40 @@ path = r\"%s\"
 		self.move_loaders(x_pos, y_pos, loaders_list)
 
 		# create IN and OUT nodes.
-		for node in loaders_list:
+		for nodeUID in loaders_list:
+
+
+			# #	Add Node Data to Comp Database
+			# version = version2 if 'version2' in locals() else prevVersion
+
+			nodeData = {#"nodeName": nodeName,
+						"version": context["version"],
+						"filepath": context["path"],
+						"format": context["extension"],
+						"mediaId": context["identifier"],
+						"displayName": context["displayName"],
+						"connectedNodes": ""}
+
+			CompDb.addNodeToDB(comp, "import2d", nodeUID, nodeData)
+
+			# create wireless
 			if createwireless:
-				self.createWireless(node)
-			flow.Select(node, True)
+				self.createWireless(nodeUID)
+
+
+			flow.Select(CompDb.getNodeByUID(comp, nodeUID), True)
 
 		if len(loaders_list)>0:
 			tool.Delete()
 		
+
+
+
+
+
+
+
+
 		comp.Unlock()
 		comp.EndUndo()
 
@@ -4123,8 +4171,7 @@ path = r\"%s\"
 		sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/") #
 		sources = self.core.media.getImgSources(sourceFolder)
 		sourceData = []
-		print("sourcefolder: ", sourceFolder)
-		print("sources: ", sources)
+
 		framepadding = self.core.framePadding #added
 		for curSourcePath in sources:
 			if "#" * framepadding in curSourcePath: # changed

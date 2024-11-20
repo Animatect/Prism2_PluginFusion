@@ -877,15 +877,12 @@ class ImageRenderClass(object):
 	#	Checks the Saver's data and colors the button
 	@err_catcher(name=__name__)
 	def statusColorNodeButton(self):
-
-
 		try:
 			renderNodeName = self.getRendernodeName()
 
 			#	Checks if Saver exists
 			if self.fusionFuncs.nodeExists(self.stateUID):
 				toolName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
-
 				#	Compares Identifier name to Saver name
 				if toolName == renderNodeName:
 					#	If they are the same then Green
@@ -920,7 +917,6 @@ class ImageRenderClass(object):
 		
 		nodeUID = self.stateUID
 
-		# outputName, _, _ = self.getOutputName(useVersion=useVersion)
 		outputName, dir, version = self.getOutputName(useVersion=useVersion)
 
 		if not outputName:
@@ -937,7 +933,7 @@ class ImageRenderClass(object):
 				"format": extension,
 				"fuseFormat": self.fusionFuncs.getFuseFormat(extension)
 				}
-			
+
 			self.fusionFuncs.configureRenderNode(nodeUID, nodeData)
 			self.stateManager.saveStatesToScene()
 
@@ -1491,6 +1487,9 @@ class ImageRenderClass(object):
 			details["identifier"] = self.getTaskname()
 			details["comment"] = self.stateManager.publishComment
 
+			_, extension = os.path.splitext(outputName)
+			fuseFormat = self.fusionFuncs.getFuseFormat(extension)
+
 			if self.mediaType == "3drenders":
 				infopath = os.path.dirname(outputPath)
 			else:
@@ -1507,6 +1506,9 @@ class ImageRenderClass(object):
 			rSettings = {
 				"outputName": outputName,
 				"nodeUID": self.stateUID,
+				"version": hVersion,
+				"format": extension,
+				"fuseFormat": fuseFormat,
 				"startFrame": startFrame,
 				"endFrame": endFrame,
 				"frames": frames,
