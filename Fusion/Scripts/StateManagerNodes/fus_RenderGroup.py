@@ -34,12 +34,16 @@
 
 import os
 import sys
+import json
+import logging
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
+
+logger = logging.getLogger(__name__)
 
 
 
@@ -59,6 +63,11 @@ class RenderGroupClass(object):
 		self.allowCustomContext = False
 		self.mediaType = "2drenders"
 		self.cb_context.addItems(["From scenefile", "Custom"])
+
+		self.groupStates = []
+
+		#	Tuple of State types that can be used with RenderGroup
+		self.includedStateTypes = ["ImageRender"]
 		
 		self.treeWidget = self.stateManager.tw_export
 		self.itemNames = self.getItemNames()
@@ -99,28 +108,34 @@ class RenderGroupClass(object):
 
 		#	Set Defaults for New State	
 		else:
-			context = self.getCurrentContext()
-			if context.get("type") == "asset":
-				self.setRangeType("Single Frame")
-			elif context.get("type") == "shot":
-				self.setRangeType("Shot")
-			elif self.stateManager.standalone:
-				self.setRangeType("Custom")
-			else:
-				self.setRangeType("Scene")
+			try:
+				context = self.getCurrentContext()
+				if context.get("type") == "asset":
+					self.setRangeType("Single Frame")
+				elif context.get("type") == "shot":
+					self.setRangeType("Shot")
+				elif self.stateManager.standalone:
+					self.setRangeType("Custom")
+				else:
+					self.setRangeType("Scene")
 
-			start, end = self.getFrameRange("Scene")
-			if start is not None:
-				self.sp_rangeStart.setValue(start)
+				start, end = self.getFrameRange("Scene")
+				if start is not None:
+					self.sp_rangeStart.setValue(start)
 
-			if end is not None:
-				self.sp_rangeEnd.setValue(end)
+				if end is not None:
+					self.sp_rangeEnd.setValue(end)
 
-			if context.get("task"):
-				self.setTaskname(context.get("task"))
-				self.e_name.setText(context.get("task"))
+				if context.get("task"):
+					self.setTaskname(context.get("task"))
+					self.e_name.setText(context.get("task"))
 
-			self.chb_overrideFrameRange.setChecked(False)
+				self.chb_overrideFrameRange.setChecked(False)
+
+				logger.debug("Loading State Defaults")
+
+			except:
+				logger.warning("ERROR: Failed to load State defaults")
 
 		self.connectEvents()
 		self.setToolTips()
@@ -225,114 +240,126 @@ class RenderGroupClass(object):
 		self.w_frameExpression.setToolTip(
 			self.stateManager.getFrameRangeTypeToolTip("ExpressionField")
 			)
+		
+		tip = "Opens dialogue to add Render State to Group."
+		self.b_addRenderState.setToolTip(tip)
+
+		tip = ("States that will be included in the RenderGroup.\n"
+		 	   "These States will be rendered simultaneously.\n\n"
+			   "Right-click to remove States from the RenderGroup")
+		self.tw_renderStates.setToolTip(tip)
 
 
 	#	Loads State data if it exists
 	@err_catcher(name=__name__)
 	def loadData(self, data):
-		if "contextType" in data:
-			self.setContextType(data["contextType"])
-		if "customContext" in data:
-			self.customContext = data["customContext"]
+		try:
+			if "contextType" in data:
+				self.setContextType(data["contextType"])
+			if "customContext" in data:
+				self.customContext = data["customContext"]
 
-		self.updateUi()
+			self.updateUi()
 
-		if "stateName" in data:
-			self.e_name.setText(data["stateName"])
-		elif "statename" in data:
-			self.e_name.setText(data["statename"] + " - {identifier}")
-		if "renderAsPrevVer" in data:
-			self.chb_renderAsPrevVer.setChecked(data["renderAsPrevVer"])
-		if "overrideFrameRange" in data:
-			self.chb_overrideFrameRange.setChecked(data["overrideFrameRange"])
-		if "overrideMaster" in data:
-			self.chb_overrideMaster.setChecked(data["overrideMaster"])
-		if "ovrMasterOption" in data:
-			idx = self.cb_master.findText(data["ovrMasterOption"])
-			if idx != -1:
-				self.cb_master.setCurrentIndex(idx)
-		if "overrideLocation" in data:
-			self.chb_overrideLocation.setChecked(data["overrideLocation"])
-		if "ovrLocOption" in data:
-			idx = self.cb_outPath.findText(data["ovrLocOption"])
-			if idx != -1:
-				self.cb_outPath.setCurrentIndex(idx)
-		if "overrideScaling" in data:
-			self.chb_overrideScaling.setChecked(data["overrideScaling"])
-		if "ovrScaleOption" in data:
-			idx = self.cb_renderScaling.findText(data["ovrScaleOption"])
-			if idx != -1:
-				self.cb_renderScaling.setCurrentIndex(idx)
-		if "overrideHiQ" in data:
-			self.chb_overrideQuality.setChecked(data["overrideHiQ"])
-		if "ovrHiQOption" in data:
-			idx = self.cb_renderQuality.findText(data["ovrHiQOption"])
-			if idx != -1:
-				self.cb_renderQuality.setCurrentIndex(idx)
-		if "overrideMB" in data:
-			self.chb_overrideRenderMB.setChecked(data["overrideMB"])
-		if "ovrMBOption" in data:
-			idx = self.cb_renderMB.findText(data["ovrMBOption"])
-			if idx != -1:
-				self.cb_renderMB.setCurrentIndex(idx)
-		if "rangeType" in data:
-			idx = self.cb_rangeType.findText(data["rangeType"])
-			if idx != -1:
-				self.cb_rangeType.setCurrentIndex(idx)
-				self.updateRange()
-		if "startframe" in data:
-			self.sp_rangeStart.setValue(int(data["startframe"]))
-		if "endframe" in data:
-			self.sp_rangeEnd.setValue(int(data["endframe"]))
-		if "frameExpression" in data:
-			self.le_frameExpression.setText(data["frameExpression"])
-		if "curoutputpath" in data:
-			idx = self.cb_outPath.findText(data["curoutputpath"])
-			if idx != -1:
-				self.cb_outPath.setCurrentIndex(idx)
-		if "renderStates" in data:
-			# Clear any existing items in the list
-			self.tw_renderStates.clear()
-			# Populate State List
-			for state in data["renderStates"]:
-				self.tw_renderStates.addItem(state)
-		if "submitrender" in data:
-			self.gb_submit.setChecked(eval(data["submitrender"]))
-		if "rjmanager" in data:
-			idx = self.cb_manager.findText(data["rjmanager"])
-			if idx != -1:
-				self.cb_manager.setCurrentIndex(idx)
-			self.managerChanged(True)
-		if "rjprio" in data:
-			self.sp_rjPrio.setValue(int(data["rjprio"]))
-		if "rjframespertask" in data:
-			self.sp_rjFramesPerTask.setValue(int(data["rjframespertask"]))
-		if "rjtimeout" in data:
-			self.sp_rjTimeout.setValue(int(data["rjtimeout"]))
-		if "rjsuspended" in data:
-			self.chb_rjSuspended.setChecked(eval(data["rjsuspended"]))
-		if "osdependencies" in data:
-			self.chb_osDependencies.setChecked(eval(data["osdependencies"]))
-		if "osupload" in data:
-			self.chb_osUpload.setChecked(eval(data["osupload"]))
-		if "ospassets" in data:
-			self.chb_osPAssets.setChecked(eval(data["ospassets"]))
-		if "osslaves" in data:
-			self.e_osSlaves.setText(data["osslaves"])
-		if "dlconcurrent" in data:
-			self.sp_dlConcurrentTasks.setValue(int(data["dlconcurrent"]))
-		if "dlgpupt" in data:
-			self.sp_dlGPUpt.setValue(int(data["dlgpupt"]))
-			self.gpuPtChanged()
-		if "dlgpudevices" in data:
-			self.le_dlGPUdevices.setText(data["dlgpudevices"])
-			self.gpuDevicesChanged()
+			if "stateName" in data:
+				self.e_name.setText(data["stateName"])
+			elif "statename" in data:
+				self.e_name.setText(data["statename"] + " - {identifier}")
+			if "renderAsPrevVer" in data:
+				self.chb_renderAsPrevVer.setChecked(data["renderAsPrevVer"])
+			if "overrideFrameRange" in data:
+				self.chb_overrideFrameRange.setChecked(data["overrideFrameRange"])
+			if "overrideMaster" in data:
+				self.chb_overrideMaster.setChecked(data["overrideMaster"])
+			if "ovrMasterOption" in data:
+				idx = self.cb_master.findText(data["ovrMasterOption"])
+				if idx != -1:
+					self.cb_master.setCurrentIndex(idx)
+			if "overrideLocation" in data:
+				self.chb_overrideLocation.setChecked(data["overrideLocation"])
+			if "ovrLocOption" in data:
+				idx = self.cb_outPath.findText(data["ovrLocOption"])
+				if idx != -1:
+					self.cb_outPath.setCurrentIndex(idx)
+			if "overrideScaling" in data:
+				self.chb_overrideScaling.setChecked(data["overrideScaling"])
+			if "ovrScaleOption" in data:
+				idx = self.cb_renderScaling.findText(data["ovrScaleOption"])
+				if idx != -1:
+					self.cb_renderScaling.setCurrentIndex(idx)
+			if "overrideHiQ" in data:
+				self.chb_overrideQuality.setChecked(data["overrideHiQ"])
+			if "ovrHiQOption" in data:
+				idx = self.cb_renderQuality.findText(data["ovrHiQOption"])
+				if idx != -1:
+					self.cb_renderQuality.setCurrentIndex(idx)
+			if "overrideMB" in data:
+				self.chb_overrideRenderMB.setChecked(data["overrideMB"])
+			if "ovrMBOption" in data:
+				idx = self.cb_renderMB.findText(data["ovrMBOption"])
+				if idx != -1:
+					self.cb_renderMB.setCurrentIndex(idx)
+			if "rangeType" in data:
+				idx = self.cb_rangeType.findText(data["rangeType"])
+				if idx != -1:
+					self.cb_rangeType.setCurrentIndex(idx)
+					self.updateRange()
+			if "startframe" in data:
+				self.sp_rangeStart.setValue(int(data["startframe"]))
+			if "endframe" in data:
+				self.sp_rangeEnd.setValue(int(data["endframe"]))
+			if "frameExpression" in data:
+				self.le_frameExpression.setText(data["frameExpression"])
+			if "curoutputpath" in data:
+				idx = self.cb_outPath.findText(data["curoutputpath"])
+				if idx != -1:
+					self.cb_outPath.setCurrentIndex(idx)
+			if "renderStates" in data:
+				self.groupStates = data["renderStates"]
+			if "submitrender" in data:
+				self.gb_submit.setChecked(eval(data["submitrender"]))
+			if "rjmanager" in data:
+				idx = self.cb_manager.findText(data["rjmanager"])
+				if idx != -1:
+					self.cb_manager.setCurrentIndex(idx)
+				self.managerChanged(True)
+			if "rjprio" in data:
+				self.sp_rjPrio.setValue(int(data["rjprio"]))
+			if "rjframespertask" in data:
+				self.sp_rjFramesPerTask.setValue(int(data["rjframespertask"]))
+			if "rjtimeout" in data:
+				self.sp_rjTimeout.setValue(int(data["rjtimeout"]))
+			if "rjsuspended" in data:
+				self.chb_rjSuspended.setChecked(eval(data["rjsuspended"]))
+			if "osdependencies" in data:
+				self.chb_osDependencies.setChecked(eval(data["osdependencies"]))
+			if "osupload" in data:
+				self.chb_osUpload.setChecked(eval(data["osupload"]))
+			if "ospassets" in data:
+				self.chb_osPAssets.setChecked(eval(data["ospassets"]))
+			if "osslaves" in data:
+				self.e_osSlaves.setText(data["osslaves"])
+			if "dlconcurrent" in data:
+				self.sp_dlConcurrentTasks.setValue(int(data["dlconcurrent"]))
+			if "dlgpupt" in data:
+				self.sp_dlGPUpt.setValue(int(data["dlgpupt"]))
+				self.gpuPtChanged()
+			if "dlgpudevices" in data:
+				self.le_dlGPUdevices.setText(data["dlgpudevices"])
+				self.gpuDevicesChanged()
 
-		if "stateenabled" in data:
-			if type(data["stateenabled"]) == int:
-				self.state.setCheckState(
-					0, Qt.CheckState(data["stateenabled"]),
-				)
+			if "stateenabled" in data:
+				if type(data["stateenabled"]) == int:
+					self.state.setCheckState(
+						0, Qt.CheckState(data["stateenabled"]),
+					)
+
+			logger.debug("Loaded State Data into UI")
+		
+		except:
+			logger.warning("ERROR: Failed to load State Data into UI")
+
+		self.refreshRenderStateDisplay()
 
 		# Item Color #
 		self.state.setBackground(0, QColor("#2A3B4C"))
@@ -623,7 +650,7 @@ class RenderGroupClass(object):
 			top_level_item = self.treeWidget.topLevelItem(i)
 			self.getItemNamesRecursive(top_level_item, itemNames)
 
-		return itemNames 
+		return itemNames
 
 
 	@err_catcher(name=__name__)
@@ -687,6 +714,7 @@ class RenderGroupClass(object):
 			removeAct = QAction("Remove State", self.tw_renderStates)
 			menu.addAction(removeAct)
 			removeAct.triggered.connect(lambda: self.removeState(clickedItem))
+
 		#	If clicked on empty area of list
 		else:
 			removeAllAct = QAction("Remove All States", self.tw_renderStates)
@@ -699,63 +727,176 @@ class RenderGroupClass(object):
 
 	@err_catcher(name=__name__)
 	def removeState(self, item):
-		#	Removes item from list
-		row = self.tw_renderStates.row(item)
-		self.tw_renderStates.takeItem(row)
-		self.stateManager.saveStatesToScene()
+		try:
+			# Get StateName from row
+			row = self.tw_renderStates.row(item)
+			stateName = item.text()  # Get the state name from the clicked item
+
+			# Get the UID using the state name
+			selectedUID = self.getStateUidFromName(stateName)
+			
+			# Remove the UID from groupStates if it exists
+			if selectedUID in self.groupStates:
+				self.groupStates.remove(selectedUID)
+
+			# Remove the item from the list widget
+			self.tw_renderStates.takeItem(row)
+
+			logger.debug(f"Removed '{stateName}' from the RenderGroup")
+
+		except:
+			logger.warning(f"Unable to remove '{stateName}' from the RenderGroup")
+
+		self.updateUi()
 
 
 	@err_catcher(name=__name__)
 	def removeAllStates(self):
 		#	Clears list
-		self.tw_renderStates.clear()
-		self.stateManager.saveStatesToScene()
+		self.groupStates = []
+		logger.debug("Removed all states from the RenderGroup")
+		self.updateUi()
+
+
+	#	Gets stateDate from comp
+	@err_catcher(name=__name__)
+	def getStateData(self):
+		try:
+			stateDataRaw = json.loads(self.fusionFuncs.sm_readStates(self))
+			return stateDataRaw['states']
+		
+		except:
+			logger.warning("ERROR:  Unable to get state data from the comp.")
+			return None
+	
+
+	@err_catcher(name=__name__)
+	def getStateNameFromUID(self, UID):
+		try:
+			stateData = self.getStateData()
+
+			#	Itterates through states
+			for state in stateData:
+				if "nodeUID" in state and state["nodeUID"] == UID:
+					#	Create displayName format
+					stateName = f"{state['stateclass']} - {state['taskname']}"
+					return stateName
+		except:
+			logger.debug(f"ERROR: Unable to get state name from: {UID}")
+
+
+	@err_catcher(name=__name__)
+	def getStateUidFromName(self, stateName):
+		try:
+			stateData = self.getStateData()
+
+			#	Extract stateclass and taskname from stateName
+			for state in stateData:
+				if "stateclass" in state and "taskname" in state:
+					#	Create displayName format
+					displayName = f"{state['stateclass']} - {state['taskname']}"
+					if displayName == stateName:
+						return state["nodeUID"]
+		except:
+			logger.debug(f"ERROR: Unable to get state UID from: {stateName}")
 
 
 	@err_catcher(name=__name__)
 	def addRenderState(self):
 		import ItemList
+		stateList = []
 
-		#	Get all States
-		allStates = self.getItemNames()
-		#	Include only ImageRender states
-		renderStates = [state for state in allStates if state.startswith("ImageRender")]
+		#	Gets stateData
+		stateData = self.getStateData()
+
+		if not stateData:
+			return False
+		
+		for state in stateData:
+			#	Only passes allowed state types
+			if "stateclass" in state and state["stateclass"] in self.includedStateTypes:
+				stateList.append(state["nodeUID"])
 
 		#	Make the UI popup
-		self.selStatesUI = ItemList.ItemList(core=self.core)
-		self.selStatesUI.setWindowTitle("Select Render States")
-		self.core.parentWindow(self.selStatesUI)
-		self.selStatesUI.tw_steps.doubleClicked.connect(self.selStatesUI.accept)
-		self.selStatesUI.tw_steps.horizontalHeaderItem(0).setText("Name")
-		self.selStatesUI.tw_steps.setColumnHidden(1, True)
+		selStatesUI = ItemList.ItemList(core=self.core)
+		selStatesUI.setWindowTitle("Select Render States")
+		self.core.parentWindow(selStatesUI)
+		selStatesUI.tw_steps.doubleClicked.connect(selStatesUI.accept)
+		selStatesUI.tw_steps.horizontalHeaderItem(0).setText("Name")
+		selStatesUI.tw_steps.setColumnHidden(1, True)
 
-		#	Populate list of states
-		for i in sorted(renderStates, key=lambda s: s.lower()):
-			# Removes " - disabled" from state name if it exists
-			stateBaseName = i.removesuffix(" - disabled")
-			rc = self.selStatesUI.tw_steps.rowCount()
-			self.selStatesUI.tw_steps.insertRow(rc)
-			item1 = QTableWidgetItem(stateBaseName)
-			self.selStatesUI.tw_steps.setItem(rc, 0, item1)
+		#	Populate list of states using state names based on UID
+		for uid in stateList:
+			stateName = self.getStateNameFromUID(uid)
+			if stateName:
+				rc = selStatesUI.tw_steps.rowCount()
+				selStatesUI.tw_steps.insertRow(rc)
+				item1 = QTableWidgetItem(stateName)
+				selStatesUI.tw_steps.setItem(rc, 0, item1)
 
-		result = self.selStatesUI.exec_()
+				#	Highlight items that are already in self.groupStates
+				if uid in self.groupStates:
+					row_index = selStatesUI.tw_steps.rowCount() - 1
+					selStatesUI.tw_steps.setRangeSelected(QTableWidgetSelectionRange(row_index, 0, row_index, 0), True)
+
+		result = selStatesUI.exec_()
 
 		if result != 1:
 			return False
 		
-		# 	Clear existing items
+		# Clear existing items
 		self.tw_renderStates.clear()
+		
+		self.groupStates = []
 
 		# 	Add selected items to the States list
-		for i in self.selStatesUI.tw_steps.selectedItems():
-			# 	Ensure we are working with the correct column
+		for i in selStatesUI.tw_steps.selectedItems():
+			# 	Ensure the correct column
 			if i.column() == 0:
-				#	Create a list widget item with the selected text
-				list_item = QListWidgetItem(i.text())
-				self.tw_renderStates.addItem(list_item)
+				#	Finds the corresponding UID
+				selectedUID = self.getStateUidFromName(i.text())
+				if selectedUID:
+					self.groupStates.append(selectedUID)
+					stateName = self.getStateNameFromUID(selectedUID)
+					logger.debug(f"Added '{stateName}' state to RenderGroup")
 
 		self.updateUi()
 		self.stateManager.saveStatesToScene()
+
+
+	@err_catcher(name=__name__)
+	def refreshRenderStateDisplay(self):
+		# Clear any existing items in the list
+		self.tw_renderStates.clear()
+
+		# Populate State List from UID's
+		for stateUID in self.groupStates:
+			stateName = self.getStateNameFromUID(stateUID)
+
+			# Create the list item and set its text
+			item = QListWidgetItem(stateName)
+
+			# Get the color style based on node status and apply it
+			color = self.stateStatusColor(stateUID)
+			item.setBackground(QColor(color['background']))
+			item.setForeground(QColor(color['foreground']))
+
+			self.tw_renderStates.addItem(item)
+
+
+	#	Checks the Saver's data and returns a color
+	@err_catcher(name=__name__)
+	def stateStatusColor(self, stateUID):
+		try:
+			#	Checks if Saver exists
+			if self.fusionFuncs.rendernodeExists(stateUID):
+				return {"background": "#54754c", "foreground": "#FFFFFF"}
+			else:
+				raise Exception
+
+		except:
+			#	If Saver does not exists or error then RED
+			return {"background": "#8f4239", "foreground": "#FFFFFF"}
 
 
 	@err_catcher(name=__name__)
@@ -770,6 +911,7 @@ class RenderGroupClass(object):
 
 		self.refreshSubmitUi()
 		self.nameChanged(self.e_name.text())
+		self.refreshRenderStateDisplay()
 		self.updateRange()
 		self.updateLocationOvr()
 		self.updateScalingOvr()
@@ -1083,18 +1225,40 @@ class RenderGroupClass(object):
 
 		self.updateUi()
 
-		renderStatesNames = []
-		for i in range(self.tw_renderStates.count()):
-			item = self.tw_renderStates.item(i)
-			renderStatesNames.append(item.text())
-
-		renderStatesString = "\n    ".join(renderStatesNames)
-
+		#	If there are no states in group
 		if self.tw_renderStates.count() == 0:
 			warnings.append(["RenderGroup does not contain any Render States", "", 3])
+
 		else:
+			#	Render Machine
+			if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
+				renderString = self.cb_manager.currentText()
+			else:
+				renderString = "Local Machine"
+			warnings.append([f"Renderer:   {renderString}", "", 2])
+
+
+		#	Group Messages
+			#	Gets group stateNames from UID's
+			renderStatesNames = []
+			missingSaverList = []
+			for nodeUID in self.groupStates:
+				#	Gets the State names in group
+				renderStatesNames.append(self.getStateNameFromUID(nodeUID))
+				#	If the associated Saver does not exist
+				if not self.fusionFuncs.rendernodeExists(nodeUID):
+					missingSaverList.append(self.getStateNameFromUID(nodeUID))
+
+			#	Makes the warning string for Group states
+			renderStatesString = "\n    ".join(renderStatesNames)
 			warnings.append([f"The following States will be rendered:\n    {renderStatesString}", "", 2])
 
+			#	Makes warning string if any Savers are missing.
+			if len(missingSaverList) > 0:
+				missingSaverString = "\n    ".join(missingSaverList)
+				warnings.append([f"The following Savers are missing from the Comp:\n  {missingSaverString}", "", 3])
+
+		#	Range Messages
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
 		if rangeType != "Expression":
@@ -1106,6 +1270,7 @@ class RenderGroupClass(object):
 		if frames is None or frames == []:
 			warnings.append(["Framerange is invalid.", "", 3])
 
+		#	Overrides messages
 		renderOverrides = []
 		if self.chb_renderAsPrevVer.isChecked():
 			renderOverrides.append("    Render as Prevous Version Enabled")
@@ -1122,6 +1287,7 @@ class RenderGroupClass(object):
 		if self.chb_overrideRenderMB.isChecked():
 			renderOverrides.append(f"    Motion Blur Override: {self.cb_renderMB.currentText()}")
 
+		#	If there are any Overrides, will display
 		if len(renderOverrides) > 0:
 			overrideStr = ""
 			for override in renderOverrides:
@@ -1129,12 +1295,15 @@ class RenderGroupClass(object):
 
 			warnings.append([f"Overrides:\n{overrideStr}", "", 2])
 
+		#	 Checks Farm plugin
 		if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
-			plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
-			warnings += plugin.sm_render_preExecute(self)
+			farmplugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
+			warnings += farmplugin.sm_render_preExecute(self)
 
+		#	Gets DCC render warnings
 		warnings += self.fusionFuncs.sm_render_preExecute(self)
 
+		#	Returns warnings for Core to display
 		return [self.state.text(0), warnings]
 	
 
@@ -1163,13 +1332,6 @@ class RenderGroupClass(object):
 		
 		context = self.getCurrentContext()
 
-		#	Gets RenderGroup states and remove the leading text
-		groupRenderStates = []
-		for i in range(self.tw_renderStates.count()):
-			item = self.tw_renderStates.item(i)
-			stateName = item.text().removeprefix("ImageRender - ")
-			groupRenderStates.append(stateName)
-
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
 
@@ -1189,7 +1351,7 @@ class RenderGroupClass(object):
 		#	Creates render settings
 		rSettings = {}
 		rSettings["groupName"] = self.groupName
-		rSettings["groupRenderStates"] = groupRenderStates
+		rSettings["groupRenderStates"] = self.groupStates
 		rSettings["context"] = context
 		rSettings["renderAsPrevVer"] = self.chb_renderAsPrevVer.isChecked()
 		rSettings["frameOvr"] = self.chb_overrideFrameRange.isChecked()
@@ -1275,7 +1437,7 @@ class RenderGroupClass(object):
 			"dlconcurrent": self.sp_dlConcurrentTasks.value(),
 			"dlgpupt": self.sp_dlGPUpt.value(),
 			"dlgpudevices": self.le_dlGPUdevices.text(),
-        	"renderStates": [self.tw_renderStates.item(i).text() for i in range(self.tw_renderStates.count())],
+        	"renderStates": self.groupStates,
 			"stateenabled": self.core.getCheckStateValue(self.state.checkState(0)),
 		}
 

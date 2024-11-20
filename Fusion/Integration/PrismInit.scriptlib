@@ -1,11 +1,50 @@
--- if composition ~= nil then
 fusion = bmd.scriptapp("Fusion")
+
 if fusion:GetAttrs("FUSIONB_IsRenderNode") == false then
-	local scriptPath = app:MapPath("Scripts:Prism/startupDialog.py")
-	if bmd.fileexists(scriptPath) == false then
-		print("[Prism Error] Can't run file: " .. scriptPath)
-	else
-		fusion:RunScript(scriptPath, {scriptlib=true})
-	end
+    -- Define paths for config file and scripts
+    local configPath = fusion:MapPath("Scripts:PrismAutostart.config")
+    local resetScriptPath = fusion:MapPath("Scripts:Prism/ResetPrism.py")
+    local promptScriptPath = fusion:MapPath("Scripts:Prism/startupDialog.py")
+
+    -- Function to read the config file
+    local function readConfig()
+        local file = io.open(configPath, "r")
+        if not file then
+            print("[Prism Error] Can't open config file: " .. configPath)
+            return nil
+        end
+
+        local content = file:read("*all")
+        file:close()
+
+        return content
+    end
+
+    -- Get the start mode from the config file
+    local configContent = readConfig()
+    local startMode = configContent and configContent:match("autoStart:%s*(%w+)")
+
+    -- Determine the action based on startMode
+    if startMode == "automatic" then
+        -- Run ResetPrism.py
+        if bmd.fileexists(resetScriptPath) then
+			print("[Prism] Starting in Automatic mode")
+            fusion:RunScript(resetScriptPath, {scriptlib = true})
+        else
+            print("[Prism Error] Can't find file: " .. resetScriptPath)
+        end
+    elseif startMode == "prompt" then
+        -- Run startupDialog.py
+        if bmd.fileexists(promptScriptPath) then
+			print("[Prism] Starting in Prompt mode.")
+            fusion:RunScript(promptScriptPath, {scriptlib = true})
+        else
+            print("[Prism Error] Can't find file: " .. promptScriptPath)
+        end
+    elseif startMode == "manual" then
+        -- Do nothing
+        print("[Prism] Starting in Manual mode.")
+    else
+        print("[Prism Error] Invalid start mode in config file: " .. tostring(startMode))
+    end
 end
--- end
