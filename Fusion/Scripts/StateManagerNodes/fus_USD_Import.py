@@ -34,7 +34,7 @@
 
 import os
 import logging
-from tkinter import N
+# from tkinter import N             #   TODO  MISTAKE ???
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -49,7 +49,7 @@ logger = logging.getLogger(__name__)
 class USD_ImportClass(object):
     className = "USD_Import"
     listType = "Import"
-    stateCategories = {"Import": [{"label": className, "stateType": className}]}
+    stateCategories = {"Import3d": [{"label": className, "stateType": className}]}
 
     @err_catcher(name=__name__)
     def setup(

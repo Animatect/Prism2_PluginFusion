@@ -44,10 +44,11 @@ from PrismUtils.Decorators import err_catcher
 logger = logging.getLogger(__name__)
 
 
-class ABC_ImportClass(object):
-    className = "ABC_Import"
+class Image_ImportClass(object):
+    className = "Image_Import"
     listType = "Import"
-    stateCategories = {"Import3d": [{"label": className, "stateType": className}]}
+    stateCategories = {"Import2d": [{"label": className, "stateType": className}]}
+
 
     @err_catcher(name=__name__)
     def setup(
@@ -61,16 +62,11 @@ class ABC_ImportClass(object):
         openProductsBrowser=True,
         settings=None,
     ):
-        
         self.state = state
-        self.stateMode = "ABC_Import"                           #   TODO  Handle setting stateMode for the UI label.
+        self.stateMode = "Image_Import"
 
         self.core = core
         self.stateManager = stateManager
-        self.fuseFuncts = self.core.appPlugin
-
-        self.supportedFormats = [".abc"]
-
         self.taskName = ""
         self.setName = ""
 
@@ -86,6 +82,9 @@ class ABC_ImportClass(object):
 
         self.nodes = []
         self.nodeNames = []
+
+        self.f_abcPath.setVisible(False)
+        self.f_keepRefEdits.setVisible(False)
 
         self.oldPalette = self.b_importLatest.palette()
         self.updatePalette = QPalette()
@@ -111,12 +110,6 @@ class ABC_ImportClass(object):
                         stateManager.importFile(importPath)
 
         if importPath:
-            _, extension = os.path.splitext(importPath)
-
-            if extension.lower() not in self.supportedFormats:
-                self.core.popup(f"{extension.upper()} is not supported with this Import State")           #   TESTING
-                return False
-            
             self.setImportPath(importPath)
             result = self.importObject(settings=settings)
 
@@ -129,21 +122,14 @@ class ABC_ImportClass(object):
         ):
             return False
 
-        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)                 #   USED???
-
+        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
         self.connectEvents()
 
         if stateData is not None:
             self.loadData(stateData)
 
-        tip = ("Create a simple Fusion 3d scene.\n\n"
-               "This will add and connect:\n"
-               "A Merge3d and a Renderer3d")
-        self.b_createAbcScene.setToolTip(tip)
-
         self.nameChanged()
         self.updateUi()
-
 
     @err_catcher(name=__name__)
     def setStateMode(self, stateMode):
@@ -151,27 +137,45 @@ class ABC_ImportClass(object):
         self.l_class.setText(stateMode)
 
 
+
     @err_catcher(name=__name__)
     def requestImportPaths(self):
-        result = self.core.callback("requestImportPath", self)
-        for res in result:
-            if isinstance(res, dict) and res.get("importPaths") is not None:
-                return res["importPaths"]
+        #	Opens Project Browser
+        try:
+            logger.debug("Opening Project Browser")
+            self.core.projectBrowser()
+            #	Switch to Media Tab
+            if self.core.pb:
+                self.core.pb.showTab("Media")
+        except:
+            logger.warning("ERROR: Unable to Open Project Browser.")
 
-        import ProductBrowser
-        ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
-        self.core.parentWindow(ts)
-        ts.exec_()
-        importPath = [ts.productPath]
-        return importPath
+
+
+        # result = self.core.callback("requestImportPath", self)
+        # for res in result:
+        #     if isinstance(res, dict) and res.get("importPaths") is not None:
+
+        #         self.core.popup(f"res:  {res}")                             #   TESTING
+
+        #         return res["importPaths"]
+
+        # import MediaBrowser
+        # ts = MediaBrowser.MediaBrowser(core=self.core, importState=self)
+        # self.core.parentWindow(ts)
+        # ts.exec_()
+        # importPath = [ts.mediaPath]
+
+        # self.core.popup(f"importPath:  {importPath}")                             #   TESTING
+
+
+        # return importPath
 
 
     @err_catcher(name=__name__)
     def loadData(self, data):
         if "statename" in data:
             self.e_name.setText(data["statename"])
-        if "stateUID" in data:
-            self.stateUID = data["stateUID"]
         if "statemode" in data:
             self.setStateMode(data["statemode"])
         if "filepath" in data:
@@ -179,6 +183,22 @@ class ABC_ImportClass(object):
                 self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
             )(data["filepath"])
             self.setImportPath(data["filepath"])
+        if "keepedits" in data:
+            self.chb_keepRefEdits.setChecked(eval(data["keepedits"]))
+        if "autonamespaces" in data:
+            self.chb_autoNameSpaces.setChecked(eval(data["autonamespaces"]))
+        if "updateabc" in data:
+            self.chb_abcPath.setChecked(eval(data["updateabc"]))
+        if "trackobjects" in data:
+            self.chb_trackObjects.setChecked(eval(data["trackobjects"]))
+        if "connectednodes" in data:
+            if self.core.isStr(data["connectednodes"]):
+                data["connectednodes"] = eval(data["connectednodes"])
+            self.nodes = [
+                x[1]
+                for x in data["connectednodes"]
+                if self.core.appPlugin.isNodeValid(self, x[1])
+            ]
         if "taskname" in data:
             self.taskName = data["taskname"]
         if "nodenames" in data:
@@ -190,20 +210,27 @@ class ABC_ImportClass(object):
 
         self.core.callback("onStateSettingsLoaded", self, data)
 
-
     @err_catcher(name=__name__)
     def connectEvents(self):
         self.e_name.textChanged.connect(self.nameChanged)
         self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
-        #   This is the "Browse" button
         self.b_browse.clicked.connect(self.browse)
         self.b_browse.customContextMenuRequested.connect(self.openFolder)
-        #   This is the "Re-Import" button
-        self.b_import.clicked.connect(lambda: self.importObject(update=True))
+        self.b_import.clicked.connect(self.importObject)
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
-        self.b_createAbcScene.clicked.connect(self.createAbcScene)
-
+        self.chb_keepRefEdits.stateChanged.connect(self.stateManager.saveStatesToScene)
+        self.chb_autoNameSpaces.stateChanged.connect(self.autoNameSpaceChanged)
+        self.chb_abcPath.stateChanged.connect(self.stateManager.saveStatesToScene)
+        self.chb_trackObjects.toggled.connect(self.updateTrackObjects)
+        self.b_selectAll.clicked.connect(self.lw_objects.selectAll)
+        if not self.stateManager.standalone:
+            self.b_nameSpaces.clicked.connect(
+                lambda: self.core.appPlugin.sm_import_removeNameSpaces(self)
+            )
+            self.lw_objects.itemSelectionChanged.connect(
+                lambda: self.core.appPlugin.selectNodes(self)
+            )
 
     @err_catcher(name=__name__)
     def nameChanged(self, text=None):
@@ -243,12 +270,10 @@ class ABC_ImportClass(object):
 
         self.state.setText(0, name)
 
-
     @err_catcher(name=__name__)
     def getSortKey(self):
         cacheData = self.core.paths.getCachePathData(self.getImportPath())
         return cacheData.get("product")
-
 
     @err_catcher(name=__name__)
     def browse(self):
@@ -265,7 +290,6 @@ class ABC_ImportClass(object):
                 self.setImportPath(importPath)
             self.updateUi()
 
-
     @err_catcher(name=__name__)
     def openFolder(self, pos):
         path = self.getImportPath()
@@ -273,7 +297,6 @@ class ABC_ImportClass(object):
             path = os.path.dirname(path)
 
         self.core.openFolder(path)
-
 
     @err_catcher(name=__name__)
     def getImportPath(self):
@@ -283,7 +306,6 @@ class ABC_ImportClass(object):
 
         return path
 
-
     @err_catcher(name=__name__)
     def setImportPath(self, path):
         self.importPath = path
@@ -292,13 +314,11 @@ class ABC_ImportClass(object):
         self.updateUi()
         self.stateManager.saveStatesToScene()
 
-
     @err_catcher(name=__name__)
     def isShotCam(self, path=None):
         if not path:
             path = self.getImportPath()
         return path.endswith(".abc") and "/_ShotCam/" in path
-
 
     @err_catcher(name=__name__)
     def autoUpdateChanged(self, checked):
@@ -313,6 +333,12 @@ class ABC_ImportClass(object):
 
         self.stateManager.saveStatesToScene()
 
+    @err_catcher(name=__name__)
+    def autoNameSpaceChanged(self, checked):
+        self.b_nameSpaces.setEnabled(not checked)
+        if not self.stateManager.standalone:
+            self.core.appPlugin.sm_import_removeNameSpaces(self)
+            self.stateManager.saveStatesToScene()
 
     @err_catcher(name=__name__)
     def runSanityChecks(self, cachePath):
@@ -325,7 +351,6 @@ class ABC_ImportClass(object):
             return False
 
         return True
-
 
     @err_catcher(name=__name__)
     def checkFrameRange(self, cachePath):
@@ -355,13 +380,8 @@ class ABC_ImportClass(object):
 
         return True
 
-
     @err_catcher(name=__name__)
     def importObject(self, update=False, path=None, settings=None):
-
-        if not update:
-            self.stateUID = self.fuseFuncts.createUUID()
-
         result = True
         if self.stateManager.standalone:
             return result
@@ -389,35 +409,32 @@ class ABC_ImportClass(object):
             self.core.popup("Invalid importpath:\n\n%s" % impFileName)
             return
 
-        # if not hasattr(self.core.appPlugin, "sm_import_importToApp"):
-        #     self.core.popup("Import into %s is not supported." % self.core.appPlugin.pluginName)
-        #     return
+        if not hasattr(self.core.appPlugin, "sm_import_importToApp"):
+            self.core.popup("Import into %s is not supported." % self.core.appPlugin.pluginName)
+            return
 
         result = self.runSanityChecks(impFileName)
         if not result:
             return
 
         cacheData = self.core.paths.getCachePathData(impFileName)
-
         self.taskName = cacheData.get("task")
         doImport = True
 
-        
-		#	Set node name
-        productName = cacheData["product"]
-        productVersion = cacheData["version"]
-        nodeName = f"{productName}_{productVersion}"
+        if self.chb_trackObjects.isChecked():
+            getattr(self.core.appPlugin, "sm_import_updateObjects", lambda x: None)(
+                self
+            )
 
-        nodeData = {"nodeName": nodeName,
-                    "version": productVersion,
-                    "filepath": impFileName,
-                    "product": productName,
-                    "format": "ABC"}
-
-        importResult = self.fuseFuncts.importABC(self,
-                                                UUID=self.stateUID,
-                                                nodeData=nodeData,
-                                                update=update)
+        # temporary workaround until all plugin handle the settings argument
+        if self.core.appPlugin.pluginName == "Maya":
+            importResult = self.core.appPlugin.sm_import_importToApp(
+                self, doImport=doImport, update=update, impFileName=impFileName, settings=settings
+            )
+        else:
+            importResult = self.core.appPlugin.sm_import_importToApp(
+                self, doImport=doImport, update=update, impFileName=impFileName
+            )
 
         if not importResult:
             result = None
@@ -442,6 +459,9 @@ class ABC_ImportClass(object):
                     msgStr += i + "\n"
                 self.core.popup(msgStr)
 
+            if self.chb_autoNameSpaces.isChecked():
+                self.core.appPlugin.sm_import_removeNameSpaces(self)
+
             if not result:
                 msgStr = "Import failed: %s" % impFileName
                 self.core.popup(msgStr, title="ImportFile")
@@ -459,7 +479,6 @@ class ABC_ImportClass(object):
         self.stateManager.saveStatesToScene()
 
         return result
-
 
     @err_catcher(name=__name__)
     def importLatest(self, refreshUi=True, selectedStates=True):
@@ -490,7 +509,6 @@ class ABC_ImportClass(object):
 
         self.stateManager.applyChangesToSelection = prevState
 
-
     @err_catcher(name=__name__)
     def checkLatestVersion(self):
         path = self.getImportPath()
@@ -503,18 +521,6 @@ class ABC_ImportClass(object):
             latestVersionData = {}
 
         return curVersionData, latestVersionData
-
-
-    #   Creates simple Fusion 3d Scene with Merge3d and Renderer3d
-    @err_catcher(name=__name__)
-    def createAbcScene(self):
-        if self.stateManager.standalone:
-            return
-        
-        UUID = self.stateUID
-        
-        result = self.fuseFuncts.createAbcScene(self, UUID)
-
 
     @err_catcher(name=__name__)
     def setStateColor(self, status):
@@ -529,7 +535,6 @@ class ABC_ImportClass(object):
 
         self.statusColor = statusColor
         self.stateManager.tw_import.repaint()
-
 
     @err_catcher(name=__name__)
     def updateUi(self):
@@ -587,46 +592,106 @@ class ABC_ImportClass(object):
                 else:
                     self.b_importLatest.setPalette(self.oldPalette)
 
+        isCache = self.stateMode == "ApplyCache"
+        self.f_nameSpaces.setVisible(not isCache)
+
+        self.lw_objects.clear()
+
+        if self.chb_trackObjects.isChecked():
+            self.gb_objects.setVisible(True)
+            getattr(self.core.appPlugin, "sm_import_updateObjects", lambda x: None)(
+                self
+            )
+
+            for i in self.nodes:
+                item = QListWidgetItem(self.core.appPlugin.getNodeName(self, i))
+                getattr(
+                    self.core.appPlugin,
+                    "sm_import_updateListItem",
+                    lambda x, y, z: None,
+                )(self, item, i)
+
+                self.lw_objects.addItem(item)
+        else:
+            self.gb_objects.setVisible(False)
+
         self.nameChanged()
         self.setStateColor(status)
         getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
+    @err_catcher(name=__name__)
+    def updateTrackObjects(self, state):
+        if not state:
+            if len(self.nodes) > 0:
+                msg = QMessageBox(
+                    QMessageBox.Question,
+                    "Track objects",
+                    "When you disable object tracking Prism won't be able to delete or replace the imported objects at a later point in time. You cannot undo this action. Are you sure you want to disable object tracking?",
+                    QMessageBox.Cancel,
+                )
+                msg.addButton("Continue", QMessageBox.YesRole)
+                msg.setParent(self.core.messageParent, Qt.Window)
+                action = msg.exec_()
+
+                if action != 0:
+                    self.chb_trackObjects.setChecked(True)
+                    return
+
+            self.nodes = []
+            getattr(
+                self.core.appPlugin, "sm_import_disableObjectTracking", lambda x: None
+            )(self)
+
+        self.updateUi()
+        self.stateManager.saveStatesToScene()
 
     @err_catcher(name=__name__)
-    def preDelete(self, item=None):
-        try:
-            #   Defaults to Delete the Node
-            delAction = "Yes"
+    def preDelete(
+        self,
+        item=None,
+        baseText="Do you also want to delete the connected objects?\n\n",
+    ):
+        if len(self.nodes) > 0 and self.stateMode != "ApplyCache":
+            message = baseText
+            validNodes = [
+                x for x in self.nodes if self.core.appPlugin.isNodeValid(self, x)
+            ]
+            if len(validNodes) > 0:
+                for idx, val in enumerate(validNodes):
+                    if idx > 5:
+                        message += "..."
+                        break
+                    else:
+                        message += self.core.appPlugin.getNodeName(self, val) + "\n"
 
-            if not self.core.uiAvailable:
-                logger.debug(f"Deleting node: {item}")
+                if not self.core.uiAvailable:
+                    action = "Yes"
+                    print("delete objects:\n\n%s" % message)
+                else:
+                    action = self.core.popupQuestion(message, title="Delete State", parent=self.stateManager)
 
-            else:
-                nodeUID = self.stateUID
-                nodeName = self.fuseFuncts.getNodeNameByUID(nodeUID)
+                if action == "Yes":
+                    self.core.appPlugin.deleteNodes(self, validNodes)
 
-                #   If the Loader exists, show popup question
-                if nodeName:
-                    message = f"Would you like to also remove the associated Loader3d: {nodeName}?"
-                    buttons = ["Yes", "No"]
-                    buttonToBool = {"Yes": True, "No": False}
-
-                    response = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
-                    delAction = buttonToBool.get(response, False)
-
-                    self.fuseFuncts.deleteNode("import3d", nodeUID, delAction=delAction)
-        except:
-            logger.warning("ERROR: Unable to remove Loader3d from Comp")
-
+        getattr(self.core.appPlugin, "sm_import_preDelete", lambda x: None)(self)
 
     @err_catcher(name=__name__)
     def getStateProps(self):
+        connectedNodes = []
+        if self.chb_trackObjects.isChecked():
+            for i in range(self.lw_objects.count()):
+                connectedNodes.append([self.lw_objects.item(i).text(), self.nodes[i]])
+
         return {
             "statename": self.e_name.text(),
-            "stateUID": self.stateUID,
             "statemode": self.stateMode,
             "filepath": self.getImportPath(),
             "autoUpdate": str(self.chb_autoUpdate.isChecked()),
+            "keepedits": str(self.chb_keepRefEdits.isChecked()),
+            "autonamespaces": str(self.chb_autoNameSpaces.isChecked()),
+            "updateabc": str(self.chb_abcPath.isChecked()),
+            "trackobjects": str(self.chb_trackObjects.isChecked()),
+            "connectednodes": connectedNodes,
             "taskname": self.taskName,
             "nodenames": str(self.nodeNames),
             "setname": self.setName,

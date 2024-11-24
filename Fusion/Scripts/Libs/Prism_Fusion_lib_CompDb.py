@@ -34,6 +34,9 @@
 
 
 import json
+import uuid
+import hashlib
+from datetime import datetime
 from typing import Union, Dict, Any
 import logging
 
@@ -47,20 +50,25 @@ logger = logging.getLogger(__name__)
 
 #   LETS KEEP THIS STRUCTURE UPDATED WITH CHANGES
 
-#   DataBase Structure:
+#   DataBase Structure:                                 #   TODO - MAKE SURE IT IS ACCURATE
 #
 #   Root(
 #       "nodes"(
 #           "import2d" (
 #               UUID: {
 #                   NodeData: {
-#                        "nodeName": string
-#                        "verion": string
-#                        "filepath": string
-#                        "format": string
-#                        "mediaId": string
-#                        "displayName": string
-#                        "connectedNodes": list
+#                        "nodeName": string       (  {mediaId}_{aov}_{version}  )
+#                        "version": string        (  v001  )
+#                        "mediaId": string        (  IdentifierName  )
+#                        "displayName": string    (  IdentifierName (2d)  )
+#                        "mediaType": string      (  2drenders, 3drenders, externalMedia  )
+#                        "AOV": string            (  RGB, AO, Beauty  )
+#                        "filepath": string       (  full path of first file in seq  )
+#                        "extension": string      (  .exr, .mov  )
+#                        "fuseFormat": string     (  OpenEXRFormat  )
+#                        "frame_start": int       (  1  )
+#                        "frame_end": int         (  100  )
+#                        "connectedNodes": list   (  a43dg4th, 4jt86d5e  )
 #                        }
 #                     }
 #                  }
@@ -68,7 +76,7 @@ logger = logging.getLogger(__name__)
 #               UUID: {
 #                   NodeData: {
 #                        "nodeName": string
-#                        "verion": string
+#                        "version": string
 #                        "filepath": string
 #                        "format": string
 #                        "product": string
@@ -80,7 +88,7 @@ logger = logging.getLogger(__name__)
 #               UUID: {
 #                   NodeData: {
 #                        "nodeName": string
-#                        "verion": string
+#                        "version": string
 #                        "filepath": string
 #                        "format": string
 #                        }
@@ -90,7 +98,7 @@ logger = logging.getLogger(__name__)
 #               UUID: {
 #                   NodeData: {
 #                        "nodeName": string
-#                        "verion": string
+#                        "version": string
 #                        "filepath": string
 #                        "format": string
 #                        }
@@ -104,6 +112,33 @@ Tool = Any
 Color = int
 UUID = str
 Toolname = str
+
+
+#	Creates UUID
+@err_catcher(name=__name__)
+def createUUID(simple:bool=False, length:int=8) -> str:
+    #	Creates simple Date/Time UID
+    if simple:
+        # Get the current date and time
+        now = datetime.now()
+        # Format as MMDDHHMM
+        uid = now.strftime("%m%d%H%M")
+
+        logger.debug(f"Created Simple UID: {uid}")
+    
+        return uid
+    
+    # Generate a 8 charactor UUID string
+    else:
+        uid = uuid.uuid4()
+        # Create a SHA-256 hash of the UUID
+        hashObject = hashlib.sha256(uid.bytes)
+        # Convert the hash to a hex string and truncate it to the desired length
+        shortUID = hashObject.hexdigest()[:length]
+
+        logger.debug(f"Created UID: {shortUID}")
+
+        return shortUID
 
 
 #   Creates Default Database
@@ -161,7 +196,7 @@ def savePrismFileDb(comp, cpData:dict):
         comp.SetData("PrismDB", cpData_str)
         logger.debug("Saved Prism Comp Database to Comp")
 
-        # print(f"\n***  Prism Database:\n{print(comp.GetData('PrismDB'))}\n")                            #   TESTING
+        print(f"\n***  Prism Database:\n{print(comp.GetData('PrismDB'))}\n")                            #   TESTING
     except:
         logger.warning("ERROR: Failed to save Prism Comp Database to Comp")
 
@@ -221,8 +256,8 @@ def addNodeToDB(comp, type:str, UUID:str, nodeData:dict) -> bool:
         logger.debug(f"Added {nodeData['nodeName']} to the Comp Database")
         return True
 
-    except:
-        logger.warning("ERROR:  Failed to add the Node Data to the Comp Database")
+    except Exception as e:
+        logger.warning(f"ERROR:  Failed to add the Node Data to the Comp Database\n{e}")
         return False
     
 
@@ -490,16 +525,6 @@ def getAllConnectedNodes(comp, nodeUIDs:Union[list|str]) -> list:
         return None 
 
 
-@err_catcher(name=__name__)
-def getNodeType(tool:Tool) -> str:
-    try:
-        return tool.GetAttrs("TOOLS_RegID")
-    except:
-        logger.warning("ERROR: Cannot retrieve node type")
-        return None
-
-
-
 # Checks if tool is set to pass-through mode
 @err_catcher(name=__name__)
 def isPassThrough(comp, nodeUID:str=None, node:str=None) -> bool:
@@ -515,6 +540,33 @@ def setPassThrough(comp, nodeUID:str=None, node:str=None, passThrough=False):
     if nodeUID:
         node = getNodeByUID(comp, nodeUID)
     node.SetAttrs({"TOOLB_PassThrough": passThrough})
+
+
+@err_catcher(name=__name__)
+def reloadLoader(fusion, comp, node, filePath=None, firstframe=None, lastframe=None):
+    try:
+        if filePath:
+            # Rename the clipname to force reload duration
+            node.Clip[fusion.TIME_UNDEFINED] = filePath
+
+        # If first frame is None, it is probably not a sequence.
+        if firstframe:
+            node.GlobalOut[0] = lastframe
+            node.GlobalIn[0] = firstframe
+
+            # Trim
+            node.ClipTimeStart = 0
+            node.ClipTimeEnd = lastframe - firstframe
+            node.HoldLastFrame = 0
+
+        # Clips Reload
+        setPassThrough(comp, node=node, passThrough=True)
+        setPassThrough(comp, node=node, passThrough=False)
+
+        logger.debug(f"Reloaded Loader: {filePath}")
+
+    except:
+        logger.warning(f"ERROR: Failed to reload Loader: {filePath}")
 
 
 

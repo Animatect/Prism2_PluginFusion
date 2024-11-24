@@ -47,7 +47,7 @@ logger = logging.getLogger(__name__)
 class FBX_ImportClass(object):
     className = "FBX_Import"
     listType = "Import"
-    stateCategories = {"Import": [{"label": className, "stateType": className}]}
+    stateCategories = {"Import3d": [{"label": className, "stateType": className}]}
 
     @err_catcher(name=__name__)
     def setup(

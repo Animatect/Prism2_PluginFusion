@@ -33,6 +33,7 @@
 	
 
 import os
+import re
 from typing import Union, Dict, Any
 import logging
 
@@ -232,11 +233,38 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
         if "nodeUID" in toolData:
             tool.SetData('Prism_UUID', toolData['nodeUID'])
 
+        if "mediaId" in toolData:
+            tool.SetData('Prism_MediaID', toolData['mediaId'])
+
+        if "aov" in toolData:
+            tool.SetData('Prism_AOV', toolData['aov'])
+
+        if "currChannel" in toolData:
+            tool.SetData('Prism_Channel', toolData['currChannel'])
+
+        if "version" in toolData:
+            tool.SetData('Prism_Version', toolData['version'])
+
+        if "mediaType" in toolData:
+            tool.SetData('Prism_MediaType', toolData['mediaType'])
+
         if "filepath" in toolData:
             tool.Clip = toolData['filepath']
 
         if "fuseFormat" in toolData:
             tool["OutputFormat"] = toolData['fuseFormat']
+
+        if "frame_start" in toolData:
+            tool.GlobalIn[0] = toolData["frame_start"]
+            tool.GlobalOut[0] = toolData["frame_end"]
+
+            tool.ClipTimeStart = 0
+            tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
+            tool.HoldLastFrame = 0
+
+
+        #   TODO    TRYING TO HAVE NODE SHOW NAME NOT CLIP PATH
+        tool.SetAttrs({'TOOLS_NameSet': True})
 
         return tool
     
@@ -246,28 +274,75 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
     
 
 @err_catcher(name=__name__)
-def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1) -> Tool:
+def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1) -> Tool:          #   TODO IS THIS NEEDED OR USE ADDTOOL?
     try:
         if "toolName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
         if "nodeName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
 
-        if "toolUID" in toolData:
-            tool.SetData('Prism_UUID', toolData['toolUID'])
+        # if "toolUID" in toolData:
+        #     tool.SetData('Prism_UUID', toolData['toolUID'])
+        # if "nodeUID" in toolData:
+        #     tool.SetData('Prism_UUID', toolData['nodeUID'])
+
+        # if "mediaId" in toolData:
+        #     tool.SetData('Prism_MediaID', toolData['mediaId'])
+
+        # if "aov" in toolData:
+        #     tool.SetData('Prism_AOV', toolData['aov'])
+
+        if "version" in toolData:
+            tool.SetData('Prism_Version', toolData['version'])
+
+        # if "mediaType" in toolData:
+        #     tool.SetData('Prism_MediaType', toolData['mediaType'])
 
         if "filepath" in toolData:
             tool.Clip = toolData['filepath']
 
-        if "fuseFormat" in toolData:
-            tool["OutputFormat"] = toolData['fuseFormat']
+        # if "fuseFormat" in toolData:
+        #     tool["OutputFormat"] = toolData['fuseFormat']
 
-        logger.debug(f"Updated tool: {tool}")
+        if "frame_start" in toolData:
+            tool.GlobalIn[0] = toolData["frame_start"]
+            tool.GlobalOut[0] = toolData["frame_end"]
+
+            tool.ClipTimeStart = 0
+            tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
+            tool.HoldLastFrame = 0
+
+
+        #   TODO    TRYING TO HAVE NODE SHOW NAME NOT CLIP PATH
+        tool.SetAttrs({'TOOLS_NameSet': True})
 
         return tool
     
     except:
         logger.warning(f"ERROR: Failed to update {tool} in Comp")
+        return None
+
+
+@err_catcher(name=__name__)
+def getNodeType(tool:Tool) -> str:
+    try:
+        return tool.GetAttrs("TOOLS_RegID")
+    except:
+        logger.warning("ERROR: Cannot retrieve node type")
+        return None
+
+
+@err_catcher(name=__name__)
+def getAllToolsByType(comp, type:str) -> list:
+    try:
+        toolList = []
+        for tool in comp.GetToolList(False).values():
+            if getNodeType(tool) == type:
+                toolList.append(tool)
+
+        return toolList
+    except:
+        logger.warning(f"ERROR: Unable to get all {type} tools from the Comp")
         return None
 
 
@@ -281,7 +356,7 @@ def getLastTool(comp) -> Tool | None:
         return None
     except:
         return None
-    
+        
     
 #   Finds if tool has any outputs connected
 @err_catcher(name=__name__)
@@ -350,7 +425,6 @@ def getToolBefore(tool) -> Tool:
         return None
 
 
-
 #   The name of this function comes for its initial use to position
 #   the "state manager node" that what used before using SetData.
 @err_catcher(name=__name__)
@@ -379,6 +453,18 @@ def setNodePosition(comp, node, find_min=True, x_offset=-2, y_offset=0, ignore_n
         flow.Select()
         x,y = find_LastClickPosition(comp)
         flow.SetPos(node, x, y)
+
+
+
+@err_catcher(name=__name__)
+def setNodeToLeft(comp, tool, refNode=None, x_offset:int=0, y_offset:int=1):
+    if refNode:
+        if getNodeType(refNode) == "Loader":
+            setNodePosition(comp, tool, x_offset = 0, y_offset = 1, refNode=refNode)
+        else:
+            setNodePosition(comp, tool, x_offset = -5, y_offset = 0, refNode=refNode)
+    else:
+        setNodePosition(comp, tool, x_offset = 0, y_offset = 0, refNode=refNode)
 
 
 @err_catcher(name=__name__)
@@ -463,6 +549,177 @@ def stackNodesByType(comp, nodetostack:Tool, yoffset=3, tooltype:str="Saver"):
     if upmost_node:
         #set pos to the leftmost or rightmost node
         flow.SetPos(nodetostack, origx, thresh_y_position + yoffset)
+
+
+@err_catcher(name=__name__)
+def findLeftmostLowerNode(comp, threshold:int=0.5) -> Tool:
+    flow = comp.CurrentFrame.FlowView
+
+    try:
+        nodes = [t for t in comp.GetToolList(False).values() if flow.GetPosTable(t) and not t.GetAttrs('TOOLS_RegID')=='Underlay']
+        if len(nodes) == 0:
+            return None
+
+        leftmost = min(nodes, key=lambda p: flow.GetPosTable(p)[1])
+        downmost = max(nodes, key=lambda p: flow.GetPosTable(p)[2])
+
+        if abs(flow.GetPosTable(downmost)[1] - flow.GetPosTable(leftmost)[1]) <= threshold:
+            return downmost
+        else:
+            return leftmost
+    except:
+        logger.warning("ERROR: Failed to find leftmost lower node")
+        return None
+
+
+@err_catcher(name=__name__)
+def sortingEnabled(comp, save:bool=False, checked:bool=None) -> bool:
+    if save:
+        try:
+            comp.SetData("isPrismImportChbxCheck", checked)
+            return True
+        except:
+            logger.warning("ERROR:  Unable to save Sorting Checkbox state")
+            return False
+
+    try:
+        return bool(comp.GetData("isPrismImportChbxCheck", default=False))
+    except:
+        logger.warning("ERROR:  Unable to get Sorting Checkbox state")
+        return False
+    
+
+@err_catcher(name=__name__)
+def getLoaderChannels(tool) -> list:
+    # Get all loader channels and filter out the ones to skip
+    skip = {			
+        "SomethingThatWontMatchHopefully".lower(),
+        "r", 
+        "red", 
+        "g", 
+        "green", 
+        "b", 
+        "blue", 
+        "a", 
+        "alpha",
+        "rgb","rgb.r","rgb.g","rgb.b","rgb.a", # Mantra channels
+    }
+    sourceChannels = tool.Clip1.OpenEXRFormat.RedName.GetAttrs("INPIDT_ComboControl_ID")
+    allChannels = []
+    for channelName in sourceChannels.values():
+        if channelName.lower() not in skip:
+            allChannels.append(channelName)
+
+    # Sort the channel list
+    sortedChannels = sorted(allChannels)
+
+    return sortedChannels
+
+
+@err_catcher(name=__name__)
+def getChannelData(loaderChannels:list) -> dict:
+    try:
+        channelData = {}
+
+        for channelName in loaderChannels:
+            # Get prefix and channel from full channel name using regex
+            match = re.match(r"(.+)\.(.+)", channelName)
+            if match:
+                prefix, channel = match.groups()
+
+                # Use setdefault to initialize channels if prefix is encountered for the first time
+                channels = channelData.setdefault(prefix, [])
+
+                # Add full channel name to assigned channels of current prefix              #   TODO Look into this
+                channels.append(channelName)
+
+        return channelData
+    
+    except:
+        logger.warning("ERROR: Failed to get channel data")
+        return None
+    
+
+@err_catcher(name=__name__)														#	TODO
+def sortLoaders(comp, posRefNode:Tool, reconnectIn:bool=True, sortnodes:bool=True):
+    flow = comp.CurrentFrame.FlowView
+
+    comp.Lock()
+
+    #Get the leftmost loader within a threshold.
+    leftmostpos = flow.GetPosTable(posRefNode)[1]
+    bottommostpos = flow.GetPosTable(posRefNode)[2]
+    thresh = 100
+
+    # We get only the loaders within a threshold from the leftmost and who were created by prism.
+    try:
+        loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh and l.GetData("Prism_UUID")]
+        loaderstop2bot = sorted(loaders, key=lambda ld: flow.GetPosTable(ld)[2])
+        layers = set([splitLoaderName(ly.Name)[0] for ly in loaders])
+    except:
+        logger.warning("ERROR: Cannot sort loaders - unable to resolve threshold in the flow")
+        return
+
+    sortedloaders = []
+    for ly in sorted(list(layers)):
+        lyloaders = [l for l in loaders if splitLoaderName(l.Name)[0] == ly]
+        sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
+        sortedloaders += sorted_loader_names
+    # if refNode is not part of nodes to sort we move the nodes down so they don't overlap it.
+    refInNodes = any(ldr.Name == posRefNode.Name for ldr in sortedloaders)
+
+    # Sorting the loader names
+    if len(sortedloaders) > 0:
+        lastloaderlyr = splitLoaderName(sortedloaders[0].Name)[0]
+        try:
+            if sortnodes:
+                newx = leftmostpos#flow.GetPosTable(loaderstop2bot[0])[1]
+                newy = flow.GetPosTable(loaderstop2bot[0])[2]
+                if not refInNodes:
+                    newy = bottommostpos + 1.5
+                
+                for l in sortedloaders:
+                    # we reconnect to solve an issue that creates "Ghost" connections until comp is reoppened.
+                    innode =  comp.FindTool(l.Name+"_IN")
+                    outnode = comp.FindTool(l.Name+"_OUT")
+                    if innode and reconnectIn:
+                        innode.ConnectInput('Input', l)
+                    lyrnm = splitLoaderName(l.Name)[0]
+                    # we make sure we have at least an innode for this loader created by prism.
+                    if innode and innode.GetData("isprismnode"):
+                        if lyrnm != lastloaderlyr:
+                            newy+=1
+                        flow.SetPos(l, newx, newy)
+                        flow.SetPos(innode, newx+2, newy)
+                        if outnode:
+                            flow.SetPos(outnode, newx+3, newy)
+                    newy+=1
+                    lastloaderlyr = lyrnm
+
+                logger.debug("Sorted Nodes")
+
+        except:
+            logger.warning("ERROR: Failed to sort nodes")
+
+    comp.Unlock()
+
+
+@err_catcher(name=__name__)
+def splitLoaderName(name:str) -> list:
+    try:
+        prefix = name.rsplit('_', 1)[0]  # everything to the left of the last "_"
+        suffix = name.rsplit('_', 1)[-1]  # everything to the right of the last "_"
+        return prefix, suffix
+    
+    except:
+        logger.warning(f"ERROR: Unable to split loader name {name}")
+
+
+
+
+
+
+
 
 
 # @err_catcher(name=__name__)                           #   USED???
