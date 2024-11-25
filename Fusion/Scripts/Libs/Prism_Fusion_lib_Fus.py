@@ -344,6 +344,21 @@ def getAllToolsByType(comp, type:str) -> list:
     except:
         logger.warning(f"ERROR: Unable to get all {type} tools from the Comp")
         return None
+    
+
+@err_catcher(name=__name__)
+def getSelectedTools(comp, type:str) -> list:
+    try:
+        toolList = []
+        for tool in comp.GetToolList(True).values():
+            if getNodeType(tool) == type:
+                toolList.append(tool)
+
+        return toolList
+    
+    except:
+        logger.warning(f"ERROR: Unable to get all {type} tools from the Comp")
+        return None
 
 
 #   Tries to find last tool in the flow
@@ -644,7 +659,7 @@ def getChannelData(loaderChannels:list) -> dict:
 def sortLoaders(comp, posRefNode:Tool, reconnectIn:bool=True, sortnodes:bool=True):
     flow = comp.CurrentFrame.FlowView
 
-    comp.Lock()
+    # comp.Lock()
 
     #Get the leftmost loader within a threshold.
     leftmostpos = flow.GetPosTable(posRefNode)[1]
@@ -701,7 +716,7 @@ def sortLoaders(comp, posRefNode:Tool, reconnectIn:bool=True, sortnodes:bool=Tru
         except:
             logger.warning("ERROR: Failed to sort nodes")
 
-    comp.Unlock()
+    # comp.Unlock()
 
 
 @err_catcher(name=__name__)

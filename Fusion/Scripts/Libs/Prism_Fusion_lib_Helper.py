@@ -190,7 +190,7 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
 
         except Exception as e:
             logger.warning(f"ERROR: Unable to generate file list for {mediaType}:\n{e}")
-            return {}
+            return None
 
     #   For "2drenders:
     else:
@@ -225,7 +225,7 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
 
         except Exception as e:
             logger.warning(f"ERROR: Unable to generate file list for {mediaType}:\n{e}")
-            return {}
+            return None
 
     # Add the files to the importData
     importData["files"] = files

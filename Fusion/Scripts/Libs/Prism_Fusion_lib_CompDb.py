@@ -34,10 +34,11 @@
 
 
 import json
+import re
 import uuid
 import hashlib
 from datetime import datetime
-from typing import Union, Dict, Any
+from typing import Union, Dict, Tuple, Any
 import logging
 
 from PrismUtils.Decorators import err_catcher as err_catcher
@@ -325,6 +326,85 @@ def removeNodeFromDB(comp, type:str, UUID:str):
         logger.warning(f"ERROR: Unable to remove {UUID} from the Comp Database")
 
 
+
+
+#   Gets the database record for a given importData dict
+@err_catcher(name=__name__)
+def getDbRecordFromImportData(comp, type:str, importData:dict) -> dict:
+    cpData = loadPrismFileDb(comp)
+
+    if not cpData:
+        return None
+    
+    # Get the requested node type
+    nodes = cpData.get("nodes", {}).get(type, {})
+    if not nodes:
+        logger.warning(f"ERROR: Node type '{type}' not found in the database.")
+        return None
+    
+    # Extract fields from importData
+    import_mediaId = importData.get("identifier")
+    import_mediaType = importData.get("mediaType")
+    import_aov = importData.get("aov")
+    import_channel = importData.get("currChannel")             #   TODO
+
+    # Search for a record matching all the available items
+    for uuid, node_data in nodes.items():
+        match = True
+
+        if node_data.get("mediaId") != import_mediaId:
+            match = False
+        
+        if node_data.get("mediaType") != import_mediaType:
+            match = False
+
+        # Check aov if it exists in both the database and importData
+        if "aov" in node_data and import_aov is not None and import_aov != "":
+            if node_data.get("aov") != import_aov:
+                match = False
+
+        # Check currChannel if it exists in both the database and importData
+        if "currChannel" in node_data and import_channel is not None:
+            if node_data.get("currChannel") != import_channel:
+                match = False
+
+        if match:
+            # If all checks pass, return the match
+            exists = nodeExists(comp, uuid)
+            if exists:
+                return [uuid, exists, node_data]
+    
+    logger.debug(f"No node found with mediaId '{import_mediaId}' in type '{type}'.")
+    return None
+
+
+
+#   Gets the database record for a given Identifier
+@err_catcher(name=__name__)
+def getDbRecordFromMediaId(comp, type:str, mediaId:str) -> dict:
+    cpData = loadPrismFileDb(comp)
+
+    if not cpData:
+        return None
+    
+    # Get the requested node type
+    nodes = cpData.get("nodes", {}).get(type, {})
+    if not nodes:
+        logger.warning(f"ERROR: Node type '{type}' not found in the database.")
+        return None
+    
+    # Search for a node matching the given mediaId
+    for uuid, node_data in nodes.items():
+        if node_data.get("mediaId") == mediaId:
+            exists = nodeExists(comp, uuid)
+            if exists:
+                return [uuid, exists, node_data]
+                
+    logger.warning(f"ERROR: No node found with mediaId '{mediaId}' in type '{type}'.")
+    return None
+
+
+
 #   Updates the Node's Data in the DB
 @err_catcher(name=__name__)
 def updateNodeInfo(comp, type:str, UUID:str, nodeData:dict) -> bool:
@@ -373,6 +453,53 @@ def getNodeInfo(comp, type:str, UUID:str) -> bool:
         return False
 
 
+@err_catcher(name=__name__)
+def compareVersions(origVerRecord:dict, updateVerRecord:dict) -> Tuple[bool, str]:
+    try:
+        #   Get original version
+        origVer_str = origVerRecord["version"]
+        # Convert to Int
+        origVer_match = re.search(r'\d+', origVer_str)
+        origVer_int = int(origVer_match.group()) if origVer_match else 0
+
+        #   Get updated version
+        updateVer_str = updateVerRecord["version"]
+        # Convert to Int
+        updateVer_match = re.search(r'\d+', updateVer_str)
+        updateVer_int = int(updateVer_match.group()) if updateVer_match else 0
+
+        #   Get frame ranges
+        origFramerange = f"{origVerRecord['frame_start']} - {origVerRecord['frame_end']}"
+        updateFramerange = f"{updateVerRecord['frame_start']} - {updateVerRecord['frame_end']}"
+
+        #   Make name for update popup
+        compareName = origVerRecord.get("mediaId")
+        if "aov" in origVerRecord:
+            compareName = compareName + f"_{origVerRecord['aov']}"
+        if "currChannel" in origVerRecord:
+            compareName = compareName + f"_{origVerRecord['currChannel']}"
+   
+        ## Compare versions
+
+        #   If versions are the same
+        if origVer_int == updateVer_int:
+            #   If frame ranges are the same
+            if origFramerange == updateFramerange:
+                return [False, f"{compareName}:   No Changes"]
+            
+            #   If frame ranges different
+            else:
+                return [True, f"{compareName}:   updated {origVer_str} FrameRange ({origFramerange}-{updateFramerange})"]
+            
+        #   Versions are different
+        else:
+            return [True, f"{compareName}:   {origVer_str} ({origFramerange})  -->  {updateVer_str} ({updateFramerange})"]
+    
+    except Exception as e:
+        logger.warning(f"ERROR: Unable to make version update message - {e}")
+        return [False, "ERROR"]
+
+
 #	Checks if a matching tool exists in the comp
 @err_catcher(name=__name__)
 def nodeExists(comp, nodeUID:str) -> bool:
@@ -418,6 +545,16 @@ def getNodeNameByTool(tool:Tool) -> Toolname:
         logger.warning(f"ERROR: Cannot get name for {tool}")
         return None
     
+
+@err_catcher(name=__name__)
+def getNodeUidFromTool(tool) -> str:
+    try:
+        nodeUID = tool.GetData('Prism_UUID')
+        return nodeUID
+    except:
+        logger.warning(f"ERROR: Cannot get UUID for {tool}")
+        return None
+
 
 #   Return the Node Data for a given Node
 @err_catcher(name=__name__)

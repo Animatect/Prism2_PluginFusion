@@ -971,6 +971,7 @@ class Prism_Fusion_Functions(object):
 		return stateProps
 
 
+
 	################################################
 	#                                              #
 	#                 IMPORTIMAGES                 #
@@ -991,31 +992,52 @@ class Prism_Fusion_Functions(object):
 
 		comp = self.getCurrentComp()
 		
-		#	Get Identifier Context Data
-		contextRaw = mediaBrowser.getSelectedContexts()
+		try:
+			#	Get Identifier Context Data
+			contextRaw = mediaBrowser.getSelectedContexts()
 
-		#	Seems sometimes context comes as a list
-		if isinstance(contextRaw, list):
-			context = contextRaw[0] if len(contextRaw) > 0 else None
-		else:
-			context = contextRaw
+			#	Seems sometimes context comes as a list
+			if isinstance(contextRaw, list):
+				context = contextRaw[0] if len(contextRaw) > 0 else None
+			else:
+				context = contextRaw
 
-		#	Get AOV Contexts - empty list if 2drender
-		version = self.core.pb.mediaBrowser.getCurrentVersion()
-		aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
+			#	Get AOV Contexts - empty list if 2drender
+			version = self.core.pb.mediaBrowser.getCurrentVersion()
+			aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
+		except Exception as e:
+			self.core.popup(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
+			logger.warning(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
+			return
 
-		#	Get sourceData based on mediaType - used to get framerange
-		if "aov" in context:
-			sourceData = mediaBrowser.compGetImportPasses()
-		else:
-			sourceData = mediaBrowser.compGetImportSource()
 
+		###		TODO	Framerange in sourceData does not seem to update until Prism instance restarts		TODO
+						#	This means the framerange will not update using Update Images
+						#	Needs furter investigation
+
+
+		try:
+			#	Get sourceData based on mediaType - used to get framerange
+			if "aov" in context:
+				sourceData = mediaBrowser.compGetImportPasses()
+			else:
+				sourceData = mediaBrowser.compGetImportSource()
+
+		except Exception as e:
+			self.core.popup(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
+			logger.warning(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
+			return
+		
 		#	Function to aggregate data into importData
 		importData = Helper.makeImportData(self, context, aovDict, sourceData)
 
+		if not importData:
+			self.core.popup(f"ERROR:  Import Failed - Unable to make import data:\n{e}.")
+			logger.warning(f"ERROR:  Import Failed - Unable to make import data:\n{e}.")
+			return
+
 		#	Get "Sorting" checkbox state	
 		sorting = Fus.sortingEnabled(comp)
-
 
 		# Setup Dialog
 		fString = "Please select an import option:"	
@@ -1023,30 +1045,30 @@ class Prism_Fusion_Functions(object):
 		if importData.get("currentAov") and len(importData.get("aovs", [])) > 1:
 			buttons = ["Current AOV", "All AOVs", "Update Selected", "Cancel"]
 		else:
-			buttons = ["Import Media", "Update Selected", "Cancel"]
+			buttons = ["Import Media", "Update Version", "Cancel"]
 			
 		importType, checkbox_checked = self.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=sorting)
 
 		#	Save "Sorting" checkbox state
 		Fus.sortingEnabled(comp, save=True, checked=checkbox_checked)
 
+
+		#	Cancel Option
 		if importType == "Cancel":
 			return
 		
+		#	Update Option
+		if importType in ["Update Selected", "Update Version"]:
+			#	Call the update
+			self.updateImport(comp, importData, importType, sortnodes=not checkbox_checked)
+
 		#	Call the import with options and passing the data
-		self.fusionImportSource(comp, importData, importType, sortnodes=not checkbox_checked)
-
-		###	TODO  Updating
-
-		# elif result == "Update Selected":
-		# 	self.fusionUpdateSelectedPasses(mediaBrowser, importData, importType, sortnodes=not checkbox_checked)
-		# else:
-		# 	return
-
+		else:
+			self.configureImport(comp, importData, importType, sortnodes=not checkbox_checked)
 		
 		
 	@err_catcher(name=__name__)
-	def fusionImportSource(self, comp, importData, importType, sortnodes=True):
+	def configureImport(self, comp, importData, importType, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
 		#	Finds the left edge of the flow-nodes
@@ -1055,8 +1077,6 @@ class Prism_Fusion_Functions(object):
 		if sortnodes:
 			if leftmostNode:
 				refNode = leftmostNode
-
-		comp.Lock()
 
 		importList = []
 
@@ -1074,21 +1094,24 @@ class Prism_Fusion_Functions(object):
 					importList.append(importItem)
 
 		except Exception as e:
-			comp.Unlock()
 			self.core.popup(f"ERROR: Unable to generate import item list:\n{e}")
 			logger.warning(f"ERROR: Unable to generate import item list:\n{e}")
 			return
 
 		try:
+			comp.Lock()
+			comp.StartUndo()
+
 			#	For each import item
 			for importItem in importList:
+
 				# Deselect all nodes
 				flow.Select()
 
 				#	Make UUID
 				toolUID = CompDb.createUUID()
 
-				#	Make dict												#	TODO  Refactor dict to simplify
+				#	Make dict
 				toolData = {"nodeName": Helper.makeLdrName(importItem),
 							"version": importData["version"],
 							"toolUID": toolUID,
@@ -1103,34 +1126,12 @@ class Prism_Fusion_Functions(object):
 							"frame_end": importItem["frame_end"]
 							}
 
-				comp.StartUndo()
-
 				#	Get channels from image file
 				channels = self.core.media.getLayersFromFile(importItem["basefile"])
 
 				#	If no channels just add Loader
 				if len(channels) <= 1:
-					#	Add and configure Loader
-					ldr = Fus.addTool(comp, "Loader", toolData)
-				
-					#	Add mode to Comp Database
-					CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
-
-					#	Deselect all
-					flow.Select()
-
-					# #	If sorting is enabled
-					if sortnodes:
-						if not leftmostNode:
-							leftmostNode = ldr
-
-					Fus.setNodeToLeft(comp, ldr, refNode)								#	TODO  Look into this		
-
-					# #	If sorting is enabled
-					if sortnodes:
-						self.createWireless(toolUID)
-
-					comp.EndUndo()
+					self.addSingleChannel(comp, toolUID, toolData, refNode, sortnodes)
 
 				#	If multiple channels exists display popup to split
 				else:
@@ -1140,32 +1141,72 @@ class Prism_Fusion_Functions(object):
 
 					if result == "Yes":
 						#	Call Multi-channel function for all channels
-						leftmostNode = self.addMultiChannel(comp, toolData, channels)
+						leftmostNode = self.addMultiChannel(comp, toolData, channels, sortnodes=sortnodes)
 
 					if result == "No":
 						#	Get current viewed channel
 						currChannel = importData["currChannel"]
 						#	Call Multi-channel function for current channel
-						leftmostNode = self.addMultiChannel(comp, toolData, channels, currChannel, sortnodes)
+						leftmostNode = self.addMultiChannel(comp, toolData, channels, currChannel, sortnodes=sortnodes)
 
 					else:
+						comp.Unlock()
 						return
-
-				Fus.sortLoaders(comp, leftmostNode, reconnectIn=True, sortnodes=sortnodes)			#	TODO  Look into this			
-
-			# deselect all nodes
-			flow.Select()
+					
+			comp.EndUndo()
 			comp.Unlock()
 
-			# self.getUpdatedNodesFeedback(updatehandle)
+			# Fus.sortLoaders(comp, leftmostNode, reconnectIn=True, sortnodes=sortnodes)			#	TODO  Look into this			
 
-			logger.debug(f"Imported image: {importData['identifier']}")
+
+			logger.debug(f"Imported  {importData['identifier']}")
 
 		except Exception as e:
 			comp.Unlock()
 			self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
 			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 
+
+	@err_catcher(name=__name__)
+	def addSingleChannel(self, comp, toolUID, toolData, refNode, sortnodes=True):
+		flow = comp.CurrentFrame.FlowView
+
+		#	Finds the left edge of the flow-nodes
+		refNode = None
+		leftmostNode = Fus.findLeftmostLowerNode(comp, 0.5)
+		if sortnodes:
+			if leftmostNode:
+				refNode = leftmostNode
+
+		# comp.Lock()
+		# comp.StartUndo()
+
+		#	Add and configure Loader
+		ldr = Fus.addTool(comp, "Loader", toolData)
+	
+		if not ldr:
+			self.core.popup(f"ERROR: Unable to add Loader to Comp")
+			return
+
+		#	Add mode to Comp Database
+		CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
+
+		#	Deselect all
+		flow.Select()
+
+		# #	If sorting is enabled
+		if sortnodes:
+			if not leftmostNode:
+				leftmostNode = ldr
+
+		Fus.setNodeToLeft(comp, ldr, refNode)								#	TODO  Look into this		
+
+		# #	If sorting is enabled
+		if sortnodes:
+			self.createWireless(toolUID)
+
+		# comp.EndUndo()
+		# comp.Unlock()
 
 
 	@err_catcher(name=__name__)
@@ -1185,8 +1226,6 @@ class Prism_Fusion_Functions(object):
 		#	Use all channels
 		else:
 			channelList = channels
-
-		comp.Lock()
 
 		for channel in channelList:
 			#	Deselect all
@@ -1254,12 +1293,93 @@ class Prism_Fusion_Functions(object):
 			if sortnodes:
 				self.createWireless(toolUID)
 
-		comp.Unlock()										#	TODO - LOOK AT LOCK/UNLOCKS !!!
-		comp.Unlock()
-		comp.Unlock()
 
 		return ldr
 			
+
+	@err_catcher(name=__name__)
+	def updateImport(self, comp, importData, importType, sortnodes=True):
+		
+		#	Just pass the import list as it should just be one file
+		if importType == "Update Version":
+			updateList = importData["files"]				#	TODO
+
+		#	Handle selected updates
+		elif importType == "Update Selected":
+			updateList = importData["files"]				#	TODO
+
+			#	Get selected Loaders
+			selTools = Fus.getSelectedTools(comp, "Loader")
+			if len(selTools) < 1:
+				logger.debug("No Loaders selected in the Comp")
+				self.core.popup("No Loaders selected in the Comp")
+				return
+						
+			#	Convert selected Tools list to UUID's
+			selUIDs = []
+			for tool in selTools:
+				selUIDs.append(CompDb.getNodeUidFromTool(tool))
+
+		else:
+			logger.warning(f"ERROR:  Invalide update command: {importType}")
+			return
+
+		mediaId = importData["identifier"]
+		updateMsgList = []
+
+		#	Iterate through update items
+		for updateItem in updateList:
+			#	Add mediaType to each item
+			updateItem["mediaType"] = importData["mediaType"]
+
+			#	Get matching record from DB based on Media Identifier
+			origVerRecord = CompDb.getDbRecordFromImportData(comp, "import2d", updateItem)
+
+			#	Check if record exists and Loader exists in Comp
+			if not origVerRecord or not origVerRecord[1]:
+				continue
+
+			#	Assign from import item
+			origNodeUID = origVerRecord[0]
+			origNodeData = origVerRecord[2]
+
+			#	Check if import item is not in selected list
+			if importType == "Update Selected" and origNodeUID not in selUIDs:
+				continue
+
+			#	Compare versions and get result and result string
+			compareRes = CompDb.compareVersions(origNodeData, updateItem)
+
+			#	Add result string to message list
+			updateMsgList.append(compareRes[1] + "\n")
+			
+			#	If there was a match to the database
+			if compareRes[0]:
+				#	Make dict
+				toolData = {"nodeName": Helper.makeLdrName(updateItem),
+							"version": updateItem["version"],
+							"filepath": updateItem["basefile"],
+							"frame_start": updateItem["frame_start"],
+							"frame_end": updateItem["frame_end"]
+							}
+
+				#	Get original Loader
+				ldr = CompDb.getNodeByUID(comp, origNodeUID)
+				#	Update Loader config
+				Fus.updateTool(ldr, toolData)
+				#	Update Database record
+				CompDb.updateNodeInfo(comp, "import2d", origNodeUID, toolData)
+
+
+		#	Show update feedback
+		if len(updateMsgList) == 0:														#	TODO
+			formattedMsg = f"No Selected Loaders for {mediaId}"
+		else:
+			formattedMsg = "\n".join(updateMsgList)
+		self.core.popup(formattedMsg)
+
+
+
 
 
 	@err_catcher(name=__name__)
@@ -1289,10 +1409,10 @@ class Prism_Fusion_Functions(object):
 		flow = comp.CurrentFrame.FlowView
 		tool = CompDb.getNodeByUID(comp, nodeUID)
 
-		comp.Lock()
+		# comp.Lock()
 		
 		try:
-			comp.StartUndo()
+			# comp.StartUndo()
 
 			pyperclip.copy(wirelessCopy)
 			comp.Paste(wirelessCopy)
@@ -1322,8 +1442,8 @@ class Prism_Fusion_Functions(object):
 			nodeData["connectedNodes"] = [wirelessInUID, wirelessOutUID]
 			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
 
-			comp.EndUndo()
-			comp.Unlock()
+			# comp.EndUndo()
+			# comp.Unlock()
 
 			#	Select the wireless out
 			flow.Select()
@@ -1332,798 +1452,8 @@ class Prism_Fusion_Functions(object):
 			logger.debug(f"Created Wireless nodes for: {tool.Name}")
 
 		except Exception as e:
-			comp.Unlock()
+			# comp.Unlock()
 			logger.warning(f"ERROR:  Could not add wireless nodes:\n{e}")
-
-
-
-	@err_catcher(name=__name__)
-	def getUpdatedNodesFeedback(self, updatehandle, calledfromupdate=False):
-		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
-
-		if len(updatehandle) > 0:
-			try:
-				message = "The following nodes were updated:\n\n"
-				for handle in updatehandle:
-					if ".#nochange#." in handle:
-						message += handle.split(":")[0] + ": Version didn't change\n" 
-					else:
-						message += f"{handle}\n"
-					flow.Select(comp.FindTool(handle.split(":")[0]), True)
-
-				# Display List of updated nodes.
-				logger.debug("Showing version update popup")
-				self.createInformationDialog("Updated Nodes", message)			
-			except:
-				logger.warning("ERROR: Unable to display version update feedback")
-		else:
-			if calledfromupdate:
-				logger.debug("Showing no updated nodes popup")
-				self.core.popup("No nodes were updated.", severity="info")
-
-
-
-	@err_catcher(name=__name__)											#	MOVE TO BOTTOM NEXT TO POPUP CODE
-	def createInformationDialog(self, title, message):
-		msg = QMessageBox(QMessageBox.Question, title, message)
-		msg.addButton("Ok", QMessageBox.YesRole)
-		msg.setParent(self.core.messageParent, Qt.Window)
-		msg.exec_()
-
-
-
-
-
-	# @err_catcher(name=__name__)
-	# def process_multichannel(self, context, tool):
-	# 	try:
-	# 		comp = self.getCurrentComp()
-	# 		flow = comp.CurrentFrame.FlowView
-	# 		loader_channels = Helper.getLoaderChannels(tool)
-	# 		channel_data = Helper.getChannelData(loader_channels)
-	# 	except:
-	# 		logger.warning("ERROR: Failed to process multichannel EXR - could not get data")
-	# 		return
-
-	# 	loaders_list = []
-
-
-	# 	# Invalid names mapping
-	# 	invalid_names = {
-	# 		'RedName': 'CHANNEL_NO_MATCH',
-	# 		'GreenName': 'CHANNEL_NO_MATCH',
-	# 		'BlueName': 'CHANNEL_NO_MATCH',
-	# 		'AlphaName': 'CHANNEL_NO_MATCH',
-	# 		'XName': 'CHANNEL_NO_MATCH',
-	# 		'YName': 'CHANNEL_NO_MATCH',
-	# 		'ZName': 'CHANNEL_NO_MATCH',
-	# 	}
-
-	# 	# Update the loader node channel settings and create loaders
-	# 	# prefix is the name of the layer.
-	# 	for prefix, channels in channel_data.items():
-	# 		try:
-	# 			logger.debug(f"Splitting EXR Channel: {prefix}")
-
-	# 			ldr = comp.Loader({'Clip': self.GetLoaderClip(tool)})
-
-
-
-	# 			# Replace invalid EXR channel names with placeholders
-	# 			ldr.SetAttrs({'TOOLB_NameSet': True, 'TOOLS_Name': tool.Name.rsplit('_', 1)[0] + "_" + prefix})# rsplit splits from the right using in this case the first ocurrence.
-	# 			for name, placeholder in invalid_names.items():
-	# 				setattr(ldr.Clip1.OpenEXRFormat, name, placeholder)
-
-	# 			# Refresh the OpenEXRFormat setting using real channel name data in a 2nd stage
-	# 			for channel_name in channels:
-	# 				channel = re.search(r"\.([^.]+)$", channel_name).group(1).lower() # r, g, b, etc...
-					
-	# 				# Dictionary to map channel types to attribute names
-	# 				channel_attributes = {
-	# 					'r': 'RedName', 'red': 'RedName',
-	# 					'g': 'GreenName', 'green': 'GreenName',
-	# 					'b': 'BlueName', 'blue': 'BlueName',
-	# 					'a': 'AlphaName', 'alpha': 'AlphaName',
-	# 					'x': 'RedName',
-	# 					'y': 'GreenName',
-	# 					'z': 'BlueName',
-	# 				}
-					
-	# 				# Handle channels using the mapping
-	# 				if channel in channel_attributes:
-	# 					setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[channel], channel_name)
-	# 					logger.debug(f"Mapped {prefix} -- {channel_name}  to  {channel_attributes[channel]}")
-
-	# 				# Handle C4D style channels
-	# 				else:
-	# 					my_table_of_phrases = re.split(r'\.', channel_name)
-	# 					last_item = my_table_of_phrases[-1]
-
-	# 					if last_item in channel_attributes:
-	# 						setattr(ldr.Clip1.OpenEXRFormat, channel_attributes[last_item], channel_name)
-					
-	# 				# Get an identifier for the layernm
-	# 				ldr.SetData("prismmultchanlayer", prefix)
-
-	# 			loaders_list.append(nodeUID)
-	# 		except:
-	# 			logger.warning("ERROR: Failed to process multichannel EXR - failed to assign channels")
-	# 			return
-
-	# 	self.move_loaders(x_pos, y_pos, loaders_list)
-
-	# 	# create IN and OUT nodes.
-	# 	for nodeUID in loaders_list:
-
-
-	# 		# #	Add Node Data to Comp Database
-	# 		# version = version2 if 'version2' in locals() else prevVersion
-
-	# 		nodeData = {#"nodeName": nodeName,
-	# 					"version": context["version"],
-	# 					"filepath": context["path"],
-	# 					"format": context["extension"],
-	# 					"mediaId": context["identifier"],
-	# 					"displayName": context["displayName"],
-	# 					"connectedNodes": ""}
-
-	# 		CompDb.addNodeToDB(comp, "import2d", nodeUID, nodeData)
-
-	# 		# create wireless
-	# 		if createwireless:
-	# 			self.createWireless(nodeUID)
-
-
-	# 		flow.Select(CompDb.getNodeByUID(comp, nodeUID), True)
-
-	# 	if len(loaders_list)>0:
-	# 		tool.Delete()
-
-
-	# 	comp.Unlock()
-	# 	comp.EndUndo()
-
-	# 	logger.debug(f"Processed multichannel EXR: {tool.Name}")
-		
-	# 	return loaders_list
-
-
-
-
-
-
-
-
-	# @err_catcher(name=__name__)
-	# def fusionImportPasses(self, mediaBrowser, importData, sortnodes=True):
-	# 	comp = self.getCurrentComp()
-	# 	flow = comp.CurrentFrame.FlowView
-
-	# 	flow.Select()
-
-	# 	# fString = "Some EXRs seem to have multiple channels:\n" + "Do you want to split the EXR channels into individual nodes?"
-	# 	# splithandle = {'splitchosen': False, 'splitfirstasked': True, 'fstring': fString}
-	# 	# updatehandle:list = [] #List of updated nodes
-
-
-	# 	#	Finds the left edge of the flow-nodes
-	# 	refNode = None
-	# 	leftmostNode = Fus.findLeftmostLowerNode(comp, 0.5)
-	# 	if sortnodes:
-	# 		refNode = leftmostNode
-
-	# 	# #	Gets the data for the current image
-	# 	# try:
-	# 	# 	sourceData = mediaBrowser.compGetImportPasses()
-	# 	# 	if len(sourceData) == 1:
-	# 	# 		sourceData = sourceData[0]
-	# 	# except:
-	# 	# 	logger.warning("ERROR: Unable to get sourceData from the MediaBrowser")
-	# 	# 	return
-
-	# 	flow.Select()
-
-	# 	# self.core.popup(f"importData:  {importData}")                                      #    TESTING
-
-	# 	# self.core.popup(f"sourceData: {sourceData}")                                      #    TESTING
-
-	# 	# self.core.popup(f"aovDict:  {aovDict}")                                      #    TESTING
-
-			
-	# 	for importItem in importData["files"]:
-
-	# 		self.core.popup(f"importItem:  {importItem}")                                      #    TESTING
-
-	# 	# 	try:
-
-	# 	# 		toolUID = CompDb.createUUID()
-
-	# 	# 		toolData = {"nodeName": Helper.makeLdrName(importData),
-	# 	# 					"version": importData["version"],
-	# 	# 					"toolUID": toolUID,
-	# 	# 					"mediaId": importData["identifier"],
-	# 	# 					"displayName": importData["displayName"],
-	# 	# 					"aov": importData["currentAov"],
-	# 	# 					"filepath": source[0],
-	# 	# 					"extension": importData["extension"],
-	# 	# 					"fuseFormat": self.getFuseFormat(importData["extension"]),
-	# 	# 					"frame_start": source[1],
-	# 	# 					"frame_end": source[2]}
-
-
-	# 	# 	except:
-	# 	# 		logger.warning("ERROR: Unable to import passes")
-	# 	# 		return
-			
-	# 	# 	# deselect all nodes
-	# 	# 	comp.Lock()
-	# 	# 	flow.Select()
-
-	# 	# 	ldr = Fus.addTool(comp, "Loader", toolData)
-
-	# 	# 	if sortnodes:
-	# 	# 		if not leftmostNode:
-	# 	# 			leftmostNode = ldr
-
-	# 	# 	Fus.setNodeToLeft(comp, ldr, refNode)
-
-	# 	# 	CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
-
-	# 	# 	# create wireless
-	# 	# 	if sortnodes:
-	# 	# 		self.createWireless(toolUID)
-
-
-
-	# 	# self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
-					
-	# 	# # deselect all nodes
-	# 	# flow.Select()
-
-	# 	# comp.Unlock()
-
-	# 	# self.getUpdatedNodesFeedback(updatehandle)
-
-	# 	logger.debug(f"Imported image: {importData['identifier']}")
-
-
-
-
-		
-	# 	# self.sort_loaders(leftmostNode, reconnectIn=True, sortnodes=sortnodes)
-
-	# 	# # deselect all nodes
-	# 	# flow.Select()
-	# 	# self.getUpdatedNodesFeedback(updatehandle)
-
-	# 	# currIdentifier = self.core.pb.mediaBrowser.getCurrentIdentifier()
-	# 	# logger.debug(f"Imported passes for: {currIdentifier['displayName']}")
-
-
-
-
-	# # @err_catcher(name=__name__)
-	# # def fusionUpdateSelectedPasses(self, mediaBrowser, context, sortnodes=True):
-	# # 	comp = self.getCurrentComp()
-	# # 	flow = comp.CurrentFrame.FlowView
-	
-	# # 	# from selection grab only loaders
-	# # 	loaders = comp.GetToolList(True, "Loader").values()
-	# # 	origloaders = loaders
-		
-	# # 	if not loaders:
-	# # 		logger.warning("ERROR: Could not find any Loaders in the comp")
-	# # 		return
-
-	# # 	try:
-	# # 		dataSources = mediaBrowser.compGetImportPasses()
-	# # 		if len(dataSources) == 0:
-	# # 			dataSources = mediaBrowser.compGetImportSource()
-	# # 	except:
-	# # 		logger.warning("ERROR: Unable to get data sources from the MediaBrowser")
-	# # 		return
-
-	# # 	updatehandle = []
-	# # 	for sourceData in dataSources:
-	# # 		imageData = self.getPassData(sourceData)
-	# # 		updatedloader, prevVersion =  self.updateLoaders(
-	# # 												comp,
-	# # 												loaders,
-	# # 												imageData['filePath'],
-	# # 												imageData['firstFrame'],
-	# # 												imageData['lastFrame'],
-	# # 												imageData['isSequence']
-	# # 												)
-
-	# # 		if updatedloader:
-	# # 			try:
-	# # 				# Set up update feedback Dialog message
-	# # 				version1 = prevVersion
-	# # 				version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
-	# # 				nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
-	# # 				updatehandle.append(nodemessage)
-	# # 			except:
-	# # 				logger.warning("ERROR: Unable to update passes - cannot compare versions")
-	# # 				return
-
-	# # 			# if multilayerEXR
-	# # 			if updatedloader.GetData("prismmultchanlayer"):
-	# # 				try:
-	# # 					loader_channels = Helper.getLoaderChannels(updatedloader)
-	# # 					layernames = list(set(Helper.getChannelData(loader_channels)))
-	# # 					flow.Select(updatedloader, False)
-	# # 					loaders = comp.GetToolList(True, "Loader").values()
-	# # 				except:
-	# # 					logger.warning("ERROR: Unable to update passes - cannot resolve exr channels")
-	# # 					return
-					
-	# # 				for ly in layernames:
-	# # 					# we try the same data for each channel just to make sure, since the Clip is the same we just have to iterate and remove whatever is found.
-	# # 					try:
-	# # 						updatedloader, prevVersion =  self.updateLoaders(
-	# # 													comp,
-	# # 												   	loaders,
-	# # 												   	imageData['filePath'],
-	# # 													imageData['firstFrame'],
-	# # 													imageData['lastFrame'],
-	# # 													imageData['isSequence'],
-	# # 													exrlayers=layernames
-	# # 													)
-	# # 					except:
-	# # 						logger.warning("ERROR: Unable to update passes - cannot compare versions")
-	# # 						return
-						
-	# # 					if updatedloader:
-	# # 						# Deselect updated one and try again.
-	# # 						flow.Select(updatedloader,False)
-	# # 						loaders = comp.GetToolList(True, "Loader").values()
-	# # 						# Set up update feedback Dialog message
-	# # 						version1 = prevVersion
-	# # 						version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
-	# # 						nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
-	# # 						updatehandle.append(nodemessage)
-	# # 					else:
-	# # 						# if we didnt find another one then there is no point in keep looking
-	# # 						break
-	# # 					logger.debug(f"Updated Loader: {updatedloader.Name}")
-
-	# # 				self.getUpdatedNodesFeedback(updatehandle, calledfromupdate=True)
-	# # 				return
-	
-	# # 	self.getUpdatedNodesFeedback(updatehandle, calledfromupdate=True)
-	# # 	currIdentifier = self.core.pb.mediaBrowser.getCurrentIdentifier()
-	# # 	logger.debug(f"Updated selected passes for: {currIdentifier['displayName']}")
-
-
-	# # @err_catcher(name=__name__)
-	# # def returnImageDataDict(self, filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence):
-	# # 	return {
-	# # 	'filePath': filePath, 
-	# # 	'firstFrame': firstFrame, 
-	# # 	'lastFrame': lastFrame, 
-	# # 	'aovNm': aovNm,
-	# # 	'layerNm': layerNm,
-	# # 	'isSequence': isSequence
-	# # 	}
-
-
-
-
-
-	# # @err_catcher(name=__name__)
-	# # def getPassData(self, sourceData):
-	# # 	firstFrame, lastFrame = sourceData[1], sourceData[2]
-	# # 	curfr = firstFrame #self.get_current_frame()
-	# # 	framepadding = self.core.framePadding
-	# # 	padding_string = self.get_frame_padding_string()
-
-	# # 	numframepadsinpath = self.check_padding_in_filepath(sourceData[0])
-	# # 	isSequence = numframepadsinpath > 0
-
-	# # 	try:
-	# # 		if isSequence:
-	# # 			filePath = self.format_file_path_with_validation(sourceData[0], curfr, framepadding, padding_string, firstFrame)
-	# # 		else:
-	# # 			filePath = sourceData[0]
-	# # 	except:
-	# # 		logger.warning("ERROR: Failed to get pass data")
-	# # 		return
-
-	# # 	try:
-	# # 		aovNm, layerNm = self.extract_aov_layer_names(filePath)
-	# # 	except:
-	# # 		logger.warning("ERROR: Failed to extract AOV Layer names")
-	# # 		return
-
-	# # 	logger.debug(f"Retrieved pass data for image: {aovNm}")
-	# # 	return self.returnImageDataDict(filePath, firstFrame, lastFrame, aovNm, layerNm, isSequence)
-
-
-	# # Helper function to know if a path has padding and the padding length.
-	# @err_catcher(name=__name__)
-	# def check_padding_in_filepath(self,filepath):
-	# 	try:
-	# 		filepath = str(filepath)
-	# 		# Get the file extension
-	# 		_, file_extension = os.path.splitext(filepath)
-
-	# 		# Regular expression to match consecutive '#' characters before the extension
-	# 		pattern = rf"(#+)\{file_extension}$"
-	# 		match = re.search(pattern, filepath)
-
-	# 		if match:
-	# 			num_hashes = len(match.group(1))
-	# 			# File path has {num_hashes} consecutive '#' characters before the extension.
-	# 			return num_hashes
-	# 		else:
-	# 			# No consecutive '#' characters found before the extension.
-	# 			return 0
-	# 	except:
-	# 		logger.warning("ERROR:  Failed to check padding in filepath")
-	# 		return None
-		
-
-	# # Helper function get frame number
-	# @err_catcher(name=__name__)
-	# def get_current_frame(self):
-	# 	comp = self.getCurrentComp()
-	# 	return int(comp.CurrentTime)
-
-
-	# # Helper function get frame padding string
-	# @err_catcher(name=__name__)
-	# def get_frame_padding_string(self):
-	# 	framepadding = self.core.framePadding
-	# 	padding_string = '#' * framepadding + '.'
-	# 	return str(padding_string)
-
-
-	# # Helper function to format file path with frame number
-	# @err_catcher(name=__name__)
-	# def format_file_path(self, path, frame, framepadding, padding_string):
-	# 	"""Format the file path to replace padding_string with the current frame."""
-	# 	try:
-	# 		return path.replace(padding_string, f"{frame:0{framepadding}}.")
-	# 	except:
-	# 		logger.warning("ERROR: Failed to format file path string")
-	# 		return ""
-
-
-	# # Helper function to handle padding string replacement based on file existence
-	# @err_catcher(name=__name__)
-	# def format_file_path_with_validation(self, path, frame, framepadding, padding_string, firstFrame):
-	# 	"""Format the file path by validating its existence."""
-	# 	try:
-	# 		if firstFrame:
-	# 			formatted_first_frame = f"{firstFrame:0{framepadding}}."
-	# 			modified_file_path = path.replace(padding_string, formatted_first_frame)
-
-	# 			if os.path.exists(modified_file_path):
-	# 				return path.replace(padding_string, f"{frame:0{framepadding}}.")
-	# 			else:
-	# 				return path.replace("." + padding_string, ".")
-	# 		else:
-	# 			return path
-	# 	except:
-	# 		logger.warning("ERROR: Failed to format file path with validation")
-	# 		return ""
-
-
-	# # Helper function to extract AOV and layer names
-	# @err_catcher(name=__name__)
-	# def extract_aov_layer_names(self, filePath):
-	# 	"""Extract the AOV and layer names from the file path."""
-	# 	try:
-	# 		parts = os.path.dirname(filePath).split("/")
-	# 		aovnm = parts[-1]
-	# 		wronglayerNms = ["2dRender","3dRender"]
-	# 		layerNm = parts[-3]
-	# 		if layerNm in wronglayerNms:
-	# 			layerNm = parts[-2]
-			
-	# 		return aovnm, layerNm
-		
-	# 	except:
-	# 		logger.warning("ERROR: Failed to extract AOV layer names")
-	# 		return None
-
-
-	# @err_catcher(name=__name__)
-	# def updateLoaders(self, comp, Loaderstocheck, filePath, firstFrame, lastFrame, isSequence=False, exrlayers=[]):
-	# 	try:
-	# 		for loader in Loaderstocheck:
-	# 			loaderClipPath = loader.Clip[0]
-	# 			if filePath == loaderClipPath:
-	# 				return loader, ".#nochange#."
-				
-	# 			if len(exrlayers) > 0:
-	# 				layer = loader.GetData("prismmultchanlayer")
-	# 				if layer: 
-	# 					if layer not in exrlayers:
-	# 						return loader, ".#nochange#."
-				
-	# 			if self.are_paths_equal_except_version(loaderClipPath, filePath, isSequence):
-	# 				version1 = self.extract_version(loaderClipPath)
-	# 				version2 = self.extract_version(filePath)
-
-	# 				CompDb.reloadLoader(self.fusion, comp, loader, filePath, firstFrame, lastFrame)
-	# 				if not version1 == version2:
-	# 					return loader, version1
-				
-	# 		return None, ""
-		
-	# 	except:
-	# 		logger.warning("ERROR: Failed to update loaders")
-	# 		return None
-	
-
-	# @err_catcher(name=__name__)
-	# def processImageImport(self, imageData, context, splithandle=None, updatehandle:list=[], refNode=None, createwireless=True, processmultilayerexr=True):
-	# 	# Do in this function the actual importing or update of the image.		
-	# 	comp = self.getCurrentComp()
-	# 	flow = comp.CurrentFrame.FlowView
-
-	# 	filePath = imageData['filePath']
-	# 	firstFrame = imageData['firstFrame']
-	# 	lastFrame = imageData['lastFrame']
-	# 	aovNm = imageData['aovNm']
-	# 	layerNm = imageData['layerNm']
-	# 	isSequence = imageData['isSequence']
-		
-	# 	extension = os.path.splitext(filePath)[1]
-	# 	# Check if path without version exists in a loader and if so generate a popup to update with new version.
-	# 	allLoaders = comp.GetToolList(False, "Loader").values()
-	# 	try:
-	# 		updatedloader, prevVersion = self.updateLoaders(comp, allLoaders, filePath, firstFrame, lastFrame, isSequence)
-	# 	except:
-	# 		updatedloader = prevVersion = None
-
-	# 	# If an updated node was produced.
-	# 	if updatedloader:
-	# 		try:
-	# 			# Update Multilayer.
-	# 			if extension == ".exr":
-	# 				# check for multichannels to update all splitted nodes.
-	# 				extraloader = updatedloader
-	# 				checkedloaders:list = [updatedloader.Name]
-	# 				if len(Helper.getLoaderChannels(updatedloader)) > 0:
-	# 					while  extraloader:
-	# 						allremainingLoaders = [t for t in allLoaders if not t.Name in checkedloaders]
-	# 						extraloader, extraversion = self.updateLoaders(comp, allremainingLoaders, filePath, firstFrame, lastFrame, isSequence)
-	# 						if extraloader:
-	# 							checkedloaders.append(extraloader.Name)
-
-	# 			# Set up update feedback Dialog message
-	# 			version1 = prevVersion
-	# 			version2 = self.extract_version(updatedloader.GetAttrs('TOOLST_Clip_Name')[1])
-	# 			nodemessage = f"{updatedloader.Name}: v {str(version1)} -> v {str(version2)}"
-	# 			updatehandle.append(nodemessage)
-
-	# 			return updatedloader
-	# 		except:
-	# 			logger.warning("ERROR: Unable to process image import")
-	# 			return
-
-	# 	# if paths were not updated then we create new nodes.
-	# 	try:
-	# 		comp.Lock()
-	# 		node = comp.AddTool("Loader")
-	# 		# Set a Prism node identifier:
-	# 		if createwireless:
-	# 			node.SetData("isprismnode", True)
-	# 		CompDb.reloadLoader(self.fusion, comp, node, filePath, firstFrame, lastFrame)
-	# 		nodeName = layerNm + "_" + aovNm
-	# 		node.SetAttrs({"TOOLS_Name": nodeName})
-
-	# 		if refNode:
-	# 			if refNode.GetAttrs('TOOLS_RegID') =='Loader':
-	# 				Fus.setNodePosition(comp, node, x_offset = 0, y_offset = 1, refNode=refNode)
-	# 			else:
-	# 				Fus.setNodePosition(comp, node, x_offset = -5, y_offset = 0, refNode=refNode)
-	# 		else:
-	# 			Fus.setNodePosition(comp, node, x_offset = 0, y_offset = 0, refNode=None)
-
-	# 		comp.Unlock()
-
-	# 	except:
-	# 		logger.warning("ERROR: Failed to create loader node.")
-	# 		comp.Unlock()
-	# 		return
-		
-	# 	# IF IS EXR
-	# 	if extension == ".exr" and processmultilayerexr:
-	# 		try:
-	# 			# check for multichannels
-	# 			channels = Helper.getLoaderChannels(node)
-	# 			if len(channels) > 0:
-	# 				buttons = ["Yes", "No"]
-	# 				# if we need to manage the split dialog from outside and this is the first time the question is asked.
-	# 				if splithandle and splithandle['splitfirstasked']:
-	# 					splithandle['splitfirstasked'] = False
-	# 					fString = splithandle['fstring']
-	# 					result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
-
-	# 				elif splithandle and splithandle['splitchosen']:
-	# 					result = "Yes"
-	# 				elif splithandle and not splithandle['splitchosen']:
-	# 					result = "No"
-
-	# 				else:
-	# 					fString = "This EXR seems to have multiple channels:\n" + "Do you want to split the EXR channels into individual nodes?"
-	# 					result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
-
-	# 				if result == "Yes":
-	# 					if splithandle:
-	# 						splithandle['splitchosen'] = True
-	# 					loaders_list = self.process_multichannel(context, node, createwireless=createwireless)
-	# 					if len(loaders_list)>0:
-	# 						leftMostNode = CompDb.getNodeByUID(comp, loaders_list[-1])
-	# 						return leftMostNode
-	
-	# 				elif splithandle:
-	# 					splithandle['splitchosen'] = False
-	# 		except:
-	# 			logger.warning("ERROR: Failed to process Multilayer EXR")
-	# 			return None
-
-	# 	#	Add UUID to Loader
-	# 	nodeUID = CompDb.createUUID()
-	# 	node.SetData('Prism_UUID', nodeUID)
-
-
-	# 	#	Add Node Data to Comp Database
-	# 	version = version2 if 'version2' in locals() else prevVersion
-
-	# 	nodeData = {"nodeName": nodeName,
-	# 				"version": context["version"],
-	# 				"filepath": filePath,
-	# 				"format": extension,
-	# 				"mediaId": context["identifier"],
-	# 				"displayName": context["displayName"],
-	# 				"connectedNodes": ""}
-
-	# 	CompDb.addNodeToDB(comp, "import2d", nodeUID, nodeData)
-
-	# 	# create wireless
-	# 	if createwireless:
-	# 		self.createWireless(nodeUID)
-
-	# 	flow.Select(node, True)
-		
-	# 	return node
-	
-
-
-		
-
-	# @err_catcher(name=__name__)
-	# def extract_version(self, filepath):
-	# 	# Extract the version information using a regular expression
-	# 	padding = self.core.versionPadding
-	# 	version_pattern = rf"v(\d{{{padding}}})"  # Using f-string for dynamic regex pattern
-	# 	master_pattern  = r"(?:\\|\/|_)master(?:\\|\/|_|$)"  # Matches "\master\", "/master/", "_master"
-	# 	match = re.search(version_pattern, filepath)
-
-	# 	if match:
-	# 		return int(match.group(1))
-		
-	# 	# Check the full path for any "\master\" or "_master" pattern if no version was found
-	# 	master_match = re.search(master_pattern, filepath, re.IGNORECASE)
-	# 	if master_match:
-	# 		return "master"
-	# 	else:
-	# 		logger.warning(f"ERROR: Failed to extract version from filepath: {filepath}")
-	# 		return None
-		
-
-	# @err_catcher(name=__name__)
-	# def are_paths_equal_except_version(self, path1, path2, isSequence):	
-	# 	try:
-	# 		# Remove the version part from the paths for exact match comparison
-	# 		padding = self.core.versionPadding
-	# 		version_pattern = rf"v\d{{{padding}}}"
-	# 		master_dir_pattern = r'(?<=/|\\)master(?=/|\\)'
-	# 		master_file_pattern = r'_master(?=\.)'
-	# 		path1_without_version = re.sub(version_pattern, "", path1)
-	# 		path2_without_version = re.sub(version_pattern, "", path2)
-	# 		path1_version = self.extract_version(path1)
-	# 		path2_version = self.extract_version(path2)
-	# 		if path1_version and path1_version == "master":
-	# 			path1_without_version = re.sub(master_dir_pattern, '', path1)  # Remove "master" from directory path
-	# 			path1_without_version = re.sub(master_file_pattern, '_', path1_without_version)  # Remove "master" from filename
-	# 		if path2_version and path2_version == "master":
-	# 			path2_without_version = re.sub(master_dir_pattern, '', path2)  # Remove "master" from directory path
-	# 			path2_without_version = re.sub(master_file_pattern, '_', path2_without_version)  # Remove "master" from filename
-	# 		if isSequence:
-	# 			# Use regex to remove numbers before any file extension (can vary in length)
-	# 			path1_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path1_without_version)
-	# 			path2_without_version = re.sub(r'(\d+)(\.\w+)$', r'\2', path2_without_version)
-	# 		# Check if the non-version parts are an exact match
-	# 		if path1_without_version == path2_without_version:
-	# 			# Versions are the same, and non-version parts are an exact match
-	# 			return True
-	# 		else:
-	# 			# Versions are the same, but non-version parts are different
-	# 			return False
-	# 	except:
-	# 		logger.warning("ERROR: Failed to compare versions")
-	# 		return False
-
-	# @err_catcher(name=__name__)
-	# def get_pattern_prefix(self, file_path):
-	# 	try:
-	# 		# Extract the file extension
-	# 		_, file_extension = os.path.splitext(file_path)
-	# 		padding = self.core.versionPadding
-
-	# 		# Regex pattern to capture the prefix and the frame number
-	# 		# Example: sq_030-sh_010_Compositing_v001.0001.exr
-	# 		regex_pattern = rf'^(.+)v\d{{{padding}}}\.(\d{{{padding}}}){re.escape(file_extension)}$'
-	# 		pattern = re.compile(regex_pattern)
-	# 		match = pattern.match(file_path)
-
-	# 		# Return the prefix and frame number if matched
-	# 		return (match.group(1), int(match.group(2))) if match else (None, None)
-		
-	# 	except:
-	# 		logger.warning("ERROR: Failed to get pattern prefix")
-	# 		return None, None
-		
-
-	# @err_catcher(name=__name__)
-	# def is_image_sequence(self, strings):
-	# 	try:
-	# 		# Get the prefix and frame number of the first file
-	# 		first_image_prefix, first_frame = self.get_pattern_prefix(strings[0])
-
-	# 		# Check if all files share the same prefix and find their frame numbers
-	# 		frame_numbers = []
-	# 		for item in strings:
-	# 			prefix, frame = self.get_pattern_prefix(item)
-	# 			if prefix != first_image_prefix or frame is None:
-	# 				return None  # Not an image sequence
-	# 			frame_numbers.append(frame)
-
-	# 		# Get the first and last frame numbers
-	# 		start_frame = min(frame_numbers)
-	# 		end_frame = max(frame_numbers)
-
-	# 		# Return the first file path (assumed as the main reference), and frame range details
-	# 		return {
-	# 			"file_path": strings[0],
-	# 			"start_frame": start_frame,
-	# 			"end_frame": end_frame,
-	# 			"is_sequence": True
-	# 			} if start_frame != end_frame else None
-	# 	except:
-	# 		logger.warning("ERROR: Failed to get is image sequence")
-		
-
-	# # EXR CHANNEL MANAGEMENT #
-
-
-	# @err_catcher(name=__name__)
-	# def GetLoaderClip(self, tool):
-	# 	loader_clip = tool.Clip[self.fusion.TIME_UNDEFINED]
-	# 	if loader_clip:        
-	# 		return loader_clip
-		
-	# 	logger.warning("ERROR: Loader contains no clips to explore")
-	
-
-	# @err_catcher(name=__name__)
-	# def move_loaders(self,org_x_pos, org_y_pos, loaders):
-	# 	try:
-	# 		comp = self.getCurrentComp()
-	# 		flow = comp.CurrentFrame.FlowView
-	# 		y_pos_add = 1
-
-	# 		for count, nodeUID in enumerate(loaders, start=0):
-	# 			ldr = CompDb.getNodeByUID(comp, nodeUID)
-	# 			flow.SetPos(ldr, org_x_pos, org_y_pos + y_pos_add * count)
-	# 	except:
-	# 		logger.warning("ERROR: Failed to move loaders")
 
 
 
@@ -3809,7 +3139,7 @@ path = r\"%s\"
 
 	#	This is called from the import buttons in the SM (Import Image and Import 3D)
 	@err_catcher(name=__name__)
-	def addImportState(self, origin, stateType):
+	def addImportState(self, origin, stateType, filepath=None):				#	TODO IMPLEMENT ADDING IMAGE IMPORT STATE TO SM WITH FILEPATH
 		importStates = []
 
 		curSel = origin.getCurrentItem(origin.activeList)
@@ -3837,6 +3167,17 @@ path = r\"%s\"
 							setActive=True,
 							**st.get("kwargs",{}))
 					)
+
+				# actSet.triggered.connect(lambda x=None, st=importState, fp=filepath: origin.createState(
+    			# 			st["stateType"],
+				# 			parent=parent,
+				# 			setActive=True,
+				# 			filepath=fp,
+				# 			**st.get("kwargs", {}))
+				# 	)
+
+
+
 				menu.addAction(actSet)
 
 			# getattr(self.core.appPlugin, "sm_openStateFromNode", lambda x, y, stateType: None)(			#	NOT USED???

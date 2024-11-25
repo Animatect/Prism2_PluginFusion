@@ -140,9 +140,27 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def requestImportPaths(self):
-        #	Opens Project Browser
         try:
+
+            #   TEMP BYPASS OF STATE MANAGER    #
+            fString = ("Please use the Project Browser to Import Images.\n\n"
+                    "Open Project Browser?")
+
+            result = self.core.popupQuestion(
+                fString,
+                title="Import Images",
+                buttons=["Open", "Cancel"],
+                icon=QMessageBox.Warning,
+                )
+
+            #   Cancels Adding the State
+            if result == "Cancel":
+                return False
+
+
+            #	Opens Project Browser
             logger.debug("Opening Project Browser")
+
             self.core.projectBrowser()
             #	Switch to Media Tab
             if self.core.pb:
