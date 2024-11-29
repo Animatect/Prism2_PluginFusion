@@ -1005,16 +1005,11 @@ class Prism_Fusion_Functions(object):
 			#	Get AOV Contexts - empty list if 2drender
 			version = self.core.pb.mediaBrowser.getCurrentVersion()
 			aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
+
 		except Exception as e:
 			self.core.popup(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
 			logger.warning(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
 			return
-
-
-		###		TODO	Framerange in sourceData does not seem to update until Prism instance restarts		TODO
-						#	This means the framerange will not update using Update Images
-						#	Needs furter investigation
-
 
 		try:
 			#	Get sourceData based on mediaType - used to get framerange
@@ -1023,11 +1018,16 @@ class Prism_Fusion_Functions(object):
 			else:
 				sourceData = mediaBrowser.compGetImportSource()
 
+
+		###		TODO	Framerange in sourceData does not seem to update until Prism instance restarts		TODO
+						#	This means the framerange will not update using Update Images
+						#	Needs furter investigation
+
 		except Exception as e:
 			self.core.popup(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
 			logger.warning(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
 			return
-		
+
 		#	Function to aggregate data into importData
 		importData = Helper.makeImportData(self, context, aovDict, sourceData)
 
@@ -1042,29 +1042,43 @@ class Prism_Fusion_Functions(object):
 		# Setup Dialog
 		fString = "Please select an import option:"	
 
-		if importData.get("currentAov") and len(importData.get("aovs", [])) > 1:
-			buttons = ["Current AOV", "All AOVs", "Update Selected", "Cancel"]
+		#	Checks for AOVs or Channels
+		hasAovs = bool(importData.get("aov") and len(importData.get("aovs", [])) > 1)
+		hasChannels = bool(importData.get("channel") and len(importData.get("channels", [])) > 1)
+
+		#	Adds buttons
+		if hasAovs:
+			buttons = ["Current AOV", "All AOVs"]
 		else:
-			buttons = ["Import Media", "Update Version", "Cancel"]
+			buttons = ["Import Media"]
+
+		if hasAovs or hasChannels:
+			buttons.append("Update Selected")
+		else:
+			buttons.append("Update Version")
+
+		buttons.append("Cancel")
 			
+		#	Execute question popup
 		importType, checkbox_checked = self.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=sorting)
 
 		#	Save "Sorting" checkbox state
-		Fus.sortingEnabled(comp, save=True, checked=checkbox_checked)
-
-
-		#	Cancel Option
-		if importType == "Cancel":
-			return
-		
-		#	Update Option
-		if importType in ["Update Selected", "Update Version"]:
-			#	Call the update
-			self.updateImport(comp, importData, importType, sortnodes=not checkbox_checked)
+		if checkbox_checked is not None:
+			Fus.sortingEnabled(comp, save=True, checked=checkbox_checked)
 
 		#	Call the import with options and passing the data
-		else:
+		if importType in ["Import Media", "Current AOV", "All AOVs"]:
 			self.configureImport(comp, importData, importType, sortnodes=not checkbox_checked)
+
+		#	Update Option
+		elif importType in ["Update Selected", "Update Version"]:
+			#	Call the update
+			self.updateImport(comp, importType, importData)
+
+		#	Cancel Option
+		else:
+			logger.debug("Import Canceled")
+			return
 		
 		
 	@err_catcher(name=__name__)
@@ -1080,15 +1094,15 @@ class Prism_Fusion_Functions(object):
 
 		importList = []
 
-		#	Current AOV
 		try:
+			#	For Current AOV
 			if importType == "Current AOV":
 				for importItem in importData["files"]:
-					if importItem["aov"] == importData["currentAov"]:
+					if importItem["aov"] == importData["aov"]:
 						importList.append(importItem)
 						break
 
-			#	All AOVs or single item
+			#	For all AOVs or single item
 			else:
 				for importItem in importData["files"]:
 					importList.append(importItem)
@@ -1129,9 +1143,9 @@ class Prism_Fusion_Functions(object):
 				#	Get channels from image file
 				channels = self.core.media.getLayersFromFile(importItem["basefile"])
 
-				#	If no channels just add Loader
+				#	If no channels or single channel call addSingle
 				if len(channels) <= 1:
-					self.addSingleChannel(comp, toolUID, toolData, refNode, sortnodes)
+					leftmostNode = self.addSingleChannel(comp, toolUID, toolData, refNode, sortnodes)
 
 				#	If multiple channels exists display popup to split
 				else:
@@ -1145,18 +1159,16 @@ class Prism_Fusion_Functions(object):
 
 					if result == "No":
 						#	Get current viewed channel
-						currChannel = importData["currChannel"]
+						currChannel = importData["channel"]
 						#	Call Multi-channel function for current channel
 						leftmostNode = self.addMultiChannel(comp, toolData, channels, currChannel, sortnodes=sortnodes)
 
-					else:
-						comp.Unlock()
-						return
-					
+				
 			comp.EndUndo()
 			comp.Unlock()
 
-			# Fus.sortLoaders(comp, leftmostNode, reconnectIn=True, sortnodes=sortnodes)			#	TODO  Look into this			
+
+			Fus.sortLoaders(comp, leftmostNode, reconnectIn=True, sortnodes=sortnodes)			#	TODO  Look into this			
 
 
 			logger.debug(f"Imported  {importData['identifier']}")
@@ -1207,6 +1219,8 @@ class Prism_Fusion_Functions(object):
 
 		# comp.EndUndo()
 		# comp.Unlock()
+			
+		return ldr
 
 
 	@err_catcher(name=__name__)
@@ -1238,13 +1252,13 @@ class Prism_Fusion_Functions(object):
 
 			#	Edit dict copy
 			toolData_copy["toolUID"] = toolUID
-			toolData_copy["currChannel"] = channel
+			toolData_copy["channel"] = channel
 			toolData_copy["nodeName"] = Helper.makeLdrName(toolData_copy)
 			
 			#	Add Loader with config data
 			ldr = Fus.addTool(comp, "Loader", toolData_copy)
 
-			#	Add mode to Comp Database
+			#	Add node to Comp Database
 			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData_copy)
 
 			#	Get available channels from Loader
@@ -1263,9 +1277,9 @@ class Prism_Fusion_Functions(object):
 				'x': 'RedName',
 				'y': 'GreenName',
 				'z': 'BlueName',
-			}
+				}
 			
-			#	Match the attrs based on the dict
+			#	Match the attrs based on the dict						#	TODO make sure this works for all DCC channel types
 			for channel_str in channelDict:
 				match = re.search(r'\.([a-z])$', channel_str.lower())
 
@@ -1277,7 +1291,6 @@ class Prism_Fusion_Functions(object):
 					if attribute:
 						setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
 
-
 			#	Deselect all
 			flow.Select()
 
@@ -1288,26 +1301,21 @@ class Prism_Fusion_Functions(object):
 
 			Fus.setNodeToLeft(comp, ldr, refNode)								#	TODO  Look into this		
 
-
 			#	If sorting is enabled
 			if sortnodes:
 				self.createWireless(toolUID)
-
 
 		return ldr
 			
 
 	@err_catcher(name=__name__)
-	def updateImport(self, comp, importData, importType, sortnodes=True):
-		
+	def updateImport(self, comp, importType, importData):
 		#	Just pass the import list as it should just be one file
 		if importType == "Update Version":
-			updateList = importData["files"]				#	TODO
+			selUIDs = CompDb.getUIDsFromImportData(comp, "import2d", importData)
 
 		#	Handle selected updates
 		elif importType == "Update Selected":
-			updateList = importData["files"]				#	TODO
-
 			#	Get selected Loaders
 			selTools = Fus.getSelectedTools(comp, "Loader")
 			if len(selTools) < 1:
@@ -1316,70 +1324,73 @@ class Prism_Fusion_Functions(object):
 				return
 						
 			#	Convert selected Tools list to UUID's
-			selUIDs = []
+			selUIDs_all = []
 			for tool in selTools:
-				selUIDs.append(CompDb.getNodeUidFromTool(tool))
+				selUIDs_all.append(CompDb.getNodeUidFromTool(tool))
 
-		else:
-			logger.warning(f"ERROR:  Invalide update command: {importType}")
-			return
+			#	Get selected Media Identifier
+			selMediaId = importData["identifier"]
+			selUIDs = []
+			#	Iterate through UIDS and match only ones for Media ID
+			for uid in selUIDs_all:
+				tdata = CompDb.getNodeInfo(comp, "import2d", uid)
+				if tdata["mediaId"] == selMediaId:
+					selUIDs.append(uid)
 
-		mediaId = importData["identifier"]
+		#	Get file list from importData
+		fileList = importData["files"]
+
 		updateMsgList = []
-
+	
 		#	Iterate through update items
-		for updateItem in updateList:
-			#	Add mediaType to each item
-			updateItem["mediaType"] = importData["mediaType"]
+		for uid in selUIDs:
+			#	Get original node data from database
+			origNodeData = CompDb.getNodeInfo(comp, "import2d", uid)
 
-			#	Get matching record from DB based on Media Identifier
-			origVerRecord = CompDb.getDbRecordFromImportData(comp, "import2d", updateItem)
+			#	Get matching file data from file list based on AOV
+			updateFileData = Helper.getFileDataFromAOV(fileList, origNodeData["aov"])
 
-			#	Check if record exists and Loader exists in Comp
-			if not origVerRecord or not origVerRecord[1]:
+			#	Skip to next item if no result
+			if not updateFileData:
 				continue
-
-			#	Assign from import item
-			origNodeUID = origVerRecord[0]
-			origNodeData = origVerRecord[2]
-
-			#	Check if import item is not in selected list
-			if importType == "Update Selected" and origNodeUID not in selUIDs:
-				continue
+			
+			#	Make copy of original data
+			updateData = origNodeData.copy()
+			#	Update data with new values
+			updateData["version"] = updateFileData["version"]
+			updateData["filepath"] = updateFileData["basefile"]
+			updateData["frame_start"] = updateFileData["frame_start"]
+			updateData["frame_end"] = updateFileData["frame_end"]
 
 			#	Compare versions and get result and result string
-			compareRes = CompDb.compareVersions(origNodeData, updateItem)
+			compareRes, compareMsg = CompDb.compareVersions(origNodeData, updateData)
 
-			#	Add result string to message list
-			updateMsgList.append(compareRes[1] + "\n")
-			
+			#	Add message to message list
+			updateMsgList.append(compareMsg)
+
 			#	If there was a match to the database
-			if compareRes[0]:
+			if compareRes:
 				#	Make dict
-				toolData = {"nodeName": Helper.makeLdrName(updateItem),
-							"version": updateItem["version"],
-							"filepath": updateItem["basefile"],
-							"frame_start": updateItem["frame_start"],
-							"frame_end": updateItem["frame_end"]
+				toolData = {"nodeName": Helper.makeLdrName(updateData),
+							"version": updateData["version"],
+							"filepath": updateData["filepath"],
+							"frame_start": updateData["frame_start"],
+							"frame_end": updateData["frame_end"]
 							}
 
 				#	Get original Loader
-				ldr = CompDb.getNodeByUID(comp, origNodeUID)
+				ldr = CompDb.getNodeByUID(comp, uid)
 				#	Update Loader config
 				Fus.updateTool(ldr, toolData)
 				#	Update Database record
-				CompDb.updateNodeInfo(comp, "import2d", origNodeUID, toolData)
-
+				CompDb.updateNodeInfo(comp, "import2d", uid, toolData)
 
 		#	Show update feedback
-		if len(updateMsgList) == 0:														#	TODO
-			formattedMsg = f"No Selected Loaders for {mediaId}"
+		if len(updateMsgList) == 0:														#	TODO - FINISH VER POPUP
+			formattedMsg = f"No Selected Loaders for {importData['identifier']}"
 		else:
-			formattedMsg = "\n".join(updateMsgList)
+			formattedMsg = "\n".join(sorted(updateMsgList))
 		self.core.popup(formattedMsg)
-
-
-
 
 
 	@err_catcher(name=__name__)
@@ -2851,12 +2862,17 @@ path = r\"%s\"
 			item.setBackground(0, QBrush())
 			item.setForeground(0, QBrush())
 			return
+		
+		#	Adding Alpha to mute task coloring
+		alpha = 75
 
 		qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
+		qcolor.setAlpha(alpha)
 		item.setBackground(0, qcolor)
 		item.setForeground(0, QColor(230, 230, 230))
-		if self.is_background_bright(color):
-			item.setForeground(0, QColor(30, 30, 30))
+
+		# if self.is_background_bright(color):				#	With muted colors text always white
+		# 	item.setForeground(0, QColor(30, 30, 30))
 
 
 
@@ -3209,10 +3225,15 @@ path = r\"%s\"
 
 		dialog = CustomMessageBox(text, title, buttons, parent)
 		dialog.checkbox.setChecked(checked)
-		dialog.exec_()
+		result = dialog.exec_()
 
-		# Return both the clicked button text and the checkbox state
-		return dialog.clicked_button_text, dialog.checkbox_checked
+		# Check if dialog was accepted or rejected
+		if result == QDialog.Accepted:
+			# Return the clicked button text and the checkbox state
+			return dialog.clicked_button_text, dialog.checkbox_checked
+		else:
+			# Handle the "X" case: Return None or default values
+			return None, dialog.checkbox.isChecked()
 		
 	################################################
 	#                                              #
@@ -3509,6 +3530,7 @@ class CustomMessageBox(QDialog):
 
 		self.setWindowTitle(title)
 		self.checkbox_checked = False
+		self.clicked_button_text = None
 
 		# Set up the layout
 		layout = QVBoxLayout(self)

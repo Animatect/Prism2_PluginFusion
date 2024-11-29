@@ -51,7 +51,7 @@ UUID = str
 Toolname = str
 
 
-#   Creates Default Database
+#   Gets list of AOV's from Prism
 @err_catcher(name=__name__)
 def getAovNamesFromAovDict(aovDict:list) -> list:
     try:
@@ -101,17 +101,17 @@ def getFusLegalName(origName:str, check:bool=False) -> str:			#	TODO  Restructur
     return newName
 
 
+#	Sets up the name based on avail data
 @err_catcher(name=__name__)
 def makeLdrName(importData:dict) -> str:
-    #	Sets up the name based on avail data
     try:
         ldrName = importData.get('identifier') or importData.get("mediaId")
 
         if "aov" in importData:
             ldrName = ldrName + f"_{importData['aov']}"
 
-        if "currChannel" in importData:
-            ldrName = ldrName + f"_{importData['currChannel']}"
+        if "channel" in importData:
+            ldrName = ldrName + f"_{importData['channel']}"
    
         ldrName = ldrName + f"_{importData['version']}"
         
@@ -122,6 +122,7 @@ def makeLdrName(importData:dict) -> str:
         return None
 
 
+#   Makes import data dict from various Prism data sources
 @err_catcher(name=__name__)
 def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
     #   Get mediaType from Context
@@ -137,9 +138,9 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
                     "path": context["path"],
                     "extension": "",
                     "version": context["version"],
-                    "currentAov": "",
+                    "aov": "",
                     "aovs": [],
-                    "currChannel": "",
+                    "channel": "",
                     "channels": []
                     }
         
@@ -149,7 +150,7 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
     
     #   Add AOV if it exists
     if "aov" in context:
-        importData["currentAov"] = context["aov"]
+        importData["aov"] = context["aov"]
 
     files = []
 
@@ -164,16 +165,27 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
                 filesList = plugin.core.mediaProducts.getFilesFromContext(aovItem)
                 basefile = filesList[0]
 
+                #   Get file extension
+                if "extension" in context:
+                    extension = context["extension"]
+                else:
+                    _, extension = os.path.splitext(basefile)
+
                 #   Use framerange from sourceData if it exists (sequences)
                 if type(sourceItem[1]) == int:
                     frame_start = sourceItem[1]
                     frame_end = sourceItem[2]
 
                 #   Use video duration for video formats
+                elif extension in plugin.core.media.videoFormats:
+                        duration = plugin.core.media.getVideoDuration(basefile)
+                        frame_start = 1
+                        frame_end = duration
+
+                #   For Stills Images
                 else:
-                    duration = plugin.core.media.getVideoDuration(basefile)
                     frame_start = 1
-                    frame_end = duration
+                    frame_end = 1
 
                 #   Make dict for each AOV
                 fileDict = {
@@ -201,16 +213,27 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
             filesList = plugin.core.mediaProducts.getFilesFromContext(context)
             basefile = filesList[0]
 
+            #   Get file extension
+            if "extension" in context:
+                extension = context["extension"]
+            else:
+                _, extension = os.path.splitext(basefile)
+
             #   Use framerange from sourceData if it exists (sequences)
             if type(sourceData[1]) == int:
                 frame_start = sourceData[1]
                 frame_end = sourceData[2]
 
-            #   Use video duration for vieo formats
+            #   Use video duration for video formats
+            elif extension in plugin.core.media.videoFormats:
+                    duration = plugin.core.media.getVideoDuration(basefile)
+                    frame_start = 1
+                    frame_end = duration
+
+            #   For Stills Images
             else:
-                duration = plugin.core.media.getVideoDuration(basefile)
                 frame_start = 1
-                frame_end = duration
+                frame_end = 1
 
             #   Make dict for each AOV
             fileDict = {
@@ -231,24 +254,17 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
     importData["files"] = files
 
     #   Add additional data if exist
+    importData["extension"] = extension
+
     try:
         if "channel" in context:
-            importData["currChannel"] = context["channel"]
+            importData["channel"] = context["channel"]
 
         channels = plugin.core.media.getLayersFromFile(basefile)
         importData["channels"] = channels
 
     except Exception as e:
         logger.warning(f"ERROR: Unable to add channel data to importData: {e}")
-
-    try:
-        if "extension" in context:
-            importData["extension"] = context["extension"]
-        else:
-            _, extension = os.path.splitext(files[0]["basefile"])
-            importData["extension"] = extension
-    except Exception as e:
-        logger.warning(f"ERROR: Unable to add extention to importData: {e}")
 
     if "versionPaths" in context:
         importData["versionPaths"] = context["versionPaths"]
@@ -265,4 +281,17 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
     return importData
 
 
-
+#   Return File data based on desired AOV
+@err_catcher(name=__name__)
+def getFileDataFromAOV(fileList:list, aov:str) -> dict:
+    #   If list is one item, jut return the item
+    if len(fileList) == 1:
+        return fileList[0]
+    
+    #   Iterate through list to find matching AOV
+    for fileData in fileList:
+        if "aov" in fileData:
+            if fileData["aov"] == aov:
+                return fileData
+            
+    return None

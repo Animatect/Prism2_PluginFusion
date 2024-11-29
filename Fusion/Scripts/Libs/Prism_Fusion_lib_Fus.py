@@ -218,6 +218,7 @@ def getCurrentFrame(comp) -> int:
         return None
 
 
+#   Adds tool of specified type and configures given data
 @err_catcher(name=__name__)
 def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, autoConnect=1) -> Tool:
     try:
@@ -239,8 +240,8 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
         if "aov" in toolData:
             tool.SetData('Prism_AOV', toolData['aov'])
 
-        if "currChannel" in toolData:
-            tool.SetData('Prism_Channel', toolData['currChannel'])
+        if "channel" in toolData:
+            tool.SetData('Prism_Channel', toolData['channel'])
 
         if "version" in toolData:
             tool.SetData('Prism_Version', toolData['version'])
@@ -273,6 +274,7 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
         return None
     
 
+#   Updates tool config for given data
 @err_catcher(name=__name__)
 def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1) -> Tool:          #   TODO IS THIS NEEDED OR USE ADDTOOL?
     try:
@@ -281,28 +283,11 @@ def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1
         if "nodeName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
 
-        # if "toolUID" in toolData:
-        #     tool.SetData('Prism_UUID', toolData['toolUID'])
-        # if "nodeUID" in toolData:
-        #     tool.SetData('Prism_UUID', toolData['nodeUID'])
-
-        # if "mediaId" in toolData:
-        #     tool.SetData('Prism_MediaID', toolData['mediaId'])
-
-        # if "aov" in toolData:
-        #     tool.SetData('Prism_AOV', toolData['aov'])
-
         if "version" in toolData:
             tool.SetData('Prism_Version', toolData['version'])
 
-        # if "mediaType" in toolData:
-        #     tool.SetData('Prism_MediaType', toolData['mediaType'])
-
         if "filepath" in toolData:
             tool.Clip = toolData['filepath']
-
-        # if "fuseFormat" in toolData:
-        #     tool["OutputFormat"] = toolData['fuseFormat']
 
         if "frame_start" in toolData:
             tool.GlobalIn[0] = toolData["frame_start"]
@@ -323,6 +308,7 @@ def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1
         return None
 
 
+#   Returns type of tool
 @err_catcher(name=__name__)
 def getNodeType(tool:Tool) -> str:
     try:
@@ -332,6 +318,7 @@ def getNodeType(tool:Tool) -> str:
         return None
 
 
+#   Returns all tools of specified type
 @err_catcher(name=__name__)
 def getAllToolsByType(comp, type:str) -> list:
     try:
@@ -346,6 +333,7 @@ def getAllToolsByType(comp, type:str) -> list:
         return None
     
 
+#   Returns tools selected in Comp
 @err_catcher(name=__name__)
 def getSelectedTools(comp, type:str) -> list:
     try:
@@ -671,6 +659,7 @@ def sortLoaders(comp, posRefNode:Tool, reconnectIn:bool=True, sortnodes:bool=Tru
         loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh and l.GetData("Prism_UUID")]
         loaderstop2bot = sorted(loaders, key=lambda ld: flow.GetPosTable(ld)[2])
         layers = set([splitLoaderName(ly.Name)[0] for ly in loaders])
+        
     except:
         logger.warning("ERROR: Cannot sort loaders - unable to resolve threshold in the flow")
         return
@@ -729,74 +718,3 @@ def splitLoaderName(name:str) -> list:
     except:
         logger.warning(f"ERROR: Unable to split loader name {name}")
 
-
-
-
-
-
-
-
-
-# @err_catcher(name=__name__)                           #   USED???
-# def find_extreme_loader(comp):
-#     flow = comp.CurrentFrame.FlowView()
-
-#     # Initialize variables to track the leftmost lower Loader node
-#     leftmost_lower_loader = None
-#     min_x = -float('inf')
-#     min_y = float('inf')
-
-#     # Iterate through all tools in the composition
-#     for tool in comp.GetToolList().values():
-#         # Check if the tool is of type "Loader"
-#         if tool.GetAttrs()['TOOLS_RegID'] == 'Loader':
-#             # Get the position of the Loader node
-#             position = flow.GetPosTable(tool)
-            
-#             if position:
-#                 x, y = position[1], position[2]
-#                 # Check if this Loader node is the leftmost lower node
-#                 if (y < min_y) or (y == min_y and x < min_x):
-#                     min_x = x
-#                     min_y = y
-#                     leftmost_lower_loader = tool
-
-#     # Output the leftmost lower Loader node
-#     return leftmost_lower_loader
-
-
-
-# @err_catcher(name=__name__)                                   #   USED ????
-# def find_extreme_position(comp, thisnode=None, ignore_node_type=None, find_min=True):
-#     flow = comp.CurrentFrame.FlowView
-
-#     if find_min:
-#         thresh_x_position, thresh_y_position = float('inf'), float('inf')
-#     else: 
-#         thresh_x_position, thresh_y_position = -float('inf'), float('inf')
-
-#     extreme_node = None
-
-#     all_nodes = comp.GetToolList(False).values()
-
-#     for node in all_nodes:
-#         if thisnode and node.Name == thisnode.Name:
-#             continue
-
-#         if ignore_node_type and node.GetAttrs("TOOLS_RegID") == ignore_node_type:
-#             continue
-
-#         postable = flow.GetPosTable(node)
-#         x, y = postable.values() if postable else (thresh_x_position, thresh_y_position)
-
-#         x_thresh = x < thresh_x_position if find_min else x > thresh_x_position
-#         y_thresh = y < thresh_y_position
-
-#         if x_thresh:
-#             thresh_x_position = x
-#             extreme_node = node
-
-#         if y_thresh:
-#             thresh_y_position = y
-
-#     return extreme_node, thresh_x_position, thresh_y_position

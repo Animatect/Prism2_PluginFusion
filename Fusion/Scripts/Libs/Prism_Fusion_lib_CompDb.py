@@ -58,7 +58,7 @@ logger = logging.getLogger(__name__)
 #           "import2d" (
 #               UUID: {
 #                   NodeData: {
-#                        "nodeName": string       (  {mediaId}_{aov}_{version}  )
+#                        "nodeName": string       (  {mediaId}_{aov}_{channel}_{version}  )
 #                        "version": string        (  v001  )
 #                        "mediaId": string        (  IdentifierName  )
 #                        "displayName": string    (  IdentifierName (2d)  )
@@ -191,15 +191,53 @@ def loadPrismFileDb(comp) -> dict:
 
 #   Saves the Database Dict
 @err_catcher(name=__name__)
-def savePrismFileDb(comp, cpData:dict):
+def savePrismFileDb(comp, cpData_orig:dict):
+
+    #   Clean DB dict before saving
+    cpData_cleaned = cleanPrismFileDb(comp, cpData_orig)
+
+    #   Only use cleaned if it is not None
+    if cpData_cleaned:
+        cpData = cpData_cleaned
+    else:
+        cpData = cpData_orig
+
     try:
         cpData_str =  json.dumps(cpData, indent=4)
         comp.SetData("PrismDB", cpData_str)
         logger.debug("Saved Prism Comp Database to Comp")
 
         print(f"\n***  Prism Database:\n{print(comp.GetData('PrismDB'))}\n")                            #   TESTING
+
     except:
         logger.warning("ERROR: Failed to save Prism Comp Database to Comp")
+
+
+#   Removes DB records if the node does not exist in Comp
+@err_catcher(name=__name__)
+def cleanPrismFileDb(comp, cpData_orig:dict) ->dict:
+    try:
+        # Create a deep copy of the original data to avoid modifying it directly
+        cpData_cleaned = cpData_orig.copy()
+
+        # Iterate through all subcategories under the "nodes" key
+        for subcategory, nodes in cpData_cleaned["nodes"].items():
+            # Collect UIDs to remove if they do not exist in the composition
+            uids_to_remove = [
+                node_uid for node_uid in nodes
+                if not nodeExists(comp, node_uid)
+                ]
+
+            # Remove the invalid UIDs from the current subcategory
+            for uid in uids_to_remove:
+                logger.warning(f"****  Cleaned {uid} from Database")                #   TODO change to Debug
+                del nodes[uid]
+
+        return cpData_cleaned
+        
+    except Exception as e:
+        logger.warning(f"ERROR: Failed to Clean Prism Comp Database:\n{e}")
+        return None
 
 
 #   Adds a new Media Identifier to the DB
@@ -326,57 +364,54 @@ def removeNodeFromDB(comp, type:str, UUID:str):
         logger.warning(f"ERROR: Unable to remove {UUID} from the Comp Database")
 
 
-
-
 #   Gets the database record for a given importData dict
 @err_catcher(name=__name__)
-def getDbRecordFromImportData(comp, type:str, importData:dict) -> dict:
+def getUIDsFromImportData(comp, type:str, importData:dict) -> dict:
     cpData = loadPrismFileDb(comp)
 
     if not cpData:
         return None
     
-    # Get the requested node type
-    nodes = cpData.get("nodes", {}).get(type, {})
-    if not nodes:
-        logger.warning(f"ERROR: Node type '{type}' not found in the database.")
-        return None
+    uids = []
     
-    # Extract fields from importData
-    import_mediaId = importData.get("identifier")
-    import_mediaType = importData.get("mediaType")
-    import_aov = importData.get("aov")
-    import_channel = importData.get("currChannel")             #   TODO
-
-    # Search for a record matching all the available items
-    for uuid, node_data in nodes.items():
-        match = True
-
-        if node_data.get("mediaId") != import_mediaId:
-            match = False
+    try:
+        #   Get the requested node type
+        nodes = cpData.get("nodes", {}).get(type, {})
+        if not nodes:
+            logger.warning(f"ERROR: Node type '{type}' not found in the database.")
+            return None
         
-        if node_data.get("mediaType") != import_mediaType:
-            match = False
+        #   Extract fields from importData
+        import_mediaId = importData.get("identifier")
+        import_mediaType = importData.get("mediaType")
+        import_aov = importData.get("aov")
+        import_channel = importData.get("channel")
 
-        # Check aov if it exists in both the database and importData
-        if "aov" in node_data and import_aov is not None and import_aov != "":
-            if node_data.get("aov") != import_aov:
+        # Search for a record matching all the available items
+        for uuid, node_data in nodes.items():
+            match = True
+
+            if node_data.get("mediaId") != import_mediaId:
+                match = False
+            
+            if node_data.get("mediaType") != import_mediaType:
                 match = False
 
-        # Check currChannel if it exists in both the database and importData
-        if "currChannel" in node_data and import_channel is not None:
-            if node_data.get("currChannel") != import_channel:
-                match = False
+            # Check aov if it exists in both the database and importData
+            if "aov" in node_data and import_aov is not None and import_aov != "":
+                if node_data.get("aov") != import_aov:
+                    match = False
 
-        if match:
-            # If all checks pass, return the match
-            exists = nodeExists(comp, uuid)
-            if exists:
-                return [uuid, exists, node_data]
+            if match:
+                # If all checks pass, return the match
+                if nodeExists(comp, uuid):
+                    uids.append(uuid)
+
+        return uids
     
-    logger.debug(f"No node found with mediaId '{import_mediaId}' in type '{type}'.")
-    return None
-
+    except:
+        logger.warning(f"No nodes found with mediaId '{import_mediaId}' in type '{type}'.")
+        return None
 
 
 #   Gets the database record for a given Identifier
@@ -387,13 +422,13 @@ def getDbRecordFromMediaId(comp, type:str, mediaId:str) -> dict:
     if not cpData:
         return None
     
-    # Get the requested node type
+    #   Get the requested node type
     nodes = cpData.get("nodes", {}).get(type, {})
     if not nodes:
         logger.warning(f"ERROR: Node type '{type}' not found in the database.")
         return None
     
-    # Search for a node matching the given mediaId
+    #   Search for a node matching the given mediaId
     for uuid, node_data in nodes.items():
         if node_data.get("mediaId") == mediaId:
             exists = nodeExists(comp, uuid)
@@ -402,7 +437,6 @@ def getDbRecordFromMediaId(comp, type:str, mediaId:str) -> dict:
                 
     logger.warning(f"ERROR: No node found with mediaId '{mediaId}' in type '{type}'.")
     return None
-
 
 
 #   Updates the Node's Data in the DB
@@ -439,7 +473,7 @@ def updateNodeInfo(comp, type:str, UUID:str, nodeData:dict) -> bool:
 
 #   Return the Node Data for a given Node
 @err_catcher(name=__name__)
-def getNodeInfo(comp, type:str, UUID:str) -> bool:
+def getNodeInfo(comp, type:str, UUID:str) -> dict:
     cpData = loadPrismFileDb(comp)
 
     try:
@@ -453,6 +487,37 @@ def getNodeInfo(comp, type:str, UUID:str) -> bool:
         return False
 
 
+#   Returns list of import files based on selected tools
+@err_catcher(name=__name__)
+def getFilesFromSelTools(comp, importData:dict, selUIDs:list) -> list:
+    selItems = []
+    #   Get files list
+    importFileList = importData["files"]
+
+    for importFile in importFileList:
+        #   Make copy to edit
+        importFileData = importData.copy()
+
+        #   Add items to copy
+        importFileData["aov"] = importFile["aov"]
+
+        if "channel" in importData:
+            importFileData["channel"] = importData["channel"]
+
+        importFileData["files"] = [importFile]
+
+        #   Get associated UIDs for each file in list
+        uids = getUIDsFromImportData(comp, "import2d", importFileData)
+
+        #   Filter files by selected UIDs
+        for uid in uids:
+            if uid in selUIDs:
+                selItems.append(importFile)
+
+    return selItems
+
+
+#   Compares two version data dicts and returns result and message
 @err_catcher(name=__name__)
 def compareVersions(origVerRecord:dict, updateVerRecord:dict) -> Tuple[bool, str]:
     try:
@@ -476,8 +541,8 @@ def compareVersions(origVerRecord:dict, updateVerRecord:dict) -> Tuple[bool, str
         compareName = origVerRecord.get("mediaId")
         if "aov" in origVerRecord:
             compareName = compareName + f"_{origVerRecord['aov']}"
-        if "currChannel" in origVerRecord:
-            compareName = compareName + f"_{origVerRecord['currChannel']}"
+        if "channel" in origVerRecord:
+            compareName = compareName + f"_{origVerRecord['channel']}"
    
         ## Compare versions
 
@@ -508,16 +573,16 @@ def nodeExists(comp, nodeUID:str) -> bool:
     return False
 
 
+#   Returns tool based on UID
 @err_catcher(name=__name__)
 def getNodeByUID(comp, nodeUID:str) -> Union[Tool, None]:
     try:
-        # Iterate through all tools in the composition
+        #   Gets all tools
         tools = comp.GetToolList(False)
 
-        for tool_name, tool in tools.items():  # tool_name is the key, tool is the value
+        for tool_name, tool in tools.items():
             toolUID = tool.GetData('Prism_UUID')
 
-        # Check if the tool has the attribute 'Prism_UUID' and if it matches the provided UID
             if toolUID == nodeUID:
                 return tool
             
@@ -528,6 +593,7 @@ def getNodeByUID(comp, nodeUID:str) -> Union[Tool, None]:
         return None
 
 
+#   Returns tool name based on UID
 @err_catcher(name=__name__)
 def getNodeNameByUID(comp, nodeUID:str) -> Toolname:
     tool = getNodeByUID(comp, nodeUID)
@@ -536,6 +602,7 @@ def getNodeNameByUID(comp, nodeUID:str) -> Toolname:
     return toolName
 
 
+#   Returns tool name for tool
 @err_catcher(name=__name__)
 def getNodeNameByTool(tool:Tool) -> Toolname:
     try:
@@ -546,6 +613,7 @@ def getNodeNameByTool(tool:Tool) -> Toolname:
         return None
     
 
+#   Returns tool's UID
 @err_catcher(name=__name__)
 def getNodeUidFromTool(tool) -> str:
     try:
@@ -556,7 +624,7 @@ def getNodeUidFromTool(tool) -> str:
         return None
 
 
-#   Return the Node Data for a given Node
+#   Returns tool UID based on Identifier
 @err_catcher(name=__name__)
 def getNodeUidFromMediaId(comp, type:str, mediaId:str) -> Union[str | list | None]:
     cpData = loadPrismFileDb(comp)
@@ -564,16 +632,16 @@ def getNodeUidFromMediaId(comp, type:str, mediaId:str) -> Union[str | list | Non
     matchingNodes = []
 
     try:
-        # Iterate through nodes of the given type
+        #   Iterate through nodes of the given type
         for uuid, nodeData in cpData["nodes"].get(type, {}).items():
             if nodeData.get("mediaId") == mediaId:
                 matchingNodes.append(uuid)
         
-        # Return None if no matching mediaId is found
+        #   Return None if no matching mediaId is found
         if len(matchingNodes) == 0:
             return None
         
-        #   Return Int if there is only one node
+        #   Return string if there is only one node
         elif len(matchingNodes) == 1:
             return matchingNodes[0]
         
@@ -585,7 +653,7 @@ def getNodeUidFromMediaId(comp, type:str, mediaId:str) -> Union[str | list | Non
         return None
     
 
-#   Return the Node Data for a given Node
+#   Returns tool UID based on Identifier display name
 @err_catcher(name=__name__)
 def getNodeUidFromMediaDisplayname(comp, type:str, mediaId:str) -> Union[UUID | None]:
     cpData = loadPrismFileDb(comp)
@@ -679,6 +747,7 @@ def setPassThrough(comp, nodeUID:str=None, node:str=None, passThrough=False):
     node.SetAttrs({"TOOLB_PassThrough": passThrough})
 
 
+#   Reloads the Loaders and sets the clip start/end/length
 @err_catcher(name=__name__)
 def reloadLoader(fusion, comp, node, filePath=None, firstframe=None, lastframe=None):
     try:
