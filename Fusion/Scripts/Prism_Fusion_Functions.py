@@ -1273,8 +1273,8 @@ class Prism_Fusion_Functions(object):
 			channelDict = channelData[channel]
 
 			# Dictionary to map channel types to attribute names
-			channel_attributes = {															#	TODO Add more layer types
-				'r': 'RedName', 'red': 'RedName',											#	like Z depth, V (Blender), etc
+			channel_attributes = {
+				'r': 'RedName', 'red': 'RedName',
 				'g': 'GreenName', 'green': 'GreenName',
 				'b': 'BlueName', 'blue': 'BlueName',
 				'a': 'AlphaName', 'alpha': 'AlphaName',
@@ -1282,18 +1282,33 @@ class Prism_Fusion_Functions(object):
 				'y': 'GreenName',
 				'z': 'BlueName',
 				}
-			
-			#	Match the attrs based on the dict						#	TODO make sure this works for all DCC channel types
+
+
+			# Check if contains only a Z-channel (for Depth, Mist, etc)
+			z_channel = None
 			for channel_str in channelDict:
-				match = re.search(r'\.([a-z])$', channel_str.lower())
+				if re.search(r'\.z$', channel_str.lower()):
+					z_channel = channel_str
 
-				if match:
-					suffix = match.group(1)
-					attribute = channel_attributes.get(suffix)
+			#	Assign the Z-channel to the R, G, B, and Z
+			if z_channel and len(channelDict) == 1:
+				ldr.Clip1.OpenEXRFormat.RedName = z_channel
+				ldr.Clip1.OpenEXRFormat.GreenName = z_channel
+				ldr.Clip1.OpenEXRFormat.BlueName = z_channel
+				ldr.Clip1.OpenEXRFormat.ZName = z_channel
 
-					#	Configure Loader channels based on dict
-					if attribute:
-						setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
+			else:
+				#	Match the attrs based on the dict						#	TODO make sure this works for all DCC channel types
+				for channel_str in channelDict:
+					match = re.search(r'\.([a-z])$', channel_str.lower())
+
+					if match:
+						suffix = match.group(1)
+						attribute = channel_attributes.get(suffix)
+
+						#	Configure Loader channels based on dict
+						if attribute:
+							setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
 
 			#	Deselect all
 			flow.Select()
