@@ -109,10 +109,51 @@ class Prism_Fusion_externalAccess_Functions(object):
 		
 		#	Add start layout to the groupbox
 		lo_prismFusionOptions.addLayout(lo_prismStartMode)
+
+		#	Add a small vert spacer between start layout and coloring layout
+		vertSpacer1 = QSpacerItem(20, 2, QSizePolicy.Minimum, QSizePolicy.Fixed)
+		lo_prismFusionOptions.addItem(vertSpacer1)
+
+		# Layout for Task Node Coloring
+		lo_taskColoring = QHBoxLayout()
+		origin.l_taskColoring = QLabel("Task Node Coloring:     ")
+		origin.cb_taskColoring = QComboBox()
+
+		# Task Node Coloring combo box
+		origin.cb_taskColoring.addItems(["Disabled", "All Nodes", "Loader Nodes"])
+		origin.cb_taskColoring.setCurrentIndex(0)
+		lo_taskColoring.addWidget(origin.l_taskColoring)
+		lo_taskColoring.addWidget(origin.cb_taskColoring)
+
+		#	Connect to configure UI funct
+		origin.cb_taskColoring.activated.connect(lambda: self.configureBrightnessUi(origin))
+
+		# Spacer
+		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		lo_taskColoring.addItem(spacer)
+
+		# Color Brightness
+		origin.l_colorBrightness = QLabel("Color Brightness:       ")
+		origin.cb_colorBrightness = QComboBox()
+
+		# Add options to the Color Brightness combo box (10% to 100% in 10% increments)
+		brightness_levels = [f"{i}%" for i in range(10, 110, 10)]
+		origin.cb_colorBrightness.addItems(brightness_levels)
+		origin.cb_colorBrightness.setCurrentIndex(9)  # Default to "100%"
+		lo_taskColoring.addWidget(origin.l_colorBrightness)
+		lo_taskColoring.addWidget(origin.cb_colorBrightness)
+
+		lo_taskColoring.addWidget(origin.cb_colorBrightness)
+
+		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		lo_taskColoring.addItem(spacer)
+
+		# Add task coloring layout to the groupbox
+		lo_prismFusionOptions.addLayout(lo_taskColoring)
 		
 		#	Add a small vert spacer between the combo box layout and checkbox layout
-		vertSpacer = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
-		lo_prismFusionOptions.addItem(vertSpacer)
+		vertSpacer2 = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
+		lo_prismFusionOptions.addItem(vertSpacer2)
 		
 		#	Create a horz layout for the Dev Menu
 		lo_installDevTools = QHBoxLayout()
@@ -133,6 +174,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 		#	Add the Prism Fusion Options group box to the tab layout
 		tab.layout().addWidget(origin.gb_prismFusionOptions)
 
+	
 		#	ToolTips
 		tip = ("Prism launch behaviour when Fusion opens:\n\n"
 		 		"   Automatic:   Prism starts whenever Fusion is opened.\n"
@@ -141,48 +183,21 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.l_prismStartMode.setToolTip(tip)
 		origin.cb_prismStartMode.setToolTip(tip)
 
+		tip = ("Mode of the task coloring in the Media Tab -> rcl menu:\n\n"
+		 	   "    Disabled:            Task / Tool coloring is disabled.\n"
+			   "    All Nodes:           Both Loaders and connected Wireless tools will be colored.\n"
+			   "    Loader Nodes:    Only Loader Nodes will be colored.")
+		origin.l_taskColoring.setToolTip(tip)
+		origin.cb_taskColoring.setToolTip(tip)
+
+		tip = "Controls the brightness of the Task color in the Media Tab."
+		origin.l_colorBrightness.setToolTip(tip)
+		origin.cb_colorBrightness.setToolTip(tip)
+
 		tip = "Install Prism Development menu to Fusion when adding the integration."
 		origin.l_installDevTools.setToolTip(tip)
 		origin.chk_installDevTools.setToolTip(tip)
 
-
-		# origin.gb_bldAutoSave = QGroupBox("Auto save renderings")
-		# lo_bldAutoSave = QVBoxLayout()
-		# origin.gb_bldAutoSave.setLayout(lo_bldAutoSave)
-		# origin.gb_bldAutoSave.setCheckable(True)
-		# origin.gb_bldAutoSave.setChecked(False)
-
-		# origin.chb_bldRperProject = QCheckBox("use path only for current project")
-
-		# w_bldAutoSavePath = QWidget()
-		# lo_bldAutoSavePath = QHBoxLayout()
-		# origin.le_bldAutoSavePath = QLineEdit()
-		# b_bldAutoSavePath = QPushButton("...")
-
-		# lo_bldAutoSavePath.setContentsMargins(0, 0, 0, 0)
-		# b_bldAutoSavePath.setMinimumSize(40, 0)
-		# b_bldAutoSavePath.setMaximumSize(40, 1000)
-		# b_bldAutoSavePath.setFocusPolicy(Qt.NoFocus)
-		# b_bldAutoSavePath.setContextMenuPolicy(Qt.CustomContextMenu)
-		# w_bldAutoSavePath.setLayout(lo_bldAutoSavePath)
-		# lo_bldAutoSavePath.addWidget(origin.le_bldAutoSavePath)
-		# lo_bldAutoSavePath.addWidget(b_bldAutoSavePath)
-
-		# lo_bldAutoSave.addWidget(origin.chb_bldRperProject)
-		# lo_bldAutoSave.addWidget(w_bldAutoSavePath)
-		# tab.layout().addWidget(origin.gb_bldAutoSave)
-
-		# if hasattr(self.core, "projectPath") and self.core.projectPath is not None:
-		# 	origin.le_bldAutoSavePath.setText(self.core.projectPath)
-
-		# b_bldAutoSavePath.clicked.connect(
-		# 	lambda: origin.browse(
-		# 		windowTitle="Select render save path", uiEdit=origin.le_bldAutoSavePath
-		# 	)
-		# )
-		# b_bldAutoSavePath.customContextMenuRequested.connect(
-		# 	lambda: self.core.openFolder(origin.le_bldAutoSavePath.text())
-		# )
 	
 	@err_catcher(name=__name__)
 	def userSettings_saveSettings(self, origin, settings):
@@ -204,10 +219,12 @@ class Prism_Fusion_externalAccess_Functions(object):
 			settings["Fusion"]["autosaverender"] = origin.gb_bldAutoSave.isChecked()
 			settings["Fusion"]["autosaveperproject"] = origin.chb_bldRperProject.isChecked()
 
-			#	Saves Prism Start Mode option
+			#	Saves Fusion Options
 			settings["Fusion"]["prismStartMode"] = origin.cb_prismStartMode.currentText()
 			self.setStartmodeConfig(origin.cb_prismStartMode.currentText())
 
+			settings["Fusion"]["taskColorMode"] = origin.cb_taskColoring.currentText()
+			settings["Fusion"]["colorBrightness"] = origin.cb_colorBrightness.currentText()
 
 		except Exception as e:
 			logger.warning(f"ERROR: Could not save user settings:\n{e}")
@@ -244,6 +261,26 @@ class Prism_Fusion_externalAccess_Functions(object):
 				#	Defaults to Prompt mode
 				else:
 					origin.cb_prismStartMode.setCurrentIndex(1)
+
+				#	Loads Task Coloring if exists
+				if "taskColorMode" in settings["Fusion"]:
+					idx = origin.cb_taskColoring.findText(settings["Fusion"]["taskColorMode"])
+					if idx != -1:
+						origin.cb_taskColoring.setCurrentIndex(idx)
+				#	Defaults to Prompt mode
+				else:
+					origin.cb_taskColoring.setCurrentIndex(1)
+
+				#	Loads Task Coloring brightness if exists
+				if "colorBrightness" in settings["Fusion"]:
+					idx = origin.cb_colorBrightness.findText(settings["Fusion"]["colorBrightness"])
+					if idx != -1:
+						origin.cb_colorBrightness.setCurrentIndex(idx)
+				#	Defaults to Prompt mode
+				else:
+					origin.cb_colorBrightness.setCurrentIndex(4)
+
+				self.configureBrightnessUi(origin)
 
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to load user settings:\n{e}")
@@ -293,6 +330,18 @@ class Prism_Fusion_externalAccess_Functions(object):
 	@err_catcher(name=__name__)
 	def copySceneFile(self, origin, origFile, targetPath, mode="copy"):
 		pass
+
+
+	#	Sets up Coloring UI
+	@err_catcher(name=__name__)
+	def configureBrightnessUi(self, origin):
+		isEnabled = False
+
+		if origin.cb_taskColoring.currentText() in ["All Nodes", "Loader Nodes"]:
+			isEnabled = True
+		
+		origin.l_colorBrightness.setEnabled(isEnabled)
+		origin.cb_colorBrightness.setEnabled(isEnabled)
 
 
 	# Saves the Start mode to the Scripts config file

@@ -217,7 +217,6 @@ def savePrismFileDb(comp, cpData_orig:dict):
 @err_catcher(name=__name__)
 def cleanPrismFileDb(comp, cpData_orig:dict) ->dict:
     try:
-        # Create a deep copy of the original data to avoid modifying it directly
         cpData_cleaned = cpData_orig.copy()
 
         # Iterate through all subcategories under the "nodes" key
@@ -230,7 +229,7 @@ def cleanPrismFileDb(comp, cpData_orig:dict) ->dict:
 
             # Remove the invalid UIDs from the current subcategory
             for uid in uids_to_remove:
-                logger.warning(f"****  Cleaned {uid} from Database")                #   TODO change to Debug
+                logger.debug(f"Cleaned {uid} record from Database")
                 del nodes[uid]
 
         return cpData_cleaned
@@ -705,11 +704,8 @@ def getAllConnectedNodes(comp, nodeUIDs:Union[list|str]) -> list:
     allToolUIDs = []
 
     try:
-        if isinstance(nodeUIDs, list):
-            for uid in nodeUIDs:
-                mainToolsUIDs.append(uid)
-        else:
-            mainToolsUIDs.append(nodeUIDs)
+        #   Handle single or multiple nodeUIDs
+        mainToolsUIDs = nodeUIDs if isinstance(nodeUIDs, list) else [nodeUIDs]
 
         #	Check if there are any Loaders for this Task
         if len(mainToolsUIDs) == 0:

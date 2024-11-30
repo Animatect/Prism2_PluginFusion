@@ -219,6 +219,10 @@ class Prism_Fusion_Functions(object):
 			logger.warning("ERROR: Linux is not supported at this time")
 			return False
 		
+		#	Gets task color settings from the DCC settings
+		self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
+		self.colorBrightness = self.core.getConfig("Fusion", "colorBrightness")
+		
 		self.core.setActiveStyleSheet("Fusion")
 		appIcon = QIcon(
 			os.path.join(self.core.prismRoot, "Scripts", "UserInterfacesPrism", "p_tray.png")
@@ -2769,35 +2773,49 @@ path = r\"%s\"
 	#                                              #
 	################################################
 	
+	#	Returns an average luminance value
 	@err_catcher(name=__name__)
 	def calculate_luminance(self, color:dict):
-		r,g,b = color['R'], color['G'], color['B']
-		# No need for normalization if RGB values are already in [0, 1]
-		luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
-		return luminance
+		try:
+			r,g,b = color['R'], color['G'], color['B']
+			# No need for normalization if RGB values are already in [0, 1]
+			luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+			return luminance
+		except:
+			logger.warning("ERROR:  Unable to calculate luminance")
+			return 0.4
 
+
+	#	Determines if color is bighter than threshold
 	@err_catcher(name=__name__)
 	def is_background_bright(self, color:dict, threshold=0.5):
 		luminance = self.calculate_luminance(color)
 		return luminance > threshold
-
-	@err_catcher(name=__name__)
-	def create_color_icon(self, color, diameter=8):
-		# Create a QPixmap to draw the circle
-		pixmap = QPixmap(diameter, diameter)
-		pixmap.fill(QColor("transparent"))  # Transparent background
-		
-		# Draw the circle
-		painter = QPainter(pixmap)
-		painter.setRenderHint(QPainter.Antialiasing)
-		painter.setBrush(color)
-		painter.setPen(QColor("transparent"))  # No border
-		painter.drawEllipse(0, 0, diameter, diameter)
-		painter.end()
-		
-		return pixmap
 	
 
+	#	Creates colored icons for rcl task color menu
+	@err_catcher(name=__name__)
+	def create_color_icon(self, color, diameter=8):
+		try:
+			# Create a QPixmap to draw the circle
+			pixmap = QPixmap(diameter, diameter)
+			pixmap.fill(QColor("transparent"))  # Transparent background
+			
+			# Draw the circle
+			painter = QPainter(pixmap)
+			painter.setRenderHint(QPainter.Antialiasing)
+			painter.setBrush(color)
+			painter.setPen(QColor("transparent"))  # No border
+			painter.drawEllipse(0, 0, diameter, diameter)
+			painter.end()
+			
+			return pixmap
+		except:
+			logger.warning("ERROR: Unable to create task color icon")
+			return None
+	
+
+	#	Selects desired tools in Comp
 	@err_catcher(name=__name__)
 	def selecttasknodes(self, nodeUIDs):
 		comp = self.getCurrentComp()
@@ -2822,11 +2840,23 @@ path = r\"%s\"
 				pass
 
 
+	#	Colors tools in Comp based on Color mode in DCC settings
 	@err_catcher(name=__name__)
 	def colorTaskNodes(self, nodeUIDs, color, item, category):
 		comp = self.getCurrentComp()
 
-		toolsToColorUID = CompDb.getAllConnectedNodes(comp, nodeUIDs)
+		#	Colors the Loaders and wireless nodes
+		if self.taskColorMode == "All Nodes":
+			toolsToColorUID = CompDb.getAllConnectedNodes(comp, nodeUIDs)
+
+		#	Only colors the Loader nodes
+		elif self.taskColorMode == "Loader Nodes":
+        #   Handle single or multiple nodeUIDs
+			toolsToColorUID = nodeUIDs if isinstance(nodeUIDs, list) else [nodeUIDs]
+
+		#	Coloring is disabled
+		else:
+			return
 		
 		if not toolsToColorUID:
 			logger.debug("There are not Loaders associated with this task.")
@@ -2855,6 +2885,7 @@ path = r\"%s\"
 		CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
 
 
+	#	Colors Media Task based on Color mode in DCC settings
 	@err_catcher(name=__name__)
 	def colorItem(self, item, color):
 		#	Check if R, G, and B are all 0.000011 to clear the color
@@ -2863,16 +2894,25 @@ path = r\"%s\"
 			item.setForeground(0, QBrush())
 			return
 		
-		#	Adding Alpha to mute task coloring
-		alpha = 75
+		#	Convert brightness percent (e.g., "75%") to an integer alpha value (0–255)
+		try:
+			percentage = int(self.colorBrightness.strip('%'))
+			alpha = int((percentage / 100) * 255)
+		except ValueError:
+			alpha = 75  # Default alpha if conversion fails
 
 		qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
+
+			#	Adding Alpha to mute task coloring
 		qcolor.setAlpha(alpha)
+
 		item.setBackground(0, qcolor)
 		item.setForeground(0, QColor(230, 230, 230))
 
-		# if self.is_background_bright(color):				#	With muted colors text always white
-		# 	item.setForeground(0, QColor(30, 30, 30))
+		#	If brightness is high, use luminance checker
+		if alpha > 124:
+			if self.is_background_bright(color):
+				item.setForeground(0, QColor(30, 30, 30))
 
 
 
@@ -2885,6 +2925,10 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def onMediaBrowserTaskUpdate(self, origin, curTask):
+		#	If DCC 'Task Node Coloring' is disabled
+		if self.taskColorMode == "Disabled":
+			return
+		
 		comp = self.getCurrentComp()
 		lw = origin.tw_identifier #listwidget
 		entity = origin.getCurrentEntity()
@@ -2901,6 +2945,10 @@ path = r\"%s\"
 
 	@err_catcher(name=__name__)
 	def openPBListContextMenu(self, origin, rcmenu, lw, item, path):
+		#	If DCC 'Task Node Coloring' is disabled
+		if self.taskColorMode == "Disabled":
+			return
+		
 		entity = origin.getCurrentEntity()
 		if lw == origin.tw_identifier:
 			category = entity.get("type")
@@ -2912,7 +2960,7 @@ path = r\"%s\"
 
 				#	Get NodeUID based on Media Identifier
 				mediaNodeUIDs = CompDb.getNodeUidFromMediaDisplayname(comp, "import2d", displayName)
-
+				
 				#	Setup rcl "Select Nodes" items
 				depAct = QAction("Select Task Nodes....", origin)
 				depAct.triggered.connect(lambda: self.selecttasknodes(mediaNodeUIDs))
