@@ -2773,25 +2773,6 @@ path = r\"%s\"
 	#                                              #
 	################################################
 	
-	#	Returns an average luminance value
-	@err_catcher(name=__name__)
-	def calculate_luminance(self, color:dict):
-		try:
-			r,g,b = color['R'], color['G'], color['B']
-			# No need for normalization if RGB values are already in [0, 1]
-			luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
-			return luminance
-		except:
-			logger.warning("ERROR:  Unable to calculate luminance")
-			return 0.4
-
-
-	#	Determines if color is bighter than threshold
-	@err_catcher(name=__name__)
-	def is_background_bright(self, color:dict, threshold=0.5):
-		luminance = self.calculate_luminance(color)
-		return luminance > threshold
-	
 
 	#	Creates colored icons for rcl task color menu
 	@err_catcher(name=__name__)
@@ -2911,7 +2892,7 @@ path = r\"%s\"
 
 		#	If brightness is high, use luminance checker
 		if alpha > 124:
-			if self.is_background_bright(color):
+			if Helper.isBgBright(color):
 				item.setForeground(0, QColor(30, 30, 30))
 
 

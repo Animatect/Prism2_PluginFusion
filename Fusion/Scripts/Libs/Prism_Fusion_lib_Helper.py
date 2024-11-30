@@ -295,3 +295,23 @@ def getFileDataFromAOV(fileList:list, aov:str) -> dict:
                 return fileData
             
     return None
+
+
+#	Returns an average luminance value
+@err_catcher(name=__name__)
+def calculateLuminance(color:dict) -> int:
+    try:
+        r,g,b = color['R'], color['G'], color['B']
+        # No need for normalization if RGB values are already in [0, 1]
+        luminance = 0.2126 * r + 0.7152 * g + 0.0722 * b
+        return luminance
+    except:
+        logger.warning("ERROR:  Unable to calculate luminance")
+        return 0.4
+    
+
+#	Determines if color is bighter than threshold
+@err_catcher(name=__name__)
+def isBgBright(color:dict, threshold=0.5) -> bool:
+    luminance = calculateLuminance(color)
+    return luminance > threshold
