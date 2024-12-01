@@ -1144,8 +1144,12 @@ class Prism_Fusion_Functions(object):
 							"frame_end": importItem["frame_end"]
 							}
 
-				#	Get channels from image file
-				channels = self.core.media.getLayersFromFile(importItem["basefile"])
+				try:
+					#	Get channels from image file
+					channels = self.core.media.getLayersFromFile(importItem["basefile"])
+				except:
+					logger.warning("ERROR:  Unable to resolve image file channels")
+					return
 
 				#	If no channels or single channel call addSingle
 				if len(channels) <= 1:
@@ -1171,6 +1175,9 @@ class Prism_Fusion_Functions(object):
 			comp.EndUndo()
 			comp.Unlock()
 
+			#	Return if add image returns None
+			if not leftmostNode:
+				return
 
 			Fus.sortLoaders(comp, leftmostNode, reconnectIn=True, sortnodes=sortnodes)			#	TODO  Look into this			
 
@@ -1196,16 +1203,19 @@ class Prism_Fusion_Functions(object):
 
 		# comp.Lock()
 		# comp.StartUndo()
+		try:
+			#	Add and configure Loader
+			ldr = Fus.addTool(comp, "Loader", toolData)
+		
+			if not ldr:
+				self.core.popup(f"ERROR: Unable to add Loader to Comp")
+				return
 
-		#	Add and configure Loader
-		ldr = Fus.addTool(comp, "Loader", toolData)
-	
-		if not ldr:
-			self.core.popup(f"ERROR: Unable to add Loader to Comp")
-			return
-
-		#	Add mode to Comp Database
-		CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
+			#	Add mode to Comp Database
+			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
+		except:
+			logger.warning(f"ERROR: Unable to Import Single Channel")
+			return None
 
 		#	Deselect all
 		flow.Select()
@@ -1265,9 +1275,13 @@ class Prism_Fusion_Functions(object):
 			#	Add node to Comp Database
 			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData_copy)
 
-			#	Get available channels from Loader
-			loaderChannels = Fus.getLoaderChannels(ldr)
-			channelData = Fus.getChannelData(loaderChannels)
+			try:
+				#	Get available channels from Loader
+				loaderChannels = Fus.getLoaderChannels(ldr)
+				channelData = Fus.getChannelData(loaderChannels)
+			except Exception as e:
+				logger.warning(f"ERROR: Unable to get channels from Loader:\n{e}")
+				return None
 
 			#	Get the channel list for the channel being processed
 			channelDict = channelData[channel]
@@ -1285,30 +1299,38 @@ class Prism_Fusion_Functions(object):
 
 
 			# Check if contains only a Z-channel (for Depth, Mist, etc)
-			z_channel = None
-			for channel_str in channelDict:
-				if re.search(r'\.z$', channel_str.lower()):
-					z_channel = channel_str
+			try:
+				z_channel = None
+				for channel_str in channelDict:
+					if re.search(r'\.z$', channel_str.lower()):
+						z_channel = channel_str
 
-			#	Assign the Z-channel to the R, G, B, and Z
-			if z_channel and len(channelDict) == 1:
-				ldr.Clip1.OpenEXRFormat.RedName = z_channel
-				ldr.Clip1.OpenEXRFormat.GreenName = z_channel
-				ldr.Clip1.OpenEXRFormat.BlueName = z_channel
-				ldr.Clip1.OpenEXRFormat.ZName = z_channel
+				#	Assign the Z-channel to the R, G, B, and Z
+				if z_channel and len(channelDict) == 1:
+					ldr.Clip1.OpenEXRFormat.RedName = z_channel
+					ldr.Clip1.OpenEXRFormat.GreenName = z_channel
+					ldr.Clip1.OpenEXRFormat.BlueName = z_channel
+					ldr.Clip1.OpenEXRFormat.ZName = z_channel
+			except:
+				logger.warning("ERROR: Unable to assign image Z-channel to Loader")
+				return None
 
 			else:
-				#	Match the attrs based on the dict						#	TODO make sure this works for all DCC channel types
-				for channel_str in channelDict:
-					match = re.search(r'\.([a-z])$', channel_str.lower())
+				try:
+					#	Match the attrs based on the dict						#	TODO make sure this works for all DCC channel types
+					for channel_str in channelDict:
+						match = re.search(r'\.([a-z])$', channel_str.lower())
 
-					if match:
-						suffix = match.group(1)
-						attribute = channel_attributes.get(suffix)
+						if match:
+							suffix = match.group(1)
+							attribute = channel_attributes.get(suffix)
 
-						#	Configure Loader channels based on dict
-						if attribute:
-							setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
+							#	Configure Loader channels based on dict
+							if attribute:
+								setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
+				except:
+					logger.warning("ERROR: Unable to assign image channels to Loader")
+					return None
 
 			#	Deselect all
 			flow.Select()
@@ -1363,46 +1385,51 @@ class Prism_Fusion_Functions(object):
 	
 		#	Iterate through update items
 		for uid in selUIDs:
-			#	Get original node data from database
-			origNodeData = CompDb.getNodeInfo(comp, "import2d", uid)
+			try:
+				#	Get original node data from database
+				origNodeData = CompDb.getNodeInfo(comp, "import2d", uid)
 
-			#	Get matching file data from file list based on AOV
-			updateFileData = Helper.getFileDataFromAOV(fileList, origNodeData["aov"])
+				#	Get matching file data from file list based on AOV
+				updateFileData = Helper.getFileDataFromAOV(fileList, origNodeData["aov"])
 
-			#	Skip to next item if no result
-			if not updateFileData:
-				continue
-			
-			#	Make copy of original data
-			updateData = origNodeData.copy()
-			#	Update data with new values
-			updateData["version"] = updateFileData["version"]
-			updateData["filepath"] = updateFileData["basefile"]
-			updateData["frame_start"] = updateFileData["frame_start"]
-			updateData["frame_end"] = updateFileData["frame_end"]
+				#	Skip to next item if no result
+				if not updateFileData:
+					continue
+				
+				#	Make copy of original data
+				updateData = origNodeData.copy()
+				#	Update data with new values
+				updateData["version"] = updateFileData["version"]
+				updateData["filepath"] = updateFileData["basefile"]
+				updateData["frame_start"] = updateFileData["frame_start"]
+				updateData["frame_end"] = updateFileData["frame_end"]
 
-			#	Compare versions and get result and result string
-			compareRes, compareMsg = CompDb.compareVersions(origNodeData, updateData)
+				#	Compare versions and get result and result string
+				compareRes, compareMsg = CompDb.compareVersions(origNodeData, updateData)
 
-			#	Add message to message list
-			updateMsgList.append(compareMsg)
+				#	Add message to message list
+				updateMsgList.append(compareMsg)
 
-			#	If there was a match to the database
-			if compareRes:
-				#	Make dict
-				toolData = {"nodeName": Helper.makeLdrName(updateData),
-							"version": updateData["version"],
-							"filepath": updateData["filepath"],
-							"frame_start": updateData["frame_start"],
-							"frame_end": updateData["frame_end"]
-							}
+				#	If there was a match to the database
+				if compareRes:
+					#	Make dict
+					toolData = {"nodeName": Helper.makeLdrName(updateData),
+								"version": updateData["version"],
+								"filepath": updateData["filepath"],
+								"frame_start": updateData["frame_start"],
+								"frame_end": updateData["frame_end"]
+								}
 
-				#	Get original Loader
-				ldr = CompDb.getNodeByUID(comp, uid)
-				#	Update Loader config
-				Fus.updateTool(ldr, toolData)
-				#	Update Database record
-				CompDb.updateNodeInfo(comp, "import2d", uid, toolData)
+					#	Get original Loader
+					ldr = CompDb.getNodeByUID(comp, uid)
+					#	Update Loader config
+					Fus.updateTool(ldr, toolData)
+					#	Update Database record
+					CompDb.updateNodeInfo(comp, "import2d", uid, toolData)
+					
+			except Exception as e:
+				logger.warning(f"ERROR: Unable to update {importData['identifier']}")
+				return
 
 		#	Show update feedback
 		if len(updateMsgList) == 0:
@@ -2857,6 +2884,10 @@ path = r\"%s\"
 		else:
 			return
 		
+		#	Color the Project Browser Task
+		self.colorItem(item, color)
+		CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
+		
 		if not toolsToColorUID:
 			logger.debug("There are not Loaders associated with this task.")
 			self.core.popup("There are no loaders for this task.", severity="info")
@@ -2865,8 +2896,12 @@ path = r\"%s\"
 		#	If the RGB is the Clear Color code
 		if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
 			for toolUID in toolsToColorUID:
-				tool = CompDb.getNodeByUID(comp, toolUID)
-				tool.TileColor = None
+				try:
+					tool = CompDb.getNodeByUID(comp, toolUID)
+					if tool:
+						tool.TileColor = None
+				except:
+					logger.warning(f"ERROR: Unable to clear the color of the Loader: {toolUID}.")
 
 		#	Set the color for each tool
 		else:
@@ -2874,14 +2909,12 @@ path = r\"%s\"
 				try:
 					if CompDb.nodeExists(comp, toolUID):
 						tool = CompDb.getNodeByUID(comp, toolUID)
-						tool.TileColor = color
-						logger.debug(f"Set color of tool: {CompDb.getNodeNameByUID(comp, toolUID)}")
+						if tool:
+							tool.TileColor = color
+							logger.debug(f"Set color of tool: {CompDb.getNodeNameByUID(comp, toolUID)}")
 				except:
-					logger.debug(f"Cannot set color of tool: {toolUID}")
+					logger.warning(f"ERROR: Cannot set color of tool: {toolUID}")
 
-		#	Color the Project Browser Task
-		self.colorItem(item, color)
-		CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
 
 
 	#	Colors Media Task based on Color mode in DCC settings
@@ -2902,7 +2935,7 @@ path = r\"%s\"
 
 		qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
 
-			#	Adding Alpha to mute task coloring
+		#	Adding Alpha to mute task coloring
 		qcolor.setAlpha(alpha)
 
 		item.setBackground(0, qcolor)

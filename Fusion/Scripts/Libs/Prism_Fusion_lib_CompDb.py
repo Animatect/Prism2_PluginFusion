@@ -590,10 +590,10 @@ def getNodeByUID(comp, nodeUID:str) -> Union[Tool, None]:
             if toolUID == nodeUID:
                 return tool
             
-        raise Exception
+        return None
     
     except:
-        logger.warning(f"ERROR: No node found for {nodeUID}")
+        logger.warning(f"ERROR: Finding tool by UID failed.")
         return None
 
 
