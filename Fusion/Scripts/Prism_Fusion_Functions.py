@@ -1064,7 +1064,7 @@ class Prism_Fusion_Functions(object):
 		buttons.append("Cancel")
 			
 		#	Execute question popup
-		importType, checkbox_checked = self.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=sorting)
+		importType, checkbox_checked = self.importPopup(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=sorting)
 
 		#	Save "Sorting" checkbox state
 		if checkbox_checked is not None:
@@ -1405,11 +1405,14 @@ class Prism_Fusion_Functions(object):
 				CompDb.updateNodeInfo(comp, "import2d", uid, toolData)
 
 		#	Show update feedback
-		if len(updateMsgList) == 0:														#	TODO - FINISH VER POPUP
-			formattedMsg = f"No Selected Loaders for {importData['identifier']}"
+		if len(updateMsgList) == 0:
+			formattedMsg = [["", f"No Selected Loaders for '{importData['identifier']}'"]]
 		else:
-			formattedMsg = "\n".join(sorted(updateMsgList))
-		self.core.popup(formattedMsg)
+			#	Sort message items
+			formattedMsg = sorted(updateMsgList)
+
+		#	Show popup
+		self.updateMsgPopup(formattedMsg)
 
 
 	@err_catcher(name=__name__)
@@ -3262,12 +3265,12 @@ path = r\"%s\"
 	##########################################	
 		
 	@err_catcher(name=__name__)
-	def popupQuestion(self, text, title=None, buttons=None, icon=None, parent=None, checked=False):
+	def importPopup(self, text, title=None, buttons=None, icon=None, parent=None, checked=False):
 		title = title or "Prism"
 		buttons = buttons or ["Yes", "No"]
 		parent = parent or getattr(self.core, "messageParent", None)
 
-		dialog = CustomMessageBox(text, title, buttons, parent)
+		dialog = ImageImportDialogue(text, title, buttons, parent)
 		dialog.checkbox.setChecked(checked)
 		result = dialog.exec_()
 
@@ -3278,6 +3281,16 @@ path = r\"%s\"
 		else:
 			# Handle the "X" case: Return None or default values
 			return None, dialog.checkbox.isChecked()
+		
+
+	@err_catcher(name=__name__)
+	def updateMsgPopup(self, updateMsgList, parent=None):
+		parent = parent or getattr(self.core, "messageParent", None)
+
+		dialog = UpdateDialog(updateMsgList, parent)
+		dialog.exec_()
+
+
 		
 	################################################
 	#                                              #
@@ -3568,7 +3581,8 @@ path = r\"%s\"
 #                                         #
 ###########################################	
 
-class CustomMessageBox(QDialog):
+#	Popup for import options
+class ImageImportDialogue(QDialog):
 	def __init__(self, text, title, buttons, parent=None, checked=False):
 		super().__init__(parent)
 
@@ -3612,3 +3626,84 @@ class CustomMessageBox(QDialog):
 		self.checkbox_checked = self.checkbox.isChecked()
 		self.clicked_button_text = self.button_map[button]
 		self.accept()  # Close the dialog
+
+
+#	Popup for update message
+class UpdateDialog(QDialog):
+    def __init__(self, updateMsgList, parent=None):
+        super().__init__(parent)
+        self.setWindowTitle("Update Information")
+
+        layout = QVBoxLayout()
+
+        #	Add the "Updates" header at the top
+        header_label = QLabel("Updates:")
+        header_font = QFont()
+        header_font.setBold(True)
+        header_label.setFont(header_font)
+        layout.addWidget(header_label)
+
+        #	Create the table
+        self.table = QTableWidget()
+        self.table.setRowCount(len(updateMsgList))
+        self.table.setColumnCount(2)
+
+        #	Hide table lines and numbers
+        self.table.verticalHeader().setVisible(False)
+        self.table.horizontalHeader().setVisible(False)
+        self.table.setShowGrid(False)
+
+        #	Reduce the space between cells
+        self.table.setContentsMargins(0, 0, 0, 0)
+        self.table.setStyleSheet("QTableWidget::item { padding: 0px; }")
+
+        #	Get the width of the longest text in the first column
+        font_metrics = QFontMetrics(self.font())
+        maxWidth_firstCol = 0
+        maxWidth_secondCol = 0
+
+        for rowData in updateMsgList:
+            #	First column
+            textFirst = str(rowData[0])
+            textWidth_first = font_metrics.horizontalAdvance(textFirst)
+            if textWidth_first > maxWidth_firstCol:
+                maxWidth_firstCol = textWidth_first
+
+            #	Second column
+            textSecond = str(rowData[1])
+            textWidth_second = font_metrics.horizontalAdvance(textSecond)
+            if textWidth_second > maxWidth_secondCol:
+                maxWidth_secondCol = textWidth_second
+
+        #	Add margin for both columns
+        firstColumn_width = maxWidth_firstCol + 20
+        secondColumn_width = maxWidth_secondCol + 20
+
+        #	Populate the table with data
+        for rowIndex, rowData in enumerate(updateMsgList):
+            for colIndex, cellData in enumerate(rowData):
+                item = QTableWidgetItem(str(cellData))
+                item.setFlags(Qt.NoItemFlags)
+                self.table.setItem(rowIndex, colIndex, item)
+
+        #	Set column widths
+        self.table.setColumnWidth(0, firstColumn_width)
+        self.table.setColumnWidth(1, secondColumn_width)
+
+        #	Last column stretches
+        self.table.horizontalHeader().setStretchLastSection(False)
+
+        #	Add the table
+        layout.addWidget(self.table)
+
+        # Add a close button
+        b_close = QPushButton("Close")
+        b_close.clicked.connect(self.close)
+        layout.addWidget(b_close)
+
+        # Set the dialog layout
+        self.setLayout(layout)
+
+        # Adjust the window width to match the table content
+        totalTable_width = firstColumn_width + secondColumn_width + 50
+        self.resize(totalTable_width, self.table.verticalHeader().length() + 100)

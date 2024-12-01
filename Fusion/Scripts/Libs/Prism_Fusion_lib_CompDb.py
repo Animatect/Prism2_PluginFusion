@@ -543,22 +543,27 @@ def compareVersions(origVerRecord:dict, updateVerRecord:dict) -> Tuple[bool, str
         if "channel" in origVerRecord:
             compareName = compareName + f"_{origVerRecord['channel']}"
    
-        ## Compare versions
+        ## Compare versions - return a list with two items:
+            #   a bool showing if there was an update
+            #   a message as a list with two items:
+                #   the name of the media being compared
+                #   the result of the comparison
 
         #   If versions are the same
         if origVer_int == updateVer_int:
+            
             #   If frame ranges are the same
             if origFramerange == updateFramerange:
-                return [False, f"{compareName}:   No Changes"]
+                return [False, [f"{compareName}:", "  No Changes"]]
             
             #   If frame ranges different
             else:
-                return [True, f"{compareName}:   updated {origVer_str} FrameRange ({origFramerange}-{updateFramerange})"]
+                return [True, [f"{compareName}:", f"updated {origVer_str} frameRange ({origFramerange}-{updateFramerange})"]]
             
         #   Versions are different
         else:
-            return [True, f"{compareName}:   {origVer_str} ({origFramerange})  -->  {updateVer_str} ({updateFramerange})"]
-    
+            return [True, [f"{compareName}:", f"{origVer_str} ({origFramerange})  -->  {updateVer_str} ({updateFramerange})"]]
+
     except Exception as e:
         logger.warning(f"ERROR: Unable to make version update message - {e}")
         return [False, "ERROR"]
