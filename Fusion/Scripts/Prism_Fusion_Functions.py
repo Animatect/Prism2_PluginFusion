@@ -801,6 +801,20 @@ class Prism_Fusion_Functions(object):
 			logger.warning(f"ERROR: No node found for {nodeUID}")
 			return None
 	
+	##############TODELETE############
+	@err_catcher(name=__name__)
+	def getNodeName(self, origin, node):
+		if self.isNodeValid(origin, node):
+			try:
+				return node["name"]
+			except:
+				QMessageBox.warning(
+					self.core.messageParent, "Warning", "Cannot get name from %s" % node
+				)
+				return node
+		else:
+			return "invalid"
+	##############TODELETE############
 
 	@err_catcher(name=__name__)
 	def getNodeNameByUID(self, nodeUID):
