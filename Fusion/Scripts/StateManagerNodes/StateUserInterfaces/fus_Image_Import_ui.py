@@ -16,7 +16,7 @@ class Ui_wg_Image_Import(object):
     def setupUi(self, wg_Image_Import):
         if not wg_Image_Import.objectName():
             wg_Image_Import.setObjectName(u"wg_Image_Import")
-        wg_Image_Import.resize(340, 600)
+        wg_Image_Import.resize(340, 730)
         self.verticalLayout = QVBoxLayout(wg_Image_Import)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
@@ -218,7 +218,10 @@ class Ui_wg_Image_Import(object):
         self.verticalLayout_4 = QVBoxLayout(self.gb_channels)
         self.verticalLayout_4.setObjectName(u"verticalLayout_4")
         self.verticalLayout_4.setContentsMargins(9, 9, 9, 9)
-        self.lw_objects = QListWidget(self.gb_channels)
+        self.lw_objects = QTreeWidget(self.gb_channels)
+        __qtreewidgetitem = QTreeWidgetItem()
+        __qtreewidgetitem.setText(0, u"1");
+        self.lw_objects.setHeaderItem(__qtreewidgetitem)
         self.lw_objects.setObjectName(u"lw_objects")
         self.lw_objects.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.lw_objects.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
@@ -251,7 +254,7 @@ class Ui_wg_Image_Import(object):
     def retranslateUi(self, wg_Image_Import):
         wg_Image_Import.setWindowTitle(QCoreApplication.translate("wg_Image_Import", u"ImportFile", None))
         self.l_name.setText(QCoreApplication.translate("wg_Image_Import", u"State name:", None))
-        self.l_class.setText(QCoreApplication.translate("wg_Image_Import", u"ImportFile", None))
+        self.l_class.setText(QCoreApplication.translate("wg_Image_Import", u"Import Image", None))
         self.gb_import.setTitle(QCoreApplication.translate("wg_Image_Import", u"Import", None))
         self.groupBox.setTitle(QCoreApplication.translate("wg_Image_Import", u"Version", None))
         self.label_3.setText(QCoreApplication.translate("wg_Image_Import", u"Current Version:", None))
@@ -266,7 +269,7 @@ class Ui_wg_Image_Import(object):
         self.gb_options.setTitle(QCoreApplication.translate("wg_Image_Import", u"Options", None))
         self.chb_keepRefEdits.setText("")
         self.chb_abcPath.setText("")
-        self.gb_channels.setTitle(QCoreApplication.translate("wg_Image_Import", u"Channels", None))
+        self.gb_channels.setTitle(QCoreApplication.translate("wg_Image_Import", u"Image AOV / Channels", None))
         self.b_selectAll.setText(QCoreApplication.translate("wg_Image_Import", u"Select all", None))
     # retranslateUi
 

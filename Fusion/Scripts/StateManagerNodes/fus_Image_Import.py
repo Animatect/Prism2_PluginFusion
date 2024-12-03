@@ -59,7 +59,7 @@ class Image_ImportClass(object):
         node=None,
         importPath=None,
         stateData=None,
-        openProductsBrowser=True,
+        openProductsBrowser=True,                                               #   TODO  ???
         settings=None,
     ):
         self.state = state
@@ -70,7 +70,7 @@ class Image_ImportClass(object):
         self.taskName = ""
         self.setName = ""
 
-        stateNameTemplate = "{entity}_{product}_{version}"
+        stateNameTemplate = "{entity}_{version}"
         self.stateNameTemplate = self.core.getConfig(
             "globals",
             "defaultImportStateName",
@@ -83,6 +83,11 @@ class Image_ImportClass(object):
         self.nodes = []
         self.nodeNames = []
 
+        #   Receive importData via "settings" kwarg
+        self.importData = settings          
+        # self.core.popup(f"settings:  {settings}")           #   TESTING
+
+
         self.f_abcPath.setVisible(False)
         self.f_keepRefEdits.setVisible(False)
 
@@ -94,32 +99,35 @@ class Image_ImportClass(object):
         createEmptyState = (
             QApplication.keyboardModifiers() == Qt.ControlModifier
             or not self.core.uiAvailable
-        ) or not openProductsBrowser
+            ) or not openProductsBrowser                                                    #   TODO
 
         if (
             importPath is None
             and stateData is None
             and not createEmptyState
             and not self.stateManager.standalone
-        ):
+            ):
             importPaths = self.requestImportPaths()
             if importPaths:
                 importPath = importPaths[-1]
-                if len(importPaths) > 1:
+                if len(importPaths) > 1:                                          #   TESTING
                     for importPath in importPaths[:-1]:
                         stateManager.importFile(importPath)
 
+
+
         if importPath:
             self.setImportPath(importPath)
-            result = self.importObject(settings=settings)
+            result = self.importImage(settings=settings)
 
             if not result:
                 return False
+            
         elif (
             stateData is None
             and not createEmptyState
             and not self.stateManager.standalone
-        ):
+            ):
             return False
 
         getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
@@ -127,9 +135,12 @@ class Image_ImportClass(object):
 
         if stateData is not None:
             self.loadData(stateData)
+            
 
         self.nameChanged()
         self.updateUi()
+
+
 
     @err_catcher(name=__name__)
     def setStateMode(self, stateMode):
@@ -140,41 +151,52 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def requestImportPaths(self):
-        try:
+        # try:
 
             #   TEMP BYPASS OF STATE MANAGER    #
-            fString = ("Please use the Project Browser to Import Images.\n\n"
-                    "Open Project Browser?")
+        #     fString = ("Please use the Project Browser to Import Images.\n\n"
+        #             "Open Project Browser?")
 
-            result = self.core.popupQuestion(
-                fString,
-                title="Import Images",
-                buttons=["Open", "Cancel"],
-                icon=QMessageBox.Warning,
-                )
+        #     result = self.core.popupQuestion(
+        #         fString,
+        #         title="Import Images",
+        #         buttons=["Open", "Cancel"],
+        #         icon=QMessageBox.Warning,
+        #         )
 
-            #   Cancels Adding the State
-            if result == "Cancel":
-                return False
+        #     #   Cancels Adding the State
+        #     if result == "Cancel":
+        #         return False
 
 
-            #	Opens Project Browser
-            logger.debug("Opening Project Browser")
+        #     #	Opens Project Browser
+        #     logger.debug("Opening Project Browser")
 
-            self.core.projectBrowser()
-            #	Switch to Media Tab
-            if self.core.pb:
-                self.core.pb.showTab("Media")
-        except:
-            logger.warning("ERROR: Unable to Open Project Browser.")
+        #     self.core.projectBrowser()
+        #     #	Switch to Media Tab
+        #     if self.core.pb:
+        #         self.core.pb.showTab("Media")
+        # except:
+        #     logger.warning("ERROR: Unable to Open Project Browser.")
 
+
+
+
+
+        #	Opens Project Browser
+        logger.debug("Opening Project Browser")
+
+        self.core.projectBrowser()
+        #	Switch to Media Tab
+        if self.core.pb:
+            self.core.pb.showTab("Media")
 
 
         # result = self.core.callback("requestImportPath", self)
         # for res in result:
         #     if isinstance(res, dict) and res.get("importPaths") is not None:
 
-        #         self.core.popup(f"res:  {res}")                             #   TESTING
+        #         # self.core.popup(f"res:  {res}")                             #   TESTING
 
         #         return res["importPaths"]
 
@@ -201,22 +223,6 @@ class Image_ImportClass(object):
                 self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
             )(data["filepath"])
             self.setImportPath(data["filepath"])
-        if "keepedits" in data:
-            self.chb_keepRefEdits.setChecked(eval(data["keepedits"]))
-        if "autonamespaces" in data:
-            self.chb_autoNameSpaces.setChecked(eval(data["autonamespaces"]))
-        if "updateabc" in data:
-            self.chb_abcPath.setChecked(eval(data["updateabc"]))
-        if "trackobjects" in data:
-            self.chb_trackObjects.setChecked(eval(data["trackobjects"]))
-        if "connectednodes" in data:
-            if self.core.isStr(data["connectednodes"]):
-                data["connectednodes"] = eval(data["connectednodes"])
-            self.nodes = [
-                x[1]
-                for x in data["connectednodes"]
-                if self.core.appPlugin.isNodeValid(self, x[1])
-            ]
         if "taskname" in data:
             self.taskName = data["taskname"]
         if "nodenames" in data:
@@ -228,85 +234,64 @@ class Image_ImportClass(object):
 
         self.core.callback("onStateSettingsLoaded", self, data)
 
+
     @err_catcher(name=__name__)
     def connectEvents(self):
         self.e_name.textChanged.connect(self.nameChanged)
         self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
         self.b_browse.clicked.connect(self.browse)
         self.b_browse.customContextMenuRequested.connect(self.openFolder)
-        self.b_import.clicked.connect(self.importObject)
+        self.b_import.clicked.connect(self.importImage)
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
-        self.chb_keepRefEdits.stateChanged.connect(self.stateManager.saveStatesToScene)
-        self.chb_autoNameSpaces.stateChanged.connect(self.autoNameSpaceChanged)
-        self.chb_abcPath.stateChanged.connect(self.stateManager.saveStatesToScene)
-        self.chb_trackObjects.toggled.connect(self.updateTrackObjects)
-        self.b_selectAll.clicked.connect(self.lw_objects.selectAll)
-        if not self.stateManager.standalone:
-            self.b_nameSpaces.clicked.connect(
-                lambda: self.core.appPlugin.sm_import_removeNameSpaces(self)
-            )
-            self.lw_objects.itemSelectionChanged.connect(
-                lambda: self.core.appPlugin.selectNodes(self)
-            )
+
 
     @err_catcher(name=__name__)
     def nameChanged(self, text=None):
-        text = self.e_name.text()
-        cacheData = self.core.paths.getCachePathData(self.getImportPath())
-        if cacheData.get("type") == "asset":
-            cacheData["entity"] = os.path.basename(cacheData.get("asset_path", ""))
-        elif cacheData.get("type") == "shot":
-            shotName = self.core.entities.getShotName(cacheData)
-            if shotName:
-                cacheData["entity"] = shotName
+        name = self.e_name.text()
 
-        num = 0
-
-        try:
-            if "{#}" in text:
-                while True:
-                    cacheData["#"] = num or ""
-                    name = text.format(**cacheData)
-                    for state in self.stateManager.states:
-                        if state.ui.listType != "Import":
-                            continue
-
-                        if state is self.state:
-                            continue
-
-                        if state.text(0) == name:
-                            num += 1
-                            break
-                    else:
-                        break
-            else:
-                name = text.format(**cacheData)
-
-        except Exception as e:
+        if text:
             name = text
 
+        else:
+            try:
+                # importPath = self.getImportPath()
+                # fileData = self.core.mediaProducts.getDataFromFilepath(importPath)
+                name = f"{self.importData['identifier']}__{self.importData['version']}"
+
+            except Exception as e:                                          #   TODO
+                name = text
+
         self.state.setText(0, name)
+
 
     @err_catcher(name=__name__)
     def getSortKey(self):
         cacheData = self.core.paths.getCachePathData(self.getImportPath())
         return cacheData.get("product")
+    
 
     @err_catcher(name=__name__)
     def browse(self):
-        import ProductBrowser
+        # import ProductBrowser
 
-        ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
-        self.core.parentWindow(ts)
-        ts.exec_()
-        importPath = ts.productPath
+        # ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
+        # self.core.parentWindow(ts)
+        # ts.exec_()
+        # importPath = ts.productPath
 
-        if importPath:
-            result = self.importObject(update=True, path=importPath)
-            if result:
-                self.setImportPath(importPath)
-            self.updateUi()
+        # if importPath:
+        #     result = self.importImage(update=True, path=importPath)
+        #     if result:
+        #         self.setImportPath(importPath)
+        #     self.updateUi()
+
+        self.core.projectBrowser()
+        #	Switch to Media Tab
+        if self.core.pb:
+            self.core.pb.showTab("Media")
+
+
 
     @err_catcher(name=__name__)
     def openFolder(self, pos):
@@ -351,12 +336,6 @@ class Image_ImportClass(object):
 
         self.stateManager.saveStatesToScene()
 
-    @err_catcher(name=__name__)
-    def autoNameSpaceChanged(self, checked):
-        self.b_nameSpaces.setEnabled(not checked)
-        if not self.stateManager.standalone:
-            self.core.appPlugin.sm_import_removeNameSpaces(self)
-            self.stateManager.saveStatesToScene()
 
     @err_catcher(name=__name__)
     def runSanityChecks(self, cachePath):
@@ -373,7 +352,7 @@ class Image_ImportClass(object):
     @err_catcher(name=__name__)
     def checkFrameRange(self, cachePath):
         versionInfoPath = self.core.getVersioninfoPath(
-            self.core.products.getVersionInfoPathFromProductFilepath(cachePath)
+            self.core.mediaProducts.getMediaVersionInfoPathFromFilepath(cachePath)
         )
 
         impFPS = self.core.getConfig("fps", configPath=versionInfoPath)
@@ -399,7 +378,7 @@ class Image_ImportClass(object):
         return True
 
     @err_catcher(name=__name__)
-    def importObject(self, update=False, path=None, settings=None):
+    def importImage(self, update=False, path=None, settings=None):                              #   TODO
         result = True
         if self.stateManager.standalone:
             return result
@@ -439,10 +418,6 @@ class Image_ImportClass(object):
         self.taskName = cacheData.get("task")
         doImport = True
 
-        if self.chb_trackObjects.isChecked():
-            getattr(self.core.appPlugin, "sm_import_updateObjects", lambda x: None)(
-                self
-            )
 
         # temporary workaround until all plugin handle the settings argument
         if self.core.appPlugin.pluginName == "Maya":
@@ -467,18 +442,18 @@ class Image_ImportClass(object):
             if result == "canceled":
                 return
 
-            self.nodeNames = [
-                self.core.appPlugin.getNodeName(self, x) for x in self.nodes
-            ]
-            illegalNodes = self.core.checkIllegalCharacters(self.nodeNames)
-            if len(illegalNodes) > 0:
-                msgStr = "Objects with non-ascii characters were imported. Prism supports only the first 128 characters in the ascii table. Please rename the following objects as they will cause errors with Prism:\n\n"
-                for i in illegalNodes:
-                    msgStr += i + "\n"
-                self.core.popup(msgStr)
+            # self.nodeNames = [
+            #     self.core.appPlugin.getNodeName(self, x) for x in self.nodes
+            # ]
+            # illegalNodes = self.core.checkIllegalCharacters(self.nodeNames)
+            # if len(illegalNodes) > 0:
+            #     msgStr = "Objects with non-ascii characters were imported. Prism supports only the first 128 characters in the ascii table. Please rename the following objects as they will cause errors with Prism:\n\n"
+            #     for i in illegalNodes:
+            #         msgStr += i + "\n"
+            #     self.core.popup(msgStr)
 
-            if self.chb_autoNameSpaces.isChecked():
-                self.core.appPlugin.sm_import_removeNameSpaces(self)
+            # if self.chb_autoNameSpaces.isChecked():
+            #     self.core.appPlugin.sm_import_removeNameSpaces(self)
 
             if not result:
                 msgStr = "Import failed: %s" % impFileName
@@ -503,19 +478,29 @@ class Image_ImportClass(object):
         if refreshUi:
             self.updateUi()
 
-        latestVersion = self.core.products.getLatestVersionFromPath(
-            self.getImportPath()
-        )
-        filepath = self.core.products.getPreferredFileFromVersion(latestVersion)
-        if not filepath:
+        path = self.getImportPath()
+
+        latestVerDict = self.core.mediaProducts.getLatestVersionFromFilepath(path, includeMaster=True)
+
+        # self.core.popup(f"latestVerDict:  {latestVerDict}")               #   TESTING
+
+        files = self.core.mediaProducts.getFilesFromContext(latestVerDict)
+
+        # self.core.popup(f"files:  {files}")               #   TESTING
+
+
+        lastestVerPath = files[0]
+
+        if not lastestVerPath:
             if not self.chb_autoUpdate.isChecked():
                 self.core.popup("Couldn't get latest version.")
             return
 
         prevState = self.stateManager.applyChangesToSelection
         self.stateManager.applyChangesToSelection = False
-        self.setImportPath(filepath)
-        self.importObject(update=True)
+
+        self.setImportPath(lastestVerPath)
+        # self.importImage(update=True)
         if selectedStates:
             selStates = self.stateManager.getSelectedStates()
             for state in selStates:
@@ -527,18 +512,32 @@ class Image_ImportClass(object):
 
         self.stateManager.applyChangesToSelection = prevState
 
+
     @err_catcher(name=__name__)
     def checkLatestVersion(self):
         path = self.getImportPath()
-        curVersionName = self.core.products.getVersionFromFilepath(path) or ""
-        curVersionData = {"version": curVersionName, "path": path}
-        latestVersion = self.core.products.getLatestVersionFromPath(path)
-        if latestVersion:
-            latestVersionData = {"version": latestVersion["version"], "path": latestVersion["path"]}
+
+        curVerName = self.core.mediaProducts.getVersionFromFilepath(path) or ""
+        # getVersionFromFilepath
+
+        curVerData = {"version": curVerName, "path": path}
+
+        latestVerDict = self.core.mediaProducts.getLatestVersionFromFilepath(path, includeMaster=True)
+        # latestVerDict = self.core.mediaProducts.getLatestVersionFromIdentifier(self.importData, includeMaster=True)
+
+        # latestVerDict = self.core.mediaProducts.getVersionsFromContext(self.importData)
+
+
+        lastestVerName = latestVerDict["version"]
+        lastestVerPath = latestVerDict["path"]
+
+        if latestVerDict:
+            latestVersionData = {"version": lastestVerName, "path": lastestVerPath}
         else:
             latestVersionData = {}
 
-        return curVersionData, latestVersionData
+        return curVerData, latestVersionData
+    
 
     @err_catcher(name=__name__)
     def setStateColor(self, status):
@@ -564,13 +563,13 @@ class Image_ImportClass(object):
 
         if curVersion.get("version") == "master":
             filepath = self.getImportPath()
-            curVersionName = self.core.products.getMasterVersionLabel(filepath)
+            curVersionName = self.core.mediaProducts.getMasterVersionLabel(filepath)
         else:
             curVersionName = curVersion.get("version")
 
         if latestVersion.get("version") == "master":
             filepath = latestVersion["path"]
-            latestVersionName = self.core.products.getMasterVersionLabel(filepath)
+            latestVersionName = self.core.mediaProducts.getMasterVersionLabel(filepath)
         else:
             latestVersionName = latestVersion.get("version")
 
@@ -607,61 +606,141 @@ class Image_ImportClass(object):
 
                 if useSS:
                     self.b_importLatest.setStyleSheet("")
+                    self.b_importLatest.setStyleSheet(
+                        "QPushButton { background-color: rgb(0,100,0); }"
+                        )
                 else:
-                    self.b_importLatest.setPalette(self.oldPalette)
+                    # self.b_importLatest.setPalette(self.oldPalette)
+                    self.b_importLatest.setStyleSheet(
+                        "QPushButton { background-color: rgb(0,100,0); }"
+                        )
 
         isCache = self.stateMode == "ApplyCache"
         self.f_nameSpaces.setVisible(not isCache)
 
-        self.lw_objects.clear()
-
-        if self.chb_trackObjects.isChecked():
-            self.gb_objects.setVisible(True)
-            getattr(self.core.appPlugin, "sm_import_updateObjects", lambda x: None)(
-                self
-            )
-
-            for i in self.nodes:
-                item = QListWidgetItem(self.core.appPlugin.getNodeName(self, i))
-                getattr(
-                    self.core.appPlugin,
-                    "sm_import_updateListItem",
-                    lambda x, y, z: None,
-                )(self, item, i)
-
-                self.lw_objects.addItem(item)
-        else:
-            self.gb_objects.setVisible(False)
-
         self.nameChanged()
         self.setStateColor(status)
+
+        self.updateAovChnlTree()
+
         getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
+
     @err_catcher(name=__name__)
-    def updateTrackObjects(self, state):
-        if not state:
-            if len(self.nodes) > 0:
-                msg = QMessageBox(
-                    QMessageBox.Question,
-                    "Track objects",
-                    "When you disable object tracking Prism won't be able to delete or replace the imported objects at a later point in time. You cannot undo this action. Are you sure you want to disable object tracking?",
-                    QMessageBox.Cancel,
-                )
-                msg.addButton("Continue", QMessageBox.YesRole)
-                msg.setParent(self.core.messageParent, Qt.Window)
-                action = msg.exec_()
+    def updateAovChnlTree(self):
 
-                if action != 0:
-                    self.chb_trackObjects.setChecked(True)
-                    return
+        # self.core.popup(f"self.importData: {self.importData}")                                      #    TESTING
+        # print(f"self.importData:\n\n{self.importData}")                                      #    TESTING
 
-            self.nodes = []
-            getattr(
-                self.core.appPlugin, "sm_import_disableObjectTracking", lambda x: None
-            )(self)
+        identifier = self.importData["identifier"]
+        version = self.importData["version"]
+        files = self.importData["files"]
 
-        self.updateUi()
-        self.stateManager.saveStatesToScene()
+        aov = self.importData["aov"]
+        aovs = self.importData["aovs"]
+        channel = self.importData["channel"]
+        channels = self.importData["channels"]
+
+        # self.core.popup(f"identifier: {identifier}\n"
+        #                 f"aov: {aov}\n"
+        #                 f"aovs: {aovs}\n"
+        #                 f"channel: {channel}\n"
+        #                 f"channels: {channels}")                                      #    TESTING
+        
+
+        self.lw_objects.setHeaderHidden(True)
+        self.lw_objects.setMinimumHeight(350)  # Set the minimum height to 300 pixels
+
+        self.lw_objects.clear()
+
+        # Create a root item for the identifier
+        root_item = QTreeWidgetItem(self.lw_objects)
+
+
+        root_item.setText(0, f"{identifier}_{version}")
+
+
+        root_item.setExpanded(True)  # Optional: expand the root item by default
+
+        # Dictionary to store AOV nodes for grouping channels
+        aov_items = {}
+
+        # Iterate through the files and organize AOVs and channels
+        for file_data in files:
+            aov = file_data["aov"]
+
+            # self.core.popup(f"aov:  {aov}")                                      #    TESTING
+
+            # Get the channels from the file using the provided method
+            try:
+                channels = self.core.media.getLayersFromFile(file_data["basefile"])
+                # self.core.popup(f"channels:  {channels}")                                      #    TESTING
+
+                if len(channels) < 1:
+                    raise Exception
+                
+            except Exception as e:
+                # Handle exceptions (e.g., invalid file) gracefully
+                channels = ["Unknown Channel"]
+                print(f"Error getting channels for file {file_data['basefile']}: {e}")
+
+            # Check if this AOV already exists in the tree
+            if aov not in aov_items:
+                # Create a new item for the AOV
+                aov_item = QTreeWidgetItem(root_item)
+                aov_item.setText(0, aov)
+                aov_items[aov] = aov_item
+            else:
+                # Reuse the existing AOV item
+                aov_item = aov_items[aov]
+
+            # Add channels as children of the AOV
+            for channel in channels:
+                channel_item = QTreeWidgetItem(aov_item)
+                channel_item.setText(0, channel)
+
+                # Optionally style the channel item, e.g., based on frame range
+                frame_start = file_data["frame_start"]
+                frame_end = file_data["frame_end"]
+                if frame_start > frame_end:  # Example validation logic
+                    channel_item.setBackground(0, QBrush(QColor("red")))
+
+        # Optionally expand all AOV items
+        for aov_item in aov_items.values():
+            aov_item.setExpanded(True)
+
+
+
+
+
+
+
+
+    # @err_catcher(name=__name__)
+    # def updateTrackObjects(self, state):
+    #     if not state:
+    #         if len(self.nodes) > 0:
+    #             msg = QMessageBox(
+    #                 QMessageBox.Question,
+    #                 "Track objects",
+    #                 "When you disable object tracking Prism won't be able to delete or replace the imported objects at a later point in time. You cannot undo this action. Are you sure you want to disable object tracking?",
+    #                 QMessageBox.Cancel,
+    #             )
+    #             msg.addButton("Continue", QMessageBox.YesRole)
+    #             msg.setParent(self.core.messageParent, Qt.Window)
+    #             action = msg.exec_()
+
+    #             if action != 0:
+    #                 self.chb_trackObjects.setChecked(True)
+    #                 return
+
+    #         self.nodes = []
+    #         getattr(
+    #             self.core.appPlugin, "sm_import_disableObjectTracking", lambda x: None
+    #         )(self)
+
+    #     self.updateUi()
+    #     self.stateManager.saveStatesToScene()
 
     @err_catcher(name=__name__)
     def preDelete(
@@ -695,21 +774,13 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def getStateProps(self):
-        connectedNodes = []
-        if self.chb_trackObjects.isChecked():
-            for i in range(self.lw_objects.count()):
-                connectedNodes.append([self.lw_objects.item(i).text(), self.nodes[i]])
+
 
         return {
             "statename": self.e_name.text(),
             "statemode": self.stateMode,
             "filepath": self.getImportPath(),
             "autoUpdate": str(self.chb_autoUpdate.isChecked()),
-            "keepedits": str(self.chb_keepRefEdits.isChecked()),
-            "autonamespaces": str(self.chb_autoNameSpaces.isChecked()),
-            "updateabc": str(self.chb_abcPath.isChecked()),
-            "trackobjects": str(self.chb_trackObjects.isChecked()),
-            "connectednodes": connectedNodes,
             "taskname": self.taskName,
             "nodenames": str(self.nodeNames),
             "setname": self.setName,

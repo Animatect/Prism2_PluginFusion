@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>340</width>
-    <height>600</height>
+    <height>730</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -72,7 +72,7 @@
          </font>
         </property>
         <property name="text">
-         <string>ImportFile</string>
+         <string>Import Image</string>
         </property>
        </widget>
       </item>
@@ -408,7 +408,7 @@
       <item>
        <widget class="QGroupBox" name="gb_channels">
         <property name="title">
-         <string>Channels</string>
+         <string>Image AOV / Channels</string>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_4">
          <property name="leftMargin">
@@ -424,7 +424,7 @@
           <number>9</number>
          </property>
          <item>
-          <widget class="QListWidget" name="lw_objects">
+          <widget class="QTreeWidget" name="lw_objects">
            <property name="selectionMode">
             <enum>QAbstractItemView::ExtendedSelection</enum>
            </property>
@@ -434,6 +434,11 @@
            <property name="horizontalScrollMode">
             <enum>QAbstractItemView::ScrollPerPixel</enum>
            </property>
+           <column>
+            <property name="text">
+             <string notr="true">1</string>
+            </property>
+           </column>
           </widget>
          </item>
          <item>

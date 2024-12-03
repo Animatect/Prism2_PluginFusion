@@ -982,6 +982,29 @@ class Prism_Fusion_Functions(object):
 	#                                              #
 	################################################
 
+	@err_catcher(name=__name__)
+	def sm_getImportHandlerType(self, extension):			#	TODO - ADD ext dict
+
+		return "Image_Import"
+
+
+	@err_catcher(name=__name__)
+	def sm_import_importToApp(self, origin, doImport, update, impFileName):
+
+		# self.core.popup("IN sm_import_importToApp")                                      #    TESTING
+
+		# self.core.popup(f"origin: {origin}\n"
+		# 		  		f"doImport: {doImport}\n"
+		# 				f"update: {update}\n"
+		# 				f"impFileName: {impFileName}")                                      #    TESTING
+		
+
+		result = {"result": True,
+				  "doImport": True}
+		
+		return result
+
+
 
 	@err_catcher(name=__name__)
 	def importImages(self, mediaBrowser):
@@ -1153,6 +1176,7 @@ class Prism_Fusion_Functions(object):
 
 				#	If no channels or single channel call addSingle
 				if len(channels) <= 1:
+
 					leftmostNode = self.addSingleChannel(comp, toolUID, toolData, refNode, sortnodes)
 
 				#	If multiple channels exists display popup to split
@@ -1181,8 +1205,17 @@ class Prism_Fusion_Functions(object):
 
 			Fus.sortLoaders(comp, leftmostNode, reconnectIn=True, sortnodes=sortnodes)			#	TODO  Look into this			
 
-
 			logger.debug(f"Imported  {importData['identifier']}")
+
+
+			# self.core.popup(f"importData:  {importData}")					#	TESTING
+
+			sm = self.core.getStateManager()
+			sm.importFile(path=importData["files"][0]["basefile"], settings=importData)
+
+			logger.debug(f"Added Import_Image State for {importData['identifier']}")
+
+
 
 		except Exception as e:
 			comp.Unlock()
@@ -3284,6 +3317,7 @@ path = r\"%s\"
 				menu.exec_(QCursor.pos())
 
 		origin.activeList.setFocus()
+
 
 
 	@err_catcher(name=__name__)
