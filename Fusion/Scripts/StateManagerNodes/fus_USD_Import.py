@@ -34,7 +34,6 @@
 
 import os
 import logging
-# from tkinter import N             #   TODO  MISTAKE ???
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -411,8 +410,9 @@ class USD_ImportClass(object):
         nodeName = f"{productName}_{productVersion}"
 
         nodeData = {"nodeName": nodeName,
+                    "nodeUID": self.stateUID,
                     "version": productVersion,
-                    "filepath": impFileName,
+                    "usdFilepath": impFileName,
                     "product": productName,
                     "format": "USD"}
 

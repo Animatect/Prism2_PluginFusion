@@ -35,48 +35,6 @@
 from PrismUtils.Decorators import err_catcher as err_catcher
 
 
-@err_catcher(name=__name__)
-def importUSD(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Add uLoader node
-    usdTool = comp.AddTool("uLoader")
-
-    #	Set import file path
-    usdTool["Filename"] = nodeData["filepath"]
-
-    #	Set node name
-    usdTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    #	Add custom UUID
-    usdTool.SetData('Prism_UUID', UUID)
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
-
-
-@err_catcher(name=__name__)
-def updateUSD(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Get uLoader node
-    usdTool = plugin.getNodeByUID(UUID)
-
-    #	Set import file path
-    usdTool["Filename"] = nodeData["filepath"]
-
-    #	Set node name
-    usdTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
-
 
 @err_catcher(name=__name__)
 def createUsdScene(plugin, origin, UUID):

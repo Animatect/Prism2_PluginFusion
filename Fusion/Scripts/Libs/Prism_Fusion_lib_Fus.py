@@ -237,6 +237,12 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
         if "mediaId" in toolData:
             tool.SetData('Prism_MediaID', toolData['mediaId'])
 
+        if "product" in toolData:
+            tool.SetData('Prism_Product', toolData['product'])
+
+        if "format" in toolData:
+            tool.SetData('Format', toolData['format'])
+
         if "aov" in toolData:
             tool.SetData('Prism_AOV', toolData['aov'])
 
@@ -251,6 +257,9 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
 
         if "filepath" in toolData:
             tool.Clip = toolData['filepath']
+
+        if "usdFilepath" in toolData:
+            tool["Filename"] = toolData['usdFilepath']
 
         if "fuseFormat" in toolData:
             tool["OutputFormat"] = toolData['fuseFormat']
@@ -288,6 +297,9 @@ def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1
 
         if "filepath" in toolData:
             tool.Clip = toolData['filepath']
+
+        if "usdFilepath" in toolData:
+            tool["Filename"] = toolData['usdFilepath']
 
         if "frame_start" in toolData:
             tool.GlobalIn[0] = toolData["frame_start"]

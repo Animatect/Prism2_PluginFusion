@@ -34,6 +34,7 @@
 
 
 import os
+from plistlib import UID
 import sys
 import json
 import platform
@@ -1528,24 +1529,76 @@ class Prism_Fusion_Functions(object):
 
 	#	TODO LOOK AT COMBINING THESE CALLS
 
-	@err_catcher(name=__name__)
-	def importUSD(self, origin, UUID, nodeData, update=False):				#	TODO HANDLE ERRORS
-		comp = self.getCurrentComp()
-	
-		if not update:
-			addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
-			result = Fus3d.importUSD(self, origin, UUID, nodeData)
-		
-		else:
-			CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
-			result = Fus3d.updateUSD(self, origin, UUID, nodeData)
 
-		return result
+	@err_catcher(name=__name__)
+	def importUSD(self, origin, UUID, nodeData, update=False):
+		comp = self.getCurrentComp()
+		
+		importRes = False
+
+		#	Add new uLoader
+		if not update:
+			try:
+				comp.StartUndo()
+				comp.Lock()
+
+				#	Add tool
+				uLdr = Fus.addTool(comp, "uLoader", nodeData)
+
+				comp.Unlock()
+				comp.EndUndo()
+
+				logger.debug(f"Imported USD object: {nodeData['product']}")
+
+			except Exception as e:
+				logger.warning(f"ERROR: Unable to import USD object:\n{e}")
+				comp.Unlock()
+				return {"result": False, "doImport": False}
+			
+			if uLdr:
+				#	Add to Comp Database
+				addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
+				importRes = True
+		
+		#	Update uLoader
+		else:
+			try:
+				#	Get tool
+				tool = CompDb.getNodeByUID(comp, UUID)
+				#	 Update tool data
+				uLdr = Fus.updateTool(tool, nodeData)
+
+				logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
+				importRes = True
+
+			except Exception as e:
+				logger.warning(f"ERROR: Failed to update uLoader:\n{e}")
+
+			if uLdr:
+				#	Update Comp DB record
+				CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
+				importRes = True
+
+
+		return {"result": importRes, "doImport": importRes}
 	
+
 
 	@err_catcher(name=__name__)
 	def createUsdScene(self, origin, UUID):
-		Fus3d.createUsdScene(self, origin, UUID)
+		comp = self.getCurrentComp()
+
+		comp.StartUndo()
+
+		try:
+			Fus3d.createUsdScene(self, origin, UUID)
+			logger.debug(f"Created USD Scene for {UUID}")
+
+		except Exception as e:
+			logger.warning(f"ERROR: Unable to create USD scene:\n{e}")
+			comp.Unlock()
+
+		comp.EndUndo()
 
 
 	@err_catcher(name=__name__)
@@ -3264,21 +3317,9 @@ path = r\"%s\"
 							**st.get("kwargs",{}))
 					)
 
-				# actSet.triggered.connect(lambda x=None, st=importState, fp=filepath: origin.createState(
-    			# 			st["stateType"],
-				# 			parent=parent,
-				# 			setActive=True,
-				# 			filepath=fp,
-				# 			**st.get("kwargs", {}))
-				# 	)
-
 
 
 				menu.addAction(actSet)
-
-			# getattr(self.core.appPlugin, "sm_openStateFromNode", lambda x, y, stateType: None)(			#	NOT USED???
-			# 	self, menu, stateType=stateType
-			# 	)
 
 			if not menu.isEmpty():
 				menu.exec_(QCursor.pos())
