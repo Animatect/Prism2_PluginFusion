@@ -314,7 +314,7 @@
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_6">
          <item>
-          <widget class="QWidget" name="f_keepRefEdits" native="true">
+          <widget class="QWidget" name="f_taskColor" native="true">
            <layout class="QHBoxLayout" name="horizontalLayout_10">
             <property name="leftMargin">
              <number>9</number>
@@ -329,33 +329,15 @@
              <number>0</number>
             </property>
             <item>
-             <widget class="QCheckBox" name="chb_keepRefEdits">
+             <widget class="QLabel" name="l_taskColor">
               <property name="text">
-               <string/>
-              </property>
-              <property name="checked">
-               <bool>true</bool>
+               <string>Task Color</string>
               </property>
              </widget>
             </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QWidget" name="f_nameSpaces" native="true">
-           <layout class="QHBoxLayout" name="horizontalLayout_12">
-            <property name="leftMargin">
-             <number>9</number>
-            </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>9</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
-            </property>
+            <item>
+             <widget class="QComboBox" name="cb_taskColor"/>
+            </item>
            </layout>
           </widget>
          </item>
@@ -459,7 +441,6 @@
  <tabstops>
   <tabstop>e_name</tabstop>
   <tabstop>chb_autoUpdate</tabstop>
-  <tabstop>chb_keepRefEdits</tabstop>
   <tabstop>chb_abcPath</tabstop>
   <tabstop>lw_objects</tabstop>
   <tabstop>b_selectAll</tabstop>

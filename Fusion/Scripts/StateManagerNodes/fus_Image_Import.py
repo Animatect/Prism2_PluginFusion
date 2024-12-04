@@ -70,6 +70,8 @@ class Image_ImportClass(object):
         self.taskName = ""
         self.setName = ""
 
+        self.fuseFuncts = self.core.appPlugin                           #   TODO - change references to this in the code
+
         stateNameTemplate = "{entity}_{version}"
         self.stateNameTemplate = self.core.getConfig(
             "globals",
@@ -83,23 +85,38 @@ class Image_ImportClass(object):
         self.nodes = []
         self.nodeNames = []
 
-        #   Receive importData via "settings" kwarg
-        self.importData = settings          
-        # self.core.popup(f"settings:  {settings}")           #   TESTING
-
-
-        self.f_abcPath.setVisible(False)
-        self.f_keepRefEdits.setVisible(False)
+        # self.f_abcPath.setVisible(False)
+        # self.f_keepRefEdits.setVisible(False)
 
         self.oldPalette = self.b_importLatest.palette()
         self.updatePalette = QPalette()
         self.updatePalette.setColor(QPalette.Button, QColor(200, 100, 0))
         self.updatePalette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
 
+        self.populateTaskColorCombo()
+
         createEmptyState = (
             QApplication.keyboardModifiers() == Qt.ControlModifier
             or not self.core.uiAvailable
             ) or not openProductsBrowser                                                    #   TODO
+
+
+        if stateData is not None:
+            self.loadData(stateData)
+
+        else:
+            if settings:
+                #   Receive importData via "settings" kwarg
+                self.identifier = settings.get("identifier", None)
+                self.mediaType = settings.get("mediaType", None)
+                self.itemType = settings.get("itemType", None)
+                self.extension = settings.get("extension", None)
+                self.version = settings.get("version", None)
+                self.aov = settings.get("aov", "")
+                self.aovs = settings.get("aovs", "")
+                self.channel = settings.get("channel", "")
+                self.channels = settings.get("channels", "")
+                self.files = settings.get("files", None)
 
         if (
             importPath is None
@@ -113,8 +130,6 @@ class Image_ImportClass(object):
                 if len(importPaths) > 1:                                          #   TESTING
                     for importPath in importPaths[:-1]:
                         stateManager.importFile(importPath)
-
-
 
         if importPath:
             self.setImportPath(importPath)
@@ -131,12 +146,8 @@ class Image_ImportClass(object):
             return False
 
         getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
+
         self.connectEvents()
-
-        if stateData is not None:
-            self.loadData(stateData)
-            
-
         self.nameChanged()
         self.updateUi()
 
@@ -218,11 +229,6 @@ class Image_ImportClass(object):
             self.e_name.setText(data["statename"])
         if "statemode" in data:
             self.setStateMode(data["statemode"])
-        if "filepath" in data:
-            data["filepath"] = getattr(
-                self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
-            )(data["filepath"])
-            self.setImportPath(data["filepath"])
         if "taskname" in data:
             self.taskName = data["taskname"]
         if "nodenames" in data:
@@ -231,6 +237,37 @@ class Image_ImportClass(object):
             self.setName = data["setname"]
         if "autoUpdate" in data:
             self.chb_autoUpdate.setChecked(eval(data["autoUpdate"]))
+        if "taskColor" in data:
+            idx = self.cb_taskColor.findText(data["taskColor"])
+            if idx != -1:
+                self.cb_taskColor.setCurrentIndex(idx)
+
+        if "identifier" in data:
+            self.identifier = data["identifier"]
+        if "mediaType" in data:
+            self.mediaType = data["mediaType"]
+        if "itemType" in data:
+            self.itemType = data["itemType"]
+        if "extension" in data:
+            self.extension = data["extension"]
+        if "version" in data:
+            self.version = data["version"]
+        if "aov" in data:
+            self.aov = data["aov"]
+        if "aovs" in data:
+            self.aovs = data["aovs"]
+        if "channel" in data:
+            self.channel = data["channel"]
+        if "channels" in data:
+            self.channels = data["channels"]
+        if "files" in data:
+            self.channels = data["files"]
+
+        if "filepath" in data:
+            data["filepath"] = getattr(
+                self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
+            )(data["filepath"])
+            self.setImportPath(data["filepath"])
 
         self.core.callback("onStateSettingsLoaded", self, data)
 
@@ -244,6 +281,7 @@ class Image_ImportClass(object):
         self.b_import.clicked.connect(self.importImage)
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
+        self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
 
 
     @err_catcher(name=__name__)
@@ -257,7 +295,7 @@ class Image_ImportClass(object):
             try:
                 # importPath = self.getImportPath()
                 # fileData = self.core.mediaProducts.getDataFromFilepath(importPath)
-                name = f"{self.importData['identifier']}__{self.importData['version']}"
+                name = f"{self.identifier}__{self.version}"
 
             except Exception as e:                                          #   TODO
                 name = text
@@ -615,8 +653,8 @@ class Image_ImportClass(object):
                         "QPushButton { background-color: rgb(0,100,0); }"
                         )
 
-        isCache = self.stateMode == "ApplyCache"
-        self.f_nameSpaces.setVisible(not isCache)
+        # isCache = self.stateMode == "ApplyCache"
+        # self.f_nameSpaces.setVisible(not isCache)
 
         self.nameChanged()
         self.setStateColor(status)
@@ -632,14 +670,7 @@ class Image_ImportClass(object):
         # self.core.popup(f"self.importData: {self.importData}")                                      #    TESTING
         # print(f"self.importData:\n\n{self.importData}")                                      #    TESTING
 
-        identifier = self.importData["identifier"]
-        version = self.importData["version"]
-        files = self.importData["files"]
-
-        aov = self.importData["aov"]
-        aovs = self.importData["aovs"]
-        channel = self.importData["channel"]
-        channels = self.importData["channels"]
+        # files = self.importData["files"]
 
         # self.core.popup(f"identifier: {identifier}\n"
         #                 f"aov: {aov}\n"
@@ -657,7 +688,7 @@ class Image_ImportClass(object):
         root_item = QTreeWidgetItem(self.lw_objects)
 
 
-        root_item.setText(0, f"{identifier}_{version}")
+        root_item.setText(0, f"{self.identifier}_{self.version}")
 
 
         root_item.setExpanded(True)  # Optional: expand the root item by default
@@ -666,7 +697,7 @@ class Image_ImportClass(object):
         aov_items = {}
 
         # Iterate through the files and organize AOVs and channels
-        for file_data in files:
+        for file_data in self.files:
             aov = file_data["aov"]
 
             # self.core.popup(f"aov:  {aov}")                                      #    TESTING
@@ -711,8 +742,39 @@ class Image_ImportClass(object):
 
 
 
+    @err_catcher(name=__name__)
+    def populateTaskColorCombo(self):
+        # Assuming self.cb_taskColor is your QComboBox
+        self.cb_taskColor.clear()  # Clear existing items
+
+        # Loop through your color dictionary and add items with icons
+        for key in self.fuseFuncts.fusionToolsColorsDict.keys():
+            name = key
+            color = self.fuseFuncts.fusionToolsColorsDict[key]
+
+            # Create a QColor from the RGB values
+            qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
+
+            # Create a QIcon with the color (you can create an icon using a colored rectangle or image)
+            icon = self.fuseFuncts.create_color_icon(qcolor)
+
+            # Add the item to the QComboBox with the icon and text
+            self.cb_taskColor.addItem(QIcon(icon), name)
+
+            # Optionally, you can connect a lambda function to handle item selection (if needed)
+            # For example, you can use the currentIndexChanged signal of the QComboBox:
+            self.cb_taskColor.currentIndexChanged.connect(
+                lambda index, color=color: self.handleColorSelection(index, color)
+            )
+
+        # Optionally, set the size of the icons in the combobox
+        self.cb_taskColor.setIconSize(QSize(24, 24))
 
 
+    # @err_catcher(name=__name__)
+    def setTaskColor(self, color):                                              #   TODO
+
+        self.core.popup(f"color:  {color}")                                      #    TESTING
 
 
 
@@ -784,4 +846,17 @@ class Image_ImportClass(object):
             "taskname": self.taskName,
             "nodenames": str(self.nodeNames),
             "setname": self.setName,
+            "taskColor": self.cb_taskColor.currentText(),
+
+            "identifier": self.identifier,
+            "mediaType": self.mediaType,
+            "itemType": self.itemType,
+            "extension": self.extension,
+            "version": self.version,
+            "aov": self.aov,
+            "aovs": self.aovs,
+            "channel": self.channel,
+            "channels": self.channels,
+            "files": self.files
         }
+

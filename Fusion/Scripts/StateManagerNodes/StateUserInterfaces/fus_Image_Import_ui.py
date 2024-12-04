@@ -167,27 +167,23 @@ class Ui_wg_Image_Import(object):
         self.gb_options.setObjectName(u"gb_options")
         self.verticalLayout_6 = QVBoxLayout(self.gb_options)
         self.verticalLayout_6.setObjectName(u"verticalLayout_6")
-        self.f_keepRefEdits = QWidget(self.gb_options)
-        self.f_keepRefEdits.setObjectName(u"f_keepRefEdits")
-        self.horizontalLayout_10 = QHBoxLayout(self.f_keepRefEdits)
+        self.f_taskColor = QWidget(self.gb_options)
+        self.f_taskColor.setObjectName(u"f_taskColor")
+        self.horizontalLayout_10 = QHBoxLayout(self.f_taskColor)
         self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
         self.horizontalLayout_10.setContentsMargins(9, 0, 9, 0)
-        self.chb_keepRefEdits = QCheckBox(self.f_keepRefEdits)
-        self.chb_keepRefEdits.setObjectName(u"chb_keepRefEdits")
-        self.chb_keepRefEdits.setChecked(True)
+        self.l_taskColor = QLabel(self.f_taskColor)
+        self.l_taskColor.setObjectName(u"l_taskColor")
 
-        self.horizontalLayout_10.addWidget(self.chb_keepRefEdits)
+        self.horizontalLayout_10.addWidget(self.l_taskColor)
+
+        self.cb_taskColor = QComboBox(self.f_taskColor)
+        self.cb_taskColor.setObjectName(u"cb_taskColor")
+
+        self.horizontalLayout_10.addWidget(self.cb_taskColor)
 
 
-        self.verticalLayout_6.addWidget(self.f_keepRefEdits)
-
-        self.f_nameSpaces = QWidget(self.gb_options)
-        self.f_nameSpaces.setObjectName(u"f_nameSpaces")
-        self.horizontalLayout_12 = QHBoxLayout(self.f_nameSpaces)
-        self.horizontalLayout_12.setObjectName(u"horizontalLayout_12")
-        self.horizontalLayout_12.setContentsMargins(9, 0, 9, 0)
-
-        self.verticalLayout_6.addWidget(self.f_nameSpaces)
+        self.verticalLayout_6.addWidget(self.f_taskColor)
 
         self.f_abcPath = QWidget(self.gb_options)
         self.f_abcPath.setObjectName(u"f_abcPath")
@@ -241,8 +237,7 @@ class Ui_wg_Image_Import(object):
         self.verticalLayout.addWidget(self.gb_import)
 
         QWidget.setTabOrder(self.e_name, self.chb_autoUpdate)
-        QWidget.setTabOrder(self.chb_autoUpdate, self.chb_keepRefEdits)
-        QWidget.setTabOrder(self.chb_keepRefEdits, self.chb_abcPath)
+        QWidget.setTabOrder(self.chb_autoUpdate, self.chb_abcPath)
         QWidget.setTabOrder(self.chb_abcPath, self.lw_objects)
         QWidget.setTabOrder(self.lw_objects, self.b_selectAll)
 
@@ -267,7 +262,7 @@ class Ui_wg_Image_Import(object):
         self.b_importLatest.setText(QCoreApplication.translate("wg_Image_Import", u"Import latest Version", None))
         self.b_import.setText(QCoreApplication.translate("wg_Image_Import", u"Re-Import", None))
         self.gb_options.setTitle(QCoreApplication.translate("wg_Image_Import", u"Options", None))
-        self.chb_keepRefEdits.setText("")
+        self.l_taskColor.setText(QCoreApplication.translate("wg_Image_Import", u"Task Color", None))
         self.chb_abcPath.setText("")
         self.gb_channels.setTitle(QCoreApplication.translate("wg_Image_Import", u"Image AOV / Channels", None))
         self.b_selectAll.setText(QCoreApplication.translate("wg_Image_Import", u"Select all", None))
