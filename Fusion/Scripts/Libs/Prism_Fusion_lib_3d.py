@@ -65,52 +65,8 @@ def createUsdScene(plugin, origin, UUID):
     comp.Unlock()
 
 
-
 @err_catcher(name=__name__)
-def importFBX(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Add FBX Mesh node
-    fbxTool = comp.AddTool("SurfaceFBXMesh")
-
-    #	Set import mesh file path
-    fbxTool["ImportFile"] = nodeData["filepath"]
-
-    #	Set node name
-    fbxTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    #	Add custom UUID
-    fbxTool.SetData('Prism_UUID', UUID)
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
-
-
-@err_catcher(name=__name__)
-def updateFBX(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Get uLoader node
-    fbxTool = plugin.getNodeByUID(UUID)
-
-    #	Set import file path
-    fbxTool["Filename"] = nodeData["filepath"]
-
-    #	Set node name
-    fbxTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
-
-
-@err_catcher(name=__name__)
-def createFbxScene(plugin, origin, UUID):
+def create3dScene(plugin, origin, UUID):
 
     comp = plugin.getCurrentComp()
     flow = comp.CurrentFrame.FlowView
@@ -134,79 +90,6 @@ def createFbxScene(plugin, origin, UUID):
     #   Set positions relative to uLoader
     flow.SetPos(merge3d, fbxTool_x + 2, fbxTool_y)
     flow.SetPos(render3d, fbxTool_x + 4, fbxTool_y)
-
-    comp.Unlock()
-
-
-
-@err_catcher(name=__name__)
-def importABC(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Add FBX Mesh node
-    abcTool = comp.AddTool("SurfaceAlembicMesh")
-
-    #	Set import mesh file path
-    abcTool["Filename"] = nodeData["filepath"]
-
-    #	Set node name
-    abcTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    #	Add custom UUID
-    abcTool.SetData('Prism_UUID', UUID)
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
-
-
-@err_catcher(name=__name__)
-def updateABC(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Get uLoader node
-    abcTool = plugin.getNodeByUID(UUID)
-
-    #	Set import file path
-    abcTool["Filename"] = nodeData["filepath"]
-
-    #	Set node name
-    abcTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
-
-
-@err_catcher(name=__name__)
-def createAbcScene(plugin, origin, UUID):
-
-    comp = plugin.getCurrentComp()
-    flow = comp.CurrentFrame.FlowView
-
-    comp.Lock()
-
-    #	Get uLoader node
-    abcTool = plugin.getNodeByUID(UUID)
-
-    # Add uMerge and uRender nodes
-    merge3d = comp.AddTool("Merge3D")
-    render3d = comp.AddTool("Renderer3D")
-
-    # Connect Nodes
-    merge3d.ConnectInput("SceneInput1", abcTool)
-    render3d.ConnectInput("SceneInput", merge3d)
-
-    #   Get position of the uLoader
-    abcTool_x, abcTool_y = flow.GetPosTable(abcTool).values()
-
-    #   Set positions relative to uLoader
-    flow.SetPos(merge3d, abcTool_x + 2, abcTool_y)
-    flow.SetPos(render3d, abcTool_x + 4, abcTool_y)
 
     comp.Unlock()
 

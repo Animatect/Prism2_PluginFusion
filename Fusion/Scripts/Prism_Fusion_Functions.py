@@ -121,8 +121,8 @@ class Prism_Fusion_Functions(object):
 			logger.warning(f"ERROR: Failed to register callbacks:\n{e}")
 		
 		self.importHandlers = {
-			".abc": {"importFunction": self.importABC},
-			".fbx": {"importFunction": self.importFBX},
+			".abc": {"importFunction": self.import3dObject},
+			".fbx": {"importFunction": self.import3dObject},
 			".bcam":{"importFunction": self.importBlenderCam},
 			".usd":{"importFunction": self.importUSD},
 			".usda":{"importFunction": self.importUSD},
@@ -1602,44 +1602,71 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def importFBX(self, origin, UUID, nodeData, update=False):				#	TODO HANDLE ERRORS
+	def import3dObject(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
-	
-		if not update:
-			addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
-			result = Fus3d.importFBX(self, origin, UUID, nodeData)
 		
-		else:
-			CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
-			result = Fus3d.updateFBX(self, origin, UUID, nodeData)
+		importRes = False
 
-		return result
+		format = nodeData["format"]
 
-	
-	@err_catcher(name=__name__)
-	def createFbxScene(self, origin, UUID):
-		Fus3d.createFbxScene(self, origin, UUID)
-	
-
-	@err_catcher(name=__name__)
-	def importABC(self, origin, UUID, nodeData, update=False):				#	TODO HANDLE ERRORS
-		comp = self.getCurrentComp()
-	
+		#	Add new 3d Loader
 		if not update:
-			addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
-			result = Fus3d.importABC(self, origin, UUID, nodeData)
-		
-		else:
-			CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
-			result = Fus3d.updateABC(self, origin, UUID, nodeData)
+			try:
+				comp.StartUndo()
+				comp.Lock()
 
-		return result
-		return result
-	
+				#	Add tooltype based on format
+				if format == ".fbx":
+					ldr3d = Fus.addTool(comp, "SurfaceFBXMesh", nodeData)
+
+				elif format == ".abc":
+					ldr3d = Fus.addTool(comp, "SurfaceAlembicMesh", nodeData)
+				
+				else:
+					logger.warning(f"ERROR:  Format not supported: {format}")
+
+				comp.Unlock()
+				comp.EndUndo()
+
+				logger.debug(f"Imported 3d object: {nodeData['product']}")
+
+			except Exception as e:
+				logger.warning(f"ERROR: Unable to import 3d object:\n{e}")
+				comp.Unlock()
+				return {"result": False, "doImport": False}
+			
+			if ldr3d:
+				#	Add to Comp Database
+				addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
+				importRes = True
+		
+		#	Update 3d Loader
+		else:
+			try:
+				#	Get tool
+				tool = CompDb.getNodeByUID(comp, UUID)
+				#	 Update tool data
+				ldr3d = Fus.updateTool(tool, nodeData)
+
+				logger.debug(f"Updated Loader3d: {nodeData['nodeName']}")
+				importRes = True
+
+			except Exception as e:
+				logger.warning(f"ERROR: Failed to update Loader3d:\n{e}")
+
+			if ldr3d:
+				#	Update Comp DB record
+				CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
+				importRes = True
+
+
+		return {"result": importRes, "doImport": importRes}
+
 	
 	@err_catcher(name=__name__)
-	def createAbcScene(self, origin, UUID):
-		Fus3d.createAbcScene(self, origin, UUID)
+	def create3dScene(self, origin, UUID):
+		Fus3d.create3dScene(self, origin, UUID)
+	
 
 
 	@err_catcher(name=__name__)

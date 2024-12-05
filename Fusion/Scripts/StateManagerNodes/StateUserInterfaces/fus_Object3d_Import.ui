@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>wg_ABC_Import</class>
- <widget class="QWidget" name="wg_ABC_Import">
+ <class>wg_Object3d_Import</class>
+ <widget class="QWidget" name="wg_Object3d_Import">
   <property name="geometry">
    <rect>
     <x>0</x>
@@ -345,7 +345,7 @@
              </spacer>
             </item>
             <item>
-             <widget class="QPushButton" name="b_createAbcScene">
+             <widget class="QPushButton" name="b_create3dScene">
               <property name="text">
                <string>Create Scene</string>
               </property>

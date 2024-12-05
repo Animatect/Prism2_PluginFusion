@@ -261,6 +261,12 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
         if "usdFilepath" in toolData:
             tool["Filename"] = toolData['usdFilepath']
 
+        if "3dFilepath" in toolData:
+            if toolData["format"] == ".fbx":
+                tool["ImportFile"] = toolData['3dFilepath']
+            elif toolData["format"] == ".abc":
+                tool["Filename"] = toolData['3dFilepath']
+
         if "fuseFormat" in toolData:
             tool["OutputFormat"] = toolData['fuseFormat']
 
@@ -285,7 +291,7 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
 
 #   Updates tool config for given data
 @err_catcher(name=__name__)
-def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1) -> Tool:          #   TODO IS THIS NEEDED OR USE ADDTOOL?
+def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1) -> Tool:
     try:
         if "toolName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
@@ -300,6 +306,12 @@ def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1
 
         if "usdFilepath" in toolData:
             tool["Filename"] = toolData['usdFilepath']
+
+        if "3dFilepath" in toolData:
+            if toolData["format"] == ".fbx":
+                tool["ImportFile"] = toolData['3dFilepath']
+            elif toolData["format"] == ".abc":
+                tool["Filename"] = toolData['3dFilepath']
 
         if "frame_start" in toolData:
             tool.GlobalIn[0] = toolData["frame_start"]

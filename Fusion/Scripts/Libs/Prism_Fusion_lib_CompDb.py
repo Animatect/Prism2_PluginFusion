@@ -78,9 +78,9 @@ logger = logging.getLogger(__name__)
 #                   NodeData: {
 #                        "nodeName": string
 #                        "version": string
-#                        "filepath": string
-#                        "format": string
+#                        "3dFilepath": string
 #                        "product": string
+#                        "format": string
 #                        "connectedNodes": list
 #                        }
 #                     }

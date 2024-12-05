@@ -12,15 +12,15 @@ from qtpy.QtCore import *  # type: ignore
 from qtpy.QtGui import *  # type: ignore
 from qtpy.QtWidgets import *  # type: ignore
 
-class Ui_wg_ABC_Import(object):
-    def setupUi(self, wg_ABC_Import):
-        if not wg_ABC_Import.objectName():
-            wg_ABC_Import.setObjectName(u"wg_ABC_Import")
-        wg_ABC_Import.resize(340, 600)
-        self.verticalLayout = QVBoxLayout(wg_ABC_Import)
+class Ui_wg_Object3d_Import(object):
+    def setupUi(self, wg_Object3d_Import):
+        if not wg_Object3d_Import.objectName():
+            wg_Object3d_Import.setObjectName(u"wg_Object3d_Import")
+        wg_Object3d_Import.resize(340, 600)
+        self.verticalLayout = QVBoxLayout(wg_Object3d_Import)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
-        self.f_name = QWidget(wg_ABC_Import)
+        self.f_name = QWidget(wg_Object3d_Import)
         self.f_name.setObjectName(u"f_name")
         self.horizontalLayout_2 = QHBoxLayout(self.f_name)
         self.horizontalLayout_2.setObjectName(u"horizontalLayout_2")
@@ -48,7 +48,7 @@ class Ui_wg_ABC_Import(object):
 
         self.verticalLayout.addWidget(self.f_name)
 
-        self.gb_import = QGroupBox(wg_ABC_Import)
+        self.gb_import = QGroupBox(wg_Object3d_Import)
         self.gb_import.setObjectName(u"gb_import")
         self.verticalLayout_2 = QVBoxLayout(self.gb_import)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
@@ -176,10 +176,10 @@ class Ui_wg_ABC_Import(object):
 
         self.horizontalLayout_10.addItem(self.horizontalSpacer_3)
 
-        self.b_createAbcScene = QPushButton(self.f_keepRefEdits)
-        self.b_createAbcScene.setObjectName(u"b_createAbcScene")
+        self.b_create3dScene = QPushButton(self.f_keepRefEdits)
+        self.b_create3dScene.setObjectName(u"b_create3dScene")
 
-        self.horizontalLayout_10.addWidget(self.b_createAbcScene)
+        self.horizontalLayout_10.addWidget(self.b_create3dScene)
 
         self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
@@ -200,27 +200,27 @@ class Ui_wg_ABC_Import(object):
 
         QWidget.setTabOrder(self.e_name, self.chb_autoUpdate)
 
-        self.retranslateUi(wg_ABC_Import)
+        self.retranslateUi(wg_Object3d_Import)
 
-        QMetaObject.connectSlotsByName(wg_ABC_Import)
+        QMetaObject.connectSlotsByName(wg_Object3d_Import)
     # setupUi
 
-    def retranslateUi(self, wg_ABC_Import):
-        wg_ABC_Import.setWindowTitle(QCoreApplication.translate("wg_ABC_Import", u"ImportFile", None))
-        self.l_name.setText(QCoreApplication.translate("wg_ABC_Import", u"State name:", None))
-        self.l_class.setText(QCoreApplication.translate("wg_ABC_Import", u"ImportFile", None))
-        self.gb_import.setTitle(QCoreApplication.translate("wg_ABC_Import", u"Import", None))
-        self.groupBox.setTitle(QCoreApplication.translate("wg_ABC_Import", u"Version", None))
-        self.label_3.setText(QCoreApplication.translate("wg_ABC_Import", u"Current Version:", None))
-        self.l_curVersion.setText(QCoreApplication.translate("wg_ABC_Import", u"-", None))
-        self.label_6.setText(QCoreApplication.translate("wg_ABC_Import", u"Latest Version:", None))
-        self.l_latestVersion.setText(QCoreApplication.translate("wg_ABC_Import", u"-", None))
-        self.l_autoUpdate.setText(QCoreApplication.translate("wg_ABC_Import", u"Auto load latest version:", None))
+    def retranslateUi(self, wg_Object3d_Import):
+        wg_Object3d_Import.setWindowTitle(QCoreApplication.translate("wg_Object3d_Import", u"ImportFile", None))
+        self.l_name.setText(QCoreApplication.translate("wg_Object3d_Import", u"State name:", None))
+        self.l_class.setText(QCoreApplication.translate("wg_Object3d_Import", u"ImportFile", None))
+        self.gb_import.setTitle(QCoreApplication.translate("wg_Object3d_Import", u"Import", None))
+        self.groupBox.setTitle(QCoreApplication.translate("wg_Object3d_Import", u"Version", None))
+        self.label_3.setText(QCoreApplication.translate("wg_Object3d_Import", u"Current Version:", None))
+        self.l_curVersion.setText(QCoreApplication.translate("wg_Object3d_Import", u"-", None))
+        self.label_6.setText(QCoreApplication.translate("wg_Object3d_Import", u"Latest Version:", None))
+        self.l_latestVersion.setText(QCoreApplication.translate("wg_Object3d_Import", u"-", None))
+        self.l_autoUpdate.setText(QCoreApplication.translate("wg_Object3d_Import", u"Auto load latest version:", None))
         self.chb_autoUpdate.setText("")
-        self.b_browse.setText(QCoreApplication.translate("wg_ABC_Import", u"Browse", None))
-        self.b_importLatest.setText(QCoreApplication.translate("wg_ABC_Import", u"Import latest Version", None))
-        self.b_import.setText(QCoreApplication.translate("wg_ABC_Import", u"Re-Import", None))
-        self.gb_options.setTitle(QCoreApplication.translate("wg_ABC_Import", u"Options", None))
-        self.b_createAbcScene.setText(QCoreApplication.translate("wg_ABC_Import", u"Create Scene", None))
+        self.b_browse.setText(QCoreApplication.translate("wg_Object3d_Import", u"Browse", None))
+        self.b_importLatest.setText(QCoreApplication.translate("wg_Object3d_Import", u"Import latest Version", None))
+        self.b_import.setText(QCoreApplication.translate("wg_Object3d_Import", u"Re-Import", None))
+        self.gb_options.setTitle(QCoreApplication.translate("wg_Object3d_Import", u"Options", None))
+        self.b_create3dScene.setText(QCoreApplication.translate("wg_Object3d_Import", u"Create Scene", None))
     # retranslateUi
 
