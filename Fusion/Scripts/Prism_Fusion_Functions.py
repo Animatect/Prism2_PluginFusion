@@ -1527,9 +1527,8 @@ class Prism_Fusion_Functions(object):
 	################################################
 
 
-	#	TODO LOOK AT COMBINING THESE CALLS
 
-
+	#	Imports or updates USD scene or object
 	@err_catcher(name=__name__)
 	def importUSD(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
@@ -1583,7 +1582,7 @@ class Prism_Fusion_Functions(object):
 		return {"result": importRes, "doImport": importRes}
 	
 
-
+	#	Creates simple USD scene - adds uMerge and uRender to uLoader
 	@err_catcher(name=__name__)
 	def createUsdScene(self, origin, UUID):
 		comp = self.getCurrentComp()
@@ -1600,7 +1599,7 @@ class Prism_Fusion_Functions(object):
 
 		comp.EndUndo()
 
-
+	#	Imports .fbx or .abc object into Comp
 	@err_catcher(name=__name__)
 	def import3dObject(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
@@ -1663,9 +1662,22 @@ class Prism_Fusion_Functions(object):
 		return {"result": importRes, "doImport": importRes}
 
 	
+	#	Creates simple 3d scene - adds merge3d and render3d
 	@err_catcher(name=__name__)
 	def create3dScene(self, origin, UUID):
-		Fus3d.create3dScene(self, origin, UUID)
+		comp = self.getCurrentComp()
+
+		comp.StartUndo()
+
+		try:
+			Fus3d.create3dScene(self, origin, UUID)
+			logger.debug(f"Created 3d Scene for {UUID}")
+
+		except Exception as e:
+			logger.warning(f"ERROR: Unable to create 3d scene:\n{e}")
+			comp.Unlock()
+
+		comp.EndUndo()
 	
 
 
