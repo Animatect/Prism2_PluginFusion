@@ -175,10 +175,10 @@ class Object3d_ImportClass(object):
         if "statemode" in data:
             self.setStateMode(data["statemode"])
         if "3dFilepath" in data:
-            data["filepath"] = getattr(
+            data["3dFilepath"] = getattr(
                 self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
-            )(data["filepath"])
-            self.setImportPath(data["filepath"])
+            )(data["3dFilepath"])
+            self.setImportPath(data["3dFilepath"])
         if "taskname" in data:
             self.taskName = data["taskname"]
         if "nodenames" in data:
