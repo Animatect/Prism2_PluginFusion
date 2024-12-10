@@ -249,6 +249,12 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
         if "channel" in toolData:
             tool.SetData('Prism_Channel', toolData['channel'])
 
+        if "shaderName" in toolData:
+            tool.SetData('Prism_Shader', toolData['shaderName'])
+
+        if "texMap" in toolData:
+            tool.SetData('Prism_TexMap', toolData['texMap'])
+ 
         if "version" in toolData:
             tool.SetData('Prism_Version', toolData['version'])
 
@@ -260,6 +266,9 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
 
         if "usdFilepath" in toolData:
             tool["Filename"] = toolData['usdFilepath']
+
+        if "uTexFilepath" in toolData:
+            tool["Filename"] = toolData['uTexFilepath']
 
         if "3dFilepath" in toolData:
             if toolData["format"] == ".fbx":
@@ -329,6 +338,156 @@ def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1
     
     except:
         logger.warning(f"ERROR: Failed to update {tool} in Comp")
+        return None
+
+
+#   Returns Prism Data contained in Tool
+@err_catcher(name=__name__)
+def getToolData(tool:Tool) -> dict:
+    try:
+        #   Get all the tool data
+        allData = tool.GetData()
+
+        # Extract only the keys starting with "Prism"
+        prismKeys = {key: value for key, value in allData.items() if str(value).startswith("Prism")}
+
+        prismData = {}
+
+        #   Get key value pairs
+        for key, value in prismKeys.items():
+            data = tool.GetData(value)
+            #   Add to dict
+            prismData[value] = data
+
+        return prismData
+
+    except Exception as e:
+        logger.warning(f"ERROR: Unable to get tool data from: {tool}\n{e}")
+        return {}
+    
+
+#   Creates a group with given tools.
+@err_catcher(name=__name__)
+def groupTools(comp, groupName:str, toolList:list, outputTool:Tool = None, inputTool:Tool = None) -> list:
+    success = False
+    toolUIDs = []
+    toolsToCopy = dict()
+    iOconnections = []
+
+    try:
+        for tool in toolList:
+            #   Add UUID to list
+            uid = getToolData(tool)["Prism_UUID"]
+            toolUIDs.append(uid)
+
+            #   Copys the settings code
+            toolSettings = comp.CopySettings(tool)
+
+            #   Gets the output socket object
+            outputSocket = getToolOutputSocket(tool)
+
+            inputNames = []
+            #   Gets list of connected tools' input socket objects
+            inputs = getInputsFromOutput(tool)
+            
+            for input in inputs:
+                #   Get the tool of the socket and get its name
+                parentTool = input.GetTool()
+                parentToolName = parentTool.Name
+                #   Gets the name of the input socket
+                inputName = input.Name
+                #   Makes a dict with the input names
+                inputDict = {"inputToolName": parentToolName,
+                             "inputName": inputName}
+
+                #   Adds the input dict to the list
+                inputNames.append(inputDict)
+
+            #   Makes tool I/O dict
+            toolIo = {"toolName": tool.Name,
+                      "output": outputSocket.Name,
+                      "inputs": inputNames}
+            
+            #   Adds it to the list
+            iOconnections.append(toolIo)
+
+            # Add the tool's settings to the all_tools dictionary
+            toolsToCopy.update(toolSettings["Tools"])
+
+        success = True
+    
+    except Exception as e:
+        logger.warning(f"ERROR: Unable to copy tool settings:\n{e}")
+        return False
+
+    if success:
+        #   Deletes the original tools
+        for tool in toolList:
+            tool.Delete()
+
+    try:
+        #   Create group settings code
+        gt = {"Tools": {groupName: {"__ctor": "GroupOperator" }}}
+
+        gt["Tools"][groupName]["ViewInfo"] = dict(__ctor="GroupInfo")
+        gt["Tools"][groupName]["Inputs"] = dict()
+        gt["Tools"][groupName]["Outputs"] = dict()
+
+        #   Add the list of tools settings to the group
+        gt["Tools"][groupName]["Tools"] = toolsToCopy
+
+        #   Add an external input using the inputTool
+        if inputTool:
+            gt["Tools"][groupName]["Inputs"]["Input1"] = dict(
+                __ctor="InstanceInput", SourceOp=inputTool.Name, Source="Input"
+            )
+
+        #   Add an external output using the outputTool
+        if outputTool:
+            gt["Tools"][groupName]["Outputs"]["Output1"] = dict(
+                __ctor="InstanceOutput", SourceOp=outputTool.Name, Source="Output"
+            )
+
+        #   Paste the group settings code into the composition
+        comp.Paste(gt)
+
+        #   Reconnect the tools
+        for toolDict in iOconnections:
+            #   Get the pasted tool from the saved Tool Name
+            tool = comp.FindTool(toolDict["toolName"])
+            #   Get the new output socket object
+            output = getToolOutputSocket(tool)
+
+            #   Itterate throught the input list since there can be multiple tools connected
+            for inputDict in toolDict["inputs"]:
+                #   Get the pasted tool from the saved Tool Name
+                inputTool = getToolByName(comp, inputDict["inputToolName"])
+                #   Get the input socket object by matching saved name
+                input = getMatchingInputSocket(inputTool, inputDict["inputName"])
+
+                #   Connect the two tools via their sockets
+                result = connectInputToOutput(input, output)
+
+        if result:
+            return toolUIDs
+
+    except Exception as e:
+        logger.warning(f"ERROR: Failed to create group:\n{e}")
+        return None
+
+
+#   Returns tool that matches name
+@err_catcher(name=__name__)
+def getToolByName(comp, toolName:str) -> Tool:
+    try:
+        for tool in comp.GetToolList(False).values():
+            if tool.Name == toolName:
+                return tool
+        logger.warning(f"ERROR: No tool found with the name: {toolName}")
+        return None
+    
+    except Exception as e:
+        logger.warning(f"ERROR: Uanble to match {toolName}:\n{e}")
         return None
 
 
@@ -423,22 +582,80 @@ def hasConnectedInput(tool) -> bool:
         return False    
 
 
-#   Finds if tool has an input connected
+#   Connects two tools
 @err_catcher(name=__name__)
-def connectTools(toolFrom, toolTo):
+def connectTools(toolFrom, toolTo) -> bool:
     try:
+        #   Connect MainOutput to 1st MainInput (works for most situations)
         toolTo.FindMainInput(1).ConnectTo(toolFrom)
+        return True
+    
     except:
         logger.warning(f"ERROR: Could not connect {toolFrom} into {toolTo}")
+        return False
 
 
-#   Finds if tool has an input connected
+#   Takes Fusion input and output objects and makes connection
 @err_catcher(name=__name__)
-def getToolOutput(tool) -> ToolOption:
+def connectInputToOutput(input:ToolOption, output:ToolOption) -> bool:
+    try:
+        #   Connects input socket object to output socket object
+        input.ConnectTo(output)
+        return True
+    
+    except Exception as e:
+        logger.warning(f"ERROR: Unable to make connections:\n{e}")
+        return False
+
+
+#   Returns output socket object
+@err_catcher(name=__name__)
+def getToolOutputSocket(tool) -> ToolOption:
     try:
         return tool.FindMainOutput(1)
     except:
         logger.warning(f"ERROR: Could not get tool output for {tool}")
+        return None
+    
+
+#   Returns list of input sockets that are connected to the tool's output
+@err_catcher(name=__name__)
+def getInputsFromOutput(tool) -> list:
+    try:
+        #   Gets the Fusion table of inputs
+        inputsDict = tool.FindMainOutput(1).GetConnectedInputs()
+        inputsList = []
+        #   Itterates over ther table and extracts the objects
+        for inputIdx, inputTool in inputsDict.items():
+            if inputTool:
+                inputsList.append(inputTool)
+        
+        return inputsList
+
+    except:
+        logger.warning(f"ERROR: Could not get tool's connected inputs to output for {tool}")
+        return None
+
+
+#   Returns matching input socket from Input name
+@err_catcher(name=__name__)
+def getMatchingInputSocket(tool, inputName:str) -> ToolOption:
+    try:
+        #   Gets the Fusion table of inputs
+        inputs = tool.GetInputList()
+
+        #   Itterates over ther table and extracts the objects
+        for inputIdx, inputTool in inputs.items():
+            if inputTool:
+                #   Return input object if it matches the name
+                if inputTool.Name == inputName:
+                    return inputTool
+                
+        #   If no match
+        logger.warning(f"ERROR: Unable to find matching input socket: {inputName}")
+        return None
+    except Exception as e:
+        logger.warning(f"ERROR: Failed to match input socket {inputName}:\n{e}")
         return None
 
 
@@ -539,6 +756,50 @@ def posRelativeToNode(comp, node, xoffset=3) -> bool:
                 return True
 
     return False
+
+
+# Arranges nodes in a vertical stack
+@err_catcher(name=__name__)
+def stackNodesByList(comp, toolList: list, xoffset=0, yoffset=1):
+    flow = comp.CurrentFrame.FlowView
+
+    # Ensure there is at least one tool to stack
+    if not toolList:
+        return
+
+    # Initialize variables to calculate the average position
+    totalX, totalY = 0, 0
+
+    # Get the position of the first tool
+    refNode = toolList[0]
+    refPos = flow.GetPosTable(refNode)
+    x, y = refPos.values()
+
+    # Iterate through the tools and set their positions
+    for i, tool in enumerate(toolList):
+        # Get the new Y position based on the offset
+        if i == 0:  # The first tool doesn't move
+            newX = x
+            newY = y
+        else:
+            # For each other tools, stack vertically
+            newX = x + xoffset
+            newY = y + i * yoffset
+
+        # Set the new position for each tool
+        flow.SetPos(tool, newX, newY)
+
+        # Add the position to the total
+        totalX += newX
+        totalY += newY
+
+    # Calculate the average position
+    avgX = totalX / len(toolList)
+    avgY = totalY / len(toolList)
+
+    return avgX, avgY
+
+
 
 
 #	Arranges nodes in a vertcal stack

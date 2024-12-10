@@ -51,7 +51,7 @@ logger = logging.getLogger(__name__)
 
 #   LETS KEEP THIS STRUCTURE UPDATED WITH CHANGES
 
-#   DataBase Structure:                                 #   TODO - MAKE SURE IT IS ACCURATE
+#   DataBase Structure:                                 ####   TODO - MAKE SURE IT IS ACCURATE     ####
 #
 #   Root(
 #       "nodes"(
@@ -229,7 +229,7 @@ def cleanPrismFileDb(comp, cpData_orig:dict) ->dict:
 
             # Remove the invalid UIDs from the current subcategory
             for uid in uids_to_remove:
-                logger.debug(f"Cleaned {uid} record from Database")
+                logger.warning(f"Cleaned {uid} record from Database")
                 del nodes[uid]
 
         return cpData_cleaned
@@ -291,7 +291,15 @@ def addNodeToDB(comp, type:str, UUID:str, nodeData:dict) -> bool:
         #   Adds the record to the Database
         cpData["nodes"][type][UUID] = nodeData
         savePrismFileDb(comp, cpData)
-        logger.debug(f"Added {nodeData['nodeName']} to the Comp Database")
+
+        if "nodeName" in nodeData:                                                  #   TODO Deal with toolName vs nodeName
+            logger.debug(f"Added {nodeData['nodeName']} to the Comp Database")
+        elif "toolName" in nodeData:
+            logger.debug(f"Added {nodeData['toolName']} to the Comp Database")
+        else:
+            logger.debug(f"Added {UUID} to the Comp Database")
+
+
         return True
 
     except Exception as e:
