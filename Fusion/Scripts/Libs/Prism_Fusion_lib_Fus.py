@@ -109,7 +109,6 @@ def getFrameRange(comp) -> list[int, int]:
 #	Sets the supplied framerange to the comp
 @err_catcher(name=__name__)
 def setFrameRange(comp, startFrame:int, endFrame:int):
-    comp.Lock()
     try:
         comp.SetAttrs(
             {
@@ -128,7 +127,6 @@ def setFrameRange(comp, startFrame:int, endFrame:int):
     except Exception as e:
         logger.warning(f"ERROR: Could not set framerange in the comp:\n{e}")
 
-    comp.Unlock()
 
 
 @err_catcher(name=__name__)
@@ -145,7 +143,6 @@ def getRenderRange(comp) -> list[int, int]:
 #	Sets the supplied framerange to the comp
 @err_catcher(name=__name__)
 def setRenderRange(comp, startFrame:int, endFrame:int):
-    comp.Lock()
 
     try:
         comp.SetAttrs(
@@ -158,7 +155,6 @@ def setRenderRange(comp, startFrame:int, endFrame:int):
     except Exception as e:
         logger.warning(f"ERROR: Could not set framerange in the comp:\n{e}")
 
-    comp.Unlock()
 
 
 @err_catcher(name=__name__)
@@ -862,6 +858,7 @@ def findLeftmostLowerNode(comp, threshold:int=0.5) -> Tool:
 
 @err_catcher(name=__name__)
 def sortingEnabled(comp, save:bool=False, checked:bool=None) -> bool:
+    # Sets/Gets the checkbox state of the dialog as part of the comp data.
     if save:
         try:
             comp.SetData("isPrismImportChbxCheck", checked)
@@ -932,7 +929,6 @@ def getChannelData(loaderChannels:list) -> dict:
 def sortLoaders(comp, posRefNode:Tool, reconnectIn:bool=True, sortnodes:bool=True):
     flow = comp.CurrentFrame.FlowView
 
-    # comp.Lock()
 
     #Get the leftmost loader within a threshold.
     leftmostpos = flow.GetPosTable(posRefNode)[1]
@@ -990,7 +986,6 @@ def sortLoaders(comp, posRefNode:Tool, reconnectIn:bool=True, sortnodes:bool=Tru
         except:
             logger.warning("ERROR: Failed to sort nodes")
 
-    # comp.Unlock()
 
 
 @err_catcher(name=__name__)

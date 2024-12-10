@@ -1087,7 +1087,11 @@ class Prism_Fusion_Functions(object):
 		#	Update Option
 		elif importType in ["Update Selected", "Update Version"]:
 			#	Call the update
+			comp.Lock()
+			comp.StartUndo("Update Media")
 			self.updateImport(comp, importType, importData)
+			comp.EndUndo()
+			comp.Unlock()
 
 		#	Cancel Option
 		else:
@@ -1171,8 +1175,6 @@ class Prism_Fusion_Functions(object):
 			return
 
 		try:
-			comp.Lock()
-			comp.StartUndo()
 
 			#	For each import item
 			for importItem in importList:
@@ -1225,9 +1227,6 @@ class Prism_Fusion_Functions(object):
 						#	Call Multi-channel function for current channel
 						leftmostNode = self.addMultiChannel(comp, toolData, channels, currChannel, sortnodes=sortnodes)
 
-				
-			comp.EndUndo()
-			comp.Unlock()
 
 			#	Return if add image returns None
 			if not leftmostNode:
@@ -1255,8 +1254,6 @@ class Prism_Fusion_Functions(object):
 			if leftmostNode:
 				refNode = leftmostNode
 
-		# comp.Lock()
-		# comp.StartUndo()
 		try:
 			#	Add and configure Loader
 			ldr = Fus.addTool(comp, "Loader", toolData)
@@ -1284,9 +1281,6 @@ class Prism_Fusion_Functions(object):
 		# #	If sorting is enabled
 		if sortnodes:
 			self.createWireless(toolUID)
-
-		# comp.EndUndo()
-		# comp.Unlock()
 			
 		return ldr
 
@@ -1543,11 +1537,8 @@ class Prism_Fusion_Functions(object):
 		flow = comp.CurrentFrame.FlowView
 		tool = CompDb.getNodeByUID(comp, nodeUID)
 
-		# comp.Lock()
 		
 		try:
-			# comp.StartUndo()
-
 			pyperclip.copy(wirelessCopy)
 			comp.Paste(wirelessCopy)
 			ad = comp.FindTool("neverreferencednameonautodomain")
@@ -1575,9 +1566,6 @@ class Prism_Fusion_Functions(object):
 			nodeData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
 			nodeData["connectedNodes"] = [wirelessInUID, wirelessOutUID]
 			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
-
-			# comp.EndUndo()
-			# comp.Unlock()
 
 			#	Select the wireless out
 			flow.Select()
@@ -1611,20 +1599,14 @@ class Prism_Fusion_Functions(object):
 		#	Add new uLoader
 		if not update:
 			try:
-				comp.StartUndo()
-				comp.Lock()
 
 				#	Add tool
 				uLdr = Fus.addTool(comp, "uLoader", nodeData)
-
-				comp.Unlock()
-				comp.EndUndo()
 
 				logger.debug(f"Imported USD object: {nodeData['product']}")
 
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to import USD object:\n{e}")
-				comp.Unlock()
 				return {"result": False, "doImport": False}
 			
 			if uLdr:
