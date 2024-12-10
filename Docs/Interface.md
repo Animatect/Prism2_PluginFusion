@@ -1,5 +1,4 @@
 # **Interface**
-
 <br/>
 
 ## **Prism Startup Mode:**
@@ -10,19 +9,18 @@ There are three modes for Prism launching in Fusion: "Automatic", "Prompt", and 
 
 ![Startup Modes](DocsImages/StartupMode.png)
 
-### **Automatic**
+### **- Automatic**
 
 When in Automatic mode, Prism will be launched everytime Fusion is started.
-
 <br/>
 
-### **Prompt**
+### **- Prompt**
 
 When in Prompt mode, a popup will display to allow the user to launch the Prism when Fusion is started.
 
 ![Startup Popup](DocsImages/Startup_Popup.png)
 
-### **Manual**
+### **- Manual**
 
 When in Manual mode, Prism will not start when Fusion is opened.  But Prism can be started anytime by using the "RESET PRISM" button in the Prism menu.
 
@@ -49,13 +47,37 @@ The Prism functions are running in a dedicated process, so note that only one Pr
 
 - **Save Comment:**  Opens a dialogue to allow the user to enter a comment and/or description of the new version.  It also allows the user to select a screenshot to be used for the thumbnail.  It then saves to a new version as above.
 
-- **Project Browser:**  Launches the Prism Project Browser.  This allows the user to import images into Fusion from the Prism project (see [**Importing Docs**](Importing.md)).
+- **Project Browser:**  Launches the Prism Project Browser.  This allows the user to import images into Fusion from the Prism project (see [**Importing Images**](Importing_2d.md)).
 
-- **State Manager:**  Launches the Prism State Manager.  This allows the user to render images into the Prism project structure (see [**Rendering Docs**](Rendering.md)).
+- **State Manager:**  Launches the Prism State Manager.  This allows the user to render images into the Prism project structure (see [**Rendering**](Rendering.md)) and import 3d objects (see [**Import 3D**](Importing_3d.md)).
 
 - **Settings:**  Launches the Prism Settings window.
 
 - **RESET PRISM:**  will restart/reload the Prism Functions inside of Fusion, and can be used if there are any glitches with Prism while Fusion is open.  This can also be used to start Prism if the startup dialogue was not used when Fusion was opened.
+
+<br/>
+
+## **Task Coloring:**
+
+The Fusion plugin adds additional UI functions to the Media Tab of the Project Browser to allow the user to add a color to a Media Identifier and Loaders (see [**Importing Images**](Importing_2d.md)).
+
+Configuration of this behaviour is in the Prism Settings
+<br/>
+
+### **Mode**
+
+![Task Color Mode](DocsImages/Setting_TaskColor_mode.png)
+
+- **Disabled:**     Coloring functions are disabled
+- **All Nodes:**    Both the Loader and associated Wireless nodes will be colored
+- **Loader Nodes:** Only the Loader node will be colored
+<br/>
+
+### **Brightness**
+
+![Task Color Brightness](DocsImages/Setting_TaskColor_brightness.png)
+
+This setting allows the user to set the "brightness" of the background color of colored tasks.  
 
 <br/>
 
@@ -65,13 +87,12 @@ The Prism functions are running in a dedicated process, so note that only one Pr
 
 Fusion has a native auto-save function that will periodically save the Comp to a temp file in the same directory as the original Comp.  This file with have an extension of ".autocomp", and is displayed in Prism's Project Browser with a custom icon.
 
-
 <br/>
-
-
 
 jump to:
 
-[**Rendering Docs**](Rendering.md)
+[**Rendering**](Rendering.md)
 
-[**Importing Docs**](Importing.md)
+[**Importing Images**](Importing_2d.md)
+
+[**Importing 3D**](Importing_3d.md)

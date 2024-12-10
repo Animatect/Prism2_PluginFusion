@@ -31,8 +31,10 @@ To add the integration, go to the "DCC Apps" -> "Fusion" tab.  Then click the "a
 
 jump to:
 
-[**Interface Docs**](Interface.md)
+[**Interface**](Interface.md)
 
-[**Rendering Docs**](Rendering.md)
+[**Rendering**](Rendering.md)
 
-[**Importing Docs**](Importing.md)
+[**Importing Images**](Importing_2d.md)
+
+[**Importing 3D**](Importing_3d.md)

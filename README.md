@@ -20,7 +20,7 @@ https://prism-pipeline.com/
 - Tested with Fusion Studio versions 18 and 19.
 - This integration does not work with Resolve Fusion, though it is planned for the future.
 - Sometimes the Startup Popup appears twice.  Sarting twice has no adverse effects.
-- As of Prism version 2.0.12, the automatic Media Conversion is not able to function.  This should be working with the next Prism update.
+- As of Prism version 2.0.12, the automatic Media Conversion is not able to function.  This is working as of Prism 2.0.13.
 - To aid is use, tooltips are provided throughout.
 
 <br/>
@@ -41,13 +41,15 @@ This plugin is for Windows only, as Prism2 only supports Windows at this time.
 
 <br/>
 
-## **Usage**
+## **Documentaion**
 
-[**Interface Docs**](Docs/Interface.md)
+[**Interface**](Docs/Interface.md)
 
-[**Rendering Docs**](Docs/Rendering.md)
+[**Rendering**](Docs/Rendering.md)
 
-[**Importing Docs**](Docs/Importing.md)
+[**Importing Images**](Docs/Importing_2d.md)
+
+[**Importing 3D**](Docs/Importing_3d.md)
 
 
 <br/>
