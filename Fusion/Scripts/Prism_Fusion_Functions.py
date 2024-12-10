@@ -982,10 +982,18 @@ class Prism_Fusion_Functions(object):
 	#                 IMPORTIMAGES                 #
 	#                                              #
 	################################################
+	@err_catcher(name=__name__)
+	def importImages(self, mediaBrowser):
+		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Import Media")
+		self.wrappedImportImages(mediaBrowser, comp)
+		comp.EndUndo()
+		comp.Unlock()
 
 
 	@err_catcher(name=__name__)
-	def importImages(self, mediaBrowser):
+	def wrappedImportImages(self, mediaBrowser, comp):
 		try:
 			self.monkeypatchedmediabrowser = mediaBrowser
 			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportSource, self.compGetImportSource, self, force=True)
@@ -994,8 +1002,9 @@ class Prism_Fusion_Functions(object):
 
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to load patched functions:\n{e}")
-
-		comp = self.getCurrentComp()
+		
+		if not comp:
+			comp = self.getCurrentComp()
 		
 		try:
 			#	Get Identifier Context Data
@@ -1087,11 +1096,11 @@ class Prism_Fusion_Functions(object):
 		#	Update Option
 		elif importType in ["Update Selected", "Update Version"]:
 			#	Call the update
-			comp.Lock()
-			comp.StartUndo("Update Media")
+			# comp.Lock()
+			# comp.StartUndo("Update Media")
 			self.updateImport(comp, importType, importData)
-			comp.EndUndo()
-			comp.Unlock()
+			# comp.EndUndo()
+			# comp.Unlock()
 
 		#	Cancel Option
 		else:
