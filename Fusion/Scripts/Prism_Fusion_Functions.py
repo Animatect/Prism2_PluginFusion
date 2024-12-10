@@ -1012,8 +1012,8 @@ class Prism_Fusion_Functions(object):
 			aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
 
 		except Exception as e:
-			self.core.popup(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
 			logger.warning(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
+			self.core.popup(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
 			return
 
 		try:
@@ -1029,16 +1029,16 @@ class Prism_Fusion_Functions(object):
 						#	Needs furter investigation
 
 		except Exception as e:
-			self.core.popup(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
 			logger.warning(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
+			self.core.popup(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
 			return
 
 		#	Function to aggregate data into importData
 		importData = Helper.makeImportData(self, context, aovDict, sourceData)
 
 		if not importData:
-			self.core.popup(f"ERROR:  Import Failed - Unable to make import data:\n{e}.")
 			logger.warning(f"ERROR:  Import Failed - Unable to make import data:\n{e}.")
+			self.core.popup(f"ERROR:  Import Failed - Unable to make import data:\n{e}.")
 			return
 
 		#	Get "Sorting" checkbox state	
@@ -1073,7 +1073,16 @@ class Prism_Fusion_Functions(object):
 
 		#	Call the import with options and passing the data
 		if importType in ["Import Media", "Current AOV", "All AOVs"]:
-			self.configureImport(comp, importData, importType, sortnodes=not checkbox_checked)
+			#	Get any UIDs for the Identifier
+			uids = CompDb.getUIDsFromImportData(comp, "import2d", importData)
+
+			#	If there are already UIDs in the comp
+			if uids and len(uids) > 0:
+				self.importExisting(comp, uids, importData, importType, checkbox_checked)
+
+			#	Import the image(s)
+			else:
+				self.configureImport(comp, importData, importType, sortnodes=not checkbox_checked)
 
 		#	Update Option
 		elif importType in ["Update Selected", "Update Version"]:
@@ -1085,7 +1094,51 @@ class Prism_Fusion_Functions(object):
 			logger.debug("Import Canceled")
 			return
 		
+
+	@err_catcher(name=__name__)
+	def importExisting(self, comp, uids, importData, importType, checkbox_checked):
+		#	Get node info
+		versions = []
+		for uid in uids:
+			tData = CompDb. getNodeInfo(comp, "import2d", uid)
+			identifier = tData["mediaId"]
+			versions.append(tData["version"])
 		
+		#	Takes the brackets out if there is only one item
+		if len(versions) == 1:
+			versions = versions[0]
+
+		#	Popup question
+		fString = (f"There is already ({versions}) of ({identifier}) the Comp:\n\n"
+					"Would you like to:\n" 
+					"       Update the version\n"
+					"           or\n"
+					"       Import this version?")
+		buttons = ["Update", "Import", "Cancel"]
+
+		result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+
+		#	Re-configure import type for update
+		if result == "Update":
+			if importType == "Import Media":
+				importType = "Update Version"
+			elif importType == "Current AOV":
+				importType = "Update Current"
+			elif importType == "All AOVs":
+				importType = "Update All"
+				
+			#	Call update function
+			self.updateImport(comp, importType, importData)
+
+		#	Import as normal
+		elif result == "Import":
+			self.configureImport(comp, importData, importType, sortnodes=not checkbox_checked)
+
+		else:
+			logger.debug("Import Canceled")
+			return
+
+
 	@err_catcher(name=__name__)
 	def configureImport(self, comp, importData, importType, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
@@ -1113,8 +1166,8 @@ class Prism_Fusion_Functions(object):
 					importList.append(importItem)
 
 		except Exception as e:
-			self.core.popup(f"ERROR: Unable to generate import item list:\n{e}")
 			logger.warning(f"ERROR: Unable to generate import item list:\n{e}")
+			self.core.popup(f"ERROR: Unable to generate import item list:\n{e}")
 			return
 
 		try:
@@ -1187,8 +1240,8 @@ class Prism_Fusion_Functions(object):
 
 		except Exception as e:
 			comp.Unlock()
-			self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
 			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
+			self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
 
 
 	@err_catcher(name=__name__)
@@ -1379,9 +1432,29 @@ class Prism_Fusion_Functions(object):
 				if tdata["mediaId"] == selMediaId:
 					selUIDs.append(uid)
 
+		#	Update all MediaId Loaders (from Import button)
+		elif importType == "Update All":
+			#	Remove keys to force all Loaders
+			if "aov" in importData:
+				del importData["aov"]
+			if "channel" in importData:
+				del importData["channel"]
+			
+			selUIDs = CompDb.getUIDsFromImportData(comp, "import2d", importData)
+
+		#	Update the current AOV/pass (from Import button)
+		elif importType == "Update Current":
+			selUIDs = CompDb.getUIDsFromImportData(comp, "import2d", importData)
+
 		#	Get file list from importData
 		fileList = importData["files"]
 
+		#	If there are no nodes for the Media ID in the comp
+		if not selUIDs or len(selUIDs) < 1:
+			logger.warning(f"ERROR: There are no Loaders for ({importData['identifier']}) in the Comp")
+			self.core.popup(f"There are no Loaders for ({importData['identifier']}) in the Comp")
+			return False
+		
 		updateMsgList = []
 	
 		#	Iterate through update items
