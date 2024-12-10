@@ -197,6 +197,23 @@ class Prism_Fusion_Functions(object):
 			'Chocolate': {'R': 0.5490196078431373, 'G': 0.35294117647058826, 'B': 0.24705882352941178}
 		}
 
+		#	Conversion for PBR names to Fusion uShader inputs
+		self.connectDict = {"ao": {"input": "occlusion", "colorspace": "linear"},
+				 	   	    "color": {"input": "diffuseColor", "colorspace": "sRGB"},
+				 	   		"metallic": {"input": "metallic", "colorspace": "linear"},
+							"roughness": {"input": "roughness", "colorspace": "linear"},
+							"normal": {"input": "normal", "colorspace": "linear"},
+							"displace": {"input": "displacement", "colorspace": "linear"},
+							"alpha": {"input": "opacity", "colorspace": "linear"},
+							"alphaThreshold": {"input": "opacityThreshold", "colorspace": "linear"},
+							"emit": {"input": "emissiveColor", "colorspace": "sRGB"},
+							"coat": {"input": "clearcoat", "colorspace": "linear"},
+							"coatRough": {"input": "clearcoatRoughness", "colorspace": "linear"},
+							"ior": {"input": "ior", "colorspace": "linear"},
+							"specColor": {"input": "specColor", "colorspace": "sRGB"}
+								}
+
+
 	@err_catcher(name=__name__)
 	def startup(self, origin):
 		# 	for obj in QApplication.topLevelWidgets():
@@ -328,6 +345,12 @@ class Prism_Fusion_Functions(object):
 	def getNodeNameByUID(self, nodeUID):
 		comp = self.getCurrentComp()
 		return CompDb.getNodeNameByUID(comp, nodeUID)
+	
+
+	@err_catcher(name=__name__)
+	def getNodeInfo(self, type, nodeUID):
+		comp = self.getCurrentComp()
+		return CompDb.getNodeInfo(comp, type, nodeUID)
 	
 
 	@err_catcher(name=__name__)
@@ -1012,8 +1035,8 @@ class Prism_Fusion_Functions(object):
 			aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
 
 		except Exception as e:
-			logger.warning(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
 			self.core.popup(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
+			logger.warning(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
 			return
 
 		try:
@@ -1029,16 +1052,16 @@ class Prism_Fusion_Functions(object):
 						#	Needs furter investigation
 
 		except Exception as e:
-			logger.warning(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
 			self.core.popup(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
+			logger.warning(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
 			return
 
 		#	Function to aggregate data into importData
 		importData = Helper.makeImportData(self, context, aovDict, sourceData)
 
 		if not importData:
-			logger.warning(f"ERROR:  Import Failed - Unable to make import data:\n{e}.")
 			self.core.popup(f"ERROR:  Import Failed - Unable to make import data:\n{e}.")
+			logger.warning(f"ERROR:  Import Failed - Unable to make import data:\n{e}.")
 			return
 
 		#	Get "Sorting" checkbox state	
@@ -1137,8 +1160,8 @@ class Prism_Fusion_Functions(object):
 		else:
 			logger.debug("Import Canceled")
 			return
-
-
+		
+		
 	@err_catcher(name=__name__)
 	def configureImport(self, comp, importData, importType, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
@@ -1166,8 +1189,8 @@ class Prism_Fusion_Functions(object):
 					importList.append(importItem)
 
 		except Exception as e:
-			logger.warning(f"ERROR: Unable to generate import item list:\n{e}")
 			self.core.popup(f"ERROR: Unable to generate import item list:\n{e}")
+			logger.warning(f"ERROR: Unable to generate import item list:\n{e}")
 			return
 
 		try:
@@ -1224,7 +1247,6 @@ class Prism_Fusion_Functions(object):
 						currChannel = importData["channel"]
 						#	Call Multi-channel function for current channel
 						leftmostNode = self.addMultiChannel(comp, toolData, channels, currChannel, sortnodes=sortnodes)
-
 				
 			comp.EndUndo()
 			comp.Unlock()
@@ -1235,13 +1257,12 @@ class Prism_Fusion_Functions(object):
 
 			Fus.sortLoaders(comp, leftmostNode, reconnectIn=True, sortnodes=sortnodes)			#	TODO  Look into this			
 
-
 			logger.debug(f"Imported  {importData['identifier']}")
 
 		except Exception as e:
 			comp.Unlock()
-			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 			self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
+			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 
 
 	@err_catcher(name=__name__)
@@ -1672,6 +1693,152 @@ class Prism_Fusion_Functions(object):
 
 		comp.EndUndo()
 
+
+	#	Creates group with uTextures and uShader
+	@err_catcher(name=__name__)
+	def createUsdMaterial(self, origin, UUID, texData, update):
+		comp = self.getCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+
+																		#	TODO add more connection types
+																		#	TODO handle ARM type (AO, ROUGH, MET)
+
+		comp.Lock()
+		comp.StartUndo()
+
+		#	Add uShader
+		try:
+			#	Configure Data
+			shdData = texData.copy()
+			del shdData["texFiles"]
+			shdData["nodeName"] = f"{texData['baseName']}_uShader"
+			shdData["shaderName"] = texData["baseName"]
+		
+			#	Add uShader tool
+			uShader = Fus.addTool(comp, "uShader", shdData)
+			logger.debug(f"Added uShader: {shdData['nodeName']}")
+		
+		except Exception as e:
+			logger.warning(f"ERROR: Unable to add uShader to Comp:\n{e}")
+			comp.Unlock()
+			return False
+
+		#	Add uShader to Comp Database
+		del shdData["baseName"]
+		CompDb.addNodeToDB(comp, "import3d", texData["nodeUID"], shdData)
+
+		#	Handle textures
+		try:
+			connectedTexs = []
+			for texture in texData["texFiles"]:
+				#	Create UIDs for each texture
+				toolUID = self.createUUID()
+				#	Configure texture data
+				texDict = {}
+				texDict["toolUID"] = toolUID
+				texDict["nodeName"] = f"{texData['baseName']}_{texture['map'].upper()}"
+				texDict["shaderName"] = texData["baseName"]
+				texDict["texMap"] = texture["map"].upper()
+				texDict["uTexFilepath"] = texture["path"]				
+
+				#	Add uTexture
+				uTexture = Fus.addTool(comp, "uTexture", texDict)
+
+				if uTexture:
+					#	Add to list
+					connectedTexs.append(toolUID)
+					CompDb.addNodeToDB(comp, "import3d", toolUID, texDict)
+
+		except Exception as e:
+			logger.warning(f"ERROR: Unable to add uTextures to Comp:\n{e}")
+			comp.Unlock()
+			return False
+
+		#	Add connected tools to uShader database record
+		updateDict = {"connectedNodes": connectedTexs}
+		CompDb.updateNodeInfo(comp, "import3d", texData["nodeUID"], updateDict)
+
+		#	Get tool for each UID
+		texTools = [tool for uid in connectedTexs if (tool := CompDb.getNodeByUID(comp, uid))]
+		#	Stack uTextures and get the average position
+		xPos, yPos = Fus.stackNodesByList(comp, texTools, yoffset=0.6)
+		#	Moves uShader to the right of the stack
+		Fus.set_node_position(flow, uShader, xPos+1, yPos)
+
+		logger.debug("Added uTextures to Comp")
+		
+		#	Make texture connections
+		for tool in texTools:
+			try:
+				#	Get tool data
+				toolData = Fus.getToolData(tool)
+
+				#	Get map type from data
+				mapType = (toolData.get("Prism_TexMap", None)).lower()
+
+				#	Get uShader connection data from map type
+				connectionData = self.connectDict.get(mapType, None)
+
+				#	Extract input name and colorspace
+				mapInput = connectionData.get("input", None)
+
+				#	Connect the tool to the uShader using mapInput
+				uShader[mapInput] = tool
+
+				logger.debug(f"Connected {tool.Name} to uShader_{mapInput}")
+				
+			except:
+				logger.warning(f"ERROR: Failed to connect {tool.Name} to uShader.")
+
+		#	Make Group
+		try:
+			#	Make list of tools to add to group
+			groupTools = texTools
+			groupTools.append(uShader)
+			#	Make group name
+			groupName = texData['baseName']
+
+			#	Create group
+			newToolsUIDs = Fus.groupTools(comp, groupName, groupTools, outputTool=uShader)
+
+			logger.debug(f"Created shader group: {groupName}")
+
+		except Exception as e:
+			logger.warning("ERROR: Failed to create group")
+			comp.Unlock()
+
+		#	Set the colorspace for textures
+		#	(have to do it at the end since it gets reset in the group creation)
+		for uid in newToolsUIDs:
+			try:
+			#	Get tool data
+				tool = CompDb.getNodeByUID(comp, uid)
+				toolData = Fus.getToolData(tool)
+
+				#	Get map type from data
+				mapType = (toolData.get("Prism_TexMap", None)).lower()
+
+				#	Get colorspace from map type
+				connectionData = self.connectDict.get(mapType, None)
+				colorspace = connectionData.get("colorspace", None)
+
+				#	Change to Fusion integer
+				colorCode = 0
+				if colorspace == "sRGB":
+					colorCode = 1
+
+				#	Set the tools colorspace
+				tool["SourceColorSpace"] = colorCode
+
+				logger.debug(f"Configured SourceColorSpace for {tool.Name}")
+
+			except:
+				logger.warning(f"ERROR: Not able to set Source ColorSpace for {tool.Name}.")
+
+		comp.EndUndo()
+		comp.Unlock()
+
+
 	#	Imports .fbx or .abc object into Comp
 	@err_catcher(name=__name__)
 	def import3dObject(self, origin, UUID, nodeData, update=False):
@@ -1689,14 +1856,17 @@ class Prism_Fusion_Functions(object):
 
 				#	Add tooltype based on format
 				if format == ".fbx":
-					ldr3d = Fus.addTool(comp, "SurfaceFBXMesh", nodeData)
-
+					toolType = "SurfaceFBXMesh"
 				elif format == ".abc":
-					ldr3d = Fus.addTool(comp, "SurfaceAlembicMesh", nodeData)
-				
+					toolType = "SurfaceAlembicMesh"
 				else:
 					logger.warning(f"ERROR:  Format not supported: {format}")
+					self.core.popup(f"ERROR:  Format not supported: {format}")
+					return False
 
+				#	Add 3d Tool
+				ldr3d = Fus.addTool(comp, toolType, nodeData)
+				
 				comp.Unlock()
 				comp.EndUndo()
 
@@ -1730,7 +1900,6 @@ class Prism_Fusion_Functions(object):
 				#	Update Comp DB record
 				CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
 				importRes = True
-
 
 		return {"result": importRes, "doImport": importRes}
 
