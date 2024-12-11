@@ -34,18 +34,13 @@
 
 
 import os
-from plistlib import UID
 import sys
 import json
 import platform
-import time
 import re
 import math
-import ctypes
 import glob
 import shutil
-import uuid
-import hashlib
 import logging
 from datetime import datetime
 
@@ -79,10 +74,13 @@ class Prism_Fusion_Functions(object):
 		self.core = core
 		self.plugin = plugin
 		self.fusion = bmd.scriptapp("Fusion")
-		self.comp = None # This comp is used by the state Manager to avoid overriding the state data on wrong comps
-		self.monkeypatchedsm = None # Reference to the state manager to be used on the monkeypatched functions.
-		self.monkeypatchedmediabrowser = None # Reference to the mediabrowser to be used on the monkeypatched functions.
-		self.monkeypatchedimportstate = None # Reference to the importState to be used on the monkeypatched functions.
+		self.comp = None # This comp is used by the stateManager to avoid overriding the state data on wrong comps
+
+		self.MP_stateManager = None # Reference to the stateManager to be used on the monkeypatched functions.
+		self.MP_mediaBrowser = None # Reference to the mediaBrowser to be used on the monkeypatched functions.
+		self.MP_mediaPlayer = None # Reference to the mediaPlayer to be used on the monkeypatched functions.
+		# self.MP_importState = None # Reference to the importState to be used on the monkeypatched functions.
+
 		self.popup = None # Reference of popUp dialog that shows before opening a window when it takes some time.
 
 		self.listener = None
@@ -105,10 +103,9 @@ class Prism_Fusion_Functions(object):
 						("onStateManagerClose", self.onStateManagerClose),
 						("onStateManagerShow", self.onStateManagerShow),
 						("onStateCreated", self.onStateCreated),
-						# ("onStateDeleted", self.onStateDeleted),
 						("getIconPathForFileType", self.getIconPathForFileType),
 						("openPBListContextMenu", self.openPBListContextMenu),
-						("onMediaBrowserTaskUpdate", self.onMediaBrowserTaskUpdate),
+						("onMediaBrowserOpen", self.onMediaBrowserOpen),
 				]
 
 			# Iterate through the list to register callbacks
@@ -1008,10 +1005,13 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def wrapped_ImportImages(self, mediaBrowser, comp):
 		try:
-			self.monkeypatchedmediabrowser = mediaBrowser
-			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportSource, self.compGetImportSource, self, force=True)
-			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportPasses, self.compGetImportPasses, self, force=True)
-			logger.debug("Patched functions in 'importImages()'")
+			#	This is to cover that Prism's MediaBrowser.py call to this importImages passes
+			# 	the mediaPlayer object under the name mediaBrowser 
+			self.MP_mediaPlayer = mediaPlayer = mediaBrowser
+
+			# self.core.plugins.monkeyPatch(mediaBrowser.compGetImportSource, self.compGetImportSource, self, force=True)
+			# self.core.plugins.monkeyPatch(mediaBrowser.compGetImportPasses, self.compGetImportPasses, self, force=True)
+			# logger.debug("Patched functions in 'importImages()'")
 
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to load patched functions:\n{e}")
@@ -1021,7 +1021,7 @@ class Prism_Fusion_Functions(object):
 		
 		try:
 			#	Get Identifier Context Data
-			contextRaw = mediaBrowser.getSelectedContexts()
+			contextRaw = mediaPlayer.getSelectedContexts()
 
 			#	Seems sometimes context comes as a list
 			if isinstance(contextRaw, list):
@@ -1041,9 +1041,9 @@ class Prism_Fusion_Functions(object):
 		try:
 			#	Get sourceData based on mediaType - used to get framerange
 			if "aov" in context:
-				sourceData = mediaBrowser.compGetImportPasses()
+				sourceData = mediaPlayer.compGetImportPasses()
 			else:
-				sourceData = mediaBrowser.compGetImportSource()
+				sourceData = mediaPlayer.compGetImportSource()
 
 
 		###		TODO	Framerange in sourceData does not seem to update until Prism instance restarts		TODO
@@ -2459,7 +2459,7 @@ path = r\"%s\"
 
 			self.configureRenderNode(nodeUID, nodeData)
 
-			stateData["comment"] = self.monkeypatchedsm.publishComment
+			stateData["comment"] = self.MP_stateManager.publishComment
 			renderDir = os.path.dirname(self.outputPath)
 			self.saveVersionList(renderDir, stateData)
 
@@ -2726,7 +2726,7 @@ path = r\"%s\"
 		details["version"] = CompDb.createUUID(simple=True)
 		details["sourceScene"] = self.tempFilePath
 		details["identifier"] = rSettings["groupName"]
-		details["comment"] = self.monkeypatchedsm.publishComment
+		details["comment"] = self.MP_stateManager.publishComment
 
 		self.className = "RenderGroup"
 
@@ -2864,7 +2864,7 @@ path = r\"%s\"
 
 		#	Uses StateManager comment for Deadline comment
 		try:
-			dlParams["jobInfos"]["Comment"] = self.monkeypatchedsm.publishComment
+			dlParams["jobInfos"]["Comment"] = self.MP_stateManager.publishComment
 		except:
 			dlParams["jobInfos"]["Comment"] = "Prism-Submission-Fusion_ImageRender"
 
@@ -3126,7 +3126,7 @@ path = r\"%s\"
 	
 
 	@err_catcher(name=__name__)
-	def onMediaBrowserTaskUpdate(self, origin, curTask):
+	def onMediaBrowserTaskUpdate(self, origin):
 		#	If DCC 'Task Node Coloring' is disabled
 		if self.taskColorMode == "Disabled":
 			return
@@ -3194,6 +3194,13 @@ path = r\"%s\"
 					menuSelTaskC.addAction(depAct)
 
 				rcmenu.addMenu(menuSelTaskC)
+
+
+	#	This is to be able to call task coloring
+	@err_catcher(name=__name__)
+	def onMediaBrowserOpen(self, origin):
+		self.MP_mediaBrowser = origin
+		self.core.plugins.monkeyPatch(origin.updateTasks, self.updateTasks, self, force=True)
 
 
 	@err_catcher(name=__name__)
@@ -3310,7 +3317,7 @@ path = r\"%s\"
 		if CompDb.sm_readStates(comp) is None:
 			self.setDefaultState()
 
-		self.monkeypatchedsm = origin
+		self.MP_stateManager = origin
 		try:
 			self.core.plugins.monkeyPatch(origin.rclTree, self.rclTree, self, force=True)
 			self.core.plugins.monkeyPatch(self.core.mediaProducts.getVersionStackContextFromPath,
@@ -3494,7 +3501,7 @@ path = r\"%s\"
 	def rclTree(self, pos, activeList):
 		logger.debug("Loading patched function: 'rclTree'")
 
-		sm = self.monkeypatchedsm
+		sm = self.MP_stateManager
 		if sm:			
 			rcmenu = QMenu(sm)
 
@@ -3504,9 +3511,9 @@ path = r\"%s\"
 			if parentState:
 				sm.rClickedItem = parentState
 
-				if parentState.ui.className == "ImportFile":
-					self.monkeypatchedimportstate = parentState.ui
-					self.core.plugins.monkeyPatch(parentState.ui.preDelete, self.preDelete, self, force=True)
+				# if parentState.ui.className == "ImportFile":
+				# 	self.MP_importState = parentState.ui
+				# 	self.core.plugins.monkeyPatch(parentState.ui.preDelete, self.preDelete, self, force=True)
 
 				#From here the only line that changes is the commented one in "render" state.
 				actExecute = QAction("Execute", sm)
@@ -3629,141 +3636,146 @@ path = r\"%s\"
 		return context
 
 
-	@err_catcher(name=__name__)
-	def preDelete(
-		self,
-		item=None,
-		baseText="Do you also want to delete the connected objects?\n\n",
-		):
+	# @err_catcher(name=__name__)
+	# def preDelete(
+	# 	self,
+	# 	item=None,
+	# 	baseText="Do you also want to delete the connected objects?\n\n",
+	# 	):
 		
-		logger.debug("Loading patched function: 'preDelete'")
+	# 	logger.debug("Loading patched function: 'preDelete'")
 
-		state = self.monkeypatchedimportstate
-		if len(state.nodes) <= 0 or state.stateMode == "ApplyCache":
-			return
-		message = baseText
-		validNodes = [
-			x for x in state.nodes if self.core.appPlugin.isNodeValid(state, x)
-		]
-		if validNodes:
-			for idx, val in enumerate(validNodes):
-				if idx > 5:
-					message += "..."
-					break
-				else:
-					message += self.core.appPlugin.getObjectNodeNameByTool(state, val) + "\n"
+	# 	state = self.MP_importState
+	# 	if len(state.nodes) <= 0 or state.stateMode == "ApplyCache":
+	# 		return
+	# 	message = baseText
+	# 	validNodes = [
+	# 		x for x in state.nodes if self.core.appPlugin.isNodeValid(state, x)
+	# 	]
+	# 	if validNodes:
+	# 		for idx, val in enumerate(validNodes):
+	# 			if idx > 5:
+	# 				message += "..."
+	# 				break
+	# 			else:
+	# 				message += self.core.appPlugin.getObjectNodeNameByTool(state, val) + "\n"
 
-			if not self.core.uiAvailable:
-				action = 0
-				print("delete objects:\n\n%s" % message)											#	TODO
-			else:
-				msg = QMessageBox(
-					QMessageBox.Question, "Delete state", message, QMessageBox.No
-				)
-				msg.addButton("Yes", QMessageBox.YesRole)
-				msg.setParent(self.core.messageParent, Qt.Window)
-				action = msg.exec_()
-				clicked_button = msg.clickedButton()
-				result = clicked_button.text()
-			# if action == 2:
-			if result == "Yes":
-				self.core.appPlugin.deleteNodes(state, validNodes)
+	# 		if not self.core.uiAvailable:
+	# 			action = 0
+	# 			print("delete objects:\n\n%s" % message)											#	TODO
+	# 		else:
+	# 			msg = QMessageBox(
+	# 				QMessageBox.Question, "Delete state", message, QMessageBox.No
+	# 			)
+	# 			msg.addButton("Yes", QMessageBox.YesRole)
+	# 			msg.setParent(self.core.messageParent, Qt.Window)
+	# 			action = msg.exec_()
+	# 			clicked_button = msg.clickedButton()
+	# 			result = clicked_button.text()
+	# 		# if action == 2:
+	# 		if result == "Yes":
+	# 			self.core.appPlugin.deleteNodes(state, validNodes)
 
 
-	# These two functions should take into account the dynamic padding, that is the only modification, next to changing self to a reference to the mediabrowser.
-	@err_catcher(name=__name__)
-	def compGetImportSource(self):
-		logger.debug("Loading patched function: 'compGetImportSource'")
+	# # These two functions should take into account the dynamic padding, that is the only modification, next to changing self to a reference to the mediabrowser.
+	# @err_catcher(name=__name__)
+	# def compGetImportSource(self):
+	# 	logger.debug("Loading patched function: 'compGetImportSource'")
 
-		mediabrowser = self.monkeypatchedmediabrowser # added this is refered as self in the original.
-		#
-		sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/") #
-		sources = self.core.media.getImgSources(sourceFolder)
-		sourceData = []
+	# 	mediabrowser = self.MP_mediaBrowser # added this is refered as self in the original.
+	# 	#
+	# 	sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/") #
+	# 	sources = self.core.media.getImgSources(sourceFolder)
+	# 	sourceData = []
 
-		framepadding = self.core.framePadding #added
-		for curSourcePath in sources:
-			if "#" * framepadding in curSourcePath: # changed
-				if mediabrowser.pstart == "?" or mediabrowser.pend == "?": #
-					firstFrame = None
-					lastFrame = None
-				else:
-					firstFrame = mediabrowser.pstart #
-					lastFrame = mediabrowser.pend #
+	# 	framepadding = self.core.framePadding #added
+	# 	for curSourcePath in sources:
+	# 		if "#" * framepadding in curSourcePath: # changed
+	# 			if mediabrowser.pstart == "?" or mediabrowser.pend == "?": #
+	# 				firstFrame = None
+	# 				lastFrame = None
+	# 			else:
+	# 				firstFrame = mediabrowser.pstart #
+	# 				lastFrame = mediabrowser.pend #
 
-				filePath = curSourcePath.replace("\\", "/")
-			else:
-				filePath = curSourcePath.replace("\\", "/")
-				firstFrame = None
-				lastFrame = None
+	# 			filePath = curSourcePath.replace("\\", "/")
+	# 		else:
+	# 			filePath = curSourcePath.replace("\\", "/")
+	# 			firstFrame = None
+	# 			lastFrame = None
 
-			sourceData.append([filePath, firstFrame, lastFrame])
+	# 		sourceData.append([filePath, firstFrame, lastFrame])
 
-		return sourceData
-
-	@err_catcher(name=__name__)
-	def compGetImportPasses(self):
-		logger.debug("Loading patched function: 'compGetImportPasses'")
-
-		mediabrowser = self.monkeypatchedmediabrowser # added this is refered as self in the original.
-		#
-		framepadding = self.core.framePadding #added
-		sourceFolder = os.path.dirname(
-			os.path.dirname(mediabrowser.seq[0])
-		).replace("\\", "/")
-		# check if the mediaType is 2d #added
-		if "\\2dRender\\" in mediabrowser.seq[0]:
-			sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/")
-		passes = [
-			x
-			for x in os.listdir(sourceFolder)
-			if x[-5:] not in ["(mp4)", "(jpg)", "(png)"]
-			and not x.startswith("_")  # Exclude folders starting with "_" like _thumbs #added
-			and os.path.isdir(os.path.join(sourceFolder, x))
-		]
-		sourceData = []
-
-		for curPass in passes:
-			curPassPath = os.path.join(sourceFolder, curPass)
-
-			imgs = os.listdir(curPassPath)
-			if len(imgs) == 0:
-				continue
-
-			if (
-				len(imgs) > 1
-				and mediabrowser.pstart #
-				and mediabrowser.pend #
-				and mediabrowser.pstart != "?" #
-				and mediabrowser.pend != "?" #
-			):
-				firstFrame = mediabrowser.pstart #
-				lastFrame = mediabrowser.pend #
-
-				curPassName = imgs[0].split(".")[0]
-				increment = "#" * framepadding # changed
-				curPassFormat = imgs[0].split(".")[-1]
-
-				filePath = os.path.join(
-					sourceFolder,
-					curPass,
-					".".join([curPassName, increment, curPassFormat]),
-				).replace("\\", "/")
-			else:
-				filePath = os.path.join(curPassPath, imgs[0]).replace("\\", "/")
-				firstFrame = None
-				lastFrame = None
-
-			sourceData.append([filePath, firstFrame, lastFrame])
-
-		return sourceData
+	# 	return sourceData
 
 	# @err_catcher(name=__name__)
-	# def updateTasks(self, *args, **kwargs):
-	# 	logger.debug("Loading patched function: 'mediaBrowser.updateTasks'")
-	# 	mediabrowser = self.monkeypatchedmediabrowser#self.core.pb.mediaBrowser
-	# 	self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
-	# 	self.onMediaBrowserTaskUpdate(mediabrowser)
+	# def compGetImportPasses(self):
+	# 	logger.debug("Loading patched function: 'compGetImportPasses'")
+
+	# 	mediabrowser = self.MP_mediaBrowser # added this is refered as self in the original.
+	# 	#
+	# 	framepadding = self.core.framePadding #added
+	# 	sourceFolder = os.path.dirname(
+	# 		os.path.dirname(mediabrowser.seq[0])
+	# 	).replace("\\", "/")
+	# 	# check if the mediaType is 2d #added
+	# 	if "\\2dRender\\" in mediabrowser.seq[0]:
+	# 		sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/")
+	# 	passes = [
+	# 		x
+	# 		for x in os.listdir(sourceFolder)
+	# 		if x[-5:] not in ["(mp4)", "(jpg)", "(png)"]
+	# 		and not x.startswith("_")  # Exclude folders starting with "_" like _thumbs #added
+	# 		and os.path.isdir(os.path.join(sourceFolder, x))
+	# 	]
+	# 	sourceData = []
+
+	# 	for curPass in passes:
+	# 		curPassPath = os.path.join(sourceFolder, curPass)
+
+	# 		imgs = os.listdir(curPassPath)
+	# 		if len(imgs) == 0:
+	# 			continue
+
+	# 		if (
+	# 			len(imgs) > 1
+	# 			and mediabrowser.pstart #
+	# 			and mediabrowser.pend #
+	# 			and mediabrowser.pstart != "?" #
+	# 			and mediabrowser.pend != "?" #
+	# 		):
+	# 			firstFrame = mediabrowser.pstart #
+	# 			lastFrame = mediabrowser.pend #
+
+	# 			curPassName = imgs[0].split(".")[0]
+	# 			increment = "#" * framepadding # changed
+	# 			curPassFormat = imgs[0].split(".")[-1]
+
+	# 			filePath = os.path.join(
+	# 				sourceFolder,
+	# 				curPass,
+	# 				".".join([curPassName, increment, curPassFormat]),
+	# 			).replace("\\", "/")
+	# 		else:
+	# 			filePath = os.path.join(curPassPath, imgs[0]).replace("\\", "/")
+	# 			firstFrame = None
+	# 			lastFrame = None
+
+	# 		sourceData.append([filePath, firstFrame, lastFrame])
+
+	# 	return sourceData
+
+
+	#	This intercepts the mediaBrowser object and adds a custom internal callback
+	@err_catcher(name=__name__)
+	def updateTasks(self, *args, **kwargs):
+		logger.debug("Loading patched function: 'mediaBrowser.updateTasks'")
+
+		mediabrowser = self.MP_mediaBrowser
+
+		self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
+		self.onMediaBrowserTaskUpdate(mediabrowser)
+
 
 
 ###########################################
@@ -3790,7 +3802,9 @@ class ImageImportDialogue(QDialog):
 
 		# Add the checkbox
 		self.checkbox = QCheckBox("Import Without Wireless/Sorting")
-		self.checkbox.setToolTip("If this option is selected, Nodes will be added on last clicked position and will not be taken into account when sorting.\nThey also will not be integrated into a wireless workflow.")
+		self.checkbox.setToolTip("If this option is selected, Nodes will be added on last clicked position\n"
+						   		 "and will not be taken into account when sorting.\n\n"
+						   		 "They also will not be integrated into a wireless workflow.")
 		layout.addWidget(self.checkbox)
 
 		# Add the dialog buttons
