@@ -529,7 +529,6 @@ class Prism_Fusion_Functions(object):
 	# 		selNodes = comp.GetToolList(False, "Loader")
 
 	# 	if len(selNodes):
-	# 		comp.StartUndo("Updating loaders")
 	# 		for k in selNodes:
 	# 			i = selNodes[k]
 	# 			curPath = comp.MapPath(i.GetAttrs()["TOOLST_Clip_Name"][1])
@@ -551,7 +550,6 @@ class Prism_Fusion_Functions(object):
 	# 				i.HoldLastFrame = 0
 
 	# 				updatedNodes.append(i)
-	# 		comp.EndUndo(True)
 
 	# 	if len(updatedNodes) == 0:
 	# 		QMessageBox.information(
@@ -576,6 +574,13 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def captureViewportThumbnail(self):
+		comp = self.getCurrentComp()
+		comp.Lock()
+		self.wrapped_CaptureViewportThumbnail(comp)
+		comp.Unlock()
+
+	@err_catcher(name=__name__)
+	def wrapped_CaptureViewportThumbnail(self, comp):
 		#   Make temp dir and file
 		tempDir = os.path.join(self.pluginDirectory, "Temp")
 		if not os.path.exists(tempDir):
@@ -584,10 +589,9 @@ class Prism_Fusion_Functions(object):
 		thumbName = os.path.basename(thumbPath).split('.')[0]
 
 		#   Get Fusion API stuff
-		comp = self.getCurrentComp()
+		if not comp:
+			comp = self.getCurrentComp()
 
-		comp.Lock()
-		comp.StartUndo()
 		try:
 			thumbSaver = None
 			origSaverList = {}
@@ -635,9 +639,6 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR: Filed to create thumbnail:\n{e}")
 
-		comp.EndUndo()
-		comp.Undo()
-
 		if thumbSaver:
 			try:
 				thumbSaver.Delete()
@@ -646,8 +647,6 @@ class Prism_Fusion_Functions(object):
 
 		#   Restore pass-through state of orig savers
 		self.origSaverStates("load", comp, origSaverList)
-
-		comp.Unlock()
 
 		#   Get pixmap from Prism
 		if os.path.isfile(thumbPath):
@@ -740,14 +739,22 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def createRendernode(self, nodeUID, nodeData):
 		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Create Render Node")
+		self.wrapped_createRendernode(nodeUID, nodeData, comp=comp)
+		comp.EndUndo()
+		comp.Unlock()		
+	
+	@err_catcher(name=__name__)
+	def wrapped_createRendernode(self, nodeUID, nodeData, comp):
+		if not comp:
+			comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			if not CompDb.nodeExists(comp, nodeUID):
-				comp.Lock()
 
 				#	Add Saver to Comp
 				sv = Fus.addTool(comp, "Saver", nodeData)
 
-				comp.Unlock()
 
 				#	Add node to Comp Database
 				CompDb.addNodeToDB(comp, "render2d", nodeUID, nodeData)
@@ -773,14 +780,20 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def updateRendernode(self, nodeUID, nodeData):
 		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Update Render Node")
+		self.wrapped_updateRendernode(nodeUID, nodeData, comp)		
+		comp.EndUndo()
+		comp.Unlock()
+
+	@err_catcher(name=__name__)
+	def wrapped_updateRendernode(self, nodeUID, nodeData, comp):
 		if self.sm_checkCorrectComp(comp):
 			sv = CompDb.getNodeByUID(comp, nodeUID)
 
 			if sv:
-				comp.Lock()
 				#	Update Saver Info
 				Fus.updateTool(sv, nodeData)
-				comp.Unlock()
 
 				#	Update Node in Comp Database
 				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
@@ -982,10 +995,18 @@ class Prism_Fusion_Functions(object):
 	#                 IMPORTIMAGES                 #
 	#                                              #
 	################################################
+	@err_catcher(name=__name__)
+	def importImages(self, mediaBrowser):
+		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Import Media")
+		self.wrapped_ImportImages(mediaBrowser, comp)
+		comp.EndUndo()
+		comp.Unlock()
 
 
 	@err_catcher(name=__name__)
-	def importImages(self, mediaBrowser):
+	def wrapped_ImportImages(self, mediaBrowser, comp):
 		try:
 			self.monkeypatchedmediabrowser = mediaBrowser
 			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportSource, self.compGetImportSource, self, force=True)
@@ -994,8 +1015,9 @@ class Prism_Fusion_Functions(object):
 
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to load patched functions:\n{e}")
-
-		comp = self.getCurrentComp()
+		
+		if not comp:
+			comp = self.getCurrentComp()
 		
 		try:
 			#	Get Identifier Context Data
@@ -1171,8 +1193,6 @@ class Prism_Fusion_Functions(object):
 			return
 
 		try:
-			comp.Lock()
-			comp.StartUndo()
 
 			#	For each import item
 			for importItem in importList:
@@ -1225,9 +1245,6 @@ class Prism_Fusion_Functions(object):
 						#	Call Multi-channel function for current channel
 						leftmostNode = self.addMultiChannel(comp, toolData, channels, currChannel, sortnodes=sortnodes)
 
-				
-			comp.EndUndo()
-			comp.Unlock()
 
 			#	Return if add image returns None
 			if not leftmostNode:
@@ -1239,7 +1256,6 @@ class Prism_Fusion_Functions(object):
 			logger.debug(f"Imported  {importData['identifier']}")
 
 		except Exception as e:
-			comp.Unlock()
 			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 			self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
 
@@ -1255,8 +1271,6 @@ class Prism_Fusion_Functions(object):
 			if leftmostNode:
 				refNode = leftmostNode
 
-		# comp.Lock()
-		# comp.StartUndo()
 		try:
 			#	Add and configure Loader
 			ldr = Fus.addTool(comp, "Loader", toolData)
@@ -1284,9 +1298,6 @@ class Prism_Fusion_Functions(object):
 		# #	If sorting is enabled
 		if sortnodes:
 			self.createWireless(toolUID)
-
-		# comp.EndUndo()
-		# comp.Unlock()
 			
 		return ldr
 
@@ -1543,11 +1554,8 @@ class Prism_Fusion_Functions(object):
 		flow = comp.CurrentFrame.FlowView
 		tool = CompDb.getNodeByUID(comp, nodeUID)
 
-		# comp.Lock()
 		
 		try:
-			# comp.StartUndo()
-
 			pyperclip.copy(wirelessCopy)
 			comp.Paste(wirelessCopy)
 			ad = comp.FindTool("neverreferencednameonautodomain")
@@ -1576,9 +1584,6 @@ class Prism_Fusion_Functions(object):
 			nodeData["connectedNodes"] = [wirelessInUID, wirelessOutUID]
 			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
 
-			# comp.EndUndo()
-			# comp.Unlock()
-
 			#	Select the wireless out
 			flow.Select()
 			comp.SetActiveTool(wl)
@@ -1586,7 +1591,6 @@ class Prism_Fusion_Functions(object):
 			logger.debug(f"Created Wireless nodes for: {tool.Name}")
 
 		except Exception as e:
-			# comp.Unlock()
 			logger.warning(f"ERROR:  Could not add wireless nodes:\n{e}")
 
 
@@ -1611,20 +1615,14 @@ class Prism_Fusion_Functions(object):
 		#	Add new uLoader
 		if not update:
 			try:
-				comp.StartUndo()
-				comp.Lock()
 
 				#	Add tool
 				uLdr = Fus.addTool(comp, "uLoader", nodeData)
-
-				comp.Unlock()
-				comp.EndUndo()
 
 				logger.debug(f"Imported USD object: {nodeData['product']}")
 
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to import USD object:\n{e}")
-				comp.Unlock()
 				return {"result": False, "doImport": False}
 			
 			if uLdr:
@@ -1659,23 +1657,33 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def createUsdScene(self, origin, UUID):
 		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Create USD Scene")
+		self.wrapped_createUsdScene(origin, UUID, comp)
+		comp.EndUndo()
+		comp.Unlock()
 
-		comp.StartUndo()
-
+	@err_catcher(name=__name__)
+	def wrapped_createUsdScene(self, origin, UUID, comp):
 		try:
 			Fus3d.createUsdScene(self, origin, UUID)
 			logger.debug(f"Created USD Scene for {UUID}")
 
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to create USD scene:\n{e}")
-			comp.Unlock()
 
-		comp.EndUndo()
-
-	#	Imports .fbx or .abc object into Comp
+	#	Imports .fbx or .abc object into Comp	
 	@err_catcher(name=__name__)
 	def import3dObject(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Import 3D Object")		
+		self.wrapped_import3dObject(origin, UUID, nodeData, comp=comp, update=False)
+		comp.EndUndo()
+		comp.Unlock()
+
+	@err_catcher(name=__name__)
+	def wrapped_import3dObject(self, origin, UUID, nodeData, comp, update=False):
 		
 		importRes = False
 
@@ -1684,8 +1692,6 @@ class Prism_Fusion_Functions(object):
 		#	Add new 3d Loader
 		if not update:
 			try:
-				comp.StartUndo()
-				comp.Lock()
 
 				#	Add tooltype based on format
 				if format == ".fbx":
@@ -1697,14 +1703,10 @@ class Prism_Fusion_Functions(object):
 				else:
 					logger.warning(f"ERROR:  Format not supported: {format}")
 
-				comp.Unlock()
-				comp.EndUndo()
-
 				logger.debug(f"Imported 3d object: {nodeData['product']}")
 
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to import 3d object:\n{e}")
-				comp.Unlock()
 				return {"result": False, "doImport": False}
 			
 			if ldr3d:
@@ -1740,17 +1742,12 @@ class Prism_Fusion_Functions(object):
 	def create3dScene(self, origin, UUID):
 		comp = self.getCurrentComp()
 
-		comp.StartUndo()
-
 		try:
 			Fus3d.create3dScene(self, origin, UUID)
 			logger.debug(f"Created 3d Scene for {UUID}")
 
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to create 3d scene:\n{e}")
-			comp.Unlock()
-
-		comp.EndUndo()
 	
 
 
@@ -2026,7 +2023,6 @@ class Prism_Fusion_Functions(object):
 	# 	all_loader = comp.GetToolList(False, "Loader").values()
 	# 	all_saver  = comp.GetToolList(False, "Saver").values()
 	# 	iotools = list(all_loader) + list(all_saver)
-	# 	comp.Lock()
 	# 	for tool in iotools:
 	# 		filepath = tool.GetAttrs("TOOLST_Clip_Name")[1]
 	# 		pathinfo = self.getReplacedPaths(comp, filepath)
@@ -2035,7 +2031,6 @@ class Prism_Fusion_Functions(object):
 	# 			tool.Clip = newpath			
 	# 			pathdata.append({"node": tool.Name, "path":pathinfo["path"], "valid":pathinfo["valid"], "net":pathinfo["net"]})
 
-	# 	comp.Unlock()
 	# 	return pathdata
 
 
@@ -2630,17 +2625,24 @@ path = r\"%s\"
 					return "unknown error (files do not exist)"
 				
 
-	#	Executes a GroupRender on the local machine that allows multiple Savers to render simultaneously
+	#	Executes a GroupRender on the local machine that allows multiple Savers to render simultaneously	
 	@err_catcher(name=__name__)
 	def sm_render_startLocalGroupRender(self, origin, rSettings):
 		comp = self.getCurrentComp()
+		comp.Lock()
+		# comp.StartUndo("Local Group Render Setup")
+		self.wrapped_render_startLocalGroupRender(origin, rSettings, comp)
+		# comp.EndUndo()
+		comp.Unlock()
 
+
+	@err_catcher(name=__name__)
+	def wrapped_render_startLocalGroupRender(self, origin, rSettings, comp):
 		#	Return if the Comps do not match
 		if not self.sm_checkCorrectComp(comp):
 			return False
 
 		try:
-			comp.Lock()
 
 			#	Setup comp settings and filepaths for render
 			self.configureRenderComp(origin, comp, rSettings)
@@ -2665,7 +2667,7 @@ path = r\"%s\"
 		except:
 			renderResult = False
 		finally:
-			comp.Unlock()
+			pass
 
 		#	Create versionInfo file for each state
 		versionResult = self.executeGroupVersioninfo()
@@ -2735,7 +2737,14 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def sm_render_startFarmGroupRender(self, origin, farmPlugin, rSettings):
 		comp = self.getCurrentComp()
+		comp.Lock()
+		# comp.StartUndo("Farm Group Render Setup")
+		self.wrapped_render_startFarmGroupRender(origin, farmPlugin, rSettings, comp)		
+		# comp.EndUndo()
+		comp.Unlock()
 
+	@err_catcher(name=__name__)
+	def wrapped_render_startFarmGroupRender(self, origin, farmPlugin, rSettings, comp):
 		#	Makes global for later use in versioninfo creation and master update
 		self.rSettings = rSettings
 
@@ -2744,7 +2753,6 @@ path = r\"%s\"
 			return False
 		
 		try:
-			comp.Lock()
 
 			#	Setup comp settings and filepaths for render
 			self.configureRenderComp(origin, comp, rSettings)
@@ -2763,7 +2771,6 @@ path = r\"%s\"
 					raise Exception
 			except:
 				logger.warning(f"ERROR: Failed to save temp Comp for Farm submission:\n{self.tempFilePath}")
-				comp.Unlock()
 				return
 
 			farmDetails = self.setupFarmDetails(origin, rSettings)
@@ -2804,8 +2811,6 @@ path = r\"%s\"
 
 		#	Save the original settings to original file
 		comp.Save(currFile)
-
-		comp.Unlock()
 
 		#	Create versionInfo file for each state
 		versionResult = self.executeGroupVersioninfo()
