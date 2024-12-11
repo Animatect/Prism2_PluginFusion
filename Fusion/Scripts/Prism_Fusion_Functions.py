@@ -2630,9 +2630,9 @@ path = r\"%s\"
 	def sm_render_startLocalGroupRender(self, origin, rSettings):
 		comp = self.getCurrentComp()
 		comp.Lock()
-		comp.StartUndo("Local Group Render Setup")
+		# comp.StartUndo("Local Group Render Setup")
 		self.wrapped_render_startLocalGroupRender(origin, rSettings, comp)
-		comp.EndUndo()
+		# comp.EndUndo()
 		comp.Unlock()
 
 
@@ -2738,9 +2738,9 @@ path = r\"%s\"
 	def sm_render_startFarmGroupRender(self, origin, farmPlugin, rSettings):
 		comp = self.getCurrentComp()
 		comp.Lock()
-		comp.StartUndo("Farm Group Render Setup")
+		# comp.StartUndo("Farm Group Render Setup")
 		self.wrapped_render_startFarmGroupRender(origin, farmPlugin, rSettings, comp)		
-		comp.EndUndo()
+		# comp.EndUndo()
 		comp.Unlock()
 
 	@err_catcher(name=__name__)
