@@ -937,9 +937,9 @@ def sortLoaders(comp, posRefNode:Tool, reconnectIn:bool=True, sortnodes:bool=Tru
 
     # We get only the loaders within a threshold from the leftmost and who were created by prism.
     try:
-        loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh and l.GetData("Prism_UUID")]
+        loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh and l.GetData("Prism_UUID") and l.GetData('Prism_MediaID')]
         loaderstop2bot = sorted(loaders, key=lambda ld: flow.GetPosTable(ld)[2])
-        layers = set([splitLoaderName(ly.Name)[0] for ly in loaders])
+        layers = set([ly.GetData('Prism_MediaID') for ly in loaders])
         
     except:
         logger.warning("ERROR: Cannot sort loaders - unable to resolve threshold in the flow")
@@ -947,7 +947,7 @@ def sortLoaders(comp, posRefNode:Tool, reconnectIn:bool=True, sortnodes:bool=Tru
 
     sortedloaders = []
     for ly in sorted(list(layers)):
-        lyloaders = [l for l in loaders if splitLoaderName(l.Name)[0] == ly]
+        lyloaders = [l for l in loaders if l.GetData('Prism_MediaID') == ly]
         sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
         sortedloaders += sorted_loader_names
     # if refNode is not part of nodes to sort we move the nodes down so they don't overlap it.
@@ -955,7 +955,9 @@ def sortLoaders(comp, posRefNode:Tool, reconnectIn:bool=True, sortnodes:bool=Tru
 
     # Sorting the loader names
     if len(sortedloaders) > 0:
-        lastloaderlyr = splitLoaderName(sortedloaders[0].Name)[0]
+        # To check if a node is in a layer or if we've switched layers, we first store a refernce layer
+        # update it and compare it in each iteration.
+        lastloaderlyr = sortedloaders[0].GetData('Prism_MediaID')
         try:
             if sortnodes:
                 newx = leftmostpos#flow.GetPosTable(loaderstop2bot[0])[1]
@@ -969,7 +971,7 @@ def sortLoaders(comp, posRefNode:Tool, reconnectIn:bool=True, sortnodes:bool=Tru
                     outnode = comp.FindTool(l.Name+"_OUT")
                     if innode and reconnectIn:
                         innode.ConnectInput('Input', l)
-                    lyrnm = splitLoaderName(l.Name)[0]
+                    lyrnm = l.GetData('Prism_MediaID')
                     # we make sure we have at least an innode for this loader created by prism.
                     if innode and innode.GetData("isprismnode"):
                         if lyrnm != lastloaderlyr:
