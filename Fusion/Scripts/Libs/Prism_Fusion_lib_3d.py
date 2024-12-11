@@ -61,8 +61,6 @@ def createUsdScene(plugin, origin, UUID):
     flow.SetPos(uMerge, usdTool_x + 2, usdTool_y)
     flow.SetPos(uRender, usdTool_x + 4, usdTool_y)
 
-    comp.Unlock()
-
 
 @err_catcher(name=__name__)
 def create3dScene(plugin, origin, UUID):
