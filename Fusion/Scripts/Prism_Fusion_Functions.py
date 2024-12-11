@@ -1604,18 +1604,30 @@ class Prism_Fusion_Functions(object):
 	################################################
 
 
-
 	#	Imports or updates USD scene or object
 	@err_catcher(name=__name__)
 	def importUSD(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
-		
+		comp.Lock()
+		comp.StartUndo("Import USD")
+
+		result = self.wrapped_importUSD(origin, UUID, nodeData, update)
+
+		comp.EndUndo()
+		comp.Unlock()
+
+		return result
+
+
+	#	Imports or updates USD scene or object
+	@err_catcher(name=__name__)
+	def wrapped_importUSD(self, origin, UUID, nodeData, update=False):
+		comp = self.getCurrentComp()
 		importRes = False
 
 		#	Add new uLoader
 		if not update:
 			try:
-
 				#	Add tool
 				uLdr = Fus.addTool(comp, "uLoader", nodeData)
 
@@ -1659,9 +1671,12 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Create USD Scene")
+
 		self.wrapped_createUsdScene(origin, UUID, comp)
+
 		comp.EndUndo()
 		comp.Unlock()
+
 
 	@err_catcher(name=__name__)
 	def wrapped_createUsdScene(self, origin, UUID, comp):
@@ -1672,19 +1687,24 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to create USD scene:\n{e}")
 
+
 	#	Imports .fbx or .abc object into Comp	
 	@err_catcher(name=__name__)
 	def import3dObject(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
 		comp.Lock()
-		comp.StartUndo("Import 3D Object")		
-		self.wrapped_import3dObject(origin, UUID, nodeData, comp=comp, update=False)
+		comp.StartUndo("Import 3D Object")	
+
+		result = self.wrapped_import3dObject(origin, UUID, nodeData, comp=comp, update=update)
+
 		comp.EndUndo()
 		comp.Unlock()
 
+		return result
+
+
 	@err_catcher(name=__name__)
 	def wrapped_import3dObject(self, origin, UUID, nodeData, comp, update=False):
-		
 		importRes = False
 
 		format = nodeData["format"]
@@ -1692,7 +1712,6 @@ class Prism_Fusion_Functions(object):
 		#	Add new 3d Loader
 		if not update:
 			try:
-
 				#	Add tooltype based on format
 				if format == ".fbx":
 					ldr3d = Fus.addTool(comp, "SurfaceFBXMesh", nodeData)
@@ -1736,12 +1755,23 @@ class Prism_Fusion_Functions(object):
 
 		return {"result": importRes, "doImport": importRes}
 
-	
+
 	#	Creates simple 3d scene - adds merge3d and render3d
 	@err_catcher(name=__name__)
 	def create3dScene(self, origin, UUID):
 		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Create 3D Scene")	
 
+		self.wrapped_create3dScene(origin, UUID)
+
+		comp.EndUndo()
+		comp.Unlock()
+
+	
+	#	Creates simple 3d scene - adds merge3d and render3d
+	@err_catcher(name=__name__)
+	def wrapped_create3dScene(self, origin, UUID):
 		try:
 			Fus3d.create3dScene(self, origin, UUID)
 			logger.debug(f"Created 3d Scene for {UUID}")
