@@ -576,6 +576,7 @@ class Prism_Fusion_Functions(object):
 		self.wrapped_CaptureViewportThumbnail(comp)
 		comp.Unlock()
 
+
 	@err_catcher(name=__name__)
 	def wrapped_CaptureViewportThumbnail(self, comp):
 		#   Make temp dir and file
@@ -738,10 +739,13 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Create Render Node")
+
 		self.wrapped_createRendernode(nodeUID, nodeData, comp=comp)
+
 		comp.EndUndo()
 		comp.Unlock()		
 	
+
 	@err_catcher(name=__name__)
 	def wrapped_createRendernode(self, nodeUID, nodeData, comp):
 		if not comp:
@@ -751,7 +755,6 @@ class Prism_Fusion_Functions(object):
 
 				#	Add Saver to Comp
 				sv = Fus.addTool(comp, "Saver", nodeData)
-
 
 				#	Add node to Comp Database
 				CompDb.addNodeToDB(comp, "render2d", nodeUID, nodeData)
@@ -779,9 +782,12 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Update Render Node")
-		self.wrapped_updateRendernode(nodeUID, nodeData, comp)		
+
+		self.wrapped_updateRendernode(nodeUID, nodeData, comp)	
+
 		comp.EndUndo()
 		comp.Unlock()
+
 
 	@err_catcher(name=__name__)
 	def wrapped_updateRendernode(self, nodeUID, nodeData, comp):
@@ -992,12 +998,15 @@ class Prism_Fusion_Functions(object):
 	#                 IMPORTIMAGES                 #
 	#                                              #
 	################################################
+
 	@err_catcher(name=__name__)
 	def importImages(self, mediaBrowser):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Import Media")
+
 		self.wrapped_ImportImages(mediaBrowser, comp)
+
 		comp.EndUndo()
 		comp.Unlock()
 
@@ -1250,7 +1259,7 @@ class Prism_Fusion_Functions(object):
 			if not leftmostNode:
 				return
 
-			Fus.sortLoaders(comp, leftmostNode, reconnectIn=True, sortnodes=sortnodes)			#	TODO  Look into this			
+			Fus.sortLoaders(comp, leftmostNode, reconnectIn=True, sortnodes=sortnodes)
 
 
 			logger.debug(f"Imported  {importData['identifier']}")
@@ -1293,7 +1302,7 @@ class Prism_Fusion_Functions(object):
 			if not leftmostNode:
 				leftmostNode = ldr
 
-		Fus.setNodeToLeft(comp, ldr, refNode)								#	TODO  Look into this		
+		Fus.setNodeToLeft(comp, ldr, refNode)
 
 		# #	If sorting is enabled
 		if sortnodes:
@@ -1400,12 +1409,12 @@ class Prism_Fusion_Functions(object):
 			#	Deselect all
 			flow.Select()
 
-			#	If sorting is enabled											#	TODO Deal with sorting
+			#	If sorting is enabled
 			if sortnodes:
 				if not leftmostNode:
 					leftmostNode = ldr
 
-			Fus.setNodeToLeft(comp, ldr, refNode)								#	TODO  Look into this		
+			Fus.setNodeToLeft(comp, ldr, refNode)
 
 			#	If sorting is enabled
 			if sortnodes:
@@ -1779,7 +1788,6 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to create 3d scene:\n{e}")
 	
-
 
 	@err_catcher(name=__name__)
 	def importBlenderCam(self, origin, importPath, UUID, nodeName, version, update=False):
@@ -2660,9 +2668,9 @@ path = r\"%s\"
 	def sm_render_startLocalGroupRender(self, origin, rSettings):
 		comp = self.getCurrentComp()
 		comp.Lock()
-		# comp.StartUndo("Local Group Render Setup")
+
 		self.wrapped_render_startLocalGroupRender(origin, rSettings, comp)
-		# comp.EndUndo()
+
 		comp.Unlock()
 
 
@@ -2768,10 +2776,11 @@ path = r\"%s\"
 	def sm_render_startFarmGroupRender(self, origin, farmPlugin, rSettings):
 		comp = self.getCurrentComp()
 		comp.Lock()
-		# comp.StartUndo("Farm Group Render Setup")
+
 		self.wrapped_render_startFarmGroupRender(origin, farmPlugin, rSettings, comp)		
-		# comp.EndUndo()
+
 		comp.Unlock()
+
 
 	@err_catcher(name=__name__)
 	def wrapped_render_startFarmGroupRender(self, origin, farmPlugin, rSettings, comp):
@@ -2960,10 +2969,6 @@ path = r\"%s\"
 				tool = comp.FindTool(toolnm)
 				if tool:
 					tool.Delete()
-
-
-
-
 
 
 
