@@ -3707,26 +3707,27 @@ path = r\"%s\"
 	# 			self.core.appPlugin.deleteNodes(state, validNodes)
 
 
-	# # These two functions should take into account the dynamic padding, that is the only modification, next to changing self to a reference to the mediabrowser.
+	#	These two functions edited take into account the dynamic padding,
+	# 	and to use the patched Media Player.
 	@err_catcher(name=__name__)
 	def compGetImportSource(self):
 		logger.debug("Loading patched function: 'compGetImportSource'")
 
-		mediabrowser = self.MP_mediaBrowser # added this is refered as self in the original.
-		#
-		sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/") #
+		mediaPlayer = self.MP_mediaPlayer 		#	added this is refered as self in the original.
+
+		sourceFolder = os.path.dirname(mediaPlayer.seq[0]).replace("\\", "/") #
 		sources = self.core.media.getImgSources(sourceFolder)
 		sourceData = []
 
-		framepadding = self.core.framePadding #added
+		framepadding = self.core.framePadding 			#	added
 		for curSourcePath in sources:
-			if "#" * framepadding in curSourcePath: # changed
-				if mediabrowser.pstart == "?" or mediabrowser.pend == "?": #
+			if "#" * framepadding in curSourcePath: 	#	changed
+				if mediaPlayer.pstart == "?" or mediaPlayer.pend == "?": #
 					firstFrame = None
 					lastFrame = None
 				else:
-					firstFrame = mediabrowser.pstart #
-					lastFrame = mediabrowser.pend #
+					firstFrame = mediaPlayer.pstart 	#	changed
+					lastFrame = mediaPlayer.pend 		#	changed
 
 				filePath = curSourcePath.replace("\\", "/")
 			else:
@@ -3742,20 +3743,21 @@ path = r\"%s\"
 	def compGetImportPasses(self):
 		logger.debug("Loading patched function: 'compGetImportPasses'")
 
-		mediabrowser = self.MP_mediaBrowser # added this is refered as self in the original.
-		#
-		framepadding = self.core.framePadding #added
+		mediaPlayer = self.MP_mediaPlayer 			#	added this is refered as self in the original.
+
+		framepadding = self.core.framePadding 		# 	added
 		sourceFolder = os.path.dirname(
-			os.path.dirname(mediabrowser.seq[0])
+			os.path.dirname(mediaPlayer.seq[0])		#	changed
 		).replace("\\", "/")
-		# check if the mediaType is 2d #added
-		if "\\2dRender\\" in mediabrowser.seq[0]:
-			sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/")
+
+		if "\\2dRender\\" in mediaPlayer.seq[0]:	#	added check if the mediaType is 2d #added
+			sourceFolder = os.path.dirname(mediaPlayer.seq[0]).replace("\\", "/")
+
 		passes = [
 			x
 			for x in os.listdir(sourceFolder)
 			if x[-5:] not in ["(mp4)", "(jpg)", "(png)"]
-			and not x.startswith("_")  # Exclude folders starting with "_" like _thumbs #added
+			and not x.startswith("_")  				#	added exclude folders starting with "_" like _thumbs
 			and os.path.isdir(os.path.join(sourceFolder, x))
 		]
 		sourceData = []
@@ -3769,16 +3771,16 @@ path = r\"%s\"
 
 			if (
 				len(imgs) > 1
-				and mediabrowser.pstart #
-				and mediabrowser.pend #
-				and mediabrowser.pstart != "?" #
-				and mediabrowser.pend != "?" #
+				and mediaPlayer.pstart 					#	changed
+				and mediaPlayer.pend 					#	changed
+				and mediaPlayer.pstart != "?" 			#	changed
+				and mediaPlayer.pend != "?" 			#	changed
 			):
-				firstFrame = mediabrowser.pstart #
-				lastFrame = mediabrowser.pend #
+				firstFrame = mediaPlayer.pstart 		#	changed
+				lastFrame = mediaPlayer.pend 			#	changed
 
 				curPassName = imgs[0].split(".")[0]
-				increment = "#" * framepadding # changed
+				increment = "#" * framepadding 			#	changed
 				curPassFormat = imgs[0].split(".")[-1]
 
 				filePath = os.path.join(
