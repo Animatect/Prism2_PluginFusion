@@ -1534,6 +1534,9 @@ class Prism_Fusion_Functions(object):
 					Fus.updateTool(ldr, toolData)
 					#	Update Database record
 					CompDb.updateNodeInfo(comp, "import2d", uid, toolData)
+
+					#	Update Wireless name
+					self.updateWireless(comp, uid)
 					
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to update {importData['identifier']}")
@@ -1550,6 +1553,8 @@ class Prism_Fusion_Functions(object):
 		self.updateMsgPopup(formattedMsg)
 
 
+	#	Creates and adds a Wireless set to the Loader
+	#	This uses an AutoDomain tool for the "IN", and the Wireless for the "OUT"
 	@err_catcher(name=__name__)
 	def createWireless(self, nodeUID):							#	TODO  Look into adding wireless with "addTool"
 		wirelessCopy = """{
@@ -1576,7 +1581,6 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 		tool = CompDb.getNodeByUID(comp, nodeUID)
-
 		
 		try:
 			pyperclip.copy(wirelessCopy)
@@ -1615,6 +1619,31 @@ class Prism_Fusion_Functions(object):
 
 		except Exception as e:
 			logger.warning(f"ERROR:  Could not add wireless nodes:\n{e}")
+
+
+	#	Updates Wireless Name
+	@err_catcher(name=__name__)
+	def updateWireless(self, comp, uid):
+
+		ldrData = CompDb.getNodeInfo(comp, "import2d", uid)
+
+		self.core.popup(f"ldrData: {ldrData}")                                      #    TESTING
+
+		connectedNodes = ldrData.get("connectedNodes", None)
+
+		if connectedNodes:
+			for nodeUID in connectedNodes:
+
+				self.core.popup(f"nodeUID: {nodeUID}")                                      #    TESTING
+
+				tool = CompDb.getNodeByUID(comp, nodeUID)
+
+				self.core.popup(f"tool: {tool}")                                      #    TESTING
+
+				toolName = tool.Name
+
+				self.core.popup(f"toolName: {toolName}")                                      #    TESTING
+
 
 
 
