@@ -2683,9 +2683,11 @@ path = r\"%s\"
 		comp = self.getCurrentComp()
 		comp.Lock()
 
-		self.wrapped_render_startLocalGroupRender(origin, rSettings, comp)
+		result = self.wrapped_render_startLocalGroupRender(origin, rSettings, comp)
 
 		comp.Unlock()
+
+		return result
 
 
 	@err_catcher(name=__name__)
@@ -2791,9 +2793,11 @@ path = r\"%s\"
 		comp = self.getCurrentComp()
 		comp.Lock()
 
-		self.wrapped_render_startFarmGroupRender(origin, farmPlugin, rSettings, comp)		
+		result = self.wrapped_render_startFarmGroupRender(origin, farmPlugin, rSettings, comp)		
 
 		comp.Unlock()
+
+		return result
 
 
 	@err_catcher(name=__name__)
