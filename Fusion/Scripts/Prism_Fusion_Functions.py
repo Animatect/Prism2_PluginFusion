@@ -1633,7 +1633,7 @@ class Prism_Fusion_Functions(object):
 
 	#	Sort and arrange all Prism Loaders 
 	@err_catcher(name=__name__)														#	TODO
-	def sortLoaders(self, comp, posRefNode, reconnectIn=True, offset=1.5, thresh=100, vertGap=1):
+	def sortLoaders(self, comp, posRefNode, reconnectIn=True, offset=1.5, flowThresh=100, toolThresh=3, horzGap=1, vertGap=1):
 		flow = comp.CurrentFrame.FlowView
 
 		#   Get the leftmost loader within a threshold.
@@ -1644,7 +1644,7 @@ class Prism_Fusion_Functions(object):
 		try:
 			loaders = [l for l in comp.GetToolList(False, "Loader").values()
 					if (
-						abs(flow.GetPosTable(l)[1] - leftmostpos) <= thresh
+						abs(flow.GetPosTable(l)[1] - leftmostpos) <= flowThresh
 						and l.GetData("Prism_UUID")
 						and l.GetData('Prism_MediaID')
 						)
@@ -1685,24 +1685,39 @@ class Prism_Fusion_Functions(object):
 					ldrData = Fus.getToolData(ldr)
 					connectedTools = ldrData["Prism_ConnectedNodes"]
 
-					# We reconnect to solve an issue that creates "Ghost" connections until comp is reoppened.
+					# We reconnect to solve an issue that creates "Ghost" connections until comp is reopened.
 					inNode =  CompDb.getNodeByUID(comp, connectedTools["wireless_IN"])
-					outnode = CompDb.getNodeByUID(comp, connectedTools["wireless_OUT"])
+					outNode = CompDb.getNodeByUID(comp, connectedTools["wireless_OUT"])
+
+					#	Get Wireless_IN position before moving
+					inNodeOrigPos = flow.GetPosTable(inNode)
 
 					lyrnm = ldrData['Prism_MediaID']
 
-					# we make sure we have at least an innode for this loader created by prism.
+					#	Make sure we have at least an inNode for this Loader created by Prism.
 					if inNode:
 						#	Connect Loader to Wireless IN
 						Fus.connectTools(ldr, inNode)
 
-						#	Arrange tools
+						#	Get the vert position of the Loader
 						if lyrnm != lastloaderlyr:
 							newy += vertGap
+						#	Sets Loader position
 						flow.SetPos(ldr, newx, newy)
-						flow.SetPos(inNode, newx + 2, newy)
-						if outnode:
-							flow.SetPos(outnode, newx + 3 , newy)
+						#	Sets Wireless_IN position to the right of the Loader
+						flow.SetPos(inNode, newx + (horzGap * 2), newy)
+
+						if outNode:
+							#	Gets current psoition of Wireless_OUT
+							outPos = flow.GetPosTable(outNode)
+							#	Gets distance of _OUT to _IN
+							distX = abs(outPos[1] - inNodeOrigPos[1])
+							disty = abs(outPos[2] - inNodeOrigPos[2])
+							
+							#	If _OUT and _IN are with toolThresh it will position the _OUT
+							if distX <= toolThresh and disty <= toolThresh:
+								#	Sets the Wireless_OUT to the right of the Loader
+								flow.SetPos(outNode, newx + (horzGap * 3) , newy)
 
 					#	Increment Vert Position
 					newy += vertGap

@@ -926,7 +926,7 @@ def findLeftmostLowerNode(comp, threshold:int=0.5) -> Tool:
         return None
 
 
-@err_catcher(name=__name__)
+@err_catcher(name=__name__)                                                     #   TODO add this to the CompDB
 def sortingEnabled(comp, save:bool=False, checked:bool=None) -> bool:
     # Sets/Gets the checkbox state of the dialog as part of the comp data.
     if save:
