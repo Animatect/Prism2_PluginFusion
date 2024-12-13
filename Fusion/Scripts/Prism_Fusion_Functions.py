@@ -1087,7 +1087,7 @@ class Prism_Fusion_Functions(object):
 			return
 
 		#	Get "Sorting" checkbox state	
-		sorting = Fus.sortingEnabled(comp)
+		sorting = CompDb.sortingEnabled(comp)
 
 		# Setup Dialog
 		fString = "Please select an import option:"	
@@ -1114,7 +1114,7 @@ class Prism_Fusion_Functions(object):
 
 		#	Save "Sorting" checkbox state
 		if checkbox_checked is not None:
-			Fus.sortingEnabled(comp, save=True, checked=checkbox_checked)
+			CompDb.sortingEnabled(comp, save=True, checked=checkbox_checked)
 
 		#	Call the import with options and passing the data
 		if importType in ["Import Media", "Current AOV", "All AOVs"]:
@@ -3471,10 +3471,11 @@ path = r\"%s\"
 				except:
 					logger.debug(f"Unable to remove default state: {state}")
 
-		comp = self.getCurrentComp()
-		
+
 		#Set the comp used when sm was opened for reference when saving states.
+		comp = self.getCurrentComp()
 		self.comp = comp
+
 		#Set State Manager Data on first open.
 		if CompDb.sm_readStates(comp) is None:
 			self.setDefaultState()

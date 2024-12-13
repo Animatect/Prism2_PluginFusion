@@ -926,24 +926,6 @@ def findLeftmostLowerNode(comp, threshold:int=0.5) -> Tool:
         return None
 
 
-@err_catcher(name=__name__)                                                     #   TODO add this to the CompDB
-def sortingEnabled(comp, save:bool=False, checked:bool=None) -> bool:
-    # Sets/Gets the checkbox state of the dialog as part of the comp data.
-    if save:
-        try:
-            comp.SetData("isPrismImportChbxCheck", checked)
-            return True
-        except:
-            logger.warning("ERROR:  Unable to save Sorting Checkbox state")
-            return False
-
-    try:
-        return bool(comp.GetData("isPrismImportChbxCheck", default=False))
-    except:
-        logger.warning("ERROR:  Unable to get Sorting Checkbox state")
-        return False
-    
-
 @err_catcher(name=__name__)
 def getLoaderChannels(tool) -> list:
     # Get all loader channels and filter out the ones to skip

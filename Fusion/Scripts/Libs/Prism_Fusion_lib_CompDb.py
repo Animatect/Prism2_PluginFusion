@@ -72,7 +72,20 @@ logger = logging.getLogger(__name__)
 #   DataBase Structure:                                 ####   TODO - MAKE SURE IT IS ACCURATE     ####
 #
 #   Root(
-#       "nodes"(
+#        "comp": {
+#           "mediaIdColors": {
+#               "asset": {},
+#               "shot": {
+#               "MEDIA IDENTIFIER": {           (  string  )
+#                   "R": 1.0,                   (  int  )
+#                   "G": 0.6588235294117647,    (  int  )
+#                   "B": 0.2                    (  int  )
+#                   }
+#               }
+#           },
+#           "sortingDisabled": bool
+#       },
+#       "nodes"{
 #           "import2d" (
 #               UUID: {
 #                   NodeData: {
@@ -166,11 +179,12 @@ def createDefaultPrismFileDb(comp) -> dict:
     #   This template needs to have the required keys.
     #   Add additional keys as needed.
     defaultDb = {
-        "fileValues": {
-            "identifiersColors": {
+        "comp": {
+            "mediaIdColors": {
                 "asset": {},
                 "shot": {}
-            }
+            },
+            "sortingDisabled": False
         },
         "nodes": {
             "import3d": {},
@@ -263,7 +277,7 @@ def addPrismDbIdentifier(comp, category:str, name:str, color:int):
     cpData = loadPrismFileDb(comp)
     try:
         if category in ["asset", "shot"]:
-            cpData["fileValues"]["identifiersColors"][category][name] = color
+            cpData["comp"]["mediaIdColors"][category][name] = color
             savePrismFileDb(comp, cpData)
             logger.debug(f"Added {category}{name} to Prism Comp Database")
     except:
@@ -276,9 +290,9 @@ def getPrismDbIdentifierColor(comp, category:str, name:str) -> Union[Color, None
     try:
         logger.debug(f"Getting Identifier Color for {name}")
         cpData = loadPrismFileDb(comp)
-        if category in cpData["fileValues"]["identifiersColors"]:
-            if name in cpData["fileValues"]["identifiersColors"][category]:
-                color = cpData["fileValues"]["identifiersColors"][category][name]
+        if category in cpData["comp"]["mediaIdColors"]:
+            if name in cpData["comp"]["mediaIdColors"][category]:
+                color = cpData["comp"]["mediaIdColors"][category][name]
                 logger.debug(f"{color} found for {name}")
                 return color
         
@@ -287,6 +301,27 @@ def getPrismDbIdentifierColor(comp, category:str, name:str) -> Union[Color, None
     except:
         logger.warning("ERROR:  Unable to get Identifier Color")
 
+
+#   Sets/Gets the checkbox state of the dialog as part of the comp data.
+@err_catcher(name=__name__)
+def sortingEnabled(comp, save:bool=False, checked:bool=None) -> bool:
+    cpData = loadPrismFileDb(comp)
+
+    if save:
+        try:
+            cpData["comp"]["sortingDisabled"] = checked
+            savePrismFileDb(comp, cpData)
+            return True
+        except:
+            logger.warning("ERROR:  Unable to save Sorting Disabled state")
+            return False
+
+    try:
+        return cpData["comp"]["sortingDisabled"]
+    except:
+        logger.warning("ERROR:  Unable to get Sorting Disabled state")
+        return False
+    
 
 #   Adds new Node to the DB
 @err_catcher(name=__name__)
@@ -884,10 +919,14 @@ def sm_saveImports(comp, importPaths:str):
 def sm_readStates(comp) -> str:
     try:
         prismdata = comp.GetData("prismStates")
-        return prismdata.split("_..._")[0]
+        if not prismdata:
+            logger.debug("Prism State Data does not exist.")
+        else:
+            return prismdata.split("_..._")[0]
     except:
         logger.warning(f"ERROR:  Unable to read State Data from comp: {comp}")
-        return 
+        logger.warning(f"ERROR:  Resetting Prism State Data")
+        setDefaultState()
 
 
 #	Gets called from SM to remove all States
