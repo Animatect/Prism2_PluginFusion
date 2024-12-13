@@ -275,6 +275,9 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
         if "mediaType" in toolData:
             tool.SetData('Prism_MediaType', toolData['mediaType'])
 
+        if "connectedNodes" in toolData:
+            tool.SetData('Prism_ConnectedNodes', toolData['connectedNodes'])
+
         if "filepath" in toolData:
             tool.Clip = toolData['filepath']
 
@@ -323,6 +326,9 @@ def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1
 
         if "version" in toolData:
             tool.SetData('Prism_Version', toolData['version'])
+
+        if "connectedNodes" in toolData:
+            tool.SetData('Prism_ConnectedNodes', toolData['connectedNodes'])
 
         if "filepath" in toolData:
             tool.Clip = toolData['filepath']
@@ -683,6 +689,52 @@ def getToolBefore(tool) -> Tool:
         return None
 
 
+#	Sets up the name based on avail data
+@err_catcher(name=__name__)
+def makeLdrName(importData:dict) -> str:
+    try:
+        ldrName = importData.get('identifier') or importData.get("mediaId")
+
+        if "aov" in importData:
+            ldrName = ldrName + f"_{importData['aov']}"
+
+        if "channel" in importData:
+            ldrName = ldrName + f"_{importData['channel']}"
+   
+        ldrName = ldrName + f"_{importData['version']}"
+        
+        return ldrName
+    
+    except Exception as e:
+        logger.warning(f"ERROR: Unable to make Loader name from Import Data:\n{e}")
+        return None
+    
+
+#	Sets up the name based on avail data
+@err_catcher(name=__name__)
+def makeWirelessName(importData:dict) -> str:
+    try:
+        wirelessName = (importData.get('identifier')
+                        or importData.get("mediaId")
+                        or importData.get("Prism_MediaID"))
+
+        if "aov" in importData:
+            wirelessName = wirelessName + f"_{importData['aov']}"
+        elif "Prism_AOV" in importData:
+            wirelessName = wirelessName + f"_{importData['Prism_AOV']}"
+
+        if "channel" in importData:
+            wirelessName = wirelessName + f"_{importData['channel']}"
+        elif "Prism_Channel" in importData:
+            wirelessName = wirelessName + f"_{importData['Prism_Channel']}"
+
+        return wirelessName
+    
+    except Exception as e:
+        logger.warning(f"ERROR: Unable to make Wireless base name from Import Data:\n{e}")
+        return None
+    
+
 #   The name of this function comes for its initial use to position
 #   the "state manager node" that what used before using SetData.
 @err_catcher(name=__name__)
@@ -933,7 +985,7 @@ def getChannelData(loaderChannels:list) -> dict:
                 # Use setdefault to initialize channels if prefix is encountered for the first time
                 channels = channelData.setdefault(prefix, [])
 
-                # Add full channel name to assigned channels of current prefix              #   TODO Look into this
+                # Add full channel name to assigned channels of current prefix
                 channels.append(channelName)
 
         return channelData
@@ -943,78 +995,14 @@ def getChannelData(loaderChannels:list) -> dict:
         return None
     
 
-@err_catcher(name=__name__)														#	TODO
-def sortLoaders(comp, posRefNode:Tool, reconnectIn:bool=True, sortnodes:bool=True):
-    flow = comp.CurrentFrame.FlowView
 
-
-    #Get the leftmost loader within a threshold.
-    leftmostpos = flow.GetPosTable(posRefNode)[1]
-    bottommostpos = flow.GetPosTable(posRefNode)[2]
-    thresh = 100
-
-    # We get only the loaders within a threshold from the leftmost and who were created by prism.
-    try:
-        loaders = [l for l in comp.GetToolList(False, "Loader").values() if abs(flow.GetPosTable(l)[1] - leftmostpos)<=thresh and l.GetData("Prism_UUID") and l.GetData('Prism_MediaID')]
-        loaderstop2bot = sorted(loaders, key=lambda ld: flow.GetPosTable(ld)[2])
-        layers = set([ly.GetData('Prism_MediaID') for ly in loaders])
-        
-    except:
-        logger.warning("ERROR: Cannot sort loaders - unable to resolve threshold in the flow")
-        return
-
-    sortedloaders = []
-    for ly in sorted(list(layers)):
-        lyloaders = [l for l in loaders if l.GetData('Prism_MediaID') == ly]
-        sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
-        sortedloaders += sorted_loader_names
-    # if refNode is not part of nodes to sort we move the nodes down so they don't overlap it.
-    refInNodes = any(ldr.Name == posRefNode.Name for ldr in sortedloaders)
-
-    # Sorting the loader names
-    if len(sortedloaders) > 0:
-        # To check if a node is in a layer or if we've switched layers, we first store a refernce layer
-        # update it and compare it in each iteration.
-        lastloaderlyr = sortedloaders[0].GetData('Prism_MediaID')
-        try:
-            if sortnodes:
-                newx = leftmostpos#flow.GetPosTable(loaderstop2bot[0])[1]
-                newy = flow.GetPosTable(loaderstop2bot[0])[2]
-                if not refInNodes:
-                    newy = bottommostpos + 1.5
-                
-                for l in sortedloaders:
-                    # we reconnect to solve an issue that creates "Ghost" connections until comp is reoppened.
-                    innode =  comp.FindTool(l.Name+"_IN")
-                    outnode = comp.FindTool(l.Name+"_OUT")
-                    if innode and reconnectIn:
-                        innode.ConnectInput('Input', l)
-                    lyrnm = l.GetData('Prism_MediaID')
-                    # we make sure we have at least an innode for this loader created by prism.
-                    if innode and innode.GetData("isprismnode"):
-                        if lyrnm != lastloaderlyr:
-                            newy+=1
-                        flow.SetPos(l, newx, newy)
-                        flow.SetPos(innode, newx+2, newy)
-                        if outnode:
-                            flow.SetPos(outnode, newx+3, newy)
-                    newy+=1
-                    lastloaderlyr = lyrnm
-
-                logger.debug("Sorted Nodes")
-
-        except:
-            logger.warning("ERROR: Failed to sort nodes")
-
-
-
-@err_catcher(name=__name__)
-def splitLoaderName(name:str) -> list:
-    try:
-        prefix = name.rsplit('_', 1)[0]  # everything to the left of the last "_"
-        suffix = name.rsplit('_', 1)[-1]  # everything to the right of the last "_"
-        return prefix, suffix
+# @err_catcher(name=__name__)                                           #   NEEDED ?
+# def splitLoaderName(name:str) -> list:
+#     try:
+#         prefix = name.rsplit('_', 1)[0]  # everything to the left of the last "_"
+#         suffix = name.rsplit('_', 1)[-1]  # everything to the right of the last "_"
+#         return prefix, suffix
     
-    except:
-        logger.warning(f"ERROR: Unable to split loader name {name}")
+#     except:
+#         logger.warning(f"ERROR: Unable to split loader name {name}")
 

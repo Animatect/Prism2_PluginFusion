@@ -1118,6 +1118,7 @@ class Prism_Fusion_Functions(object):
 
 		#	Call the import with options and passing the data
 		if importType in ["Import Media", "Current AOV", "All AOVs"]:
+
 			#	Get any UIDs for the Identifier
 			uids = CompDb.getUIDsFromImportData(comp, "import2d", importData)
 
@@ -1227,7 +1228,7 @@ class Prism_Fusion_Functions(object):
 				toolUID = CompDb.createUUID()
 
 				#	Make dict
-				toolData = {"nodeName": Helper.makeLdrName(importItem),
+				toolData = {"nodeName": Fus.makeLdrName(importItem),
 							"version": importData["version"],
 							"toolUID": toolUID,
 							"mediaId": importData["identifier"],
@@ -1270,11 +1271,12 @@ class Prism_Fusion_Functions(object):
 
 
 			#	Return if add image returns None
-			if not leftmostNode:
+			if not leftmostNode or not sortnodes:
+				logger.debug(f"Imported  {importData['identifier']} without sorting")
 				return
 
-			Fus.sortLoaders(comp, leftmostNode, reconnectIn=True, sortnodes=sortnodes)
-
+			#	Sort and Arrange Loaders and Wireless tools
+			self.sortLoaders(comp, leftmostNode)
 
 			logger.debug(f"Imported  {importData['identifier']}")
 
@@ -1355,7 +1357,7 @@ class Prism_Fusion_Functions(object):
 			#	Edit dict copy
 			toolData_copy["toolUID"] = toolUID
 			toolData_copy["channel"] = channel
-			toolData_copy["nodeName"] = Helper.makeLdrName(toolData_copy)
+			toolData_copy["nodeName"] = Fus.makeLdrName(toolData_copy)
 			
 			#	Add Loader with config data
 			ldr = Fus.addTool(comp, "Loader", toolData_copy)
@@ -1521,7 +1523,7 @@ class Prism_Fusion_Functions(object):
 				#	If there was a match to the database
 				if compareRes:
 					#	Make dict
-					toolData = {"nodeName": Helper.makeLdrName(updateData),
+					toolData = {"nodeName": Fus.makeLdrName(updateData),
 								"version": updateData["version"],
 								"filepath": updateData["filepath"],
 								"frame_start": updateData["frame_start"],
@@ -1534,9 +1536,6 @@ class Prism_Fusion_Functions(object):
 					Fus.updateTool(ldr, toolData)
 					#	Update Database record
 					CompDb.updateNodeInfo(comp, "import2d", uid, toolData)
-
-					#	Update Wireless name
-					self.updateWireless(comp, uid)
 					
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to update {importData['identifier']}")
@@ -1580,15 +1579,22 @@ class Prism_Fusion_Functions(object):
 }"""
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
+
+		#	Get Loader data
+		ldrData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
+		#	Make base name
+		baseName = Fus.makeWirelessName(ldrData)
+
+		#	Get Loader tool
 		tool = CompDb.getNodeByUID(comp, nodeUID)
 		
 		try:
 			pyperclip.copy(wirelessCopy)
 			comp.Paste(wirelessCopy)
 			ad = comp.FindTool("neverreferencednameonautodomain")
-			ad.SetAttrs({'TOOLS_Name': tool.Name + '_IN'})
+			ad.SetAttrs({'TOOLS_Name': baseName + '_IN'})
 			wl = comp.FindTool("neverreferencednameonwirelesslink")
-			wl.SetAttrs({'TOOLS_Name': tool.Name + '_OUT'})
+			wl.SetAttrs({'TOOLS_Name': baseName + '_OUT'})
 			x_pos, y_pos = flow.GetPosTable(tool).values()
 			
 			nodes = [ad, wl]
@@ -1608,7 +1614,11 @@ class Prism_Fusion_Functions(object):
 
 			#	Add Wireless Nodes to Comp Database
 			nodeData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
-			nodeData["connectedNodes"] = [wirelessInUID, wirelessOutUID]
+
+			nodeData["connectedNodes"] = {"wireless_IN": wirelessInUID,
+								 		  "wireless_OUT": wirelessOutUID}
+
+			Fus.updateTool(tool, nodeData)
 			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
 
 			#	Select the wireless out
@@ -1621,32 +1631,87 @@ class Prism_Fusion_Functions(object):
 			logger.warning(f"ERROR:  Could not add wireless nodes:\n{e}")
 
 
-	#	Updates Wireless Name
-	@err_catcher(name=__name__)
-	def updateWireless(self, comp, uid):
+	#	Sort and arrange all Prism Loaders 
+	@err_catcher(name=__name__)														#	TODO
+	def sortLoaders(self, comp, posRefNode, reconnectIn=True, offset=1.5, thresh=100, vertGap=1):
+		flow = comp.CurrentFrame.FlowView
 
-		ldrData = CompDb.getNodeInfo(comp, "import2d", uid)
+		#   Get the leftmost loader within a threshold.
+		leftmostpos = flow.GetPosTable(posRefNode)[1]
+		bottommostpos = flow.GetPosTable(posRefNode)[2]
 
-		self.core.popup(f"ldrData: {ldrData}")                                      #    TESTING
+		#   We get only the loaders within a threshold from the leftmost and who were created by prism.
+		try:
+			loaders = [l for l in comp.GetToolList(False, "Loader").values()
+					if (
+						abs(flow.GetPosTable(l)[1] - leftmostpos) <= thresh
+						and l.GetData("Prism_UUID")
+						and l.GetData('Prism_MediaID')
+						)
+						]
+			
+			loaderstop2bot = sorted(loaders, key=lambda ld: flow.GetPosTable(ld)[2])
+			
+		except:
+			logger.warning("ERROR: Cannot sort loaders - unable to resolve threshold in the flow")
+			return
 
-		connectedNodes = ldrData.get("connectedNodes", None)
+		#	Gets list of all Media Identifiers in the Comp Database
+		mediaIDs = CompDb.getMediaIDsForType(comp, "import2d")
 
-		if connectedNodes:
-			for nodeUID in connectedNodes:
+		sortedloaders = []
+		for mediaId in mediaIDs:
+			lyloaders = [l for l in loaders if l.GetData('Prism_MediaID') == mediaId]
+			sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
+			sortedloaders += sorted_loader_names
+			
+		# if refNode is not part of nodes to sort we move the nodes down so they don't overlap it.
+		refInNodes = any(ldr.Name == posRefNode.Name for ldr in sortedloaders)
 
-				self.core.popup(f"nodeUID: {nodeUID}")                                      #    TESTING
+		# Sorting the loader names
+		if len(sortedloaders) > 0:
+			# To check if a node is in a layer or if we've switched layers, we first store a refernce layer
+			# update it and compare it in each iteration.
+			lastloaderlyr = sortedloaders[0].GetData('Prism_MediaID')
 
-				tool = CompDb.getNodeByUID(comp, nodeUID)
+			try:
+				newx = leftmostpos
+				newy = flow.GetPosTable(loaderstop2bot[0])[2]
+				if not refInNodes:
+					newy = bottommostpos + offset
 
-				self.core.popup(f"tool: {tool}")                                      #    TESTING
+				for ldr in sortedloaders:
+					#   Get Loader data
+					ldrData = Fus.getToolData(ldr)
+					connectedTools = ldrData["Prism_ConnectedNodes"]
 
-				toolName = tool.Name
+					# We reconnect to solve an issue that creates "Ghost" connections until comp is reoppened.
+					inNode =  CompDb.getNodeByUID(comp, connectedTools["wireless_IN"])
+					outnode = CompDb.getNodeByUID(comp, connectedTools["wireless_OUT"])
 
-				self.core.popup(f"toolName: {toolName}")                                      #    TESTING
+					lyrnm = ldrData['Prism_MediaID']
 
+					# we make sure we have at least an innode for this loader created by prism.
+					if inNode:
+						#	Connect Loader to Wireless IN
+						Fus.connectTools(ldr, inNode)
 
+						#	Arrange tools
+						if lyrnm != lastloaderlyr:
+							newy += vertGap
+						flow.SetPos(ldr, newx, newy)
+						flow.SetPos(inNode, newx + 2, newy)
+						if outnode:
+							flow.SetPos(outnode, newx + 3 , newy)
 
+					#	Increment Vert Position
+					newy += vertGap
+					lastloaderlyr = lyrnm
 
+				logger.debug("Sorted Nodes")
+
+			except Exception as e:
+				logger.warning(f"ERROR: Failed to sort nodes:\n{e}")
 
 
 	################################################
@@ -3101,7 +3166,7 @@ path = r\"%s\"
 		# deselect all nodes
 		flow.Select()
 
-		toolsToSelectUID = CompDb.getAllConnectedNodes(comp, nodeUIDs)
+		toolsToSelectUID = CompDb.getAllConnectedNodes(comp, "import2d", nodeUIDs)
 		
 		if not toolsToSelectUID:
 			logger.debug("There are not Loaders associated with this task.")
@@ -3125,7 +3190,7 @@ path = r\"%s\"
 
 		#	Colors the Loaders and wireless nodes
 		if self.taskColorMode == "All Nodes":
-			toolsToColorUID = CompDb.getAllConnectedNodes(comp, nodeUIDs)
+			toolsToColorUID = CompDb.getAllConnectedNodes(comp, "import2d", nodeUIDs)
 
 		#	Only colors the Loader nodes
 		elif self.taskColorMode == "Loader Nodes":
