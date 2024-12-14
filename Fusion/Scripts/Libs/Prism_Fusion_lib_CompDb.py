@@ -247,7 +247,7 @@ def savePrismFileDb(comp, cpData_orig:dict):
 
 #   Removes DB records if the node does not exist in Comp
 @err_catcher(name=__name__)
-def cleanPrismFileDb(comp, cpData_orig:dict) ->dict:
+def cleanPrismFileDb(comp, cpData_orig:dict) -> dict:
     try:
         cpData_cleaned = cpData_orig.copy()
 
@@ -536,7 +536,7 @@ def updateNodeInfo(comp, listType:str, UUID:str, nodeData:dict) -> bool:
 
 #   Return a list of MediaIds for a given type
 @err_catcher(name=__name__)
-def getMediaIDsForType(comp, listType:str) -> list:
+def getMediaIDsForType(comp, listType:str) -> list[str]:
     #   Get database data
     cpData = loadPrismFileDb(comp)
 
@@ -576,7 +576,7 @@ def getNodeInfo(comp, listType:str, UUID:str) -> dict:
 
 #   Returns list of import files based on selected tools
 @err_catcher(name=__name__)
-def getFilesFromSelTools(comp, importData:dict, selUIDs:list) -> list:
+def getFilesFromSelTools(comp, importData:dict, selUIDs:list) -> list[str]:
     selItems = []
     #   Get files list
     importFileList = importData["files"]
@@ -804,7 +804,7 @@ def getConnectedNodes(comp, listType:str, UUID:str) -> Union[list | None]:
 #	Gets either single UID or List of UID's
 #	and returns the original and all connected UUID's
 @err_catcher(name=__name__)
-def getAllConnectedNodes(comp, listType:str, nodeUIDs:Union[list|str]) -> list:
+def getAllConnectedNodes(comp, listType:str, nodeUIDs:Union[list|str]) -> list[Tool]:
     mainToolsUIDs = []
     allToolUIDs = []
 

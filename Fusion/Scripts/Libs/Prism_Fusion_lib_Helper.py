@@ -296,7 +296,7 @@ def getFileDataFromAOV(fileList:list, aov:str) -> dict:
 
 #	Returns an average luminance value
 @err_catcher(name=__name__)
-def calculateLuminance(color:dict) -> int:
+def calculateLuminance(color:dict) -> float:
     try:
         r,g,b = color['R'], color['G'], color['B']
         # No need for normalization if RGB values are already in [0, 1]

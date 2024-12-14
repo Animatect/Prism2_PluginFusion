@@ -730,7 +730,7 @@ class Prism_Fusion_Functions(object):
 			return False
 		try:
 			# Check if tool name is 'Saver' (should work if node is renamed)
-			if Fus.getNodeType(tool) == "Saver":
+			if Fus.getToolType(tool) == "Saver":
 				return True
 			else:
 				return False
@@ -774,11 +774,11 @@ class Prism_Fusion_Functions(object):
 				CompDb.addNodeToDB(comp, "render2d", nodeUID, nodeData)
 
 				#	Position Saver
-				if not Fus.posRelativeToNode(comp, sv):
+				if not Fus.posRelativeToTool(comp, sv):
 					try:
 						#Move Render Node to the Right of the scene	
-						Fus.setNodePosition(comp, sv, find_min=False, x_offset=10, ignore_node_type="Saver")
-						Fus.stackNodesByType(comp, sv)
+						Fus.setToolPosition(comp, sv, find_min=False, x_offset=10, ignore_node_type="Saver")
+						Fus.stackToolsByType(comp, sv)
 					except:
 						logger.debug(f"ERROR: Not able to position {nodeData['nodeName']}")
 
@@ -1032,6 +1032,7 @@ class Prism_Fusion_Functions(object):
 			# 	the mediaPlayer object under the name mediaBrowser 
 			self.MP_mediaPlayer = mediaPlayer = mediaBrowser
 
+			#	Add Patched functions
 			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportSource, self.compGetImportSource, self, force=True)
 			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportPasses, self.compGetImportPasses, self, force=True)
 			logger.debug("Patched functions in 'importImages()'")
@@ -1072,6 +1073,7 @@ class Prism_Fusion_Functions(object):
 		###		TODO	Framerange in sourceData does not seem to update until Prism instance restarts		TODO
 						#	This means the framerange will not update using Update Images
 						#	Needs furter investigation
+
 
 		except Exception as e:
 			logger.warning(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
@@ -1189,12 +1191,11 @@ class Prism_Fusion_Functions(object):
 	def configureImport(self, comp, importData, importType, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
-		#	Finds the left edge of the flow-nodes
 		refNode = None
-		leftmostNode = Fus.findLeftmostLowerNode(comp, 0.5)
+
+		#	Finds the left edge of the flow-nodes
 		if sortnodes:
-			if leftmostNode:
-				refNode = leftmostNode
+			refNode = Fus.findLeftmostLowerTool(comp, 0.5)
 
 		importList = []
 
@@ -1217,7 +1218,6 @@ class Prism_Fusion_Functions(object):
 			return
 
 		try:
-
 			#	For each import item
 			for importItem in importList:
 
@@ -1261,24 +1261,29 @@ class Prism_Fusion_Functions(object):
 
 					if result == "Yes":
 						#	Call Multi-channel function for all channels
-						leftmostNode = self.addMultiChannel(comp, toolData, channels, sortnodes=sortnodes)
+						leftmostNode = self.addMultiChannel(comp, toolData, refNode, channels, sortnodes=sortnodes)
 
 					if result == "No":
 						#	Get current viewed channel
 						currChannel = importData["channel"]
 						#	Call Multi-channel function for current channel
-						leftmostNode = self.addMultiChannel(comp, toolData, channels, currChannel, sortnodes=sortnodes)
+						leftmostNode = self.addMultiChannel(comp, toolData, refNode, channels, currChannel, sortnodes=sortnodes)
 
-
-			#	Return if add image returns None
-			if not leftmostNode or not sortnodes:
+			#	Return if failed
+			if not leftmostNode:
+				logger.warning(f"ERROR:  Unable to import Images:\n{e}")
+				self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
+				return False
+			
+			#	Return if Not Sorting
+			if not sortnodes:
 				logger.debug(f"Imported  {importData['identifier']} without sorting")
 				return
 
 			#	Sort and Arrange Loaders and Wireless tools
 			self.sortLoaders(comp, leftmostNode)
 
-			logger.debug(f"Imported  {importData['identifier']}")
+			logger.debug(f"Imported  and sorted {importData['identifier']}")
 
 		except Exception as e:
 			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
@@ -1289,20 +1294,16 @@ class Prism_Fusion_Functions(object):
 	def addSingleChannel(self, comp, toolUID, toolData, refNode, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
-		#	Finds the left edge of the flow-nodes
-		refNode = None
-		leftmostNode = Fus.findLeftmostLowerNode(comp, 0.5)
-		if sortnodes:
-			if leftmostNode:
-				refNode = leftmostNode
-
 		try:
-			#	Add and configure Loader
-			ldr = Fus.addTool(comp, "Loader", toolData)
+			#	Get Position of Ref Tool
+			refX, refY = Fus.getToolPosition(comp, refNode)
+
+			#	Add and configure Loader to the left so it will not mess up Flow
+			ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
 		
 			if not ldr:
 				self.core.popup(f"ERROR: Unable to add Loader to Comp")
-				return
+				return False
 
 			#	Add mode to Comp Database
 			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
@@ -1313,36 +1314,26 @@ class Prism_Fusion_Functions(object):
 		#	Deselect all
 		flow.Select()
 
-		# #	If sorting is enabled
+		#	If sorting is enabled
 		if sortnodes:
-			if not leftmostNode:
-				leftmostNode = ldr
-
-		Fus.setNodeToLeft(comp, ldr, refNode)
-
-		# #	If sorting is enabled
-		if sortnodes:
+			Fus.setToolToLeft(comp, ldr, refNode)
 			self.createWireless(toolUID)
 			
 		return ldr
 
 
 	@err_catcher(name=__name__)
-	def addMultiChannel(self, comp, toolData, channels, currChannel=None, sortnodes=True):
+	def addMultiChannel(self, comp, toolData, refNode, channels, currChannel=None, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
-		#	Finds the left edge of the flow-nodes
-		refNode = None
-		leftmostNode = Fus.findLeftmostLowerNode(comp, 0.5)
-		if sortnodes:
-			if leftmostNode:
-				refNode = leftmostNode
+		#	Get Position of Ref Tool
+		refX, refY = Fus.getToolPosition(comp, refNode)
 
-		#	If not splitting, use currently viewed channel
 		if currChannel:
+			#	If not splitting, use currently viewed channel
 			channelList = [currChannel]
-		#	Use all channels
 		else:
+			#	Use all channels
 			channelList = channels
 
 		for channel in channelList:
@@ -1360,7 +1351,7 @@ class Prism_Fusion_Functions(object):
 			toolData_copy["nodeName"] = Fus.makeLdrName(toolData_copy)
 			
 			#	Add Loader with config data
-			ldr = Fus.addTool(comp, "Loader", toolData_copy)
+			ldr = Fus.addTool(comp, "Loader", toolData_copy, refX-10, refY-10)
 
 			#	Add node to Comp Database
 			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData_copy)
@@ -1387,7 +1378,6 @@ class Prism_Fusion_Functions(object):
 				'z': 'BlueName',
 				}
 
-
 			# Check if contains only a Z-channel (for Depth, Mist, etc)
 			try:
 				z_channel = None
@@ -1407,7 +1397,7 @@ class Prism_Fusion_Functions(object):
 
 			else:
 				try:
-					#	Match the attrs based on the dict						#	TODO make sure this works for all DCC channel types
+					#	Match the attrs based on the dict			#	TODO make sure this works for all DCC channel types
 					for channel_str in channelDict:
 						match = re.search(r'\.([a-z])$', channel_str.lower())
 
@@ -1427,13 +1417,7 @@ class Prism_Fusion_Functions(object):
 
 			#	If sorting is enabled
 			if sortnodes:
-				if not leftmostNode:
-					leftmostNode = ldr
-
-			Fus.setNodeToLeft(comp, ldr, refNode)
-
-			#	If sorting is enabled
-			if sortnodes:
+				Fus.setToolToLeft(comp, ldr, refNode)
 				self.createWireless(toolUID)
 
 		return ldr
@@ -1580,37 +1564,38 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
+		#	Get Loader tool
+		ldr = CompDb.getNodeByUID(comp, nodeUID)
+
 		#	Get Loader data
 		ldrData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
 		#	Make base name
 		baseName = Fus.makeWirelessName(ldrData)
-
-		#	Get Loader tool
-		tool = CompDb.getNodeByUID(comp, nodeUID)
 		
 		try:
+			#	Copy and paste settings code into Comp
 			pyperclip.copy(wirelessCopy)
 			comp.Paste(wirelessCopy)
-			ad = comp.FindTool("neverreferencednameonautodomain")
-			ad.SetAttrs({'TOOLS_Name': baseName + '_IN'})
-			wl = comp.FindTool("neverreferencednameonwirelesslink")
-			wl.SetAttrs({'TOOLS_Name': baseName + '_OUT'})
-			x_pos, y_pos = flow.GetPosTable(tool).values()
-			
-			nodes = [ad, wl]
-			for i, node in enumerate(nodes, start=1):
-				offset = 1.5 if i == 1 else 1.3
-				flow.SetPos(node, x_pos + offset*i, y_pos)
-				# Set Prism node identifier.
-				node.SetData("isprismnode", True)	#	TODO
 
-			ad.ConnectInput('Input', tool)
+			#	Sets Wireless tools names
+			wireless_IN = comp.FindTool("neverreferencednameonautodomain")
+			wireless_IN.SetAttrs({'TOOLS_Name': baseName + '_IN'})
+			wireless_OUT = comp.FindTool("neverreferencednameonwirelesslink")
+			wireless_OUT.SetAttrs({'TOOLS_Name': baseName + '_OUT'})
+
+			#	Temporarily Set Positions of Tools
+			Fus.setToolPosRelative(comp, wireless_IN, ldr, 1.5)
+			Fus.setToolPosRelative(comp, wireless_OUT, wireless_IN, 1.5)
+			
+			#	Connect _IN to Loader
+			# wireless_IN.ConnectInput('Input', ldr)
+			Fus.connectTools(ldr, wireless_IN)
 
 			#	Set UUID's to Wireless Nodes
 			wirelessInUID = CompDb.createUUID()
-			ad.SetData('Prism_UUID', wirelessInUID)
+			wireless_IN.SetData('Prism_UUID', wirelessInUID)
 			wirelessOutUID = CompDb.createUUID()
-			wl.SetData('Prism_UUID', wirelessOutUID)
+			wireless_OUT.SetData('Prism_UUID', wirelessOutUID)
 
 			#	Add Wireless Nodes to Comp Database
 			nodeData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
@@ -1618,39 +1603,38 @@ class Prism_Fusion_Functions(object):
 			nodeData["connectedNodes"] = {"wireless_IN": wirelessInUID,
 								 		  "wireless_OUT": wirelessOutUID}
 
-			Fus.updateTool(tool, nodeData)
+			Fus.updateTool(ldr, nodeData)
 			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
 
 			#	Select the wireless out
 			flow.Select()
-			comp.SetActiveTool(wl)
+			comp.SetActiveTool(wireless_OUT)
 
-			logger.debug(f"Created Wireless nodes for: {tool.Name}")
+			logger.debug(f"Created Wireless nodes for: {ldr.Name}")
 
 		except Exception as e:
 			logger.warning(f"ERROR:  Could not add wireless nodes:\n{e}")
 
 
 	#	Sort and arrange all Prism Loaders 
-	@err_catcher(name=__name__)														#	TODO
-	def sortLoaders(self, comp, posRefNode, reconnectIn=True, offset=1.5, flowThresh=100, toolThresh=3, horzGap=1, vertGap=1):
+	@err_catcher(name=__name__)
+	def sortLoaders(self, comp, posRefNode, offset=1.5, flowThresh=100, toolThresh=3, horzGap=1.1, vertGap=1):
 		flow = comp.CurrentFrame.FlowView
 
-		#   Get the leftmost loader within a threshold.
-		leftmostpos = flow.GetPosTable(posRefNode)[1]
-		bottommostpos = flow.GetPosTable(posRefNode)[2]
+		#   Get the left-most and bottom-most Loader within a threshold.
+		leftmostpos, bottommostpos = Fus.getToolPosition(comp, posRefNode)
 
 		#   We get only the loaders within a threshold from the leftmost and who were created by prism.
 		try:
 			loaders = [l for l in comp.GetToolList(False, "Loader").values()
 					if (
-						abs(flow.GetPosTable(l)[1] - leftmostpos) <= flowThresh
+						abs(Fus.getToolPosition(comp, l)[0] - leftmostpos) <= flowThresh
 						and l.GetData("Prism_UUID")
 						and l.GetData('Prism_MediaID')
 						)
 						]
 			
-			loaderstop2bot = sorted(loaders, key=lambda ld: flow.GetPosTable(ld)[2])
+			loaderstop2bot = sorted(loaders, key=lambda ld: Fus.getToolPosition(comp, ld)[1])
 			
 		except:
 			logger.warning("ERROR: Cannot sort loaders - unable to resolve threshold in the flow")
@@ -1668,65 +1652,88 @@ class Prism_Fusion_Functions(object):
 		# if refNode is not part of nodes to sort we move the nodes down so they don't overlap it.
 		refInNodes = any(ldr.Name == posRefNode.Name for ldr in sortedloaders)
 
-		# Sorting the loader names
-		if len(sortedloaders) > 0:
-			# To check if a node is in a layer or if we've switched layers, we first store a refernce layer
-			# update it and compare it in each iteration.
-			lastloaderlyr = sortedloaders[0].GetData('Prism_MediaID')
+		if len(sortedloaders) < 1:
+			return
+		
+		# To check if a node is in a layer or if we've switched layers, we first store a refernce layer
+		# update it and compare it in each iteration.
+		lastLoaderLyr = sortedloaders[0].GetData('Prism_MediaID')
 
-			try:
-				newx = leftmostpos
-				newy = flow.GetPosTable(loaderstop2bot[0])[2]
-				if not refInNodes:
-					newy = bottommostpos + offset
+		try:
+			new_X = leftmostpos
+			new_Y = Fus.getToolPosition(comp, loaderstop2bot[0])[1]
 
-				for ldr in sortedloaders:
-					#   Get Loader data
-					ldrData = Fus.getToolData(ldr)
-					connectedTools = ldrData["Prism_ConnectedNodes"]
+			if not refInNodes:
+				new_Y = bottommostpos + offset
 
-					# We reconnect to solve an issue that creates "Ghost" connections until comp is reopened.
-					inNode =  CompDb.getNodeByUID(comp, connectedTools["wireless_IN"])
-					outNode = CompDb.getNodeByUID(comp, connectedTools["wireless_OUT"])
+			for ldr in sortedloaders:
+				#   Get Loader data
+				ldrData = Fus.getToolData(ldr)
+				connectedTools = ldrData["Prism_ConnectedNodes"]
+				lyrNm = ldrData['Prism_MediaID']
 
-					#	Get Wireless_IN position before moving
-					inNodeOrigPos = flow.GetPosTable(inNode)
+				# We reconnect to solve an issue that creates "Ghost" connections until comp is reopened.
+				inNode =  CompDb.getNodeByUID(comp, connectedTools["wireless_IN"])
+				outNode = CompDb.getNodeByUID(comp, connectedTools["wireless_OUT"])
 
-					lyrnm = ldrData['Prism_MediaID']
+				#	Get input object connected Loader
+				nextToolInput = Fus.getInputsFromOutput(ldr)
 
-					#	Make sure we have at least an inNode for this Loader created by Prism.
-					if inNode:
-						#	Connect Loader to Wireless IN
-						Fus.connectTools(ldr, inNode)
+				#	Skip arranging if there is nothing connected to Loader
+				if not nextToolInput:
+					continue
+				
+				#	Get tool stuff
+				nextTool = nextToolInput[0].GetTool()
+				nextToolName = nextTool.Name
+				inNodeName = inNode.Name
 
-						#	Get the vert position of the Loader
-						if lyrnm != lastloaderlyr:
-							newy += vertGap
-						#	Sets Loader position
-						flow.SetPos(ldr, newx, newy)
-						#	Sets Wireless_IN position to the right of the Loader
-						flow.SetPos(inNode, newx + (horzGap * 2), newy)
+				#	Skip arranging if there are not Wireless connected
+				if not nextToolName or not inNodeName:
+					continue
 
-						if outNode:
-							#	Gets current psoition of Wireless_OUT
-							outPos = flow.GetPosTable(outNode)
-							#	Gets distance of _OUT to _IN
-							distX = abs(outPos[1] - inNodeOrigPos[1])
-							disty = abs(outPos[2] - inNodeOrigPos[2])
-							
-							#	If _OUT and _IN are with toolThresh it will position the _OUT
-							if distX <= toolThresh and disty <= toolThresh:
-								#	Sets the Wireless_OUT to the right of the Loader
-								flow.SetPos(outNode, newx + (horzGap * 3) , newy)
+				#	Get Wireless_IN position before moving
+				inNodeOrigPos = Fus.getToolPosition(comp, inNode)
 
-					#	Increment Vert Position
-					newy += vertGap
-					lastloaderlyr = lyrnm
+				#	Get the vert position of the Loader
+				if lyrNm != lastLoaderLyr:
+					new_Y += vertGap
 
-				logger.debug("Sorted Nodes")
+				#	Sets Loader position
+				Fus.setToolPosition(flow, ldr, new_X, new_Y)
 
-			except Exception as e:
-				logger.warning(f"ERROR: Failed to sort nodes:\n{e}")
+				#	If there is a Tool in between Loader and Wireless_IN
+				if nextToolName != inNodeName:
+					#	Connect Loader to nextTool
+					Fus.connectTools(ldr, nextTool)
+					#	Sets nextTool position to the right of the Loader
+					Fus.setToolPosRelative(comp, nextTool, ldr, horzGap)
+					#	Connect nextTool to _IN
+					Fus.connectTools(nextTool, inNode)
+					#	Sets Wireless_IN position to the right of the Loader
+					Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
+
+				#	Sort Wireless as normal
+				else:
+					#	Connect Loader to Wireless IN
+					Fus.connectTools(ldr, inNode)
+					#	Sets Wireless_IN position to the right of the Loader
+					Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
+
+				if outNode:
+					#	If _OUT and _IN are within toolThresh it will position the _OUT
+					if Fus.isToolNearTool(comp, outNode, refPos=inNodeOrigPos, thresh=toolThresh):
+						Fus.setToolPosRelative(comp, outNode, inNode, horzGap)
+
+				#	Increment Vert Position
+				new_Y += vertGap
+				lastLoaderLyr = lyrNm
+
+			logger.debug("Sorted Nodes")
+
+		except Exception as e:
+			logger.warning(f"ERROR: Failed to sort nodes:\n{e}")
+
 
 
 	################################################
@@ -1951,64 +1958,6 @@ class Prism_Fusion_Functions(object):
 	def removeAOV(self, aovName):
 		pass
 	
-
-	#	Arranges nodes in a vertcal stack
-	# @err_catcher(name=__name__)
-	# def stackNodesByType(self, nodetostack, yoffset=3, tooltype="Saver"):
-	# 	comp = self.getCurrentComp()
-	# 	flow = comp.CurrentFrame.FlowView
-
-	# 	origx, origy = flow.GetPosTable(nodetostack).values()
-
-	# 	toollist = comp.GetToolList().values()
-		
-	# 	thresh_y_position = -float('inf')
-	# 	upmost_node = None		
-
-	# 	# Find the upmost node
-	# 	for node in toollist:
-	# 		try:
-	# 			if node.Name == nodetostack.Name:
-	# 					continue
-				
-	# 			if node.GetAttrs("TOOLS_RegID") == tooltype:
-	# 				postable = flow.GetPosTable(node)
-	# 				y = thresh_y_position
-	# 				#check if node has a postable.
-	# 				if postable:
-	# 					# Get the node's position
-	# 					x,y = postable.values()
-
-	# 					if y > thresh_y_position:
-	# 						thresh_y_position = y
-	# 						upmost_node = node
-	# 		except Exception as e:
-	# 			logger.warning(f"ERROR: Unable to stack nodes:\n{e}")
-
-	# 	if upmost_node:
-	# 		#set pos to the leftmost or rightmost node
-	# 		flow.SetPos(nodetostack, origx, thresh_y_position + yoffset)
-
-
-
-	# @err_catcher(name=__name__)
-	# def refreshNodees(self):
-	# 	comp = self.getCurrentComp()
-	# 	# Iterate through all tools in the composition
-	# 	tools = comp.GetToolList(False)
-
-	# 	for tool_name, tool in tools.items():  # tool_name is the key, tool is the value
-	# 		toolUID = tool.GetData('Prism_UUID')
-
-    #     # Check if the tool has the attribute 'Prism_UUID' and if it matches the provided UID
-	# 		if toolUID == nodeUID:
-	# 			return tool
-			
-	# 	return None
-
-
-
-
 	@err_catcher(name=__name__)
 	def sm_render_preSubmit(self, origin, rSettings):
 		pass

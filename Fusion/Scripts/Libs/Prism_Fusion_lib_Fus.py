@@ -52,7 +52,7 @@
 
 import os
 import re
-from typing import Union, Dict, Any
+from typing import Union, Dict, Tuple, Any
 import logging
 
 from PrismUtils.Decorators import err_catcher as err_catcher
@@ -114,7 +114,7 @@ def saveScene(comp, filepath:str, details={}) -> bool:
     
 
 @err_catcher(name=__name__)
-def getFrameRange(comp) -> list[int, int]:
+def getFrameRange(comp) -> Tuple[int, int]:
     try:
         startframe = comp.GetAttrs()["COMPN_GlobalStart"]
         endframe = comp.GetAttrs()["COMPN_GlobalEnd"]
@@ -148,7 +148,7 @@ def setFrameRange(comp, startFrame:int, endFrame:int):
 
 
 @err_catcher(name=__name__)
-def getRenderRange(comp) -> list[int, int]:
+def getRenderRange(comp) -> Tuple[int, int]:
     try:
         startframe = comp.GetAttrs()["COMPN_RenderStart"]
         endframe = comp.GetAttrs()["COMPN_RenderEnd"]
@@ -176,7 +176,7 @@ def setRenderRange(comp, startFrame:int, endFrame:int):
 
 
 @err_catcher(name=__name__)
-def getFPS(comp) -> int:
+def getFPS(comp) -> float:
     try:
         return comp.GetPrefs()["Comp"]["FrameFormat"]["Rate"]
     except Exception as e:
@@ -186,7 +186,7 @@ def getFPS(comp) -> int:
 
 
 @err_catcher(name=__name__)
-def setFPS(comp, fps:int):
+def setFPS(comp, fps:float):
     try:
         return comp.SetPrefs({"Comp.FrameFormat.Rate": fps})
     except:
@@ -195,7 +195,7 @@ def setFPS(comp, fps:int):
 
 
 @err_catcher(name=__name__)
-def getResolution(comp) -> list[int, int]:
+def getResolution(comp) -> Tuple[int, int]:
     try:
         width = comp.GetPrefs()[
             "Comp"]["FrameFormat"]["Width"]
@@ -234,7 +234,7 @@ def getCurrentFrame(comp) -> int:
 
 #   Adds tool of specified type and configures given data
 @err_catcher(name=__name__)
-def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, autoConnect=1) -> Tool:
+def addTool(comp, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
     try:
         tool = comp.AddTool(toolType, xPos, yPos, autoConnect)
 
@@ -305,7 +305,7 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
             tool.HoldLastFrame = 0
 
 
-        #   TODO    TRYING TO HAVE NODE SHOW NAME NOT CLIP PATH
+        #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
         tool.SetAttrs({'TOOLS_NameSet': True})
 
         return tool
@@ -317,7 +317,7 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos=-32768, yPos=-32768, auto
 
 #   Updates tool config for given data
 @err_catcher(name=__name__)
-def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1) -> Tool:
+def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
     try:
         if "toolName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
@@ -351,7 +351,7 @@ def updateTool(tool:Tool, toolData:dict, xPos=-32768, yPos=-32768, autoConnect=1
             tool.HoldLastFrame = 0
 
 
-        #   TODO    TRYING TO HAVE NODE SHOW NAME NOT CLIP PATH
+        #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
         tool.SetAttrs({'TOOLS_NameSet': True})
 
         return tool
@@ -386,9 +386,9 @@ def getToolData(tool:Tool) -> dict:
         return {}
     
 
-#   Creates a group with given tools.
+#   Creates a group with given tools and returns new UIDs.
 @err_catcher(name=__name__)
-def groupTools(comp, groupName:str, toolList:list, outputTool:Tool = None, inputTool:Tool = None) -> list:
+def groupTools(comp, groupName:str, toolList:list, outputTool:Tool = None, inputTool:Tool = None) -> list[UUID]:
     success = False
     toolUIDs = []
     toolsToCopy = dict()
@@ -513,21 +513,21 @@ def getToolByName(comp, toolName:str) -> Tool:
 
 #   Returns type of tool
 @err_catcher(name=__name__)
-def getNodeType(tool:Tool) -> str:
+def getToolType(tool:Tool) -> str:
     try:
         return tool.GetAttrs("TOOLS_RegID")
     except:
-        logger.warning("ERROR: Cannot retrieve node type")
+        logger.warning("ERROR: Cannot Retrieve Tool type")
         return None
 
 
 #   Returns all tools of specified type
 @err_catcher(name=__name__)
-def getAllToolsByType(comp, type:str) -> list:
+def getAllToolsByType(comp, type:str) -> list[Tool]:
     try:
         toolList = []
         for tool in comp.GetToolList(False).values():
-            if getNodeType(tool) == type:
+            if getToolType(tool) == type:
                 toolList.append(tool)
 
         return toolList
@@ -538,11 +538,11 @@ def getAllToolsByType(comp, type:str) -> list:
 
 #   Returns tools selected in Comp
 @err_catcher(name=__name__)
-def getSelectedTools(comp, type:str) -> list:
+def getSelectedTools(comp, type:str) -> list[Tool]:
     try:
         toolList = []
         for tool in comp.GetToolList(True).values():
-            if getNodeType(tool) == type:
+            if getToolType(tool) == type:
                 toolList.append(tool)
 
         return toolList
@@ -604,7 +604,7 @@ def hasConnectedInput(tool) -> bool:
 
 #   Connects two tools
 @err_catcher(name=__name__)
-def connectTools(toolFrom, toolTo) -> bool:
+def connectTools(toolFrom:Tool, toolTo:Tool) -> bool:
     try:
         #   Connect MainOutput to 1st MainInput (works for most situations)
         toolTo.FindMainInput(1).ConnectTo(toolFrom)
@@ -640,7 +640,7 @@ def getToolOutputSocket(tool) -> ToolOption:
 
 #   Returns list of input sockets that are connected to the tool's output
 @err_catcher(name=__name__)
-def getInputsFromOutput(tool) -> list:
+def getInputsFromOutput(tool) -> list[ToolOption]:
     try:
         #   Gets the Fusion table of inputs
         inputsDict = tool.FindMainOutput(1).GetConnectedInputs()
@@ -738,7 +738,7 @@ def makeWirelessName(importData:dict) -> str:
 #   The name of this function comes for its initial use to position
 #   the "state manager node" that what used before using SetData.
 @err_catcher(name=__name__)
-def setNodePosition(comp, node, find_min=True, x_offset=-2, y_offset=0, ignore_node_type:str=None, refNode:Tool=None):
+def setToolPosition(comp, node, find_min=True, x_offset=-2, y_offset=0, ignore_node_type:str=None, refNode:Tool=None):
     # Get the active composition
     flow = comp.CurrentFrame.FlowView
 
@@ -758,43 +758,112 @@ def setNodePosition(comp, node, find_min=True, x_offset=-2, y_offset=0, ignore_n
     # if xmost_node:
     if refNode:
         thresh_x_position, thresh_y_position = postable = flow.GetPosTable(refNode).values()
-        set_node_position(flow, node, thresh_x_position + x_offset, thresh_y_position + y_offset)
+        setToolPosition(flow, node, thresh_x_position + x_offset, thresh_y_position + y_offset)
     else:
         flow.Select()
         x,y = find_LastClickPosition(comp)
         flow.SetPos(node, x, y)
 
 
-
+#   Returns Position of Tool
 @err_catcher(name=__name__)
-def setNodeToLeft(comp, tool, refNode=None, x_offset:int=0, y_offset:int=1):
-    if refNode:
-        if getNodeType(refNode) == "Loader":
-            setNodePosition(comp, tool, x_offset = 0, y_offset = 1, refNode=refNode)
-        else:
-            setNodePosition(comp, tool, x_offset = -5, y_offset = 0, refNode=refNode)
-    else:
-        setNodePosition(comp, tool, x_offset = 0, y_offset = 0, refNode=refNode)
-
-
-@err_catcher(name=__name__)
-def set_node_position(flow, smnode:Tool, x:int, y:int):
-    flow.SetPos(smnode, x, y)
-
-
-@err_catcher(name=__name__)
-def matchNodePos(comp, nodeTomove:Tool, nodeInPos:Tool):
+def getToolPosition(comp, tool:Tool) -> Tuple[float, float]:
     flow = comp.CurrentFrame.FlowView
-    x,y = flow.GetPosTable(nodeInPos).values()
-    set_node_position(flow, nodeTomove, x, y)
+    try:
+        return list(flow.GetPosTable(tool).values())
+    except:
+        logger.warning(f"ERROR: Unable to get position of {tool}.")
+        return 0, 0
+
+
+#   Set Tool Position in Comp
+@err_catcher(name=__name__)
+def setToolPosition(flow, tool:Tool, x:float, y:float):
+    try:
+        flow.SetPos(tool, x, y)
+    except:
+        logger.warning(f"ERROR: Unable to set position of {tool}")
+
+
+#   Sets Tool Position Relative to Another Tool
+@err_catcher(name=__name__)
+def setToolPosRelative(comp, tool, refTool, x_offset:float=1, y_offset:float=0):
+    try:
+        flow = comp.CurrentFrame.FlowView
+
+        #   Get Position of Ref Tool
+        x, y = getToolPosition(comp, refTool)
+
+        #   Set Tool Position with Offset
+        setToolPosition(flow, tool, x + x_offset, y + y_offset)
+    except:
+        logger.warning(f"ERROR: Unable to set {tool} position relative to {refTool}")
+
+
+#   Set Tool Position Depending on Type
+@err_catcher(name=__name__)
+def setToolToLeft(comp, tool, refNode=None, x_offset:float=0, y_offset:float=1):
+    try:
+        if refNode:
+            #   Checks if it is a Loader from Prism
+            if getToolType(refNode) == "Loader" and getToolData(refNode) != {}:
+                #   Set Under other Loaders
+                setToolPosRelative(comp, tool, refNode, x_offset = 0, y_offset = 1)
+            else:
+                #   Set to the Left of Flow
+                setToolPosRelative(comp, tool, refNode, x_offset = -8, y_offset = 0)
+        else:
+            #   Just put in position
+            setToolPosition(comp, tool, x_offset = 0, y_offset = 0)
+    except:
+        logger.warning(f"ERROR: Unable to set {tool} to the left")
+
+
+#   Checks if Tool is within a Threshold Distance of Another Tool OR Position
+@err_catcher(name=__name__)
+def isToolNearTool(comp, tool, refTool:Tool=None, refPos:Tuple[float, float]=None, thresh:float=3) -> bool:
+    flow = comp.CurrentFrame.FlowView
+
+    try:
+        #   If given a ref Tool, get its position
+        if refTool:
+            refPos = getToolPosition(comp, refTool)
+
+        #   Make sure the position is a dict for Fusion
+        if not isinstance(refPos, list):
+            logger.warning("ERROR: Unable to check tool proximity, incorrect reference position.")
+            return True
+        
+        #   Get position of Tool
+        toolPos = getToolPosition(comp, tool)
+
+        #   Calculate distances
+        distX = abs(toolPos[0] - refPos[0])
+        distY = abs(toolPos[1] - refPos[1])
+
+        #   If both X and Y are within Threshold
+        if distX <= thresh and distY <= thresh:
+            return True
+        else:
+            return False
+    except:
+        logger.warning("ERROR: Unable to check tool proximity.")
+        return True
+
+
+@err_catcher(name=__name__)
+def matchToolPos(comp, nodeTomove:Tool, nodeInPos:Tool):
+    flow = comp.CurrentFrame.FlowView
+    x,y = getToolPosition(comp, nodeInPos)
+    setToolPosition(flow, nodeTomove, x, y)
 
 
 #Get last click on comp view.
 @err_catcher(name=__name__)
-def find_LastClickPosition(comp) -> list[int, int]:
+def find_LastClickPosition(comp) -> Tuple[int, int]:
     flow = comp.CurrentFrame.FlowView
     posNode = comp.AddToolAction("Background")
-    x,y = flow.GetPosTable(posNode).values()
+    x,y = getToolPosition(comp, posNode)
     posNode.Delete()
 
     return x,y
@@ -802,7 +871,7 @@ def find_LastClickPosition(comp) -> list[int, int]:
 
 
 @err_catcher(name=__name__)
-def posRelativeToNode(comp, node, xoffset=3) -> bool:
+def posRelativeToTool(comp, tool, xoffset:float=3) -> bool:
     flow = comp.CurrentFrame.FlowView
     #check if there is selection
     if len(comp.GetToolList(True).values()) > 0:
@@ -810,13 +879,13 @@ def posRelativeToNode(comp, node, xoffset=3) -> bool:
             activeNode = comp.ActiveTool()
         except:
             activeNode = comp.GetToolList(True)[1]
-        if not activeNode.Name == node.Name:
+        if not activeNode.Name == tool.Name:
             postable = flow.GetPosTable(activeNode)
             if postable:
                 x, y = postable.values()
-                flow.SetPos(node, x + xoffset, y)
+                flow.SetPos(tool, x + xoffset, y)
                 try:
-                    node.ConnectInput('Input', activeNode)
+                    tool.ConnectInput('Input', activeNode)
                 except:
                     pass
                 return True
@@ -826,7 +895,7 @@ def posRelativeToNode(comp, node, xoffset=3) -> bool:
 
 # Arranges nodes in a vertical stack
 @err_catcher(name=__name__)
-def stackNodesByList(comp, toolList: list, xoffset=0, yoffset=1):
+def stackToolsByList(comp, toolList: list[Tool], xoffset:float=0, yoffset:float=1):
     flow = comp.CurrentFrame.FlowView
 
     # Ensure there is at least one tool to stack
@@ -866,11 +935,9 @@ def stackNodesByList(comp, toolList: list, xoffset=0, yoffset=1):
     return avgX, avgY
 
 
-
-
 #	Arranges nodes in a vertcal stack
 @err_catcher(name=__name__)
-def stackNodesByType(comp, nodetostack:Tool, yoffset=3, tooltype:str="Saver"):
+def stackToolsByType(comp, nodetostack:Tool, yoffset:float=3, tooltype:str="Saver"):
     flow = comp.CurrentFrame.FlowView
 
     origx, origy = flow.GetPosTable(nodetostack).values()
@@ -906,7 +973,7 @@ def stackNodesByType(comp, nodetostack:Tool, yoffset=3, tooltype:str="Saver"):
 
 
 @err_catcher(name=__name__)
-def findLeftmostLowerNode(comp, threshold:int=0.5) -> Tool:
+def findLeftmostLowerTool(comp, threshold:float=0.5) -> Tool:
     flow = comp.CurrentFrame.FlowView
 
     try:
@@ -927,7 +994,7 @@ def findLeftmostLowerNode(comp, threshold:int=0.5) -> Tool:
 
 
 @err_catcher(name=__name__)
-def getLoaderChannels(tool) -> list:
+def getLoaderChannels(tool) -> list[str]:
     # Get all loader channels and filter out the ones to skip
     skip = {			
         "SomethingThatWontMatchHopefully".lower(),
@@ -976,15 +1043,4 @@ def getChannelData(loaderChannels:list) -> dict:
         logger.warning("ERROR: Failed to get channel data")
         return None
     
-
-
-# @err_catcher(name=__name__)                                           #   NEEDED ?
-# def splitLoaderName(name:str) -> list:
-#     try:
-#         prefix = name.rsplit('_', 1)[0]  # everything to the left of the last "_"
-#         suffix = name.rsplit('_', 1)[-1]  # everything to the right of the last "_"
-#         return prefix, suffix
-    
-#     except:
-#         logger.warning(f"ERROR: Unable to split loader name {name}")
 
