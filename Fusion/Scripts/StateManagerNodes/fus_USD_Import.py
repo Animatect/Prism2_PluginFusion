@@ -169,15 +169,20 @@ class USD_ImportClass(object):
 
     @err_catcher(name=__name__)
     def requestImportPaths(self):
-        result = self.core.callback("requestImportPath", self)
+        #   Calls the Prism Library window as per Prism settings
+        result = self.core.callback("requestImportPath", self.stateManager)
+
+        #   If user selects from Library, returns file path
         for res in result:
             if isinstance(res, dict) and res.get("importPaths") is not None:
                 return res["importPaths"]
 
+        #   Calls Product Browser
         import ProductBrowser
         ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
         self.core.parentWindow(ts)
         ts.exec_()
+        #   If user selects from Library, returns file path
         importPath = [ts.productPath]
         return importPath
 

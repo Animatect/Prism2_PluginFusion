@@ -166,17 +166,22 @@ class Object3d_ImportClass(object):
         self.l_class.setText(stateMode)
 
 
-    @err_catcher(name=__name__)                                     #   TODO  Fix parenting to bring to front
+    @err_catcher(name=__name__)
     def requestImportPaths(self):
-        result = self.core.callback("requestImportPath", self)
+        #   Calls the Prism Library window as per Prism settings
+        result = self.core.callback("requestImportPath", self.stateManager)
+
+        #   If user selects from Library, returns file path
         for res in result:
             if isinstance(res, dict) and res.get("importPaths") is not None:
                 return res["importPaths"]
 
+        #   Calls Product Browser
         import ProductBrowser
         ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
         self.core.parentWindow(ts)
         ts.exec_()
+        #   If user selects from Library, returns file path
         importPath = [ts.productPath]
         return importPath
 

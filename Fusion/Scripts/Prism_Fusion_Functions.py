@@ -208,6 +208,7 @@ class Prism_Fusion_Functions(object):
 			'Chocolate': {'R': 0.5490196078431373, 'G': 0.35294117647058826, 'B': 0.24705882352941178}
 		}
 
+
 	@err_catcher(name=__name__)
 	def startup(self, origin):
 		# 	for obj in QApplication.topLevelWidgets():
@@ -766,6 +767,9 @@ class Prism_Fusion_Functions(object):
 			comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			if not CompDb.nodeExists(comp, nodeUID):
+				#	Get selected Tool
+
+				selTools = Fus.getSelectedTools(comp)
 
 				#	Add Saver to Comp
 				sv = Fus.addTool(comp, "Saver", nodeData)
@@ -774,11 +778,11 @@ class Prism_Fusion_Functions(object):
 				CompDb.addNodeToDB(comp, "render2d", nodeUID, nodeData)
 
 				#	Position Saver
-				if not Fus.posRelativeToTool(comp, sv):
+				if selTools:
 					try:
-						#Move Render Node to the Right of the scene	
-						Fus.setToolPosition(comp, sv, find_min=False, x_offset=10, ignore_node_type="Saver")
-						Fus.stackToolsByType(comp, sv)
+						#	Move Render Node to the Right of the scene	
+						Fus.setToolPosRelative(comp, sv, selTools[0], 3)
+						# Fus.stackToolsByType(comp, sv)
 					except:
 						logger.debug(f"ERROR: Not able to position {nodeData['nodeName']}")
 

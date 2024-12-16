@@ -536,13 +536,16 @@ def getAllToolsByType(comp, type:str) -> list[Tool]:
         return None
     
 
-#   Returns tools selected in Comp
+#   Returns tools selected in Comp with optional Tool Type
 @err_catcher(name=__name__)
-def getSelectedTools(comp, type:str) -> list[Tool]:
+def getSelectedTools(comp, toolType:str=None) -> list[Tool]:
     try:
         toolList = []
         for tool in comp.GetToolList(True).values():
-            if getToolType(tool) == type:
+            if toolType:
+                if getToolType(tool) == type:
+                    toolList.append(tool)
+            else:
                 toolList.append(tool)
 
         return toolList
