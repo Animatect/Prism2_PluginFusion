@@ -71,7 +71,13 @@ from qtpy.QtWidgets import *
 
 import pyautogui
 import pyperclip
+
 from PrismUtils.Decorators import err_catcher as err_catcher
+
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+	from ProjectScripts.StateManager import StateManager
+	from ProjectScripts.MediaBrowser import MediaBrowser, MediaPlayer
 
 #	Import Prism Fusion Libraries
 import Libs.Prism_Fusion_lib_Helper as Helper
@@ -87,12 +93,13 @@ class Prism_Fusion_Functions(object):
 	def __init__(self, core, plugin):
 		self.core = core
 		self.plugin = plugin
-		self.fusion = bmd.scriptapp("Fusion")
-		self.comp = None # This comp is used by the stateManager to avoid overriding the state data on wrong comps
+		self.fusion:Fusion_ = bmd.scriptapp("Fusion")
+		self.comp:Composition_ = None # This comp is used by the stateManager to avoid overriding the state data on wrong comps
 
-		self.MP_stateManager = None # Reference to the stateManager to be used on the monkeypatched functions.
-		self.MP_mediaBrowser = None # Reference to the mediaBrowser to be used on the monkeypatched functions.
-		self.MP_mediaPlayer = None # Reference to the mediaPlayer to be used on the monkeypatched functions.
+		
+		self.MP_stateManager:StateManager = None # Reference to the stateManager to be used on the monkeypatched functions.
+		self.MP_mediaBrowser:MediaBrowser = None # Reference to the mediaBrowser to be used on the monkeypatched functions.
+		self.MP_mediaPlayer:MediaPlayer = None # Reference to the mediaPlayer to be used on the monkeypatched functions.
 		# self.MP_importState = None # Reference to the importState to be used on the monkeypatched functions.
 
 		self.popup = None # Reference of popUp dialog that shows before opening a window when it takes some time.
@@ -1767,8 +1774,7 @@ class Prism_Fusion_Functions(object):
 		comp.Unlock()
 
 		return result
-
-
+	
 	#	Imports or updates USD scene or object
 	@err_catcher(name=__name__)
 	def wrapped_importUSD(self, origin, UUID, nodeData, update=False):
@@ -1935,7 +1941,62 @@ class Prism_Fusion_Functions(object):
 		# return Fus3d.importFBX(self, origin, importPath, UUID, nodeName, version, update=False)
 		pass
 
+	@err_catcher(name=__name__)
+	def importLegacy3D(self, origin, UUID, nodeData, update=False):
+		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Import Legacy3D")
 
+		result = self.wrapped_importLegacy3D(origin, UUID, nodeData, update)
+
+		comp.EndUndo()
+		comp.Unlock()
+
+		return result
+
+	@err_catcher(name=__name__)
+	def wrapped_importLegacy3D(self, origin, UUID, nodeData, update=False):
+		comp = self.getCurrentComp()
+		importRes = False
+
+		#	Add new uLoader
+		if not update:
+			try:
+				#	Add tools
+				uLdr = Fus.addTool(comp, "uLoader", nodeData)
+
+				logger.debug(f"Imported USD object: {nodeData['product']}")
+
+			except Exception as e:
+				logger.warning(f"ERROR: Unable to import USD object:\n{e}")
+				return {"result": False, "doImport": False}
+			
+			if uLdr:
+				#	Add to Comp Database
+				addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
+				importRes = True
+		
+		#	Update uLoader
+		else:
+			try:
+				#	Get tool
+				tool = CompDb.getNodeByUID(comp, UUID)
+				#	 Update tool data
+				uLdr = Fus.updateTool(tool, nodeData)
+
+				logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
+				importRes = True
+
+			except Exception as e:
+				logger.warning(f"ERROR: Failed to update uLoader:\n{e}")
+
+			if uLdr:
+				#	Update Comp DB record
+				CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
+				importRes = True
+
+
+		return {"result": importRes, "doImport": importRes}
 
 
 	################################################
