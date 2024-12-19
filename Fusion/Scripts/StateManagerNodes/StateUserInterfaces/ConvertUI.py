@@ -2,6 +2,10 @@
 import subprocess
 import os
 import time
+import sys
+
+pyside6uic_path = os.path.normpath(r"C:\Users\mhartist\AppData\Local\Programs\Python\Python310\Scripts\pyside6-uic.exe")
+
 
 def replace_pyside6_with_qtpy(file_path):
 	if not os.path.exists(file_path):
@@ -28,11 +32,11 @@ def replace_pyside6_with_qtpy(file_path):
 def convert_ui_to_py(ui_file):
 	base_name, _ = os.path.splitext(ui_file)
 	py_file = f"{base_name}_ui.py"
-	subprocess.run(["pyside6-uic", "--star-imports",  ui_file, "-o", py_file])
+	subprocess.run([pyside6uic_path, "--star-imports",  ui_file, "-o", py_file])
 	return py_file
 
 if __name__ == "__main__":
-	fnames = ["fus_ImageRender", "fus_NetRender"]
+	fnames = ["fus_Legacy3D_Import"]
 	for fname in fnames:
 		# Get the path of the current script
 		script_path = os.path.abspath(__file__)

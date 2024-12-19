@@ -1,8 +1,10 @@
 {
     "python.analysis.extraPaths": [
-        "C:\\Gaffer\\gaffer-1.2.3.0-windows\\python",
-        "C:\\USD\\lib\\python\\pxr",
-        "./.fusion_typings"
+        "./.fusion_typings",
+        "./.prism_typings",
+        "C:\\Program Files\\Prism2\\PythonLibs\\Python3",
+        "C:\\Program Files\\Prism2\\Scripts",
+        "C:\\Program Files\\Prism2\\Scripts\\ProjectScripts",
     ],
     "editor.tokenColorCustomizations": {
         "comments": "",

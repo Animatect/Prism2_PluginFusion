@@ -351,114 +351,114 @@ def create3dScene(plugin, origin, UUID):
 
 
 # # #Main Import function
-# @err_catcher(name=__name__)
-# def sm_import_importToApp(self, origin, doImport, update, impFileName):
+@err_catcher(name=__name__)
+def sm_import_importToApp(self, origin, doImport, update, impFileName):
 
 
-#     #	BlenderCam Check
-#     root, _ = os.path.splitext(impFileName)
-#     isbcam = False
-#     new_file_path = os.path.normpath(root + '.bcam')
-#     if os.path.exists(new_file_path):
-#         isbcam = True
-#         impFileName = new_file_path
+    #	BlenderCam Check
+    root, _ = os.path.splitext(impFileName)
+    isbcam = False
+    new_file_path = os.path.normpath(root + '.bcam')
+    if os.path.exists(new_file_path):
+        isbcam = True
+        impFileName = new_file_path
     
 
 
 
-#     comp = self.getCurrentComp()
-#     flow = comp.CurrentFrame.FlowView
-#     fileName = os.path.splitext(os.path.basename(impFileName))
-#     origin.setName = ""
-#     result = False
+    comp = self.getCurrentComp()
+    flow = comp.CurrentFrame.FlowView
+    fileName = os.path.splitext(os.path.basename(impFileName))
+    origin.setName = ""
+    result = False
 
 
-#     # Check that we are not importing in a comp different than the one we started the stateManager from
-#     if not self.sm_checkCorrectComp(comp):
-#         return
+    # Check that we are not importing in a comp different than the one we started the stateManager from
+    if not self.sm_checkCorrectComp(comp):
+        return
 
-#     #try to get an active tool to set a ref position
-#     activetool = None
-#     try:
-#         activetool = comp.ActiveTool()
-#     except:
-#         pass
-#     if activetool and not activetool.GetAttrs("TOOLS_RegID") =="BezierSpline":
-#         atx, aty = flow.GetPosTable(activetool).values()
-#     else:
-#         atx, aty = self.find_LastClickPosition()
+    #try to get an active tool to set a ref position
+    activetool = None
+    try:
+        activetool = comp.ActiveTool()
+    except:
+        pass
+    if activetool and not activetool.GetAttrs("TOOLS_RegID") =="BezierSpline":
+        atx, aty = flow.GetPosTable(activetool).values()
+    else:
+        atx, aty = self.find_LastClickPosition()
     
-#     #	Get Extension
-#     ext = fileName[1].lower()
+    #	Get Extension
+    ext = fileName[1].lower()
 
-#     #	Check if Image Format is supported
-#     if ext not in self.importHandlers:
-#         self.core.popup(f"Import format '{ext}' is not supported")
-#         logger.warning(f"Import format '{ext}' is not supported")
-#         return {"result": False, "doImport": doImport}
+    #	Check if Image Format is supported
+    if ext not in self.importHandlers:
+        self.core.popup(f"Import format '{ext}' is not supported")
+        logger.warning(f"Import format '{ext}' is not supported")
+        return {"result": False, "doImport": doImport}
 
-#     else:
-#         # Do the importing
-#         result = self.importHandlers[ext]["importFunction"](impFileName, origin)
+    else:
+        # Do the importing
+        result = self.importHandlers[ext]["importFunction"](impFileName, origin)
 
-#     # After import update the stateManager interface
-#     if result:
-#         #check if there was a merge3D in the import and where was it connected to
-#         newNodes = [n.Name for n in comp.GetToolList(True).values()]
-#         if isbcam:
-#             importedNodes = []
-#             importedNodes.append(self.getNode(newNodes[0]))
-#             origin.setName = "Import_" + fileName[0]			
-#             origin.nodes = importedNodes
-#         else:
-#             refPosNode, positionedNodes = self.ReplaceBeforeImport(origin, newNodes)
-#             self.cleanbeforeImport(origin)
-#             if refPosNode:
-#                 atx, aty = flow.GetPosTable(refPosNode).values()
+    # After import update the stateManager interface
+    if result:
+        #check if there was a merge3D in the import and where was it connected to
+        newNodes = [n.Name for n in comp.GetToolList(True).values()]
+        if isbcam:
+            importedNodes = []
+            importedNodes.append(self.getNode(newNodes[0]))
+            origin.setName = "Import_" + fileName[0]			
+            origin.nodes = importedNodes
+        else:
+            refPosNode, positionedNodes = self.ReplaceBeforeImport(origin, newNodes)
+            self.cleanbeforeImport(origin)
+            if refPosNode:
+                atx, aty = flow.GetPosTable(refPosNode).values()
     
-#             importedTools = comp.GetToolList(True).values()
-#             #Set the position of the imported nodes relative to the previously active tool or last click in compView
-#             impnodes = [n for n in importedTools]
-#             if len(impnodes) > 0:
+            importedTools = comp.GetToolList(True).values()
+            #Set the position of the imported nodes relative to the previously active tool or last click in compView
+            impnodes = [n for n in importedTools]
+            if len(impnodes) > 0:
 
-#                 fisrtnode = impnodes[0]
-#                 fstnx, fstny = flow.GetPosTable(fisrtnode).values()
+                fisrtnode = impnodes[0]
+                fstnx, fstny = flow.GetPosTable(fisrtnode).values()
 
-#                 for n in impnodes:
-#                     if not n.Name in positionedNodes:
-#                         x,y  = flow.GetPosTable(n).values()
+                for n in impnodes:
+                    if not n.Name in positionedNodes:
+                        x,y  = flow.GetPosTable(n).values()
 
-#                         offset = [x-fstnx,y-fstny]
-#                         newx = x+(atx-x)+offset[0]
-#                         newy = y+(aty-y)+offset[1]
-#                         flow.SetPos(n, newx-1, newy)
+                        offset = [x-fstnx,y-fstny]
+                        newx = x+(atx-x)+offset[0]
+                        newy = y+(aty-y)+offset[1]
+                        flow.SetPos(n, newx-1, newy)
 
-#             ##########
+            ##########
 
-#             importedNodes = []
-#             for i in newNodes:
-#                 # Append sufix to objNames to identify product with unique Name
-#                 node = self.getObject(i)
-#                 newName = self.applyProductSufix(i, origin)
-#                 node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
-#                 importedNodes.append(self.getNode(newName))
+            importedNodes = []
+            for i in newNodes:
+                # Append sufix to objNames to identify product with unique Name
+                node = self.getObject(i)
+                newName = self.applyProductSufix(i, origin)
+                node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
+                importedNodes.append(self.getNode(newName))
 
-#             origin.setName = "Import_" + fileName[0]			
-#             origin.nodes = importedNodes
+            origin.setName = "Import_" + fileName[0]			
+            origin.nodes = importedNodes
 
-#         #Deselect All
-#         flow.Select()
+        #Deselect All
+        flow.Select()
 
-#         objs = [self.getObject(x) for x in importedNodes]
+        objs = [self.getObject(x) for x in importedNodes]
         
-#         #select nodes in comp
-#         for o in objs:
-#             flow.Select(o)
+        #select nodes in comp
+        for o in objs:
+            flow.Select(o)
 
-#         #Set result to True if we have nodes
-#         result = len(importedNodes) > 0
+        #Set result to True if we have nodes
+        result = len(importedNodes) > 0
 
-#     return {"result": result, "doImport": doImport}
+    return {"result": result, "doImport": doImport}
 
 
 # @err_catcher(name=__name__)
