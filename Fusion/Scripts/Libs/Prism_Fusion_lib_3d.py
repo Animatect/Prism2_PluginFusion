@@ -49,10 +49,18 @@
 
 ##  THIS IS A LIBRARY FOR 3D FUNCTIONS FOR THE FUSION PRISM PLUGIN  ##
 	
+import pyautogui
+import pyperclip
+import time
+import os
 
 from PrismUtils.Decorators import err_catcher as err_catcher
-
-
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+    from StateManagerNodes.fus_Legacy3D_Import import Legacy3D_ImportClass
+    
+import BlackmagicFusion as bmd
+	
 
 @err_catcher(name=__name__)
 def createUsdScene(plugin, origin, UUID):
@@ -113,18 +121,6 @@ def create3dScene(plugin, origin, UUID):
 
 
 
-# abc_options = {
-#     "Points": True,
-#     "Transforms": True,
-#     "Hierarchy": False,
-#     "Lights": True,
-#     "Normals": True,
-#     "Meshes": True,
-#     "UVs": True,
-#     "Cameras": True,
-#     "InvCameras": True
-#     # "SamplingRate": 24
-# }
 
 # @err_catcher(name=__name__)
 # def getPythonLocation(self)-> str:
@@ -205,137 +201,127 @@ def create3dScene(plugin, origin, UUID):
 #         self.core.popup(msg)
 #         return False
     
+abc_options = {
+    "Points": True,
+    "Transforms": True,
+    "Hierarchy": False,
+    "Lights": True,
+    "Normals": True,
+    "Meshes": True,
+    "UVs": True,
+    "Cameras": True,
+    "InvCameras": True
+    # "SamplingRate": 24
+}
+@err_catcher(name=__name__)
+def focusFusionDialog(fusion:Fusion_, msg:str):
+    ui = fusion.UIManager
+    disp = bmd.UIDispatcher(ui)
 
-# @err_catcher(name=__name__)
-# def doUiImport(self, fusion, formatCall, interval, filepath):
-#     if self.focus_fusion_window():
-#         comp = fusion.GetCurrentComp()
-#         #Call the dialog
-#         fusion.QueueAction("Utility_Show", {"id":formatCall})
-#         time.sleep(interval)
-#         pyautogui.typewrite(filepath)
-#         time.sleep(interval)
-#         pyautogui.press("enter")
-#         pyautogui.press("enter")
-        
-#         # Wait until file is imported
-#         elapsedtime = 0
-#         while len(comp.GetToolList(True))<0 and elapsedtime < 20:
-#             loopinterval = 0.1
-#             elapsedtime += loopinterval
-#             time.sleep(loopinterval)
-#         if len(comp.GetToolList(True)) > 0:
-#             return True
-#         else:
-#             return False
-#     else:
-#         return False
+    dlg = disp.AddWindow({'WindowTitle': 'My First Window', 'ID': 'MyWin', 'Geometry': [100, 100, 200, 50], 'Spacing': 0,},[
+        ui.VGroup({'Spacing': 0,},[
+            # Add your GUI elements here:
+            ui.HGroup({},[
+                # Add foru buttons that have an icon resource attached and no border shading
+                ui.Button({
+                    'ID': 'B',
+                    'Text': 'The Button Label',
+                }),
+            ]),
+        ]),
+    ])
+
+    itm = dlg.GetItems()
+
+    # The window was closed
+    def _func(ev):
+        disp.ExitLoop()
+    dlg.On.MyWin.Close = _func
+
+    # Add your GUI element based event functions here:
+    def _func(ev):
+        print('Button Clicked')
+        disp.ExitLoop()
+    dlg.On.B.Clicked = _func
+
+    dlg.Show()
+    disp.RunLoop()
+    dlg.Hide()
+
+
+
+@err_catcher(name=__name__)
+def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str):
+    comp:Composition_ = fusion.GetCurrentComp()
+    #Call the dialog
+    fusion.QueueAction("Utility_Show", {"id":formatCall})
+    time.sleep(interval)
+    pyautogui.typewrite(filepath)
+    time.sleep(interval)
+    pyautogui.press("enter")
+    pyautogui.press("enter")
+    
+    # Wait until file is imported
+    elapsedtime = 0
+    while len(comp.GetToolList(True))<0 and elapsedtime < 20:
+        loopinterval:float = 0.1
+        elapsedtime += loopinterval
+        time.sleep(loopinterval)
+    if len(comp.GetToolList(True)) > 0:
+        return True
+    else:
+        return False
 
     
-# @err_catcher(name=__name__)
-# def importFormatByUI(self, origin, formatCall, filepath, global_scale, options = None, interval = 0.05):
-#     origin.stateManager.showMinimized()
+@err_catcher(name=__name__)
+def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str, filepath:str, global_scale:float, options:dict = None, interval:float = 0.05):
+    origin.stateManager.showMinimized()
+    comp:Composition_ = fusion.GetCurrentComp()
+    flow:FlowView_ = comp.CurrentFrame.FlowView
+    flow.Select(None)
 
-#     fusion = self.fusion
-#     comp = fusion.GetCurrentComp()
-#     flow = comp.CurrentFrame.FlowView
-#     flow.Select(None)
-
-#     if not os.path.exists(filepath):
-#         QMessageBox.warning(
-#             self.core.messageParent, "Warning", "File %s does not exists" % filepath
-#         )
-
-#     #Set preferences for the alembic import dialog
-#     if formatCall == "AbcImport" and isinstance(options, dict):
-#         current = fusion.GetPrefs("Global.Alembic.Import")
-#         new = current.copy()
-#         for key, value in options.items():
-#             if key in current:
-#                 new[key] = value
-#             else:
-#                 print("Invalid option %s:" % key)
-#         fusion.SetPrefs("Global.Alembic.Import", new)
+    #Set preferences for the alembic import dialog
+    if formatCall == "AbcImport" and isinstance(options, dict):
+        current = fusion.GetPrefs("Global.Alembic.Import")
+        new = current.copy()
+        for key, value in options.items():
+            if key in current:
+                new[key] = value
+            else:
+                print("Invalid option %s:" % key)
+        fusion.SetPrefs("Global.Alembic.Import", new)
     
-#     #Warning
-#     fString = "Importing this 3Dformat requires UI automation.\n\nPLEASE DO NOT USE THE MOUSE AFTER CLOSING THIS DIALOG UNTIL IMPORT IS DONE"
-#     buttons = ["Continue"]
-#     result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+    #Warning
+    fString = "Importing this 3Dformat requires UI automation.\n\nPLEASE DO NOT USE THE MOUSE AFTER CLOSING THIS DIALOG UNTIL IMPORT IS DONE"
+    #   Create a dialog to focus the fusion window.
+    focusFusionDialog(fusion, fString)
 
-#     imported = False
-#     if result == "Save":
-#         filepath = self.getCurrentFileName()
-#         didSave = False
-#         if not filepath == "":
-#             if self.core.fileInPipeline():
-#                 didSave = self.core.saveScene(versionUp=False)
-#             else:
-#                 didSave = self.saveScene(filepath)
-#             if not didSave == False:
-#                 imported = self.doUiImport(fusion, formatCall, interval, filepath)
-#         else:
-#             self.core.popup("Scene can't be saved, save a version first")
+    imported:bool = doUiImport(fusion, formatCall, interval, filepath)
+    origin.stateManager.showNormal()
 
-#     elif result == "Save new version":
-#         if self.core.fileInPipeline():
-#             self.core.saveScene()
-#             imported = self.doUiImport(fusion, formatCall, interval, filepath)
-
-#     elif result == "Continue":
-#         imported = self.doUiImport(fusion, formatCall, interval, filepath)
-
-#     else:
-#         imported = False
-
-#     imported = self.doUiImport(fusion, formatCall, interval, filepath)
-#     origin.stateManager.showNormal()
-
-#     return imported
+    return imported
 
 
-# @err_catcher(name=__name__)
-# def importAlembic(self, importPath, origin):
-#     return self.importFormatByUI(origin=origin, formatCall="AbcImport", filepath=importPath, global_scale=100, options=self.abc_options)
+@err_catcher(name=__name__)
+def importAlembic(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
+    return importFormatByUI(
+        fusion=fusion, 
+        origin=origin, 
+        formatCall="AbcImport", 
+        filepath=importPath, 
+        global_scale=100, 
+        options=abc_options
+    )
 
-
-
-
-# @err_catcher(name=__name__)
-# def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):
-#     comp = self.getCurrentComp()
-#     #	Add uLoader node
-#     usdTool = comp.AddTool("uLoader")
-#     #	Set import file path
-#     usdTool["Filename"] = importPath
-#     #	Set node name
-#     usdTool.SetAttrs({"TOOLS_Name": nodeName})
-#     #	Add custom UUID
-#     usdTool.SetData('PrImportUID', UUID)
-#     return {"result": True, "doImport": True}
-
-
-
-
-
-
-# @err_catcher(name=__name__)
-# def importFBX(self, importPath, origin):
-#     comp = self.getCurrentComp()
-#     #	Add FBX Mesh node
-#     fbxTool = comp.AddTool("SurfaceFBXMesh")
-#     #	Set import mesh file path
-#     fbxTool["ImportFile"] = importPath
-#     #	Get versionInfo data
-#     versionInfoData = self.core.products.getProductDataFromFilepath(importPath)
-#     productName = versionInfoData["product"]
-#     productVersion = versionInfoData["version"]
-#     #	Set node name
-#     toolName = f"{productName}_{productVersion}"
-#     fbxTool.SetAttrs({"TOOLS_Name": toolName})
-#     #	Add custom UUID
-#     fbxTool.SetData('PrImportUID', self.createUUID())
-#     return {"result": True, "doImport": True}
-#     return self.importFormatByUI(origin = origin, formatCall="FBXImport", filepath=importPath, global_scale=100)
+@err_catcher(name=__name__)
+def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
+    return importFormatByUI(
+        fusion=fusion, 
+        origin=origin,  
+        formatCall="FBXImport", 
+        filepath=importPath,
+        global_scale=100
+    )
 
 
 # @err_catcher(name=__name__)
@@ -351,284 +337,323 @@ def create3dScene(plugin, origin, UUID):
 
 
 # # #Main Import function
-@err_catcher(name=__name__)
-def sm_import_importToApp(self, origin, doImport, update, impFileName):
+# @err_catcher(name=__name__)
+# def sm_import_importToApp(self, origin, doImport, update, impFileName):
 
 
-    #	BlenderCam Check
-    root, _ = os.path.splitext(impFileName)
-    isbcam = False
-    new_file_path = os.path.normpath(root + '.bcam')
-    if os.path.exists(new_file_path):
-        isbcam = True
-        impFileName = new_file_path
+#     #	BlenderCam Check
+#     root, _ = os.path.splitext(impFileName)
+#     isbcam = False
+#     new_file_path = os.path.normpath(root + '.bcam')
+#     if os.path.exists(new_file_path):
+#         isbcam = True
+#         impFileName = new_file_path
     
 
 
 
-    comp = self.getCurrentComp()
-    flow = comp.CurrentFrame.FlowView
-    fileName = os.path.splitext(os.path.basename(impFileName))
-    origin.setName = ""
-    result = False
-
-
-    # Check that we are not importing in a comp different than the one we started the stateManager from
-    if not self.sm_checkCorrectComp(comp):
-        return
-
-    #try to get an active tool to set a ref position
-    activetool = None
-    try:
-        activetool = comp.ActiveTool()
-    except:
-        pass
-    if activetool and not activetool.GetAttrs("TOOLS_RegID") =="BezierSpline":
-        atx, aty = flow.GetPosTable(activetool).values()
-    else:
-        atx, aty = self.find_LastClickPosition()
-    
-    #	Get Extension
-    ext = fileName[1].lower()
-
-    #	Check if Image Format is supported
-    if ext not in self.importHandlers:
-        self.core.popup(f"Import format '{ext}' is not supported")
-        logger.warning(f"Import format '{ext}' is not supported")
-        return {"result": False, "doImport": doImport}
-
-    else:
-        # Do the importing
-        result = self.importHandlers[ext]["importFunction"](impFileName, origin)
-
-    # After import update the stateManager interface
-    if result:
-        #check if there was a merge3D in the import and where was it connected to
-        newNodes = [n.Name for n in comp.GetToolList(True).values()]
-        if isbcam:
-            importedNodes = []
-            importedNodes.append(self.getNode(newNodes[0]))
-            origin.setName = "Import_" + fileName[0]			
-            origin.nodes = importedNodes
-        else:
-            refPosNode, positionedNodes = self.ReplaceBeforeImport(origin, newNodes)
-            self.cleanbeforeImport(origin)
-            if refPosNode:
-                atx, aty = flow.GetPosTable(refPosNode).values()
-    
-            importedTools = comp.GetToolList(True).values()
-            #Set the position of the imported nodes relative to the previously active tool or last click in compView
-            impnodes = [n for n in importedTools]
-            if len(impnodes) > 0:
-
-                fisrtnode = impnodes[0]
-                fstnx, fstny = flow.GetPosTable(fisrtnode).values()
-
-                for n in impnodes:
-                    if not n.Name in positionedNodes:
-                        x,y  = flow.GetPosTable(n).values()
-
-                        offset = [x-fstnx,y-fstny]
-                        newx = x+(atx-x)+offset[0]
-                        newy = y+(aty-y)+offset[1]
-                        flow.SetPos(n, newx-1, newy)
-
-            ##########
-
-            importedNodes = []
-            for i in newNodes:
-                # Append sufix to objNames to identify product with unique Name
-                node = self.getObject(i)
-                newName = self.applyProductSufix(i, origin)
-                node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
-                importedNodes.append(self.getNode(newName))
-
-            origin.setName = "Import_" + fileName[0]			
-            origin.nodes = importedNodes
-
-        #Deselect All
-        flow.Select()
-
-        objs = [self.getObject(x) for x in importedNodes]
-        
-        #select nodes in comp
-        for o in objs:
-            flow.Select(o)
-
-        #Set result to True if we have nodes
-        result = len(importedNodes) > 0
-
-    return {"result": result, "doImport": doImport}
-
-
-# @err_catcher(name=__name__)
-# def getNode(self, obj):
-#     if type(obj) == str:
-#         node = {"name": obj}
-#     elif type(obj) == dict:
-#         node = {"name": obj["name"]}
-#     else:
-#         node = {"name": obj.Name}
-#     return node
-
-
-# @err_catcher(name=__name__)
-# def selectNodes(self, origin):
-#     if origin.lw_objects.selectedItems() != []:
-#         nodes = []
-#         for i in origin.lw_objects.selectedItems():
-#             node = origin.nodes[origin.lw_objects.row(i)]
-#             if self.isNodeValid(origin, node):
-#                 nodes.append(node)
-#         # select(nodes)
-                
-
-# @err_catcher(name=__name__)
-# def isNodeValid(self, origin, handle):
-#     return True
-    
-
-# @err_catcher(name=__name__)
-# def getObjectNodeNameByTool(self, origin, node):
-#     if self.isNodeValid(origin, node):
-#         try:
-#             return node["name"]
-#         except:
-#             QMessageBox.warning(
-#                 self.core.messageParent, "Warning", "Cannot get name from %s" % node
-#             )
-#             return node
-#     else:
-#         return "invalid"
-
-
-# @err_catcher(name=__name__)
-# def getObject(self, node):
 #     comp = self.getCurrentComp()
-#     if type(node) == str:
-#         node = self.getNode(node)
-
-#     return comp.FindTool(node["name"])
-
-
-# @err_catcher(name=__name__)
-# def applyProductSufix(self, originalName, origin):
-#     newName = originalName + "_" + origin.importPath.split("_")[-2]
-#     return newName
+#     flow = comp.CurrentFrame.FlowView
+#     fileName = os.path.splitext(os.path.basename(impFileName))
+#     origin.setName = ""
+#     result = False
 
 
-# @err_catcher(name=__name__)
-# def cleanbeforeImport(self, origin):
-#     if origin.nodes == []:
+#     # Check that we are not importing in a comp different than the one we started the stateManager from
+#     if not self.sm_checkCorrectComp(comp):
 #         return
-#     nodes = []
-#     for o in origin.nodes:
-#         nodes.append(self.getNode(o))
 
-#     self.deleteNodes(origin, nodes)
-#     origin.nodes = []
+#     #try to get an active tool to set a ref position
+#     activetool = None
+#     try:
+#         activetool = comp.ActiveTool()
+#     except:
+#         pass
+#     if activetool and not activetool.GetAttrs("TOOLS_RegID") =="BezierSpline":
+#         atx, aty = flow.GetPosTable(activetool).values()
+#     else:
+#         atx, aty = self.find_LastClickPosition()
+    
+#     #	Get Extension
+#     ext = fileName[1].lower()
+
+#     #	Check if Image Format is supported
+#     if ext not in self.importHandlers:
+#         self.core.popup(f"Import format '{ext}' is not supported")
+#         logger.warning(f"Import format '{ext}' is not supported")
+#         return {"result": False, "doImport": doImport}
+
+#     else:
+#         # Do the importing
+#         result = self.importHandlers[ext]["importFunction"](impFileName, origin)
+
+#     # After import update the stateManager interface
+#     if result:
+#         #check if there was a merge3D in the import and where was it connected to
+#         newNodes = [n.Name for n in comp.GetToolList(True).values()]
+#         if isbcam:
+#             importedNodes = []
+#             importedNodes.append(self.getNode(newNodes[0]))
+#             origin.setName = "Import_" + fileName[0]			
+#             origin.nodes = importedNodes
+#         else:
+#             refPosNode, positionedNodes = self.ReplaceBeforeImport(origin, newNodes)
+#             self.cleanbeforeImport(origin)
+#             if refPosNode:
+#                 atx, aty = flow.GetPosTable(refPosNode).values()
+    
+#             importedTools = comp.GetToolList(True).values()
+#             #Set the position of the imported nodes relative to the previously active tool or last click in compView
+#             impnodes = [n for n in importedTools]
+#             if len(impnodes) > 0:
+
+#                 fisrtnode = impnodes[0]
+#                 fstnx, fstny = flow.GetPosTable(fisrtnode).values()
+
+#                 for n in impnodes:
+#                     if not n.Name in positionedNodes:
+#                         x,y  = flow.GetPosTable(n).values()
+
+#                         offset = [x-fstnx,y-fstny]
+#                         newx = x+(atx-x)+offset[0]
+#                         newy = y+(aty-y)+offset[1]
+#                         flow.SetPos(n, newx-1, newy)
+
+#             ##########
+
+#             importedNodes = []
+#             for i in newNodes:
+#                 # Append sufix to objNames to identify product with unique Name
+#                 node = self.getObject(i)
+#                 newName = self.applyProductSufix(i, origin)
+#                 node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
+#                 importedNodes.append(self.getNode(newName))
+
+#             origin.setName = "Import_" + fileName[0]			
+#             origin.nodes = importedNodes
+
+#         #Deselect All
+#         flow.Select()
+
+#         objs = [self.getObject(x) for x in importedNodes]
+        
+#         #select nodes in comp
+#         for o in objs:
+#             flow.Select(o)
+
+#         #Set result to True if we have nodes
+#         result = len(importedNodes) > 0
+
+#     return {"result": result, "doImport": doImport}
+
+@err_catcher(name=__name__)
+def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str)->bool:
+    #check if there was a merge3D in the import and where was it connected to
+    newNodes:list[str] = [n.Name for n in comp.GetToolList(True).values()]
+
+    refPosNode, positionedNodes = ReplaceBeforeImport(origin, comp, newNodes)
+    cleanbeforeImport(origin)
+    if refPosNode:
+        atx, aty = flow.GetPosTable(refPosNode).values()
+
+    importedTools = comp.GetToolList(True).values()
+    #Set the position of the imported nodes relative to the previously active tool or last click in compView
+    impnodes = [n for n in importedTools]
+    if len(impnodes) > 0:
+
+        fisrtnode = impnodes[0]
+        fstnx, fstny = flow.GetPosTable(fisrtnode).values()
+
+        for n in impnodes:
+            if not n.Name in positionedNodes:
+                x,y  = flow.GetPosTable(n).values()
+
+                offset = [x-fstnx,y-fstny]
+                newx = x+(atx-x)+offset[0]
+                newy = y+(aty-y)+offset[1]
+                flow.SetPos(n, newx-1, newy)
+
+    ##########
+
+    importedNodes = []
+    for i in newNodes:
+        #   Append sufix to objNames to identify product with unique Name
+        node:Tool_ = getObject(i)
+        newName:str = applyProductSufix(i, origin)
+        node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
+        importedNodes.append(getNode(newName))
+
+    origin.setName = "Import_" + filename[0]			
+    origin.nodes = importedNodes
+
+    #   Deselect All
+    flow.Select()
+
+    objs:list[Tool_] = [getObject(x) for x in importedNodes]
+    
+    #   Select nodes in comp
+    for o in objs:
+        flow.Select(o)
+
+    #Set result to True if we have nodes
+    result:bool = len(importedNodes) > 0
+
+    return result
+
+@err_catcher(name=__name__)
+def getNode(obj:str|dict|Tool_)->dict:
+    if type(obj) == str:
+        node = {"name": obj}
+    elif type(obj) == dict:
+        node = {"name": obj["name"]}
+    else:
+        node = {"name": obj.Name}
+    return node
+
+
+@err_catcher(name=__name__)
+def selectNodes(origin:Legacy3D_ImportClass):
+    if origin.lw_objects.selectedItems() != []:
+        nodes:list[dict] = []
+        for i in origin.lw_objects.selectedItems():
+            node = origin.nodes[origin.lw_objects.row(i)]
+            if isNodeValid(origin, node):
+                nodes.append(node)
+        # select(nodes)
+                
+
+@err_catcher(name=__name__)
+def isNodeValid(origin, handle):
+    return True
+    
+
+@err_catcher(name=__name__)
+def getObject(comp:Composition_, node:str|dict)->Tool_:
+    if type(node) == str:
+        node = getNode(node)
+
+    return comp.FindTool(node["name"])
+
+
+@err_catcher(name=__name__)
+def applyProductSufix(originalName:str, origin:Legacy3D_ImportClass)->str:
+    newName:str = originalName + "_" + origin.importPath.split("_")[-2]
+    return newName
+
+
+#######################################################
 
 
 # @err_catcher(name=__name__)
-# def ReplaceBeforeImport(self, origin, newnodes):
-#     comp = self.getCurrentComp()
-#     if origin.nodes == []:
-#         return None, []
-#     nodes = []
-#     nodenames =[]
-#     outputnodes = []
-#     positionednodes = []
-#     sceneNode = None
-    
-#     # We are going to collect the existing nodes and check if there is a merge3D or transform3D node that represents the entry of the scene.
-#     for o in origin.nodes:
-#         hasmerge = False
-#         node = comp.FindTool(o["name"])
-#         if node:
-#             # Store Scene Node Connections
-#             nodeID  = node.GetAttrs("TOOLS_RegID")
-#             ismerge = nodeID == "Merge3D"
-#             # We try to account for Transform3D nodes that are not standarly Named.
-#             istrans3D = nodeID == "Transform3D" and "Transform3D" in node.Name
-#             # If there is no merge there should be a transform3D but if there is merge transform3D is out.
-#             if ismerge or istrans3D:
-#                 if ismerge:
-#                     hasmerge = True
-#                 if ismerge or not hasmerge:
-#                     outputnodes = [] # clean this variable in case there was an unaccounted node
-#                     sceneNode = node
-#                     connectedinputs = node.output.GetConnectedInputs()
-#                     if len(connectedinputs)>0:
-#                         for v in connectedinputs.values():
-#                             connectedNode = {"node":v.GetTool().Name,"input":v.Name}
-#                             outputnodes.append(connectedNode)
-#             nodenames.append(node.Name)
-#             nodes.append(node)
-#     for o in newnodes:
-#         newnode = comp.FindTool(o)
-#         # Reconnect the scene node
-#         if sceneNode:
-#             nodeID = newnode.GetAttrs("TOOLS_RegID")
-#             sceneNID = sceneNode.GetAttrs("TOOLS_RegID")
-#             if nodeID == sceneNID:
+def cleanbeforeImport(origin:Legacy3D_ImportClass):
+    if origin.nodes == []:
+        return
+    nodes:list[dict] = []
+    for o in origin.nodes:
+        nodes.append(getNode(o))
 
-#                 # We try to account for Transform3D nodes that are not standarly Named.
-#                 proceed = True
-#                 if nodeID == "Transform3D" and not "Transform3D" in newnode.Name:
-#                     proceed = False
+    origin.core.appPlugin.deleteNodes(origin, nodes)
+    origin.nodes = []
                 
-#                 if proceed and len(outputnodes) > 0:
-#                     for outn in outputnodes:
-#                         tool = comp.FindTool(outn["node"])
-#                         tool.ConnectInput(outn["input"], newnode)
-#         # Match old to new
-#         oldnodename = self.applyProductSufix(o, origin)
-#         oldnode = comp.FindTool(oldnodename)
 
-#         # If there is a previous version of the same node.
-#         if oldnode:
-#             # idx = 1
-#             # check if it has valid inputs that are not part of previous import
-#             for input in oldnode.GetInputList().values():
-#                 # idx+=1
-#                 connectedOutput = input.GetConnectedOutput()
-#                 if connectedOutput:
-#                     inputName = input.Name
-#                     connectedtool = connectedOutput.GetTool()
-#                     # Avoid Feyframe nodes
-#                     if not connectedtool.GetAttrs("TOOLS_RegID") =="BezierSpline" and not newnode.GetAttrs("TOOLS_RegID") == "Merge3D":
-#                         # check to avoid a connection that breaks the incoming hierarchy.
-#                         if not connectedtool.Name in nodenames:
-#                             newnode.ConnectInput(inputName, connectedtool)
-#             # Reconnect the 3D Scene.
-#             if sceneNode:
-#                 if sceneNode.GetAttrs("TOOLS_RegID") == "Merge3D":
-#                     if oldnode.GetAttrs("TOOLS_RegID") == "Merge3D":
-#                         mergednodes = []
-#                         sceneinputs = [input for input in oldnode.GetInputList().values() if "SceneInput" in input.Name]
-#                         # newsceneinputs = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
-#                         for input in sceneinputs:
-#                             connectedOutput = input.GetConnectedOutput()
-#                             if connectedOutput:
-#                                 connectedtool = connectedOutput.GetTool()
-#                                 if not connectedtool.Name in nodenames:
-#                                     mergednodes.append(connectedtool)
-#                         if newnode.GetAttrs("TOOLS_RegID") == "Merge3D" and len(mergednodes) > 0:
-#                             newsceneinputs = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
-#                             for mergednode in mergednodes:
-#                                 for input in newsceneinputs:
-#                                     connectedOutput = input.GetConnectedOutput()
-#                                     if not connectedOutput:
-#                                         newnode.ConnectInput(input.Name, mergednode)
-#             # Match position.
-#             self.matchNodePos(newnode, oldnode)
-#             positionednodes.append(newnode.Name)
-        
-#     # Return position
-#     if sceneNode:
-#         return sceneNode, positionednodes
+@err_catcher(name=__name__)
+def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, newnodes:list[str])->tuple[Tool_|None, list[str]]:
+    if origin.nodes == []:
+        return None, []
     
-#     return None, positionednodes
+    nodes:list[dict] = []
+    nodenames:list[str] = []
+    outputnodes:list[dict] = []
+    positionednodes:list[str] = []
+    sceneNode:Tool_|None = None
+    
+    # We are going to collect the existing nodes and check if there is a merge3D or transform3D node that represents the entry of the scene.
+    for o in origin.nodes:
+        hasmerge:bool = False
+        node:Tool_ = comp.FindTool(o["name"])
+        if node:
+            # Store Scene Node Connections
+            nodeID:str  = node.GetAttrs("TOOLS_RegID")
+            ismerge:bool = nodeID == "Merge3D"
+            # We try to account for Transform3D nodes that are not standarly Named.
+            istrans3D:bool = nodeID == "Transform3D" and "Transform3D" in node.Name
+            # If there is no merge there should be a transform3D but if there is merge transform3D is out.
+            if ismerge or istrans3D:
+                if ismerge:
+                    hasmerge:bool = True
+                if ismerge or not hasmerge:
+                    outputnodes:list[dict] = [] # clean this variable in case there was an unaccounted node
+                    sceneNode:Tool_ = node
+                    connectedinputs:dict = node.output.GetConnectedInputs()
+                    if len(connectedinputs)>0:
+                        for v in connectedinputs.values():
+                            input:Input_ = v
+                            connectedNode:dict = {"node":input.GetTool().Name,"input":input.Name}
+                            outputnodes.append(connectedNode)
+            nodenames.append(node.Name)
+            nodes.append(node)
+    for o in newnodes:
+        newnode:Tool_ = comp.FindTool(o)
+        # Reconnect the scene node
+        if sceneNode:
+            nodeID:str = newnode.GetAttrs("TOOLS_RegID")
+            sceneNID:str = sceneNode.GetAttrs("TOOLS_RegID")
+            if nodeID == sceneNID:
+
+                # We try to account for Transform3D nodes that are not standarly Named.
+                proceed:bool = True
+                if nodeID == "Transform3D" and not "Transform3D" in newnode.Name:
+                    proceed = False
+                
+                if proceed and len(outputnodes) > 0:
+                    for outn in outputnodes:
+                        tool:Tool_ = comp.FindTool(outn["node"])
+                        tool.ConnectInput(outn["input"], newnode)
+        # Match old to new
+        oldnodename:str = applyProductSufix(o, origin)
+        oldnode:Tool_ = comp.FindTool(oldnodename)
+
+        # If there is a previous version of the same node.
+        if oldnode:
+            # check if it has valid inputs that are not part of previous import
+            for inpt in oldnode.GetInputList().values():
+                input:Input_ = inpt
+                connectedOutput:Output_|None = input.GetConnectedOutput()
+                if connectedOutput:
+                    inputName:str = input.Name
+                    connectedtool:Tool_ = connectedOutput.GetTool()
+                    # Avoid Feyframe nodes
+                    if not connectedtool.GetAttrs("TOOLS_RegID") =="BezierSpline" and not newnode.GetAttrs("TOOLS_RegID") == "Merge3D":
+                        # check to avoid a connection that breaks the incoming hierarchy.
+                        if not connectedtool.Name in nodenames:
+                            newnode.ConnectInput(inputName, connectedtool)
+            # Reconnect the 3D Scene.
+            if sceneNode:
+                if sceneNode.GetAttrs("TOOLS_RegID") == "Merge3D":
+                    if oldnode.GetAttrs("TOOLS_RegID") == "Merge3D":
+                        mergednodes:list[Tool_] = []
+                        sceneinputs:list[Input_] = [input for input in oldnode.GetInputList().values() if "SceneInput" in input.Name]
+                        # newsceneinputs = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
+                        for input in sceneinputs:
+                            connectedOutput:Output_|None = input.GetConnectedOutput()
+                            if connectedOutput:
+                                connectedtool:Tool_ = connectedOutput.GetTool()
+                                if not connectedtool.Name in nodenames:
+                                    mergednodes.append(connectedtool)
+                        if newnode.GetAttrs("TOOLS_RegID") == "Merge3D" and len(mergednodes) > 0:
+                            newsceneinputs:list[Input_] = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
+                            for mergednode in mergednodes:
+                                for input in newsceneinputs:
+                                    connectedOutput:Output_|None = input.GetConnectedOutput()
+                                    if not connectedOutput:
+                                        newnode.ConnectInput(input.Name, mergednode)
+            # Match position.
+            import Prism_Fusion_lib_Fus as Fus
+            Fus.matchNodePos(comp, newnode, oldnode)
+            positionednodes.append(newnode.Name)
+        
+    # Return position
+    return (sceneNode, positionednodes) if sceneNode else (None, positionednodes)
 
 
 # @err_catcher(name=__name__)

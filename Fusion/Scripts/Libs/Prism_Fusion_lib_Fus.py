@@ -726,22 +726,22 @@ def setNodeToLeft(comp, tool, refNode=None, x_offset:int=0, y_offset:int=1):
 
 
 @err_catcher(name=__name__)
-def set_node_position(flow, smnode:Tool, x:int, y:int):
+def set_node_position(flow:FlowView_, smnode:Tool_, x:float, y:float):
     flow.SetPos(smnode, x, y)
 
 
 @err_catcher(name=__name__)
-def matchNodePos(comp, nodeTomove:Tool, nodeInPos:Tool):
-    flow = comp.CurrentFrame.FlowView
+def matchNodePos(comp:Composition_, nodeTomove:Tool_, nodeInPos:Tool_):
+    flow:FlowView_ = comp.CurrentFrame.FlowView
     x,y = flow.GetPosTable(nodeInPos).values()
     set_node_position(flow, nodeTomove, x, y)
 
 
 #Get last click on comp view.
 @err_catcher(name=__name__)
-def find_LastClickPosition(comp) -> list[int, int]:
-    flow = comp.CurrentFrame.FlowView
-    posNode = comp.AddToolAction("Background")
+def find_LastClickPosition(comp:Composition_) -> list[int, int]:
+    flow:FlowView_ = comp.CurrentFrame.FlowView
+    posNode:Tool_ = comp.AddToolAction("Background")
     x,y = flow.GetPosTable(posNode).values()
     posNode.Delete()
 
@@ -872,6 +872,21 @@ def findLeftmostLowerNode(comp, threshold:int=0.5) -> Tool:
     except:
         logger.warning("ERROR: Failed to find leftmost lower node")
         return None
+
+@err_catcher(name=__name__)
+def getRefPosition(comp:Composition_, flow:FlowView_) -> tuple[float,float]:
+    #try to get an active tool to set a ref position
+    activetool:Tool_ = None
+    try:
+        activetool = comp.ActiveTool()
+    except:
+        pass
+    if activetool and not activetool.GetAttrs("TOOLS_RegID") =="BezierSpline":
+        atx, aty = flow.GetPosTable(activetool).values()
+    else:
+        atx, aty = find_LastClickPosition()
+
+    return atx, aty
 
 
 @err_catcher(name=__name__)

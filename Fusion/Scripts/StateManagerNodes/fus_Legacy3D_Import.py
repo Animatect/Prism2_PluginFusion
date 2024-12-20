@@ -54,10 +54,15 @@ from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, cast
 if TYPE_CHECKING:
     from qtpy.QtWidgets import QLineEdit, QLabel, QPushButton, QCheckBox, QListWidget, QWidget
+    from PrismCore import PrismCore
     from ProjectScripts.StateManager import StateManager
+    # import Legacy3D_ImportClass
+    from StateManagerNodes.StateUserInterfaces.fus_Legacy3D_Import_ui import Ui_wg_Legacy3D_Import
+    # indicate that Legacy3D_ImportClass is a subclass of Ui_wg_Legacy3D_Import
+    Legacy3D_ImportClass = cast('Legacy3D_ImportClass', Ui_wg_Legacy3D_Import, QWidget)
 
 from PrismUtils.Decorators import err_catcher
 
@@ -95,9 +100,9 @@ class Legacy3D_ImportClass(object):
     @err_catcher(name=__name__)
     def setup(
         self,
-        state,
-        core,
-        stateManager:StateManager,
+        state: object,
+        core:'PrismCore',
+        stateManager:'StateManager',
         node=None,
         importPath=None,
         stateData=None,
@@ -108,8 +113,8 @@ class Legacy3D_ImportClass(object):
         self.state = state
         self.stateMode:str = "Legacy3D_Import"                           #   TODO  Handle setting stateMode for the UI label.
 
-        self.core = core
-        self.stateManager = stateManager
+        self.core:PrismCore = core
+        self.stateManager:StateManager = stateManager
         self.fuseFuncts = self.core.appPlugin
 
         self.supportedFormats = [".abc", ".fbx"]
@@ -488,7 +493,7 @@ class Legacy3D_ImportClass(object):
                     "version": productVersion,
                     "Filepath": impFileName,
                     "product": productName,
-                    "format": "USD"}
+                    "format": "abc"}
 
         importResult = self.fuseFuncts.importLegacy3D(self,
                                                 UUID=self.stateUID,
