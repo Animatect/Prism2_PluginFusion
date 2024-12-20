@@ -854,7 +854,7 @@ def isToolNearTool(comp, tool, refTool:Tool=None, refPos:Tuple[float, float]=Non
 
 
 @err_catcher(name=__name__)
-def matchToolPos(comp, nodeTomove:Tool, nodeInPos:Tool):
+def matchToolPos(comp, nodeTomove:Tool_, nodeInPos:Tool_):
     flow = comp.CurrentFrame.FlowView
     x,y = getToolPosition(comp, nodeInPos)
     setToolPosition(flow, nodeTomove, x, y)
@@ -993,6 +993,22 @@ def findLeftmostLowerTool(comp, threshold:float=0.5) -> Tool:
     except:
         logger.warning("ERROR: Failed to find leftmost lower node")
         return None
+
+
+@err_catcher(name=__name__)
+def getRefPosition(comp:Composition_, flow:FlowView_) -> tuple[float,float]:
+    #try to get an active tool to set a ref position
+    activetool:Tool_ = None
+    try:
+        activetool = comp.ActiveTool()
+    except:
+        pass
+    if activetool and not activetool.GetAttrs("TOOLS_RegID") =="BezierSpline":
+        atx, aty = flow.GetPosTable(activetool).values()
+    else:
+        atx, aty = find_LastClickPosition()
+
+    return atx, aty
 
 
 @err_catcher(name=__name__)

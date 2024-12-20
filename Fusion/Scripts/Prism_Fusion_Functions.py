@@ -76,9 +76,11 @@ from PrismUtils.Decorators import err_catcher as err_catcher
 
 from typing import TYPE_CHECKING
 if TYPE_CHECKING:
+	from PrismCore import PrismCore
 	from ProjectScripts.StateManager import StateManager
 	from ProjectScripts.MediaBrowser import MediaBrowser, MediaPlayer
-
+	from StateManagerNodes.fus_Legacy3D_Import import Legacy3D_ImportClass
+	
 #	Import Prism Fusion Libraries
 import Libs.Prism_Fusion_lib_Helper as Helper
 import Libs.Prism_Fusion_lib_Fus as Fus
@@ -90,8 +92,8 @@ logger = logging.getLogger(__name__)
 
 
 class Prism_Fusion_Functions(object):
-	def __init__(self, core, plugin):
-		self.core = core
+	def __init__(self, core:PrismCore, plugin):
+		self.core:PrismCore = core
 		self.plugin = plugin
 		self.fusion:Fusion_ = bmd.scriptapp("Fusion")
 		self.comp:Composition_ = None # This comp is used by the stateManager to avoid overriding the state data on wrong comps
@@ -1942,12 +1944,12 @@ class Prism_Fusion_Functions(object):
 		pass
 
 	@err_catcher(name=__name__)
-	def importLegacy3D(self, origin, UUID, nodeData, update=False):
-		comp = self.getCurrentComp()
+	def importLegacy3D(self, origin:Legacy3D_ImportClass, UUID, nodeData, update=False):
+		comp:Composition_ = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Import Legacy3D")
 
-		result = self.wrapped_importLegacy3D(origin, UUID, nodeData, update)
+		result:dict[str, bool] = self.wrapped_importLegacy3D(origin, UUID, nodeData, update)
 
 		comp.EndUndo()
 		comp.Unlock()
@@ -1955,45 +1957,83 @@ class Prism_Fusion_Functions(object):
 		return result
 
 	@err_catcher(name=__name__)
-	def wrapped_importLegacy3D(self, origin, UUID, nodeData, update=False):
-		comp = self.getCurrentComp()
+	def wrapped_importLegacy3D(self, origin:Legacy3D_ImportClass, UUID, nodeData, update=False):
+		comp:Composition_ = self.getCurrentComp()
+		flow:FlowView_ = comp.CurrentFrame.FlowView
 		importRes = False
 
-		#	Add new uLoader
-		if not update:
-			try:
-				#	Add tools
-				uLdr = Fus.addTool(comp, "uLoader", nodeData)
-
-				logger.debug(f"Imported USD object: {nodeData['product']}")
-
-			except Exception as e:
-				logger.warning(f"ERROR: Unable to import USD object:\n{e}")
+		#	Add new 3D Scene
+		# if not update:
+		try:
+			#	Import file
+			fileName:tuple[str, str] = os.path.splitext(os.path.basename(nodeData["Filepath"]))
+			origin.setName = ""
+			result:bool = False
+			# Check that we are not importing in a comp different than the one we started the stateManager from
+			if not self.sm_checkCorrectComp(comp):
 				return {"result": False, "doImport": False}
 			
-			if uLdr:
-				#	Add to Comp Database
-				addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
-				importRes = True
+			atx, aty = Fus.getRefPosition(comp, flow)
+
+			#	Get Extension
+			format:str = fileName[1].lower()
+
+			if not os.path.exists(nodeData["Filepath"]):
+				QMessageBox.warning(
+					origin.core.messageParent, "Warning", "File %s does not exists" % nodeData["Filepath"]
+				)
+				return {"result": False, "doImport": False}
+			else:
+				pass
+
+			# Do the importing
+			if format == ".fbx":
+				result = Fus3d.importFBX(nodeData["Filepath"], self.fusion, origin)
+
+			elif format == ".abc":
+				result = Fus3d.importAlembic(nodeData["Filepath"], self.fusion, origin)
+
+			else:
+				self.core.popup(f"Import format '{format}' is not supported")
+				logger.warning(f"ERROR:  Format not supported: {format}")
+				
+				return {"result": False, "doImport": False}
+			
+			# After import update the stateManager interface
+			if result:
+				result = Fus3d.createLegacy3DScene(origin, comp, flow, fileName)
+
+
+
+				logger.debug(f"Imported Legacy3D Scene: {nodeData['product']}")
+
+		except Exception as e:
+			logger.warning(f"ERROR: Unable to import Legacy3D Scene:\n{e}")
+			return {"result": False, "doImport": False}
+			
+			# if uLdr:
+			# 	#	Add to Comp Database
+			# 	addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
+			# 	importRes = True
 		
 		#	Update uLoader
-		else:
-			try:
-				#	Get tool
-				tool = CompDb.getNodeByUID(comp, UUID)
-				#	 Update tool data
-				uLdr = Fus.updateTool(tool, nodeData)
+		# else:
+		# 	try:
+		# 		#	Get tool
+		# 		tool = CompDb.getNodeByUID(comp, UUID)
+		# 		#	 Update tool data
+		# 		uLdr = Fus.updateTool(tool, nodeData)
 
-				logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
-				importRes = True
+		# 		logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
+		# 		importRes = True
 
-			except Exception as e:
-				logger.warning(f"ERROR: Failed to update uLoader:\n{e}")
+		# 	except Exception as e:
+		# 		logger.warning(f"ERROR: Failed to update uLoader:\n{e}")
 
-			if uLdr:
-				#	Update Comp DB record
-				CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
-				importRes = True
+		# 	if uLdr:
+		# 		#	Update Comp DB record
+		# 		CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
+		# 		importRes = True
 
 
 		return {"result": importRes, "doImport": importRes}
