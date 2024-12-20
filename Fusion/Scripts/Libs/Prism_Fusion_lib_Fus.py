@@ -52,11 +52,17 @@
 
 import os
 import re
-from typing import Union, Dict, Any
 import logging
 
-from PrismUtils.Decorators import err_catcher as err_catcher
+from typing import TYPE_CHECKING, Union, Dict, Any
+if TYPE_CHECKING:
+    pass
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
 
+from PrismUtils.Decorators import err_catcher as err_catcher
 logger = logging.getLogger(__name__)
 
 
@@ -739,7 +745,7 @@ def matchNodePos(comp:Composition_, nodeTomove:Tool_, nodeInPos:Tool_):
 
 #Get last click on comp view.
 @err_catcher(name=__name__)
-def find_LastClickPosition(comp:Composition_) -> list[int, int]:
+def find_LastClickPosition(comp:Composition_) -> list[float, float]:
     flow:FlowView_ = comp.CurrentFrame.FlowView
     posNode:Tool_ = comp.AddToolAction("Background")
     x,y = flow.GetPosTable(posNode).values()
@@ -884,7 +890,7 @@ def getRefPosition(comp:Composition_, flow:FlowView_) -> tuple[float,float]:
     if activetool and not activetool.GetAttrs("TOOLS_RegID") =="BezierSpline":
         atx, aty = flow.GetPosTable(activetool).values()
     else:
-        atx, aty = find_LastClickPosition()
+        atx, aty = find_LastClickPosition(comp)
 
     return atx, aty
 

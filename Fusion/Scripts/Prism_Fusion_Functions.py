@@ -59,7 +59,8 @@ import logging
 from datetime import datetime
 
 import BlackmagicFusion as bmd
-
+import inspect
+print(inspect.getmodule('fusionscript'))
 package_path = os.path.join(os.path.dirname(__file__), 'thirdparty')
 sys.path.append(package_path)
 
@@ -79,7 +80,7 @@ if TYPE_CHECKING:
 	from PrismCore import PrismCore
 	from ProjectScripts.StateManager import StateManager
 	from ProjectScripts.MediaBrowser import MediaBrowser, MediaPlayer
-	from StateManagerNodes.fus_Legacy3D_Import import Legacy3D_ImportClass
+from StateManagerNodes.fus_Legacy3D_Import import Legacy3D_ImportClass
 	
 #	Import Prism Fusion Libraries
 import Libs.Prism_Fusion_lib_Helper as Helper
@@ -92,7 +93,7 @@ logger = logging.getLogger(__name__)
 
 
 class Prism_Fusion_Functions(object):
-	def __init__(self, core:PrismCore, plugin):
+	def __init__(self, core, plugin):
 		self.core:PrismCore = core
 		self.plugin = plugin
 		self.fusion:Fusion_ = bmd.scriptapp("Fusion")

@@ -55,11 +55,15 @@ import time
 import os
 
 from PrismUtils.Decorators import err_catcher as err_catcher
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
     from StateManagerNodes.fus_Legacy3D_Import import Legacy3D_ImportClass
-    
-import BlackmagicFusion as bmd
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
+    Fusion_ = Any
+    Legacy3D_ImportClass = Any
 	
 
 @err_catcher(name=__name__)
@@ -451,6 +455,8 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     #check if there was a merge3D in the import and where was it connected to
     newNodes:list[str] = [n.Name for n in comp.GetToolList(True).values()]
 
+    atx, aty = -32768, -32768
+
     refPosNode, positionedNodes = ReplaceBeforeImport(origin, comp, newNodes)
     cleanbeforeImport(origin)
     if refPosNode:
@@ -478,7 +484,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     importedNodes = []
     for i in newNodes:
         #   Append sufix to objNames to identify product with unique Name
-        node:Tool_ = getObject(i)
+        node:Tool_ = getObject(comp, i)
         newName:str = applyProductSufix(i, origin)
         node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
         importedNodes.append(getNode(newName))
@@ -489,7 +495,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     #   Deselect All
     flow.Select()
 
-    objs:list[Tool_] = [getObject(x) for x in importedNodes]
+    objs:list[Tool_] = [getObject(comp, x) for x in importedNodes]
     
     #   Select nodes in comp
     for o in objs:
