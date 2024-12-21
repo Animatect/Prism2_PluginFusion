@@ -104,6 +104,8 @@ class Prism_Fusion_Functions(object):
 		self.pbUI = None
 		self.prefUI = None
 
+		# self.core.sceneOpenChecksEnabled = False		#	TESTING Stops Core automatic Sanity Checks
+
 		#	Register Callbacks
 		try:
 			callbacks = [
@@ -423,10 +425,13 @@ class Prism_Fusion_Functions(object):
 		return None
 	
 
+	#	Called from core.sceneOpen()
 	@err_catcher(name=__name__)
 	def sceneOpen(self, origin):
 		# if self.core.shouldAutosaveTimerRun():
 		# 	origin.startAutosaveTimer()
+
+
 		pass
 
 
@@ -588,8 +593,9 @@ class Prism_Fusion_Functions(object):
 	def captureViewportThumbnail(self):
 		comp = self.getCurrentComp()
 		comp.Lock()
-		self.wrapped_CaptureViewportThumbnail(comp)
+		thumb = self.wrapped_CaptureViewportThumbnail(comp)
 		comp.Unlock()
+		return thumb
 
 
 	@err_catcher(name=__name__)
@@ -1437,6 +1443,7 @@ class Prism_Fusion_Functions(object):
 		elif importType == "Update Selected":
 			#	Get selected Loaders
 			selTools = Fus.getSelectedTools(comp, "Loader")
+			
 			if len(selTools) < 1:
 				logger.debug("No Loaders selected in the Comp")
 				self.core.popup("No Loaders selected in the Comp")

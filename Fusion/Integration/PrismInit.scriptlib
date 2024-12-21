@@ -47,10 +47,33 @@
 -- ###########################################################################
 
 
-
 fusion = bmd.scriptapp("Fusion")
 
-if fusion:GetAttrs("FUSIONB_IsRenderNode") == false then
+-- Check if Fusion is a Render Node
+local function isRenderNode()
+    return fusion:GetAttrs("FUSIONB_IsRenderNode")
+end
+
+-- Check if already executed using a session identifier
+local sessionKey = "PrismStartupExecuted_" .. os.time()
+
+if fusion:GetData(sessionKey) then
+    print("[Prism] Startup already executed. Skipping.")
+    return
+end
+
+-- Check if a Comp is already open
+local currentComp = fusion:GetCurrentComp()
+if currentComp then
+    print("[Prism] A Comp is already open. Skipping Startup.")
+    return
+end
+
+-- Delay setting the flag to avoid premature triggers
+print("[Prism] Executioning startup.")
+
+-- Execute Startup
+if not isRenderNode() then
     -- Define paths for config file and scripts
     local configPath = fusion:MapPath("Scripts:PrismAutostart.config")
     local resetScriptPath = fusion:MapPath("Scripts:Prism/ResetPrism.py")
@@ -74,11 +97,14 @@ if fusion:GetAttrs("FUSIONB_IsRenderNode") == false then
     local configContent = readConfig()
     local startMode = configContent and configContent:match("autoStart:%s*(%w+)")
 
+    -- Set the execution flag after logic begins
+    fusion:SetData(sessionKey, true)
+
     -- Determine the action based on startMode
     if startMode == "automatic" then
         -- Run ResetPrism.py
         if bmd.fileexists(resetScriptPath) then
-			print("[Prism] Starting in Automatic mode")
+            print("[Prism] Starting Prism in Automatic mode")
             fusion:RunScript(resetScriptPath, {scriptlib = true})
         else
             print("[Prism Error] Can't find file: " .. resetScriptPath)
@@ -86,15 +112,17 @@ if fusion:GetAttrs("FUSIONB_IsRenderNode") == false then
     elseif startMode == "prompt" then
         -- Run startupDialog.py
         if bmd.fileexists(promptScriptPath) then
-			print("[Prism] Starting in Prompt mode.")
+            print("[Prism] Starting Prism in Prompt mode.")
             fusion:RunScript(promptScriptPath, {scriptlib = true})
         else
             print("[Prism Error] Can't find file: " .. promptScriptPath)
         end
     elseif startMode == "manual" then
         -- Do nothing
-        print("[Prism] Starting in Manual mode.")
+        print("[Prism] Starting Prism in Manual mode.")
     else
         print("[Prism Error] Invalid start mode in config file: " .. tostring(startMode))
     end
+else
+    print("[Prism] Render node detected. Skipping script execution.")
 end

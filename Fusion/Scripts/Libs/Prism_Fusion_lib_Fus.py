@@ -161,7 +161,6 @@ def getRenderRange(comp) -> Tuple[int, int]:
 #	Sets the supplied framerange to the comp
 @err_catcher(name=__name__)
 def setRenderRange(comp, startFrame:int, endFrame:int):
-
     try:
         comp.SetAttrs(
             {
@@ -523,16 +522,16 @@ def getToolType(tool:Tool) -> str:
 
 #   Returns all tools of specified type
 @err_catcher(name=__name__)
-def getAllToolsByType(comp, type:str) -> list[Tool]:
+def getAllToolsByType(comp, toolType:str) -> list[Tool]:
     try:
         toolList = []
         for tool in comp.GetToolList(False).values():
-            if getToolType(tool) == type:
+            if getToolType(tool) == toolType:
                 toolList.append(tool)
 
         return toolList
     except:
-        logger.warning(f"ERROR: Unable to get all {type} tools from the Comp")
+        logger.warning(f"ERROR: Unable to get all {toolType} tools from the Comp")
         return None
     
 
@@ -543,7 +542,7 @@ def getSelectedTools(comp, toolType:str=None) -> list[Tool]:
         toolList = []
         for tool in comp.GetToolList(True).values():
             if toolType:
-                if getToolType(tool) == type:
+                if getToolType(tool) == toolType:
                     toolList.append(tool)
             else:
                 toolList.append(tool)
@@ -551,7 +550,7 @@ def getSelectedTools(comp, toolType:str=None) -> list[Tool]:
         return toolList
     
     except:
-        logger.warning(f"ERROR: Unable to get all {type} tools from the Comp")
+        logger.warning(f"ERROR: Unable to get all {toolType} tools from the Comp")
         return None
 
 
