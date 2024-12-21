@@ -114,6 +114,8 @@ Anybody who has used Fusion Studio with Deadline will probably have experienced 
 
 jump to:
 
-[**Interface Docs**](Interface.md)
+[**Interface**](Interface.md)
 
-[**Importing Docs**](Importing.md)
+[**Importing Images**](Importing_2d.md)
+
+[**Importing 3D**](Importing_3d.md)

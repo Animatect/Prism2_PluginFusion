@@ -30,52 +30,28 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Prism.  If not, see <https://www.gnu.org/licenses/>.
+###########################################################################
+#
+#                BMD Fusion Studio Integration for Prism2
+#
+#             https://github.com/Animatect/Prism2_PluginFusion
+#
+#                           Esteban Covo
+#                     e.covo@magichammer.com.mx
+#                     https://magichammer.com.mx
+#
+#                           Joshua Breckeen
+#                              Alta Arts
+#                          josh@alta-arts.com
+#
+###########################################################################
+
+
+##  THIS IS A LIBRARY FOR 3D FUNCTIONS FOR THE FUSION PRISM PLUGIN  ##
 	
 
 from PrismUtils.Decorators import err_catcher as err_catcher
 
-
-@err_catcher(name=__name__)
-def importUSD(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Add uLoader node
-    usdTool = comp.AddTool("uLoader")
-
-    #	Set import file path
-    usdTool["Filename"] = nodeData["filepath"]
-
-    #	Set node name
-    usdTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    #	Add custom UUID
-    usdTool.SetData('Prism_UUID', UUID)
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
-
-
-@err_catcher(name=__name__)
-def updateUSD(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Get uLoader node
-    usdTool = plugin.getNodeByUID(UUID)
-
-    #	Set import file path
-    usdTool["Filename"] = nodeData["filepath"]
-
-    #	Set node name
-    usdTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
 
 
 @err_catcher(name=__name__)
@@ -83,8 +59,6 @@ def createUsdScene(plugin, origin, UUID):
 
     comp = plugin.getCurrentComp()
     flow = comp.CurrentFrame.FlowView
-
-    comp.Lock()
 
     #	Get uLoader node
     usdTool = plugin.getNodeByUID(UUID)
@@ -104,60 +78,13 @@ def createUsdScene(plugin, origin, UUID):
     flow.SetPos(uMerge, usdTool_x + 2, usdTool_y)
     flow.SetPos(uRender, usdTool_x + 4, usdTool_y)
 
-    comp.Unlock()
-
-
 
 @err_catcher(name=__name__)
-def importFBX(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Add FBX Mesh node
-    fbxTool = comp.AddTool("SurfaceFBXMesh")
-
-    #	Set import mesh file path
-    fbxTool["ImportFile"] = nodeData["filepath"]
-
-    #	Set node name
-    fbxTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    #	Add custom UUID
-    fbxTool.SetData('Prism_UUID', UUID)
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
-
-
-@err_catcher(name=__name__)
-def updateFBX(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Get uLoader node
-    fbxTool = plugin.getNodeByUID(UUID)
-
-    #	Set import file path
-    fbxTool["Filename"] = nodeData["filepath"]
-
-    #	Set node name
-    fbxTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
-
-
-@err_catcher(name=__name__)
-def createFbxScene(plugin, origin, UUID):
+def create3dScene(plugin, origin, UUID):
 
     comp = plugin.getCurrentComp()
     flow = comp.CurrentFrame.FlowView
 
-    comp.Lock()
 
     #	Get uLoader node
     fbxTool = plugin.getNodeByUID(UUID)
@@ -177,80 +104,6 @@ def createFbxScene(plugin, origin, UUID):
     flow.SetPos(merge3d, fbxTool_x + 2, fbxTool_y)
     flow.SetPos(render3d, fbxTool_x + 4, fbxTool_y)
 
-    comp.Unlock()
-
-
-
-@err_catcher(name=__name__)
-def importABC(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Add FBX Mesh node
-    abcTool = comp.AddTool("SurfaceAlembicMesh")
-
-    #	Set import mesh file path
-    abcTool["Filename"] = nodeData["filepath"]
-
-    #	Set node name
-    abcTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    #	Add custom UUID
-    abcTool.SetData('Prism_UUID', UUID)
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
-
-
-@err_catcher(name=__name__)
-def updateABC(plugin, origin, UUID, nodeData):
-    comp = plugin.getCurrentComp()
-
-    comp.Lock()
-
-    #	Get uLoader node
-    abcTool = plugin.getNodeByUID(UUID)
-
-    #	Set import file path
-    abcTool["Filename"] = nodeData["filepath"]
-
-    #	Set node name
-    abcTool.SetAttrs({"TOOLS_Name": nodeData["nodeName"]})
-
-    comp.Unlock()
-
-    return {"result": True, "doImport": True}
-
-
-@err_catcher(name=__name__)
-def createAbcScene(plugin, origin, UUID):
-
-    comp = plugin.getCurrentComp()
-    flow = comp.CurrentFrame.FlowView
-
-    comp.Lock()
-
-    #	Get uLoader node
-    abcTool = plugin.getNodeByUID(UUID)
-
-    # Add uMerge and uRender nodes
-    merge3d = comp.AddTool("Merge3D")
-    render3d = comp.AddTool("Renderer3D")
-
-    # Connect Nodes
-    merge3d.ConnectInput("SceneInput1", abcTool)
-    render3d.ConnectInput("SceneInput", merge3d)
-
-    #   Get position of the uLoader
-    abcTool_x, abcTool_y = flow.GetPosTable(abcTool).values()
-
-    #   Set positions relative to uLoader
-    flow.SetPos(merge3d, abcTool_x + 2, abcTool_y)
-    flow.SetPos(render3d, abcTool_x + 4, abcTool_y)
-
-    comp.Unlock()
 
 
 
@@ -385,7 +238,6 @@ def createAbcScene(plugin, origin, UUID):
 
 #     fusion = self.fusion
 #     comp = fusion.GetCurrentComp()
-#     #comp.Lock()
 #     flow = comp.CurrentFrame.FlowView
 #     flow.Select(None)
 
@@ -451,7 +303,6 @@ def createAbcScene(plugin, origin, UUID):
 # @err_catcher(name=__name__)
 # def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):
 #     comp = self.getCurrentComp()
-#     comp.Lock()
 #     #	Add uLoader node
 #     usdTool = comp.AddTool("uLoader")
 #     #	Set import file path
@@ -460,7 +311,6 @@ def createAbcScene(plugin, origin, UUID):
 #     usdTool.SetAttrs({"TOOLS_Name": nodeName})
 #     #	Add custom UUID
 #     usdTool.SetData('PrImportUID', UUID)
-#     comp.Unlock()
 #     return {"result": True, "doImport": True}
 
 
@@ -471,7 +321,6 @@ def createAbcScene(plugin, origin, UUID):
 # @err_catcher(name=__name__)
 # def importFBX(self, importPath, origin):
 #     comp = self.getCurrentComp()
-#     comp.Lock()
 #     #	Add FBX Mesh node
 #     fbxTool = comp.AddTool("SurfaceFBXMesh")
 #     #	Set import mesh file path
@@ -485,7 +334,6 @@ def createAbcScene(plugin, origin, UUID):
 #     fbxTool.SetAttrs({"TOOLS_Name": toolName})
 #     #	Add custom UUID
 #     fbxTool.SetData('PrImportUID', self.createUUID())
-#     comp.Unlock()
 #     return {"result": True, "doImport": True}
 #     return self.importFormatByUI(origin = origin, formatCall="FBXImport", filepath=importPath, global_scale=100)
 
@@ -572,7 +420,6 @@ def createAbcScene(plugin, origin, UUID):
 #             #Set the position of the imported nodes relative to the previously active tool or last click in compView
 #             impnodes = [n for n in importedTools]
 #             if len(impnodes) > 0:
-#                 comp.Lock()
 
 #                 fisrtnode = impnodes[0]
 #                 fstnx, fstny = flow.GetPosTable(fisrtnode).values()
@@ -586,7 +433,6 @@ def createAbcScene(plugin, origin, UUID):
 #                         newy = y+(aty-y)+offset[1]
 #                         flow.SetPos(n, newx-1, newy)
 
-#                 comp.Unlock()
 #             ##########
 
 #             importedNodes = []

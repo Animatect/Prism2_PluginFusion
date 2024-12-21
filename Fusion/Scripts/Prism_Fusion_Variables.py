@@ -30,6 +30,23 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Prism.  If not, see <https://www.gnu.org/licenses/>.
+###########################################################################
+#
+#                BMD Fusion Studio Integration for Prism2
+#
+#             https://github.com/Animatect/Prism2_PluginFusion
+#
+#                           Esteban Covo
+#                     e.covo@magichammer.com.mx
+#                     https://magichammer.com.mx
+#
+#                           Joshua Breckeen
+#                              Alta Arts
+#                          josh@alta-arts.com
+#
+###########################################################################
+
+
 import os
 
 class Prism_Fusion_Variables(object):

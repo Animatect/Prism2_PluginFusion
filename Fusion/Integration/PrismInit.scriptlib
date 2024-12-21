@@ -1,6 +1,79 @@
+-- -*- coding: utf-8 -*-
+--
+-- ####################################################
+--
+-- PRISM - Pipeline for animation and VFX projects
+--
+-- www.prism-pipeline.com
+--
+-- contact: contact@prism-pipeline.com
+--
+-- ####################################################
+--
+--
+-- Copyright (C) 2016-2023 Richard Frangenberg
+-- Copyright (C) 2023 Prism Software GmbH
+--
+-- Licensed under GNU LGPL-3.0-or-later
+--
+-- This file is part of Prism.
+--
+-- Prism is free software: you can redistribute it and/or modify
+-- it under the terms of the GNU Lesser General Public License as published by
+-- the Free Software Foundation, either version 3 of the License, or
+-- (at your option) any later version.
+--
+-- Prism is distributed in the hope that it will be useful,
+-- but WITHOUT ANY WARRANTY; without even the implied warranty of
+-- MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+-- GNU Lesser General Public License for more details.
+--
+-- You should have received a copy of the GNU Lesser General Public License
+-- along with Prism.  If not, see <https://www.gnu.org/licenses/>.
+-- ###########################################################################
+--
+--                BMD Fusion Studio Integration for Prism2
+--
+--             https://github.com/Animatect/Prism2_PluginFusion
+--
+--                           Esteban Covo
+--                     e.covo@magichammer.com.mx
+--                     https://magichammer.com.mx
+--
+--                           Joshua Breckeen
+--                              Alta Arts
+--                          josh@alta-arts.com
+--
+-- ###########################################################################
+
+
 fusion = bmd.scriptapp("Fusion")
 
-if fusion:GetAttrs("FUSIONB_IsRenderNode") == false then
+-- Check if Fusion is a Render Node
+local function isRenderNode()
+    return fusion:GetAttrs("FUSIONB_IsRenderNode")
+end
+
+-- Check if already executed using a session identifier
+local sessionKey = "PrismStartupExecuted_" .. os.time()
+
+if fusion:GetData(sessionKey) then
+    print("[Prism] Startup already executed. Skipping.")
+    return
+end
+
+-- Check if a Comp is already open
+local currentComp = fusion:GetCurrentComp()
+if currentComp then
+    print("[Prism] A Comp is already open. Skipping Startup.")
+    return
+end
+
+-- Delay setting the flag to avoid premature triggers
+print("[Prism] Executioning startup.")
+
+-- Execute Startup
+if not isRenderNode() then
     -- Define paths for config file and scripts
     local configPath = fusion:MapPath("Scripts:PrismAutostart.config")
     local resetScriptPath = fusion:MapPath("Scripts:Prism/ResetPrism.py")
@@ -24,11 +97,14 @@ if fusion:GetAttrs("FUSIONB_IsRenderNode") == false then
     local configContent = readConfig()
     local startMode = configContent and configContent:match("autoStart:%s*(%w+)")
 
+    -- Set the execution flag after logic begins
+    fusion:SetData(sessionKey, true)
+
     -- Determine the action based on startMode
     if startMode == "automatic" then
         -- Run ResetPrism.py
         if bmd.fileexists(resetScriptPath) then
-			print("[Prism] Starting in Automatic mode")
+            print("[Prism] Starting Prism in Automatic mode")
             fusion:RunScript(resetScriptPath, {scriptlib = true})
         else
             print("[Prism Error] Can't find file: " .. resetScriptPath)
@@ -36,15 +112,17 @@ if fusion:GetAttrs("FUSIONB_IsRenderNode") == false then
     elseif startMode == "prompt" then
         -- Run startupDialog.py
         if bmd.fileexists(promptScriptPath) then
-			print("[Prism] Starting in Prompt mode.")
+            print("[Prism] Starting Prism in Prompt mode.")
             fusion:RunScript(promptScriptPath, {scriptlib = true})
         else
             print("[Prism Error] Can't find file: " .. promptScriptPath)
         end
     elseif startMode == "manual" then
         -- Do nothing
-        print("[Prism] Starting in Manual mode.")
+        print("[Prism] Starting Prism in Manual mode.")
     else
         print("[Prism Error] Invalid start mode in config file: " .. tostring(startMode))
     end
+else
+    print("[Prism] Render node detected. Skipping script execution.")
 end

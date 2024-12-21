@@ -30,6 +30,21 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Prism.  If not, see <https://www.gnu.org/licenses/>.
+###########################################################################
+#
+#                BMD Fusion Studio Integration for Prism2
+#
+#             https://github.com/Animatect/Prism2_PluginFusion
+#
+#                           Esteban Covo
+#                     e.covo@magichammer.com.mx
+#                     https://magichammer.com.mx
+#
+#                           Joshua Breckeen
+#                              Alta Arts
+#                          josh@alta-arts.com
+#
+###########################################################################
 
 
 import os
@@ -121,7 +136,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 
 		# Task Node Coloring combo box
 		origin.cb_taskColoring.addItems(["Disabled", "All Nodes", "Loader Nodes"])
-		origin.cb_taskColoring.setCurrentIndex(0)
+		origin.cb_taskColoring.setCurrentIndex(1)
 		lo_taskColoring.addWidget(origin.l_taskColoring)
 		lo_taskColoring.addWidget(origin.cb_taskColoring)
 
@@ -139,7 +154,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 		# Add options to the Color Brightness combo box (10% to 100% in 10% increments)
 		brightness_levels = [f"{i}%" for i in range(10, 110, 10)]
 		origin.cb_colorBrightness.addItems(brightness_levels)
-		origin.cb_colorBrightness.setCurrentIndex(9)  # Default to "100%"
+		origin.cb_colorBrightness.setCurrentIndex(4)  # Default to "50%"
 		lo_taskColoring.addWidget(origin.l_colorBrightness)
 		lo_taskColoring.addWidget(origin.cb_colorBrightness)
 

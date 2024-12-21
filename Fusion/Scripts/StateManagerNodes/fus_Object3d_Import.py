@@ -30,6 +30,21 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Prism.  If not, see <https://www.gnu.org/licenses/>.
+###########################################################################
+#
+#                BMD Fusion Studio Integration for Prism2
+#
+#             https://github.com/Animatect/Prism2_PluginFusion
+#
+#                           Esteban Covo
+#                     e.covo@magichammer.com.mx
+#                     https://magichammer.com.mx
+#
+#                           Joshua Breckeen
+#                              Alta Arts
+#                          josh@alta-arts.com
+#
+###########################################################################
 
 
 import os
@@ -44,8 +59,8 @@ from PrismUtils.Decorators import err_catcher
 logger = logging.getLogger(__name__)
 
 
-class ABC_ImportClass(object):
-    className = "ABC_Import"
+class Object3d_ImportClass(object):
+    className = "Object3d_Import"
     listType = "Import"
     stateCategories = {"Import3d": [{"label": className, "stateType": className}]}
 
@@ -63,13 +78,13 @@ class ABC_ImportClass(object):
     ):
         
         self.state = state
-        self.stateMode = "ABC_Import"                           #   TODO  Handle setting stateMode for the UI label.
+        self.stateMode = "Object3d_Import"                           #   TODO  Handle setting stateMode for the UI label.
 
         self.core = core
         self.stateManager = stateManager
         self.fuseFuncts = self.core.appPlugin
 
-        self.supportedFormats = [".abc"]
+        self.supportedFormats = [".fbx", ".abc"]
 
         self.taskName = ""
         self.setName = ""
@@ -114,7 +129,7 @@ class ABC_ImportClass(object):
             _, extension = os.path.splitext(importPath)
 
             if extension.lower() not in self.supportedFormats:
-                self.core.popup(f"{extension.upper()} is not supported with this Import State")           #   TESTING
+                self.core.popup(f"{extension.upper()} is not supported with this Import State")
                 return False
             
             self.setImportPath(importPath)
@@ -139,7 +154,7 @@ class ABC_ImportClass(object):
         tip = ("Create a simple Fusion 3d scene.\n\n"
                "This will add and connect:\n"
                "A Merge3d and a Renderer3d")
-        self.b_createAbcScene.setToolTip(tip)
+        self.b_create3dScene.setToolTip(tip)
 
         self.nameChanged()
         self.updateUi()
@@ -153,15 +168,26 @@ class ABC_ImportClass(object):
 
     @err_catcher(name=__name__)
     def requestImportPaths(self):
-        result = self.core.callback("requestImportPath", self)
-        for res in result:
-            if isinstance(res, dict) and res.get("importPaths") is not None:
-                return res["importPaths"]
+        #   Calls the Prism Library window as per Prism settings from callback in Librries plugin
 
+        # DISABLED - So will always open ProjectBrowser->Products tab
+        #   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # # result = self.core.callback("requestImportPath", self.stateManager)     #   TODO This causes issue on one machine when opening SM after import
+        # result = self.core.callback("requestImportPath", self)     #   TODO This works but window behind SM.
+
+        # #   If user selects from Library, returns file path
+        # for res in result:
+        #     if isinstance(res, dict) and res.get("importPaths") is not None:
+        #         return res["importPaths"]
+
+        #   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        #   Calls Product Browser
         import ProductBrowser
         ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
         self.core.parentWindow(ts)
         ts.exec_()
+        #   If user selects from Library, returns file path
         importPath = [ts.productPath]
         return importPath
 
@@ -174,11 +200,11 @@ class ABC_ImportClass(object):
             self.stateUID = data["stateUID"]
         if "statemode" in data:
             self.setStateMode(data["statemode"])
-        if "filepath" in data:
-            data["filepath"] = getattr(
+        if "3dFilepath" in data:
+            data["3dFilepath"] = getattr(
                 self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
-            )(data["filepath"])
-            self.setImportPath(data["filepath"])
+            )(data["3dFilepath"])
+            self.setImportPath(data["3dFilepath"])
         if "taskname" in data:
             self.taskName = data["taskname"]
         if "nodenames" in data:
@@ -202,7 +228,7 @@ class ABC_ImportClass(object):
         self.b_import.clicked.connect(lambda: self.importObject(update=True))
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
-        self.b_createAbcScene.clicked.connect(self.createAbcScene)
+        self.b_create3dScene.clicked.connect(self.create3dScene)
 
 
     @err_catcher(name=__name__)
@@ -408,16 +434,22 @@ class ABC_ImportClass(object):
         productVersion = cacheData["version"]
         nodeName = f"{productName}_{productVersion}"
 
-        nodeData = {"nodeName": nodeName,
-                    "version": productVersion,
-                    "filepath": impFileName,
-                    "product": productName,
-                    "format": "ABC"}
+        #   Get file extension
+        _, extension = os.path.splitext(impFileName)
 
-        importResult = self.fuseFuncts.importABC(self,
-                                                UUID=self.stateUID,
-                                                nodeData=nodeData,
-                                                update=update)
+        #   Make node data
+        nodeData = {"nodeName": nodeName,
+                    "nodeUID": self.stateUID,
+                    "version": productVersion,
+                    "3dFilepath": impFileName,
+                    "product": productName,
+                    "format": extension.lower()}
+
+        #   Call import function
+        importResult = self.fuseFuncts.import3dObject(self,
+                                                      UUID=self.stateUID,
+                                                      nodeData=nodeData,
+                                                      update=update)
 
         if not importResult:
             result = None
@@ -505,15 +537,15 @@ class ABC_ImportClass(object):
         return curVersionData, latestVersionData
 
 
-    #   Creates simple Fusion 3d Scene with Merge3d and Renderer3d
-    @err_catcher(name=__name__)
-    def createAbcScene(self):
+    #   Creates simple 3d Scene with Merge3d and Renderer3d
+    @err_catcher(name=__name__)                                         #   TODO - Handle errors
+    def create3dScene(self):
         if self.stateManager.standalone:
             return
         
         UUID = self.stateUID
         
-        result = self.fuseFuncts.createAbcScene(self, UUID)
+        result = self.fuseFuncts.create3dScene(self, UUID)
 
 
     @err_catcher(name=__name__)
@@ -582,8 +614,12 @@ class ABC_ImportClass(object):
                 elif self.nodes:
                     status = "ok"
 
+                #   Color green if is latest version
                 if useSS:
-                    self.b_importLatest.setStyleSheet("")
+                    self.b_importLatest.setStyleSheet(
+                        "QPushButton { background-color: rgb(0,130,0); }"
+                    )
+
                 else:
                     self.b_importLatest.setPalette(self.oldPalette)
 
@@ -625,7 +661,7 @@ class ABC_ImportClass(object):
             "statename": self.e_name.text(),
             "stateUID": self.stateUID,
             "statemode": self.stateMode,
-            "filepath": self.getImportPath(),
+            "3dFilepath": self.getImportPath(),
             "autoUpdate": str(self.chb_autoUpdate.isChecked()),
             "taskname": self.taskName,
             "nodenames": str(self.nodeNames),

@@ -1,4 +1,4 @@
-# **Importing**
+# **Importing 3d**
 Importing images into Fusion can be done utilizing the native method by drag/dropping of course.  But the Prism integration provides a better process utilizing the Project Browser.
 
 To import into Fusion first launch the Project Browser from the Prism menu in Fusion, and right click on the image in the viewer.
@@ -47,6 +47,8 @@ Depending on the type of image file and file structure, the user will be prompte
 
 jump to:
 
-[**Interface Docs**](Interface.md)
+[**Interface**](Interface.md)
 
-[**Rendering Docs**](Rendering.md)
+[**Rendering**](Rendering.md)
+
+[**Importing Images**](Importing_2d.md)
