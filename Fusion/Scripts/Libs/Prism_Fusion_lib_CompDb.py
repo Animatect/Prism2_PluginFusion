@@ -72,7 +72,20 @@ logger = logging.getLogger(__name__)
 #   DataBase Structure:                                 ####   TODO - MAKE SURE IT IS ACCURATE     ####
 #
 #   Root(
-#       "nodes"(
+#        "comp": {
+#           "mediaIdColors": {
+#               "asset": {},
+#               "shot": {
+#               "MEDIA IDENTIFIER": {           (  string  )
+#                   "R": 1.0,                   (  int  )
+#                   "G": 0.6588235294117647,    (  int  )
+#                   "B": 0.2                    (  int  )
+#                   }
+#               }
+#           },
+#           "sortingDisabled": bool
+#       },
+#       "nodes"{
 #           "import2d" (
 #               UUID: {
 #                   NodeData: {
@@ -166,11 +179,12 @@ def createDefaultPrismFileDb(comp) -> dict:
     #   This template needs to have the required keys.
     #   Add additional keys as needed.
     defaultDb = {
-        "fileValues": {
-            "identifiersColors": {
+        "comp": {
+            "mediaIdColors": {
                 "asset": {},
                 "shot": {}
-            }
+            },
+            "sortingDisabled": False
         },
         "nodes": {
             "import3d": {},
@@ -233,7 +247,7 @@ def savePrismFileDb(comp, cpData_orig:dict):
 
 #   Removes DB records if the node does not exist in Comp
 @err_catcher(name=__name__)
-def cleanPrismFileDb(comp, cpData_orig:dict) ->dict:
+def cleanPrismFileDb(comp, cpData_orig:dict) -> dict:
     try:
         cpData_cleaned = cpData_orig.copy()
 
@@ -263,7 +277,7 @@ def addPrismDbIdentifier(comp, category:str, name:str, color:int):
     cpData = loadPrismFileDb(comp)
     try:
         if category in ["asset", "shot"]:
-            cpData["fileValues"]["identifiersColors"][category][name] = color
+            cpData["comp"]["mediaIdColors"][category][name] = color
             savePrismFileDb(comp, cpData)
             logger.debug(f"Added {category}{name} to Prism Comp Database")
     except:
@@ -276,9 +290,9 @@ def getPrismDbIdentifierColor(comp, category:str, name:str) -> Union[Color, None
     try:
         logger.debug(f"Getting Identifier Color for {name}")
         cpData = loadPrismFileDb(comp)
-        if category in cpData["fileValues"]["identifiersColors"]:
-            if name in cpData["fileValues"]["identifiersColors"][category]:
-                color = cpData["fileValues"]["identifiersColors"][category][name]
+        if category in cpData["comp"]["mediaIdColors"]:
+            if name in cpData["comp"]["mediaIdColors"][category]:
+                color = cpData["comp"]["mediaIdColors"][category][name]
                 logger.debug(f"{color} found for {name}")
                 return color
         
@@ -288,9 +302,30 @@ def getPrismDbIdentifierColor(comp, category:str, name:str) -> Union[Color, None
         logger.warning("ERROR:  Unable to get Identifier Color")
 
 
+#   Sets/Gets the checkbox state of the dialog as part of the comp data.
+@err_catcher(name=__name__)
+def sortingEnabled(comp, save:bool=False, checked:bool=None) -> bool:
+    cpData = loadPrismFileDb(comp)
+
+    if save:
+        try:
+            cpData["comp"]["sortingDisabled"] = checked
+            savePrismFileDb(comp, cpData)
+            return True
+        except:
+            logger.warning("ERROR:  Unable to save Sorting Disabled state")
+            return False
+
+    try:
+        return cpData["comp"]["sortingDisabled"]
+    except:
+        logger.warning("ERROR:  Unable to get Sorting Disabled state")
+        return False
+    
+
 #   Adds new Node to the DB
 @err_catcher(name=__name__)
-def addNodeToDB(comp, type:str, UUID:str, nodeData:dict) -> bool:
+def addNodeToDB(comp, listType:str, UUID:str, nodeData:dict) -> bool:
     cpData = loadPrismFileDb(comp)
 
     #   Remove the UID from the data since it is the main key
@@ -300,14 +335,14 @@ def addNodeToDB(comp, type:str, UUID:str, nodeData:dict) -> bool:
 
     try:
         #   Checks is there is already an item in the DB
-        matchingUID = checkRecordInDb(comp, type, UUID, nodeData)
+        matchingUID = checkRecordInDb(comp, listType, UUID, nodeData)
         if matchingUID:
             #   Removes the original record and reloads the DB
-            removeNodeFromDB(comp, type, matchingUID)
+            removeNodeFromDB(comp, listType, matchingUID)
             cpData = loadPrismFileDb(comp)
 
         #   Adds the record to the Database
-        cpData["nodes"][type][UUID] = nodeData
+        cpData["nodes"][listType][UUID] = nodeData
         savePrismFileDb(comp, cpData)
 
         if "nodeName" in nodeData:                                                  #   TODO Deal with toolName vs nodeName
@@ -328,12 +363,12 @@ def addNodeToDB(comp, type:str, UUID:str, nodeData:dict) -> bool:
 #   Checks is there is already a record in the Database
 #   This is to cover if a node was added, then deleted in Fusion, and added again.
 @err_catcher(name=__name__)
-def checkRecordInDb(comp, type:str, UUID:str, nodeData:dict) -> Union[UUID | bool]:
+def checkRecordInDb(comp, listType:str, UUID:str, nodeData:dict) -> Union[UUID | bool]:
     cpData = loadPrismFileDb(comp)
 
     try:
-        #   Get the database branch for the specified type
-        typeBranch = cpData["nodes"].get(type, {})
+        #   Get the database branch for the specified listType
+        typeBranch = cpData["nodes"].get(listType, {})
 
         #   Items to compare in the records
         checkItems = ["nodeName", "version", "filepath", "format", "mediaId", "displayName"]
@@ -374,12 +409,12 @@ def checkRecordInDb(comp, type:str, UUID:str, nodeData:dict) -> Union[UUID | boo
 
 #   Removes a Node from the DB
 @err_catcher(name=__name__)
-def removeNodeFromDB(comp, type:str, UUID:str):
+def removeNodeFromDB(comp, listType:str, UUID:str):
     cpData = loadPrismFileDb(comp)
 
     try:
-        if UUID in cpData["nodes"][type]:
-            del cpData["nodes"][type][UUID]
+        if UUID in cpData["nodes"][listType]:
+            del cpData["nodes"][listType][UUID]
             logger.debug(f"Removed {UUID} from the Comp Database")
             savePrismFileDb(comp, cpData)
         else:
@@ -391,7 +426,7 @@ def removeNodeFromDB(comp, type:str, UUID:str):
 
 #   Gets the database record for a given importData dict
 @err_catcher(name=__name__)
-def getUIDsFromImportData(comp, type:str, importData:dict) -> dict:
+def getUIDsFromImportData(comp, listType:str, importData:dict) -> dict:
     cpData = loadPrismFileDb(comp)
 
     if not cpData:
@@ -400,11 +435,14 @@ def getUIDsFromImportData(comp, type:str, importData:dict) -> dict:
     uids = []
     
     try:
-        #   Get the requested node type
-        nodes = cpData.get("nodes", {}).get(type, {})
+        #   Get the requested node listType
+        nodes = cpData.get("nodes", {}).get(listType, {})
         if not nodes:
-            logger.warning(f"ERROR: Node type '{type}' not found in the database.")
-            return None
+            if listType in ["import2d", "import3d"]:
+                logger.debug(f"No records exist in the {listType} database")
+            else:
+                logger.warning(f"ERROR: Node type '{listType}' not found in the database.")
+            return []
         
         #   Extract fields from importData
         import_mediaId = importData.get("identifier")
@@ -435,22 +473,22 @@ def getUIDsFromImportData(comp, type:str, importData:dict) -> dict:
         return uids
     
     except:
-        logger.warning(f"No nodes found with mediaId '{import_mediaId}' in type '{type}'.")
-        return None
+        logger.warning(f"No nodes found with mediaId '{import_mediaId}' in type '{listType}'.")
+        return []
 
 
 #   Gets the database record for a given Identifier
 @err_catcher(name=__name__)
-def getDbRecordFromMediaId(comp, type:str, mediaId:str) -> dict:
+def getDbRecordFromMediaId(comp, listType:str, mediaId:str) -> dict:
     cpData = loadPrismFileDb(comp)
 
     if not cpData:
         return None
     
-    #   Get the requested node type
-    nodes = cpData.get("nodes", {}).get(type, {})
+    #   Get the requested node listType
+    nodes = cpData.get("nodes", {}).get(listType, {})
     if not nodes:
-        logger.warning(f"ERROR: Node type '{type}' not found in the database.")
+        logger.warning(f"ERROR: Node type '{listType}' not found in the database.")
         return None
     
     #   Search for a node matching the given mediaId
@@ -460,13 +498,13 @@ def getDbRecordFromMediaId(comp, type:str, mediaId:str) -> dict:
             if exists:
                 return [uuid, exists, node_data]
                 
-    logger.warning(f"ERROR: No node found with mediaId '{mediaId}' in type '{type}'.")
+    logger.warning(f"ERROR: No node found with mediaId '{mediaId}' in type '{listType}'.")
     return None
 
 
 #   Updates the Node's Data in the DB
 @err_catcher(name=__name__)
-def updateNodeInfo(comp, type:str, UUID:str, nodeData:dict) -> bool:
+def updateNodeInfo(comp, listType:str, UUID:str, nodeData:dict) -> bool:
     cpData = loadPrismFileDb(comp)
 
     #   Remove the UID from the data since it is the main key
@@ -477,8 +515,8 @@ def updateNodeInfo(comp, type:str, UUID:str, nodeData:dict) -> bool:
 
     try:
         #   Updates existing keys as needed
-        if UUID in cpData["nodes"][type]:
-            cpData["nodes"][type][UUID].update(nodeDataCopy)
+        if UUID in cpData["nodes"][listType]:
+            cpData["nodes"][listType][UUID].update(nodeDataCopy)
 
             if "nodeName" in nodeDataCopy:
                 logger.debug(f"Updated {nodeDataCopy['nodeName']} data.")
@@ -496,14 +534,38 @@ def updateNodeInfo(comp, type:str, UUID:str, nodeData:dict) -> bool:
         return False
         
 
+#   Return a list of MediaIds for a given type
+@err_catcher(name=__name__)
+def getMediaIDsForType(comp, listType:str) -> list[str]:
+    #   Get database data
+    cpData = loadPrismFileDb(comp)
+
+    mediaIDs = set()
+
+    try:
+        # Check if the listType exists in the comp
+        if listType in cpData["nodes"]:
+            # Loop through the UUIDs under the specified listType
+            for uuid in cpData["nodes"][listType]:
+                #   Get Media ID
+                id = cpData["nodes"][listType][uuid]["mediaId"]
+                mediaIDs.add(id)
+        
+            logger.debug("Constructed list of MediaID's")
+            return sorted(mediaIDs)
+    
+    except Exception as e:
+        logger.warning(f"ERROR: Unable to get list of MediaID's from database:\n{e}")
+
+
 #   Return the Node Data for a given Node
 @err_catcher(name=__name__)
-def getNodeInfo(comp, type:str, UUID:str) -> dict:
+def getNodeInfo(comp, listType:str, UUID:str) -> dict:
     cpData = loadPrismFileDb(comp)
 
     try:
-        if UUID in cpData["nodes"][type]:
-            return cpData["nodes"][type][UUID]
+        if UUID in cpData["nodes"][listType]:
+            return cpData["nodes"][listType][UUID]
         else:
             logger.debug(f"The is no data for node: {UUID}")
             return False
@@ -514,7 +576,7 @@ def getNodeInfo(comp, type:str, UUID:str) -> dict:
 
 #   Returns list of import files based on selected tools
 @err_catcher(name=__name__)
-def getFilesFromSelTools(comp, importData:dict, selUIDs:list) -> list:
+def getFilesFromSelTools(comp, importData:dict, selUIDs:list) -> list[str]:
     selItems = []
     #   Get files list
     importFileList = importData["files"]
@@ -656,14 +718,14 @@ def getNodeUidFromTool(tool) -> str:
 
 #   Returns tool UID based on Identifier
 @err_catcher(name=__name__)
-def getNodeUidFromMediaId(comp, type:str, mediaId:str) -> Union[str | list | None]:
+def getNodeUidFromMediaId(comp, listType:str, mediaId:str) -> Union[str | list | None]:
     cpData = loadPrismFileDb(comp)
 
     matchingNodes = []
 
     try:
-        #   Iterate through nodes of the given type
-        for uuid, nodeData in cpData["nodes"].get(type, {}).items():
+        #   Iterate through nodes of the given listType
+        for uuid, nodeData in cpData["nodes"].get(listType, {}).items():
             if nodeData.get("mediaId") == mediaId:
                 matchingNodes.append(uuid)
         
@@ -685,14 +747,14 @@ def getNodeUidFromMediaId(comp, type:str, mediaId:str) -> Union[str | list | Non
 
 #   Returns tool UID based on Identifier display name
 @err_catcher(name=__name__)
-def getNodeUidFromMediaDisplayname(comp, type:str, mediaId:str) -> Union[UUID | None]:
+def getNodeUidFromMediaDisplayname(comp, listType:str, mediaId:str) -> Union[UUID | None]:
     cpData = loadPrismFileDb(comp)
 
     mediaIdUids = []
 
     try:
-        # Iterate through nodes of the given type
-        for uuid, nodeData in cpData["nodes"].get(type, {}).items():
+        # Iterate through nodes of the given listType
+        for uuid, nodeData in cpData["nodes"].get(listType, {}).items():
             if nodeData.get("displayName") == mediaId:
                 mediaIdUids.append(uuid)
         
@@ -712,13 +774,25 @@ def getNodeUidFromMediaDisplayname(comp, type:str, mediaId:str) -> Union[UUID | 
 
 #   Returns the Connected Nodes for a given Node
 @err_catcher(name=__name__)
-def getConnectedNodes(comp, type:str, UUID:str) -> Union[list | None]:
+def getConnectedNodes(comp, listType:str, UUID:str) -> Union[list | None]:
     cpData = loadPrismFileDb(comp)
 
     try:
-        if UUID in cpData["nodes"][type]:
-            nodeData = cpData["nodes"][type][UUID]
-            return nodeData["connectedNodes"]
+        if UUID in cpData["nodes"][listType]:
+            nodeData = cpData["nodes"][listType][UUID]
+            connectedNodes = nodeData["connectedNodes"]
+
+            #   If connected nodes is a dict with names
+            if isinstance(connectedNodes, dict):
+                connUIDs = []
+                for name, uid in connectedNodes.items():
+                    connUIDs.append(uid)
+
+                return connUIDs
+            #   If connected nodes is just a list of UIDs
+            else:
+                return connectedNodes
+
         else:
             logger.debug(f"{UUID} does not exist in the Comp Database")
             return None
@@ -730,7 +804,7 @@ def getConnectedNodes(comp, type:str, UUID:str) -> Union[list | None]:
 #	Gets either single UID or List of UID's
 #	and returns the original and all connected UUID's
 @err_catcher(name=__name__)
-def getAllConnectedNodes(comp, nodeUIDs:Union[list|str]) -> list:
+def getAllConnectedNodes(comp, listType:str, nodeUIDs:Union[list|str]) -> list[Tool]:
     mainToolsUIDs = []
     allToolUIDs = []
 
@@ -745,7 +819,7 @@ def getAllConnectedNodes(comp, nodeUIDs:Union[list|str]) -> list:
         for mainToolUID in mainToolsUIDs:
             allToolUIDs.append(mainToolUID)
             #	Get connected  nodes from the Comp Database
-            connectedNodes = getConnectedNodes(comp, "import2d", mainToolUID)
+            connectedNodes = getConnectedNodes(comp, listType, mainToolUID)
             for connNodeUID in connectedNodes:
                 allToolUIDs.append(connNodeUID)
         
@@ -845,10 +919,14 @@ def sm_saveImports(comp, importPaths:str):
 def sm_readStates(comp) -> str:
     try:
         prismdata = comp.GetData("prismStates")
-        return prismdata.split("_..._")[0]
+        if not prismdata:
+            logger.debug("Prism State Data does not exist.")
+        else:
+            return prismdata.split("_..._")[0]
     except:
         logger.warning(f"ERROR:  Unable to read State Data from comp: {comp}")
-        return 
+        logger.warning(f"ERROR:  Resetting Prism State Data")
+        setDefaultState()
 
 
 #	Gets called from SM to remove all States

@@ -119,27 +119,6 @@ def getFusLegalName(origName:str, check:bool=False) -> str:			#	TODO  Restructur
     return newName
 
 
-#	Sets up the name based on avail data
-@err_catcher(name=__name__)
-def makeLdrName(importData:dict) -> str:
-    try:
-        ldrName = importData.get('identifier') or importData.get("mediaId")
-
-        if "aov" in importData:
-            ldrName = ldrName + f"_{importData['aov']}"
-
-        if "channel" in importData:
-            ldrName = ldrName + f"_{importData['channel']}"
-   
-        ldrName = ldrName + f"_{importData['version']}"
-        
-        return ldrName
-    
-    except Exception as e:
-        logger.warning(f"ERROR: Unable to make Loader name from Import Data:\n{e}")
-        return None
-
-
 #   Makes import data dict from various Prism data sources
 @err_catcher(name=__name__)
 def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
@@ -317,7 +296,7 @@ def getFileDataFromAOV(fileList:list, aov:str) -> dict:
 
 #	Returns an average luminance value
 @err_catcher(name=__name__)
-def calculateLuminance(color:dict) -> int:
+def calculateLuminance(color:dict) -> float:
     try:
         r,g,b = color['R'], color['G'], color['B']
         # No need for normalization if RGB values are already in [0, 1]

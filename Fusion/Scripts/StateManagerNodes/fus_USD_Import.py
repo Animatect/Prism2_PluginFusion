@@ -169,15 +169,26 @@ class USD_ImportClass(object):
 
     @err_catcher(name=__name__)
     def requestImportPaths(self):
-        result = self.core.callback("requestImportPath", self)
-        for res in result:
-            if isinstance(res, dict) and res.get("importPaths") is not None:
-                return res["importPaths"]
+        #   Calls the Prism Library window as per Prism settings from callback in Librries plugin
 
+        # DISABLED - So will always open ProjectBrowser->Products tab
+        #   vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+        # # result = self.core.callback("requestImportPath", self.stateManager)     #   TODO This causes issue on one machine when opening SM after import
+        # result = self.core.callback("requestImportPath", self)     #   TODO This works but window behind SM.
+
+        # #   If user selects from Library, returns file path
+        # for res in result:
+        #     if isinstance(res, dict) and res.get("importPaths") is not None:
+        #         return res["importPaths"]
+
+        #   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+        #   Calls Product Browser
         import ProductBrowser
         ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
         self.core.parentWindow(ts)
         ts.exec_()
+        #   If user selects from Library, returns file path
         importPath = [ts.productPath]
         return importPath
 
