@@ -49,15 +49,13 @@
 
 import sys
 import os
-import time
-from datetime import datetime
+
 import PrismInit
 import openPrismWindows as opw
 import BlackmagicFusion as bmd
 
-import manageprismpaths
 
-from qtpy import QtCore, QtGui, QtWidgets
+from qtpy import QtWidgets
 
 
 class PrismHolderClass(object):
@@ -139,58 +137,71 @@ class PrismHolderClass(object):
 		self.itm = self.dlg.GetItems()
 		self.dlg.On.PrismHolder.Close = self._func
 
-		# Add your GUI element based event Handlers here:
+		# Add Buttons:
 		self.dlg.On.Bootstrap.Clicked = self.bootstrapPrism
 		self.dlg.On.rcip.Clicked = self.runCodeInProcess
 		self.dlg.On.btn_lockFile.Clicked = self.on_btn_lockFile
 		# Prism UI Functions
-		self.dlg.On.btn_projectbrowser.Clicked = self.on_btn_projectbrowser_clicked
-		self.dlg.On.btn_saveversion.Clicked = self.on_btn_saveversion_clicked
-		self.dlg.On.btn_savecomment.Clicked = self.on_btn_savecomment_clicked
-		self.dlg.On.btn_statemanager.Clicked = self.on_btn_statemanager_clicked
-		self.dlg.On.btn_prismsettings.Clicked = self.on_btn_prismsettings_clicked
+		self.dlg.On.btn_projectbrowser.Clicked = self.on_btn_projectBrowser_clicked
+		self.dlg.On.btn_saveversion.Clicked = self.on_btn_saveVersion_clicked
+		self.dlg.On.btn_savecomment.Clicked = self.on_btn_saveComment_clicked
+		self.dlg.On.btn_statemanager.Clicked = self.on_btn_stateManager_clicked
+		self.dlg.On.btn_prismsettings.Clicked = self.on_btn_prismSettings_clicked
 
 		# Set Global Variable
 		self.bootstrapPrism()
 
+
+		# # # # # # # # # # # # #
+		#	Hides or Shows the Hidden Menu Window
 		# self.dlg.Show()
 		self.disp.RunLoop()
 		self.dlg.Hide()
+		# # # # # # # # # # # # #
+
 
 	# The window was closed
 	def _func(self, ev):
 		self.disp.ExitLoop()
 
+
 	def bootstrapPrism(self, ev=None):
-		global global_Prism # Declare global_var as global
+		global global_Prism
 		global_Prism = prismStateHolderClass()
+
 	
 	def runCodeInProcess(self, ev=None):
 		global_Prism.runCodeInProcess()
 
+
 	def on_btn_lockFile(self, ev=None):
 		global_Prism.lockFile()
+
 	
 	# Add your GUI element based event functions here: ev is the event object
-	def on_btn_projectbrowser_clicked(self, ev):
+	def on_btn_projectBrowser_clicked(self, ev):
 		if global_Prism.pcore.getPlugin("Fusion").pbUI:
-			print("Already Opened")
+			print("[Prism] Project Browser is already opened")
 		else:
 			opw.openProjectBrowser(global_Prism.pcore)
 
-	def on_btn_saveversion_clicked(self, ev):
+
+	def on_btn_saveVersion_clicked(self, ev):
 		opw.runPrismSaveScene(global_Prism.pcore)
 
-	def on_btn_savecomment_clicked(self, ev):
+
+	def on_btn_saveComment_clicked(self, ev):
 		opw.openPrismSaveWithComment(global_Prism.pcore)
 
-	def on_btn_statemanager_clicked(self, ev):
+
+	def on_btn_stateManager_clicked(self, ev):
 		if global_Prism.pcore.getPlugin("Fusion").smUI:
-			print("Already Opened")
+			print("[Prism] State Manager is already opened")
 		else:
 			opw.openPrismStateManager(global_Prism.pcore)
 
-	def on_btn_prismsettings_clicked(self, ev):
+
+	def on_btn_prismSettings_clicked(self, ev):
 		opw.openPrismSettings(global_Prism.pcore)
 
 
@@ -204,70 +215,87 @@ class prismStateHolderClass(object):
 		self.prefUI = None
 		self.fusion = bmd.scriptapp("Fusion")
 
+		self.handledSanityPopups = set()
+
 		self.createPcore()
+
 	
 	def createPcore(self):		
+		print("[Prism] Creating Global Prism Instance")
+
+		#	Check if Prism already exists
 		qapp = QtWidgets.QApplication.instance()
-		if qapp == None:
+		if qapp is None:
 			qapp = QtWidgets.QApplication(sys.argv)
+
+		#	Show Starting popup
 		popup = opw.popupNoButton("Starting Prism", qapp, centered=True, large=True)
+
+		#	Create Prism Core from Lib function
 		pcore = PrismInit.prismInit()
-		# pcore.setActiveStyleSheet("Fusion")
 
-	# 	# It's easier to just manage the lockfiles ourselves via a loop running the PrismLoop.py process.
-	# 	self.fusion.SetData("PrismLocked", pcore.getLockScenefilesEnabled())
-	# 	#
-	
-	# 	current_time = datetime.now()
-	# 	date_time_str = self.fusion.GetData("PrismLoopTime")
-	# 	if date_time_str:
-	# 		previous_time = datetime.strptime(date_time_str, "%Y-%m-%d %H:%M:%S")
-	# 	else: # First time to set it.
-	# 		self.fusion.SetData("PrismLoopTime", current_time.strftime("%Y-%m-%d %H:%M:%S"))
-	# 		previous_time = datetime(1, 1, 1)
-	# 	print("date_time_str: ", date_time_str)
-	# 	# Calculate the elapsed time
-	# 	elapsed_time = current_time - previous_time
-	# 	seconds_passed = elapsed_time.total_seconds()
-
-	# 	if seconds_passed > 15:
-	# 		# Get the path to the timer script
-	# 		worker_script = os.path.join(self.get_script_dir(), 'PrismLoop.py')
-	# 		self.fusion.RunScript(worker_script)
-
+		#	Close the Starting popup
 		popup.close()
-		if pcore.pb:
-			qapp.exec_()
-		else:
-			self.checkForSanityMessage(qapp)
-		# Assign
+
+		if not pcore:
+			print("[PRISM ERROR] Unable to create Prism Core.  Please contact the developers.")
+			return None
+
+		# Assign pcore
 		self.pcore = pcore
 
-	def get_script_dir(self):
+#	THIS IS MAYBE WHERE THE EXTRA SANITY CHECKS ARE COMING FROM	
+#	THIS SEEMS TO BE WORKING NOW
+#	vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
+		# if pcore.pb:														#	NEEDED ????
+
+		# 	print("*** Starting QApplication event loop")					#	TESTING
+		# 	qapp.exec_()
+		# 	print("*** Exiting QApplication event loop")					#	TESTING
+
+		# else:
+
+		self.checkForSanityPopups(qapp)
+
+
+	#	Handles the Sanity popups
+	def checkForSanityPopups(self, qapp):
+		#	Closes all Sanity Popups
+		self.closeExistingPopups(qapp)
+
+		#	Itterates through all the existing popups
+		if qapp is not None:
+			for widget in qapp.topLevelWidgets():
+				#	Adds all the QMessage popups to Set once
+				if isinstance(widget, QtWidgets.QMessageBox) and widget not in self.handledSanityPopups:
+					self.handledSanityPopups.add(widget)
+					#	Executes the popups in the Set (Only shows each one once)
+					widget.exec_()
+
+	#	Closes all Sanity popups
+	def closeExistingPopups(self, qapp):
+		if qapp is not None:
+			for widget in qapp.topLevelWidgets():
+				if isinstance(widget, QtWidgets.QMessageBox):
+					widget.close()
+
+#	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+
+
+	def get_scriptDir(self):
 		# Try to determine the script's directory
 		if hasattr(sys, 'frozen'):  # PyInstaller
 			script_dir = os.path.dirname(sys.executable)
 		else:
 			script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
 		return script_dir
-
-	# Make a test to see if windows are open.
-	def checkForSanityMessage(self,qapp):
-		# appexists = False
-		if qapp is not None:
-			for widget in qapp.topLevelWidgets():
-				if isinstance(widget, QtWidgets.QMessageBox):
-					# appexists = True
-					# print(widget)
-					widget.exec_()
-					# widget.close()
-			# if appexists:
-			# 	# print("pffff")
-			# 	qapp.exec_()
 	
+
 	# Handle Locking.
 	def lockFile(self):
-		print("locking")
+		print("[Prism] Locking File")
 		if self.pcore.getLockScenefilesEnabled():
 			if not self.pcore.users.ensureUser():
 				return False
@@ -281,13 +309,10 @@ class prismStateHolderClass(object):
 
 	# Debug Functions.
 	def runCodeInProcess(self):
-		print("Object Exists")
+		print("[Prism] Object Exists")
 		fusion = bmd.scriptapp("Fusion")
 		comp = fusion.GetCurrentComp()
 		command = comp.GetData("cmd") # set the data in a variable from a diferent process comp.SetData("cmd", "print(global_Prism)")
 		# Command to run
 		code_string = command
 		exec(code_string)
-
-		print("Finish")
-

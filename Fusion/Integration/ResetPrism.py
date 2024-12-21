@@ -49,7 +49,6 @@
 
 import os
 import sys
-import time
 
 
 packagePath = os.path.normpath(THIRDPARTY)
@@ -58,29 +57,31 @@ sys.path.append(packagePath)
 import psutil
 
 
+
 def launch_prismFusion_menu():
 	print("[Prism] Launching Prism Core")
 	
-	# Make Sure the script runs only once at startup.
+	#	Check if Fusion Render Node is running
 	if not is_process_running("FusionRenderNode.exe"):
-		scriptPath = os.path.join(get_script_dir(), "CreateHolder.py")
+		scriptPath = os.path.join(get_scriptDir(), "CreateHolder.py")
 		fusion.RunScript(scriptPath)
 
 	else:
-		fusion_popup("RenderNode Running", "Render Node is Running\nplease Close it and Reset Prism from the menu.")
+		print("[Prism Error] Render Node is Running, Please Close it and Reset Prism from the menu.")
+		fusion_popup("RenderNode Running", "Render Node is Running\nPlease Close it and Reset Prism from the menu.")
 
 
-def get_script_dir():
-	# Try to determine the script's directory
+#	Try to determine the script's directory
+def get_scriptDir():
 	if hasattr(sys, 'frozen'):
-		script_dir = os.path.dirname(sys.executable)
+		scriptDir = os.path.dirname(sys.executable)
 	else:
-		script_dir = os.path.dirname(os.path.abspath(sys.argv[0]))
-	return script_dir
+		scriptDir = os.path.dirname(os.path.abspath(sys.argv[0]))
+	return scriptDir
 	
 
+#	Check if there is any running process that contains the given name.
 def is_process_running(process_name):
-	"""Check if there is any running process that contains the given name."""
 	for proc in psutil.process_iter(['pid', 'name']):
 		try:
 			if process_name.lower() in proc.info['name'].lower():
@@ -128,7 +129,6 @@ def fusion_popup(windowtitle, label):
 
 	# Add your GUI element based event functions here:
 	def _func(ev):
-		# print('Button Clicked')
 		disp.ExitLoop()
 	dlg.On.B.Clicked = _func
 

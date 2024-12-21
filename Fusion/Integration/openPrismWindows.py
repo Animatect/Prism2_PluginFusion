@@ -51,7 +51,7 @@ import sys
 import os
 import PrismInit
 
-import manageprismpaths
+import ManagePrismPaths							#	USED ?
 
 from qtpy import QtCore, QtGui, QtWidgets
 
@@ -80,6 +80,7 @@ def openProjectBrowser(globalpcore=None):
 		else:
 			popupError()
 
+
 def runPrismSaveScene(globalpcore=None):
 	if not globalpcore:
 		qapp = QtWidgets.QApplication.instance()
@@ -107,6 +108,7 @@ def runPrismSaveScene(globalpcore=None):
 		else:
 			popupError()
 
+
 def openPrismSaveWithComment(globalpcore=None):
 	if not globalpcore:
 		qapp = QtWidgets.QApplication.instance()
@@ -117,7 +119,7 @@ def openPrismSaveWithComment(globalpcore=None):
 		del pcore	
 		qapp.exec_()
 	else:
-		print("globalpcore")
+		print("[Prism] Globalpcore does not exist")
 		qapp = QtWidgets.QApplication.instance()
 		if qapp == None:
 			qapp = QtWidgets.QApplication(sys.argv)
@@ -137,7 +139,7 @@ def openPrismSaveWithComment(globalpcore=None):
 
 def openPrismStateManager(globalpcore=None):
 	if not globalpcore:
-		print("StateManager: No GlobalPcore")
+		print("[Prism] StateManager: No GlobalPcore")
 		qapp = QtWidgets.QApplication.instance()
 		if qapp == None:
 			qapp = QtWidgets.QApplication(sys.argv)
@@ -170,7 +172,7 @@ def openPrismStateManager(globalpcore=None):
 
 def openPrismSettings(globalpcore=None):
 	if not globalpcore:
-		print("ProjectBrowser no GlobalPcore")
+		print("[Prism] ProjectBrowser no GlobalPcore")
 		qapp = QtWidgets.QApplication.instance()
 		if qapp == None:
 			qapp = QtWidgets.QApplication(sys.argv)
