@@ -30,22 +30,31 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Prism.  If not, see <https://www.gnu.org/licenses/>.
-
+###########################################################################
+#
+#                BMD Fusion Studio Integration for Prism2
+#
+#             https://github.com/Animatect/Prism2_PluginFusion
+#
+#                           Esteban Covo
+#                     e.covo@magichammer.com.mx
+#                     https://magichammer.com.mx
+#
+#                           Joshua Breckeen
+#                              Alta Arts
+#                          josh@alta-arts.com
+#
+###########################################################################
 
 
 import os
-from plistlib import UID
 import sys
 import json
 import platform
-import time
 import re
 import math
-import ctypes
 import glob
 import shutil
-import uuid
-import hashlib
 import logging
 from datetime import datetime
 
@@ -79,10 +88,13 @@ class Prism_Fusion_Functions(object):
 		self.core = core
 		self.plugin = plugin
 		self.fusion = bmd.scriptapp("Fusion")
-		self.comp = None # This comp is used by the state Manager to avoid overriding the state data on wrong comps
-		self.monkeypatchedsm = None # Reference to the state manager to be used on the monkeypatched functions.
-		self.monkeypatchedmediabrowser = None # Reference to the mediabrowser to be used on the monkeypatched functions.
-		self.monkeypatchedimportstate = None # Reference to the importState to be used on the monkeypatched functions.
+		self.comp = None # This comp is used by the stateManager to avoid overriding the state data on wrong comps
+
+		self.MP_stateManager = None # Reference to the stateManager to be used on the monkeypatched functions.
+		self.MP_mediaBrowser = None # Reference to the mediaBrowser to be used on the monkeypatched functions.
+		self.MP_mediaPlayer = None # Reference to the mediaPlayer to be used on the monkeypatched functions.
+		# self.MP_importState = None # Reference to the importState to be used on the monkeypatched functions.
+
 		self.popup = None # Reference of popUp dialog that shows before opening a window when it takes some time.
 
 		self.listener = None
@@ -91,6 +103,8 @@ class Prism_Fusion_Functions(object):
 		self.smUI = None
 		self.pbUI = None
 		self.prefUI = None
+
+		# self.core.sceneOpenChecksEnabled = False		#	TESTING Stops Core automatic Sanity Checks
 
 		#	Register Callbacks
 		try:
@@ -105,10 +119,9 @@ class Prism_Fusion_Functions(object):
 						("onStateManagerClose", self.onStateManagerClose),
 						("onStateManagerShow", self.onStateManagerShow),
 						("onStateCreated", self.onStateCreated),
-						# ("onStateDeleted", self.onStateDeleted),
 						("getIconPathForFileType", self.getIconPathForFileType),
 						("openPBListContextMenu", self.openPBListContextMenu),
-						("onMediaBrowserTaskUpdate", self.onMediaBrowserTaskUpdate),
+						("onMediaBrowserOpen", self.onMediaBrowserOpen),
 				]
 
 			# Iterate through the list to register callbacks
@@ -196,23 +209,6 @@ class Prism_Fusion_Functions(object):
 			'Brown': {'R': 0.6, 'G': 0.4, 'B': 0.0},
 			'Chocolate': {'R': 0.5490196078431373, 'G': 0.35294117647058826, 'B': 0.24705882352941178}
 		}
-
-		#	Conversion for PBR names to Fusion uShader inputs
-		self.connectDict = {"ao": {"input": "occlusion", "colorspace": "linear"},
-				 	   	    "color": {"input": "diffuseColor", "colorspace": "sRGB"},
-				 	   		"metallic": {"input": "metallic", "colorspace": "linear"},
-							"roughness": {"input": "roughness", "colorspace": "linear"},
-							"normal": {"input": "normal", "colorspace": "linear"},
-							"displace": {"input": "displacement", "colorspace": "linear"},
-							"alpha": {"input": "opacity", "colorspace": "linear"},
-							"alphaThreshold": {"input": "opacityThreshold", "colorspace": "linear"},
-							"emit": {"input": "emissiveColor", "colorspace": "sRGB"},
-							"coat": {"input": "clearcoat", "colorspace": "linear"},
-							"coatRough": {"input": "clearcoatRoughness", "colorspace": "linear"},
-							"ior": {"input": "ior", "colorspace": "linear"},
-							"specColor": {"input": "specColor", "colorspace": "sRGB"}
-								}
-
 
 	@err_catcher(name=__name__)
 	def startup(self, origin):
@@ -434,10 +430,13 @@ class Prism_Fusion_Functions(object):
 		return None
 	
 
+	#	Called from core.sceneOpen()
 	@err_catcher(name=__name__)
 	def sceneOpen(self, origin):
 		# if self.core.shouldAutosaveTimerRun():
 		# 	origin.startAutosaveTimer()
+
+
 		pass
 
 
@@ -552,7 +551,6 @@ class Prism_Fusion_Functions(object):
 	# 		selNodes = comp.GetToolList(False, "Loader")
 
 	# 	if len(selNodes):
-	# 		comp.StartUndo("Updating loaders")
 	# 		for k in selNodes:
 	# 			i = selNodes[k]
 	# 			curPath = comp.MapPath(i.GetAttrs()["TOOLST_Clip_Name"][1])
@@ -574,7 +572,6 @@ class Prism_Fusion_Functions(object):
 	# 				i.HoldLastFrame = 0
 
 	# 				updatedNodes.append(i)
-	# 		comp.EndUndo(True)
 
 	# 	if len(updatedNodes) == 0:
 	# 		QMessageBox.information(
@@ -599,6 +596,15 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def captureViewportThumbnail(self):
+		comp = self.getCurrentComp()
+		comp.Lock()
+		thumb = self.wrapped_CaptureViewportThumbnail(comp)
+		comp.Unlock()
+		return thumb
+
+
+	@err_catcher(name=__name__)
+	def wrapped_CaptureViewportThumbnail(self, comp):
 		#   Make temp dir and file
 		tempDir = os.path.join(self.pluginDirectory, "Temp")
 		if not os.path.exists(tempDir):
@@ -607,10 +613,9 @@ class Prism_Fusion_Functions(object):
 		thumbName = os.path.basename(thumbPath).split('.')[0]
 
 		#   Get Fusion API stuff
-		comp = self.getCurrentComp()
+		if not comp:
+			comp = self.getCurrentComp()
 
-		comp.Lock()
-		comp.StartUndo()
 		try:
 			thumbSaver = None
 			origSaverList = {}
@@ -658,9 +663,6 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR: Filed to create thumbnail:\n{e}")
 
-		comp.EndUndo()
-		comp.Undo()
-
 		if thumbSaver:
 			try:
 				thumbSaver.Delete()
@@ -669,8 +671,6 @@ class Prism_Fusion_Functions(object):
 
 		#   Restore pass-through state of orig savers
 		self.origSaverStates("load", comp, origSaverList)
-
-		comp.Unlock()
 
 		#   Get pixmap from Prism
 		if os.path.isfile(thumbPath):
@@ -742,7 +742,7 @@ class Prism_Fusion_Functions(object):
 			return False
 		try:
 			# Check if tool name is 'Saver' (should work if node is renamed)
-			if Fus.getNodeType(tool) == "Saver":
+			if Fus.getToolType(tool) == "Saver":
 				return True
 			else:
 				return False
@@ -763,24 +763,37 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def createRendernode(self, nodeUID, nodeData):
 		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Create Render Node")
+
+		self.wrapped_createRendernode(nodeUID, nodeData, comp=comp)
+
+		comp.EndUndo()
+		comp.Unlock()		
+	
+
+	@err_catcher(name=__name__)
+	def wrapped_createRendernode(self, nodeUID, nodeData, comp):
+		if not comp:
+			comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			if not CompDb.nodeExists(comp, nodeUID):
-				comp.Lock()
+				#	Get selected Tool
+
+				selTools = Fus.getSelectedTools(comp)
 
 				#	Add Saver to Comp
 				sv = Fus.addTool(comp, "Saver", nodeData)
-
-				comp.Unlock()
 
 				#	Add node to Comp Database
 				CompDb.addNodeToDB(comp, "render2d", nodeUID, nodeData)
 
 				#	Position Saver
-				if not Fus.posRelativeToNode(comp, sv):
+				if selTools:
 					try:
-						#Move Render Node to the Right of the scene	
-						Fus.setNodePosition(comp, sv, find_min=False, x_offset=10, ignore_node_type="Saver")
-						Fus.stackNodesByType(comp, sv)
+						#	Move Render Node to the Right of the scene	
+						Fus.setToolPosRelative(comp, sv, selTools[0], 3)
+						# Fus.stackToolsByType(comp, sv)
 					except:
 						logger.debug(f"ERROR: Not able to position {nodeData['nodeName']}")
 
@@ -796,14 +809,23 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def updateRendernode(self, nodeUID, nodeData):
 		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Update Render Node")
+
+		self.wrapped_updateRendernode(nodeUID, nodeData, comp)	
+
+		comp.EndUndo()
+		comp.Unlock()
+
+
+	@err_catcher(name=__name__)
+	def wrapped_updateRendernode(self, nodeUID, nodeData, comp):
 		if self.sm_checkCorrectComp(comp):
 			sv = CompDb.getNodeByUID(comp, nodeUID)
 
 			if sv:
-				comp.Lock()
 				#	Update Saver Info
 				Fus.updateTool(sv, nodeData)
-				comp.Unlock()
 
 				#	Update Node in Comp Database
 				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
@@ -1006,23 +1028,39 @@ class Prism_Fusion_Functions(object):
 	#                                              #
 	################################################
 
-
 	@err_catcher(name=__name__)
 	def importImages(self, mediaBrowser):
+		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Import Media")
+
+		self.wrapped_ImportImages(mediaBrowser, comp)
+
+		comp.EndUndo()
+		comp.Unlock()
+
+
+	@err_catcher(name=__name__)
+	def wrapped_ImportImages(self, mediaBrowser, comp):
 		try:
-			self.monkeypatchedmediabrowser = mediaBrowser
+			#	This is to cover that Prism's MediaBrowser.py call to this importImages passes
+			# 	the mediaPlayer object under the name mediaBrowser 
+			self.MP_mediaPlayer = mediaPlayer = mediaBrowser
+
+			#	Add Patched functions
 			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportSource, self.compGetImportSource, self, force=True)
 			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportPasses, self.compGetImportPasses, self, force=True)
 			logger.debug("Patched functions in 'importImages()'")
 
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to load patched functions:\n{e}")
-
-		comp = self.getCurrentComp()
+		
+		if not comp:
+			comp = self.getCurrentComp()
 		
 		try:
 			#	Get Identifier Context Data
-			contextRaw = mediaBrowser.getSelectedContexts()
+			contextRaw = mediaPlayer.getSelectedContexts()
 
 			#	Seems sometimes context comes as a list
 			if isinstance(contextRaw, list):
@@ -1042,14 +1080,15 @@ class Prism_Fusion_Functions(object):
 		try:
 			#	Get sourceData based on mediaType - used to get framerange
 			if "aov" in context:
-				sourceData = mediaBrowser.compGetImportPasses()
+				sourceData = mediaPlayer.compGetImportPasses()
 			else:
-				sourceData = mediaBrowser.compGetImportSource()
+				sourceData = mediaPlayer.compGetImportSource()
 
 
 		###		TODO	Framerange in sourceData does not seem to update until Prism instance restarts		TODO
 						#	This means the framerange will not update using Update Images
 						#	Needs furter investigation
+
 
 		except Exception as e:
 			self.core.popup(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
@@ -1065,7 +1104,7 @@ class Prism_Fusion_Functions(object):
 			return
 
 		#	Get "Sorting" checkbox state	
-		sorting = Fus.sortingEnabled(comp)
+		sorting = CompDb.sortingEnabled(comp)
 
 		# Setup Dialog
 		fString = "Please select an import option:"	
@@ -1092,10 +1131,11 @@ class Prism_Fusion_Functions(object):
 
 		#	Save "Sorting" checkbox state
 		if checkbox_checked is not None:
-			Fus.sortingEnabled(comp, save=True, checked=checkbox_checked)
+			CompDb.sortingEnabled(comp, save=True, checked=checkbox_checked)
 
 		#	Call the import with options and passing the data
 		if importType in ["Import Media", "Current AOV", "All AOVs"]:
+
 			#	Get any UIDs for the Identifier
 			uids = CompDb.getUIDsFromImportData(comp, "import2d", importData)
 
@@ -1166,12 +1206,11 @@ class Prism_Fusion_Functions(object):
 	def configureImport(self, comp, importData, importType, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
-		#	Finds the left edge of the flow-nodes
 		refNode = None
-		leftmostNode = Fus.findLeftmostLowerNode(comp, 0.5)
+
+		#	Finds the left edge of the flow-nodes
 		if sortnodes:
-			if leftmostNode:
-				refNode = leftmostNode
+			refNode = Fus.findLeftmostLowerTool(comp, 0.5)
 
 		importList = []
 
@@ -1194,9 +1233,6 @@ class Prism_Fusion_Functions(object):
 			return
 
 		try:
-			comp.Lock()
-			comp.StartUndo()
-
 			#	For each import item
 			for importItem in importList:
 
@@ -1207,7 +1243,7 @@ class Prism_Fusion_Functions(object):
 				toolUID = CompDb.createUUID()
 
 				#	Make dict
-				toolData = {"nodeName": Helper.makeLdrName(importItem),
+				toolData = {"nodeName": Fus.makeLdrName(importItem),
 							"version": importData["version"],
 							"toolUID": toolUID,
 							"mediaId": importData["identifier"],
@@ -1240,27 +1276,32 @@ class Prism_Fusion_Functions(object):
 
 					if result == "Yes":
 						#	Call Multi-channel function for all channels
-						leftmostNode = self.addMultiChannel(comp, toolData, channels, sortnodes=sortnodes)
+						leftmostNode = self.addMultiChannel(comp, toolData, refNode, channels, sortnodes=sortnodes)
 
 					if result == "No":
 						#	Get current viewed channel
 						currChannel = importData["channel"]
 						#	Call Multi-channel function for current channel
-						leftmostNode = self.addMultiChannel(comp, toolData, channels, currChannel, sortnodes=sortnodes)
-				
-			comp.EndUndo()
-			comp.Unlock()
+						leftmostNode = self.addMultiChannel(comp, toolData, refNode, channels, currChannel, sortnodes=sortnodes)
 
-			#	Return if add image returns None
+			#	Return if failed
 			if not leftmostNode:
+				logger.warning(f"ERROR:  Unable to import Images:\n{e}")
+				self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
+				return False
+			
+			#	Return if Not Sorting
+			if not sortnodes:
+				logger.debug(f"Imported  {importData['identifier']} without sorting")
 				return
 
-			Fus.sortLoaders(comp, leftmostNode, reconnectIn=True, sortnodes=sortnodes)			#	TODO  Look into this			
+			#	Sort and Arrange Loaders and Wireless tools
+			self.sortLoaders(comp, leftmostNode)
 
-			logger.debug(f"Imported  {importData['identifier']}")
+			logger.debug(f"Imported  and sorted {importData['identifier']}")
 
 		except Exception as e:
-			comp.Unlock()
+			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 			self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
 			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 
@@ -1269,22 +1310,16 @@ class Prism_Fusion_Functions(object):
 	def addSingleChannel(self, comp, toolUID, toolData, refNode, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
-		#	Finds the left edge of the flow-nodes
-		refNode = None
-		leftmostNode = Fus.findLeftmostLowerNode(comp, 0.5)
-		if sortnodes:
-			if leftmostNode:
-				refNode = leftmostNode
-
-		# comp.Lock()
-		# comp.StartUndo()
 		try:
-			#	Add and configure Loader
-			ldr = Fus.addTool(comp, "Loader", toolData)
+			#	Get Position of Ref Tool
+			refX, refY = Fus.getToolPosition(comp, refNode)
+
+			#	Add and configure Loader to the left so it will not mess up Flow
+			ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
 		
 			if not ldr:
 				self.core.popup(f"ERROR: Unable to add Loader to Comp")
-				return
+				return False
 
 			#	Add mode to Comp Database
 			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
@@ -1295,39 +1330,26 @@ class Prism_Fusion_Functions(object):
 		#	Deselect all
 		flow.Select()
 
-		# #	If sorting is enabled
+		#	If sorting is enabled
 		if sortnodes:
-			if not leftmostNode:
-				leftmostNode = ldr
-
-		Fus.setNodeToLeft(comp, ldr, refNode)								#	TODO  Look into this		
-
-		# #	If sorting is enabled
-		if sortnodes:
+			Fus.setToolToLeft(comp, ldr, refNode)
 			self.createWireless(toolUID)
-
-		# comp.EndUndo()
-		# comp.Unlock()
 			
 		return ldr
 
 
 	@err_catcher(name=__name__)
-	def addMultiChannel(self, comp, toolData, channels, currChannel=None, sortnodes=True):
+	def addMultiChannel(self, comp, toolData, refNode, channels, currChannel=None, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
-		#	Finds the left edge of the flow-nodes
-		refNode = None
-		leftmostNode = Fus.findLeftmostLowerNode(comp, 0.5)
-		if sortnodes:
-			if leftmostNode:
-				refNode = leftmostNode
+		#	Get Position of Ref Tool
+		refX, refY = Fus.getToolPosition(comp, refNode)
 
-		#	If not splitting, use currently viewed channel
 		if currChannel:
+			#	If not splitting, use currently viewed channel
 			channelList = [currChannel]
-		#	Use all channels
 		else:
+			#	Use all channels
 			channelList = channels
 
 		for channel in channelList:
@@ -1342,10 +1364,10 @@ class Prism_Fusion_Functions(object):
 			#	Edit dict copy
 			toolData_copy["toolUID"] = toolUID
 			toolData_copy["channel"] = channel
-			toolData_copy["nodeName"] = Helper.makeLdrName(toolData_copy)
+			toolData_copy["nodeName"] = Fus.makeLdrName(toolData_copy)
 			
 			#	Add Loader with config data
-			ldr = Fus.addTool(comp, "Loader", toolData_copy)
+			ldr = Fus.addTool(comp, "Loader", toolData_copy, refX-10, refY-10)
 
 			#	Add node to Comp Database
 			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData_copy)
@@ -1372,7 +1394,6 @@ class Prism_Fusion_Functions(object):
 				'z': 'BlueName',
 				}
 
-
 			# Check if contains only a Z-channel (for Depth, Mist, etc)
 			try:
 				z_channel = None
@@ -1392,7 +1413,7 @@ class Prism_Fusion_Functions(object):
 
 			else:
 				try:
-					#	Match the attrs based on the dict						#	TODO make sure this works for all DCC channel types
+					#	Match the attrs based on the dict			#	TODO make sure this works for all DCC channel types
 					for channel_str in channelDict:
 						match = re.search(r'\.([a-z])$', channel_str.lower())
 
@@ -1410,15 +1431,9 @@ class Prism_Fusion_Functions(object):
 			#	Deselect all
 			flow.Select()
 
-			#	If sorting is enabled											#	TODO Deal with sorting
-			if sortnodes:
-				if not leftmostNode:
-					leftmostNode = ldr
-
-			Fus.setNodeToLeft(comp, ldr, refNode)								#	TODO  Look into this		
-
 			#	If sorting is enabled
 			if sortnodes:
+				Fus.setToolToLeft(comp, ldr, refNode)
 				self.createWireless(toolUID)
 
 		return ldr
@@ -1434,6 +1449,7 @@ class Prism_Fusion_Functions(object):
 		elif importType == "Update Selected":
 			#	Get selected Loaders
 			selTools = Fus.getSelectedTools(comp, "Loader")
+			
 			if len(selTools) < 1:
 				logger.debug("No Loaders selected in the Comp")
 				self.core.popup("No Loaders selected in the Comp")
@@ -1508,7 +1524,7 @@ class Prism_Fusion_Functions(object):
 				#	If there was a match to the database
 				if compareRes:
 					#	Make dict
-					toolData = {"nodeName": Helper.makeLdrName(updateData),
+					toolData = {"nodeName": Fus.makeLdrName(updateData),
 								"version": updateData["version"],
 								"filepath": updateData["filepath"],
 								"frame_start": updateData["frame_start"],
@@ -1537,6 +1553,8 @@ class Prism_Fusion_Functions(object):
 		self.updateMsgPopup(formattedMsg)
 
 
+	#	Creates and adds a Wireless set to the Loader
+	#	This uses an AutoDomain tool for the "IN", and the Wireless for the "OUT"
 	@err_catcher(name=__name__)
 	def createWireless(self, nodeUID):							#	TODO  Look into adding wireless with "addTool"
 		wirelessCopy = """{
@@ -1562,55 +1580,176 @@ class Prism_Fusion_Functions(object):
 }"""
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
-		tool = CompDb.getNodeByUID(comp, nodeUID)
 
-		# comp.Lock()
+		#	Get Loader tool
+		ldr = CompDb.getNodeByUID(comp, nodeUID)
+
+		#	Get Loader data
+		ldrData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
+		#	Make base name
+		baseName = Fus.makeWirelessName(ldrData)
 		
 		try:
-			# comp.StartUndo()
-
+			#	Copy and paste settings code into Comp
 			pyperclip.copy(wirelessCopy)
 			comp.Paste(wirelessCopy)
-			ad = comp.FindTool("neverreferencednameonautodomain")
-			ad.SetAttrs({'TOOLS_Name': tool.Name + '_IN'})
-			wl = comp.FindTool("neverreferencednameonwirelesslink")
-			wl.SetAttrs({'TOOLS_Name': tool.Name + '_OUT'})
-			x_pos, y_pos = flow.GetPosTable(tool).values()
-			
-			nodes = [ad, wl]
-			for i, node in enumerate(nodes, start=1):
-				offset = 1.5 if i == 1 else 1.3
-				flow.SetPos(node, x_pos + offset*i, y_pos)
-				# Set Prism node identifier.
-				node.SetData("isprismnode", True)	#	TODO
 
-			ad.ConnectInput('Input', tool)
+			#	Sets Wireless tools names
+			wireless_IN = comp.FindTool("neverreferencednameonautodomain")
+			wireless_IN.SetAttrs({'TOOLS_Name': baseName + '_IN'})
+			wireless_OUT = comp.FindTool("neverreferencednameonwirelesslink")
+			wireless_OUT.SetAttrs({'TOOLS_Name': baseName + '_OUT'})
+
+			#	Temporarily Set Positions of Tools
+			Fus.setToolPosRelative(comp, wireless_IN, ldr, 1.5)
+			Fus.setToolPosRelative(comp, wireless_OUT, wireless_IN, 1.5)
+			
+			#	Connect _IN to Loader
+			# wireless_IN.ConnectInput('Input', ldr)
+			Fus.connectTools(ldr, wireless_IN)
 
 			#	Set UUID's to Wireless Nodes
 			wirelessInUID = CompDb.createUUID()
-			ad.SetData('Prism_UUID', wirelessInUID)
+			wireless_IN.SetData('Prism_UUID', wirelessInUID)
 			wirelessOutUID = CompDb.createUUID()
-			wl.SetData('Prism_UUID', wirelessOutUID)
+			wireless_OUT.SetData('Prism_UUID', wirelessOutUID)
 
 			#	Add Wireless Nodes to Comp Database
 			nodeData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
-			nodeData["connectedNodes"] = [wirelessInUID, wirelessOutUID]
-			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
 
-			# comp.EndUndo()
-			# comp.Unlock()
+			nodeData["connectedNodes"] = {"wireless_IN": wirelessInUID,
+								 		  "wireless_OUT": wirelessOutUID}
+
+			Fus.updateTool(ldr, nodeData)
+			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
 
 			#	Select the wireless out
 			flow.Select()
-			comp.SetActiveTool(wl)
+			comp.SetActiveTool(wireless_OUT)
 
-			logger.debug(f"Created Wireless nodes for: {tool.Name}")
+			logger.debug(f"Created Wireless nodes for: {ldr.Name}")
 
 		except Exception as e:
-			# comp.Unlock()
 			logger.warning(f"ERROR:  Could not add wireless nodes:\n{e}")
 
 
+	#	Sort and arrange all Prism Loaders 
+	@err_catcher(name=__name__)
+	def sortLoaders(self, comp, posRefNode, offset=1.5, flowThresh=100, toolThresh=3, horzGap=1.1, vertGap=1):
+		flow = comp.CurrentFrame.FlowView
+
+		#   Get the left-most and bottom-most Loader within a threshold.
+		leftmostpos, bottommostpos = Fus.getToolPosition(comp, posRefNode)
+
+		#   We get only the loaders within a threshold from the leftmost and who were created by prism.
+		try:
+			loaders = [l for l in comp.GetToolList(False, "Loader").values()
+					if (
+						abs(Fus.getToolPosition(comp, l)[0] - leftmostpos) <= flowThresh
+						and l.GetData("Prism_UUID")
+						and l.GetData('Prism_MediaID')
+						)
+						]
+			
+			loaderstop2bot = sorted(loaders, key=lambda ld: Fus.getToolPosition(comp, ld)[1])
+			
+		except:
+			logger.warning("ERROR: Cannot sort loaders - unable to resolve threshold in the flow")
+			return
+
+		#	Gets list of all Media Identifiers in the Comp Database
+		mediaIDs = CompDb.getMediaIDsForType(comp, "import2d")
+
+		sortedloaders = []
+		for mediaId in mediaIDs:
+			lyloaders = [l for l in loaders if l.GetData('Prism_MediaID') == mediaId]
+			sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
+			sortedloaders += sorted_loader_names
+			
+		# if refNode is not part of nodes to sort we move the nodes down so they don't overlap it.
+		refInNodes = any(ldr.Name == posRefNode.Name for ldr in sortedloaders)
+
+		if len(sortedloaders) < 1:
+			return
+		
+		# To check if a node is in a layer or if we've switched layers, we first store a refernce layer
+		# update it and compare it in each iteration.
+		lastLoaderLyr = sortedloaders[0].GetData('Prism_MediaID')
+
+		try:
+			new_X = leftmostpos
+			new_Y = Fus.getToolPosition(comp, loaderstop2bot[0])[1]
+
+			if not refInNodes:
+				new_Y = bottommostpos + offset
+
+			for ldr in sortedloaders:
+				#   Get Loader data
+				ldrData = Fus.getToolData(ldr)
+				connectedTools = ldrData["Prism_ConnectedNodes"]
+				lyrNm = ldrData['Prism_MediaID']
+
+				# We reconnect to solve an issue that creates "Ghost" connections until comp is reopened.
+				inNode =  CompDb.getNodeByUID(comp, connectedTools["wireless_IN"])
+				outNode = CompDb.getNodeByUID(comp, connectedTools["wireless_OUT"])
+
+				#	Get input object connected Loader
+				nextToolInput = Fus.getInputsFromOutput(ldr)
+
+				#	Skip arranging if there is nothing connected to Loader
+				if not nextToolInput:
+					continue
+				
+				#	Get tool stuff
+				nextTool = nextToolInput[0].GetTool()
+				nextToolName = nextTool.Name
+				inNodeName = inNode.Name
+
+				#	Skip arranging if there are not Wireless connected
+				if not nextToolName or not inNodeName:
+					continue
+
+				#	Get Wireless_IN position before moving
+				inNodeOrigPos = Fus.getToolPosition(comp, inNode)
+
+				#	Get the vert position of the Loader
+				if lyrNm != lastLoaderLyr:
+					new_Y += vertGap
+
+				#	Sets Loader position
+				Fus.setToolPosition(flow, ldr, new_X, new_Y)
+
+				#	If there is a Tool in between Loader and Wireless_IN
+				if nextToolName != inNodeName:
+					#	Connect Loader to nextTool
+					Fus.connectTools(ldr, nextTool)
+					#	Sets nextTool position to the right of the Loader
+					Fus.setToolPosRelative(comp, nextTool, ldr, horzGap)
+					#	Connect nextTool to _IN
+					Fus.connectTools(nextTool, inNode)
+					#	Sets Wireless_IN position to the right of the Loader
+					Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
+
+				#	Sort Wireless as normal
+				else:
+					#	Connect Loader to Wireless IN
+					Fus.connectTools(ldr, inNode)
+					#	Sets Wireless_IN position to the right of the Loader
+					Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
+
+				if outNode:
+					#	If _OUT and _IN are within toolThresh it will position the _OUT
+					if Fus.isToolNearTool(comp, outNode, refPos=inNodeOrigPos, thresh=toolThresh):
+						Fus.setToolPosRelative(comp, outNode, inNode, horzGap)
+
+				#	Increment Vert Position
+				new_Y += vertGap
+				lastLoaderLyr = lyrNm
+
+			logger.debug("Sorted Nodes")
+
+		except Exception as e:
+			logger.warning(f"ERROR: Failed to sort nodes:\n{e}")
 
 
 
@@ -1621,31 +1760,37 @@ class Prism_Fusion_Functions(object):
 	################################################
 
 
-
 	#	Imports or updates USD scene or object
 	@err_catcher(name=__name__)
 	def importUSD(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
-		
+		comp.Lock()
+		comp.StartUndo("Import USD")
+
+		result = self.wrapped_importUSD(origin, UUID, nodeData, update)
+
+		comp.EndUndo()
+		comp.Unlock()
+
+		return result
+
+
+	#	Imports or updates USD scene or object
+	@err_catcher(name=__name__)
+	def wrapped_importUSD(self, origin, UUID, nodeData, update=False):
+		comp = self.getCurrentComp()
 		importRes = False
 
 		#	Add new uLoader
 		if not update:
 			try:
-				comp.StartUndo()
-				comp.Lock()
-
 				#	Add tool
 				uLdr = Fus.addTool(comp, "uLoader", nodeData)
-
-				comp.Unlock()
-				comp.EndUndo()
 
 				logger.debug(f"Imported USD object: {nodeData['product']}")
 
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to import USD object:\n{e}")
-				comp.Unlock()
 				return {"result": False, "doImport": False}
 			
 			if uLdr:
@@ -1680,18 +1825,24 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def createUsdScene(self, origin, UUID):
 		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Create USD Scene")
 
-		comp.StartUndo()
+		self.wrapped_createUsdScene(origin, UUID, comp)
 
+		comp.EndUndo()
+		comp.Unlock()
+
+
+	@err_catcher(name=__name__)
+	def wrapped_createUsdScene(self, origin, UUID, comp):
 		try:
 			Fus3d.createUsdScene(self, origin, UUID)
 			logger.debug(f"Created USD Scene for {UUID}")
 
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to create USD scene:\n{e}")
-			comp.Unlock()
 
-		comp.EndUndo()
 
 
 	#	Creates group with uTextures and uShader
@@ -1843,7 +1994,19 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def import3dObject(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
-		
+		comp.Lock()
+		comp.StartUndo("Import 3D Object")	
+
+		result = self.wrapped_import3dObject(origin, UUID, nodeData, comp=comp, update=update)
+
+		comp.EndUndo()
+		comp.Unlock()
+
+		return result
+
+
+	@err_catcher(name=__name__)
+	def wrapped_import3dObject(self, origin, UUID, nodeData, comp, update=False):
 		importRes = False
 
 		format = nodeData["format"]
@@ -1851,9 +2014,6 @@ class Prism_Fusion_Functions(object):
 		#	Add new 3d Loader
 		if not update:
 			try:
-				comp.StartUndo()
-				comp.Lock()
-
 				#	Add tooltype based on format
 				if format == ".fbx":
 					toolType = "SurfaceFBXMesh"
@@ -1874,7 +2034,6 @@ class Prism_Fusion_Functions(object):
 
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to import 3d object:\n{e}")
-				comp.Unlock()
 				return {"result": False, "doImport": False}
 			
 			if ldr3d:
@@ -1903,25 +2062,30 @@ class Prism_Fusion_Functions(object):
 
 		return {"result": importRes, "doImport": importRes}
 
-	
+
 	#	Creates simple 3d scene - adds merge3d and render3d
 	@err_catcher(name=__name__)
 	def create3dScene(self, origin, UUID):
 		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Create 3D Scene")	
 
-		comp.StartUndo()
+		self.wrapped_create3dScene(origin, UUID)
 
+		comp.EndUndo()
+		comp.Unlock()
+
+	
+	#	Creates simple 3d scene - adds merge3d and render3d
+	@err_catcher(name=__name__)
+	def wrapped_create3dScene(self, origin, UUID):
 		try:
 			Fus3d.create3dScene(self, origin, UUID)
 			logger.debug(f"Created 3d Scene for {UUID}")
 
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to create 3d scene:\n{e}")
-			comp.Unlock()
-
-		comp.EndUndo()
 	
-
 
 	@err_catcher(name=__name__)
 	def importBlenderCam(self, origin, importPath, UUID, nodeName, version, update=False):
@@ -1962,64 +2126,6 @@ class Prism_Fusion_Functions(object):
 	def removeAOV(self, aovName):
 		pass
 	
-
-	#	Arranges nodes in a vertcal stack
-	# @err_catcher(name=__name__)
-	# def stackNodesByType(self, nodetostack, yoffset=3, tooltype="Saver"):
-	# 	comp = self.getCurrentComp()
-	# 	flow = comp.CurrentFrame.FlowView
-
-	# 	origx, origy = flow.GetPosTable(nodetostack).values()
-
-	# 	toollist = comp.GetToolList().values()
-		
-	# 	thresh_y_position = -float('inf')
-	# 	upmost_node = None		
-
-	# 	# Find the upmost node
-	# 	for node in toollist:
-	# 		try:
-	# 			if node.Name == nodetostack.Name:
-	# 					continue
-				
-	# 			if node.GetAttrs("TOOLS_RegID") == tooltype:
-	# 				postable = flow.GetPosTable(node)
-	# 				y = thresh_y_position
-	# 				#check if node has a postable.
-	# 				if postable:
-	# 					# Get the node's position
-	# 					x,y = postable.values()
-
-	# 					if y > thresh_y_position:
-	# 						thresh_y_position = y
-	# 						upmost_node = node
-	# 		except Exception as e:
-	# 			logger.warning(f"ERROR: Unable to stack nodes:\n{e}")
-
-	# 	if upmost_node:
-	# 		#set pos to the leftmost or rightmost node
-	# 		flow.SetPos(nodetostack, origx, thresh_y_position + yoffset)
-
-
-
-	# @err_catcher(name=__name__)
-	# def refreshNodees(self):
-	# 	comp = self.getCurrentComp()
-	# 	# Iterate through all tools in the composition
-	# 	tools = comp.GetToolList(False)
-
-	# 	for tool_name, tool in tools.items():  # tool_name is the key, tool is the value
-	# 		toolUID = tool.GetData('Prism_UUID')
-
-    #     # Check if the tool has the attribute 'Prism_UUID' and if it matches the provided UID
-	# 		if toolUID == nodeUID:
-	# 			return tool
-			
-	# 	return None
-
-
-
-
 	@err_catcher(name=__name__)
 	def sm_render_preSubmit(self, origin, rSettings):
 		pass
@@ -2195,7 +2301,6 @@ class Prism_Fusion_Functions(object):
 	# 	all_loader = comp.GetToolList(False, "Loader").values()
 	# 	all_saver  = comp.GetToolList(False, "Saver").values()
 	# 	iotools = list(all_loader) + list(all_saver)
-	# 	comp.Lock()
 	# 	for tool in iotools:
 	# 		filepath = tool.GetAttrs("TOOLST_Clip_Name")[1]
 	# 		pathinfo = self.getReplacedPaths(comp, filepath)
@@ -2204,7 +2309,6 @@ class Prism_Fusion_Functions(object):
 	# 			tool.Clip = newpath			
 	# 			pathdata.append({"node": tool.Name, "path":pathinfo["path"], "valid":pathinfo["valid"], "net":pathinfo["net"]})
 
-	# 	comp.Unlock()
 	# 	return pathdata
 
 
@@ -2633,7 +2737,7 @@ path = r\"%s\"
 
 			self.configureRenderNode(nodeUID, nodeData)
 
-			stateData["comment"] = self.monkeypatchedsm.publishComment
+			stateData["comment"] = self.MP_stateManager.publishComment
 			renderDir = os.path.dirname(self.outputPath)
 			self.saveVersionList(renderDir, stateData)
 
@@ -2799,17 +2903,26 @@ path = r\"%s\"
 					return "unknown error (files do not exist)"
 				
 
-	#	Executes a GroupRender on the local machine that allows multiple Savers to render simultaneously
+	#	Executes a GroupRender on the local machine that allows multiple Savers to render simultaneously	
 	@err_catcher(name=__name__)
 	def sm_render_startLocalGroupRender(self, origin, rSettings):
 		comp = self.getCurrentComp()
+		comp.Lock()
 
+		result = self.wrapped_render_startLocalGroupRender(origin, rSettings, comp)
+
+		comp.Unlock()
+
+		return result
+
+
+	@err_catcher(name=__name__)
+	def wrapped_render_startLocalGroupRender(self, origin, rSettings, comp):
 		#	Return if the Comps do not match
 		if not self.sm_checkCorrectComp(comp):
 			return False
 
 		try:
-			comp.Lock()
 
 			#	Setup comp settings and filepaths for render
 			self.configureRenderComp(origin, comp, rSettings)
@@ -2834,7 +2947,7 @@ path = r\"%s\"
 		except:
 			renderResult = False
 		finally:
-			comp.Unlock()
+			pass
 
 		#	Create versionInfo file for each state
 		versionResult = self.executeGroupVersioninfo()
@@ -2893,7 +3006,7 @@ path = r\"%s\"
 		details["version"] = CompDb.createUUID(simple=True)
 		details["sourceScene"] = self.tempFilePath
 		details["identifier"] = rSettings["groupName"]
-		details["comment"] = self.monkeypatchedsm.publishComment
+		details["comment"] = self.MP_stateManager.publishComment
 
 		self.className = "RenderGroup"
 
@@ -2904,7 +3017,17 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def sm_render_startFarmGroupRender(self, origin, farmPlugin, rSettings):
 		comp = self.getCurrentComp()
+		comp.Lock()
 
+		result = self.wrapped_render_startFarmGroupRender(origin, farmPlugin, rSettings, comp)		
+
+		comp.Unlock()
+
+		return result
+
+
+	@err_catcher(name=__name__)
+	def wrapped_render_startFarmGroupRender(self, origin, farmPlugin, rSettings, comp):
 		#	Makes global for later use in versioninfo creation and master update
 		self.rSettings = rSettings
 
@@ -2913,7 +3036,6 @@ path = r\"%s\"
 			return False
 		
 		try:
-			comp.Lock()
 
 			#	Setup comp settings and filepaths for render
 			self.configureRenderComp(origin, comp, rSettings)
@@ -2932,7 +3054,6 @@ path = r\"%s\"
 					raise Exception
 			except:
 				logger.warning(f"ERROR: Failed to save temp Comp for Farm submission:\n{self.tempFilePath}")
-				comp.Unlock()
 				return
 
 			farmDetails = self.setupFarmDetails(origin, rSettings)
@@ -2973,8 +3094,6 @@ path = r\"%s\"
 
 		#	Save the original settings to original file
 		comp.Save(currFile)
-
-		comp.Unlock()
 
 		#	Create versionInfo file for each state
 		versionResult = self.executeGroupVersioninfo()
@@ -3028,7 +3147,7 @@ path = r\"%s\"
 
 		#	Uses StateManager comment for Deadline comment
 		try:
-			dlParams["jobInfos"]["Comment"] = self.monkeypatchedsm.publishComment
+			dlParams["jobInfos"]["Comment"] = self.MP_stateManager.publishComment
 		except:
 			dlParams["jobInfos"]["Comment"] = "Prism-Submission-Fusion_ImageRender"
 
@@ -3094,10 +3213,6 @@ path = r\"%s\"
 				tool = comp.FindTool(toolnm)
 				if tool:
 					tool.Delete()
-
-
-
-
 
 
 
@@ -3183,7 +3298,7 @@ path = r\"%s\"
 		# deselect all nodes
 		flow.Select()
 
-		toolsToSelectUID = CompDb.getAllConnectedNodes(comp, nodeUIDs)
+		toolsToSelectUID = CompDb.getAllConnectedNodes(comp, "import2d", nodeUIDs)
 		
 		if not toolsToSelectUID:
 			logger.debug("There are not Loaders associated with this task.")
@@ -3207,7 +3322,7 @@ path = r\"%s\"
 
 		#	Colors the Loaders and wireless nodes
 		if self.taskColorMode == "All Nodes":
-			toolsToColorUID = CompDb.getAllConnectedNodes(comp, nodeUIDs)
+			toolsToColorUID = CompDb.getAllConnectedNodes(comp, "import2d", nodeUIDs)
 
 		#	Only colors the Loader nodes
 		elif self.taskColorMode == "Loader Nodes":
@@ -3290,7 +3405,7 @@ path = r\"%s\"
 	
 
 	@err_catcher(name=__name__)
-	def onMediaBrowserTaskUpdate(self, origin, curTask):
+	def onMediaBrowserTaskUpdate(self, origin):
 		#	If DCC 'Task Node Coloring' is disabled
 		if self.taskColorMode == "Disabled":
 			return
@@ -3358,6 +3473,13 @@ path = r\"%s\"
 					menuSelTaskC.addAction(depAct)
 
 				rcmenu.addMenu(menuSelTaskC)
+
+
+	#	This is to be able to call task coloring
+	@err_catcher(name=__name__)
+	def onMediaBrowserOpen(self, origin):
+		self.MP_mediaBrowser = origin
+		self.core.plugins.monkeyPatch(origin.updateTasks, self.updateTasks, self, force=True)
 
 
 	@err_catcher(name=__name__)
@@ -3466,15 +3588,16 @@ path = r\"%s\"
 				except:
 					logger.debug(f"Unable to remove default state: {state}")
 
-		comp = self.getCurrentComp()
-		
+
 		#Set the comp used when sm was opened for reference when saving states.
+		comp = self.getCurrentComp()
 		self.comp = comp
+
 		#Set State Manager Data on first open.
 		if CompDb.sm_readStates(comp) is None:
 			self.setDefaultState()
 
-		self.monkeypatchedsm = origin
+		self.MP_stateManager = origin
 		try:
 			self.core.plugins.monkeyPatch(origin.rclTree, self.rclTree, self, force=True)
 			self.core.plugins.monkeyPatch(self.core.mediaProducts.getVersionStackContextFromPath,
@@ -3658,7 +3781,7 @@ path = r\"%s\"
 	def rclTree(self, pos, activeList):
 		logger.debug("Loading patched function: 'rclTree'")
 
-		sm = self.monkeypatchedsm
+		sm = self.MP_stateManager
 		if sm:			
 			rcmenu = QMenu(sm)
 
@@ -3668,9 +3791,9 @@ path = r\"%s\"
 			if parentState:
 				sm.rClickedItem = parentState
 
-				if parentState.ui.className == "ImportFile":
-					self.monkeypatchedimportstate = parentState.ui
-					self.core.plugins.monkeyPatch(parentState.ui.preDelete, self.preDelete, self, force=True)
+				# if parentState.ui.className == "ImportFile":
+				# 	self.MP_importState = parentState.ui
+				# 	self.core.plugins.monkeyPatch(parentState.ui.preDelete, self.preDelete, self, force=True)
 
 				#From here the only line that changes is the commented one in "render" state.
 				actExecute = QAction("Execute", sm)
@@ -3793,67 +3916,68 @@ path = r\"%s\"
 		return context
 
 
-	@err_catcher(name=__name__)
-	def preDelete(
-		self,
-		item=None,
-		baseText="Do you also want to delete the connected objects?\n\n",
-		):
+	# @err_catcher(name=__name__)
+	# def preDelete(
+	# 	self,
+	# 	item=None,
+	# 	baseText="Do you also want to delete the connected objects?\n\n",
+	# 	):
 		
-		logger.debug("Loading patched function: 'preDelete'")
+	# 	logger.debug("Loading patched function: 'preDelete'")
 
-		state = self.monkeypatchedimportstate
-		if len(state.nodes) <= 0 or state.stateMode == "ApplyCache":
-			return
-		message = baseText
-		validNodes = [
-			x for x in state.nodes if self.core.appPlugin.isNodeValid(state, x)
-		]
-		if validNodes:
-			for idx, val in enumerate(validNodes):
-				if idx > 5:
-					message += "..."
-					break
-				else:
-					message += self.core.appPlugin.getObjectNodeNameByTool(state, val) + "\n"
+	# 	state = self.MP_importState
+	# 	if len(state.nodes) <= 0 or state.stateMode == "ApplyCache":
+	# 		return
+	# 	message = baseText
+	# 	validNodes = [
+	# 		x for x in state.nodes if self.core.appPlugin.isNodeValid(state, x)
+	# 	]
+	# 	if validNodes:
+	# 		for idx, val in enumerate(validNodes):
+	# 			if idx > 5:
+	# 				message += "..."
+	# 				break
+	# 			else:
+	# 				message += self.core.appPlugin.getObjectNodeNameByTool(state, val) + "\n"
 
-			if not self.core.uiAvailable:
-				action = 0
-				print("delete objects:\n\n%s" % message)											#	TODO
-			else:
-				msg = QMessageBox(
-					QMessageBox.Question, "Delete state", message, QMessageBox.No
-				)
-				msg.addButton("Yes", QMessageBox.YesRole)
-				msg.setParent(self.core.messageParent, Qt.Window)
-				action = msg.exec_()
-				clicked_button = msg.clickedButton()
-				result = clicked_button.text()
-			# if action == 2:
-			if result == "Yes":
-				self.core.appPlugin.deleteNodes(state, validNodes)
+	# 		if not self.core.uiAvailable:
+	# 			action = 0
+	# 			print("delete objects:\n\n%s" % message)											#	TODO
+	# 		else:
+	# 			msg = QMessageBox(
+	# 				QMessageBox.Question, "Delete state", message, QMessageBox.No
+	# 			)
+	# 			msg.addButton("Yes", QMessageBox.YesRole)
+	# 			msg.setParent(self.core.messageParent, Qt.Window)
+	# 			action = msg.exec_()
+	# 			clicked_button = msg.clickedButton()
+	# 			result = clicked_button.text()
+	# 		# if action == 2:
+	# 		if result == "Yes":
+	# 			self.core.appPlugin.deleteNodes(state, validNodes)
 
 
-	# These two functions should take into account the dynamic padding, that is the only modification, next to changing self to a reference to the mediabrowser.
+	#	These two functions edited take into account the dynamic padding,
+	# 	and to use the patched Media Player.
 	@err_catcher(name=__name__)
 	def compGetImportSource(self):
 		logger.debug("Loading patched function: 'compGetImportSource'")
 
-		mediabrowser = self.monkeypatchedmediabrowser # added this is refered as self in the original.
-		#
-		sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/") #
+		mediaPlayer = self.MP_mediaPlayer 		#	added this is refered as self in the original.
+
+		sourceFolder = os.path.dirname(mediaPlayer.seq[0]).replace("\\", "/") #
 		sources = self.core.media.getImgSources(sourceFolder)
 		sourceData = []
 
-		framepadding = self.core.framePadding #added
+		framepadding = self.core.framePadding 			#	added
 		for curSourcePath in sources:
-			if "#" * framepadding in curSourcePath: # changed
-				if mediabrowser.pstart == "?" or mediabrowser.pend == "?": #
+			if "#" * framepadding in curSourcePath: 	#	changed
+				if mediaPlayer.pstart == "?" or mediaPlayer.pend == "?": #
 					firstFrame = None
 					lastFrame = None
 				else:
-					firstFrame = mediabrowser.pstart #
-					lastFrame = mediabrowser.pend #
+					firstFrame = mediaPlayer.pstart 	#	changed
+					lastFrame = mediaPlayer.pend 		#	changed
 
 				filePath = curSourcePath.replace("\\", "/")
 			else:
@@ -3869,20 +3993,21 @@ path = r\"%s\"
 	def compGetImportPasses(self):
 		logger.debug("Loading patched function: 'compGetImportPasses'")
 
-		mediabrowser = self.monkeypatchedmediabrowser # added this is refered as self in the original.
-		#
-		framepadding = self.core.framePadding #added
+		mediaPlayer = self.MP_mediaPlayer 			#	added this is refered as self in the original.
+
+		framepadding = self.core.framePadding 		# 	added
 		sourceFolder = os.path.dirname(
-			os.path.dirname(mediabrowser.seq[0])
+			os.path.dirname(mediaPlayer.seq[0])		#	changed
 		).replace("\\", "/")
-		# check if the mediaType is 2d #added
-		if "\\2dRender\\" in mediabrowser.seq[0]:
-			sourceFolder = os.path.dirname(mediabrowser.seq[0]).replace("\\", "/")
+
+		if "\\2dRender\\" in mediaPlayer.seq[0]:	#	added check if the mediaType is 2d #added
+			sourceFolder = os.path.dirname(mediaPlayer.seq[0]).replace("\\", "/")
+
 		passes = [
 			x
 			for x in os.listdir(sourceFolder)
 			if x[-5:] not in ["(mp4)", "(jpg)", "(png)"]
-			and not x.startswith("_")  # Exclude folders starting with "_" like _thumbs #added
+			and not x.startswith("_")  				#	added exclude folders starting with "_" like _thumbs
 			and os.path.isdir(os.path.join(sourceFolder, x))
 		]
 		sourceData = []
@@ -3896,16 +4021,16 @@ path = r\"%s\"
 
 			if (
 				len(imgs) > 1
-				and mediabrowser.pstart #
-				and mediabrowser.pend #
-				and mediabrowser.pstart != "?" #
-				and mediabrowser.pend != "?" #
+				and mediaPlayer.pstart 					#	changed
+				and mediaPlayer.pend 					#	changed
+				and mediaPlayer.pstart != "?" 			#	changed
+				and mediaPlayer.pend != "?" 			#	changed
 			):
-				firstFrame = mediabrowser.pstart #
-				lastFrame = mediabrowser.pend #
+				firstFrame = mediaPlayer.pstart 		#	changed
+				lastFrame = mediaPlayer.pend 			#	changed
 
 				curPassName = imgs[0].split(".")[0]
-				increment = "#" * framepadding # changed
+				increment = "#" * framepadding 			#	changed
 				curPassFormat = imgs[0].split(".")[-1]
 
 				filePath = os.path.join(
@@ -3922,12 +4047,17 @@ path = r\"%s\"
 
 		return sourceData
 
-	# @err_catcher(name=__name__)
-	# def updateTasks(self, *args, **kwargs):
-	# 	logger.debug("Loading patched function: 'mediaBrowser.updateTasks'")
-	# 	mediabrowser = self.monkeypatchedmediabrowser#self.core.pb.mediaBrowser
-	# 	self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
-	# 	self.onMediaBrowserTaskUpdate(mediabrowser)
+
+	#	This intercepts the mediaBrowser object and adds a custom internal callback
+	@err_catcher(name=__name__)
+	def updateTasks(self, *args, **kwargs):
+		logger.debug("Loading patched function: 'mediaBrowser.updateTasks'")
+
+		mediabrowser = self.MP_mediaBrowser
+
+		self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
+		self.onMediaBrowserTaskUpdate(mediabrowser)
+
 
 
 ###########################################
@@ -3954,7 +4084,9 @@ class ImageImportDialogue(QDialog):
 
 		# Add the checkbox
 		self.checkbox = QCheckBox("Import Without Wireless/Sorting")
-		self.checkbox.setToolTip("If this option is selected, Nodes will be added on last clicked position and will not be taken into account when sorting.\nThey also will not be integrated into a wireless workflow.")
+		self.checkbox.setToolTip("If this option is selected, Nodes will be added on last clicked position\n"
+						   		 "and will not be taken into account when sorting.\n\n"
+						   		 "They also will not be integrated into a wireless workflow.")
 		layout.addWidget(self.checkbox)
 
 		# Add the dialog buttons

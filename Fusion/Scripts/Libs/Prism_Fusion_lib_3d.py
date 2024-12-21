@@ -30,6 +30,24 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Prism.  If not, see <https://www.gnu.org/licenses/>.
+###########################################################################
+#
+#                BMD Fusion Studio Integration for Prism2
+#
+#             https://github.com/Animatect/Prism2_PluginFusion
+#
+#                           Esteban Covo
+#                     e.covo@magichammer.com.mx
+#                     https://magichammer.com.mx
+#
+#                           Joshua Breckeen
+#                              Alta Arts
+#                          josh@alta-arts.com
+#
+###########################################################################
+
+
+##  THIS IS A LIBRARY FOR 3D FUNCTIONS FOR THE FUSION PRISM PLUGIN  ##
 	
 
 from PrismUtils.Decorators import err_catcher as err_catcher
@@ -41,8 +59,6 @@ def createUsdScene(plugin, origin, UUID):
 
     comp = plugin.getCurrentComp()
     flow = comp.CurrentFrame.FlowView
-
-    comp.Lock()
 
     #	Get uLoader node
     usdTool = plugin.getNodeByUID(UUID)
@@ -62,8 +78,6 @@ def createUsdScene(plugin, origin, UUID):
     flow.SetPos(uMerge, usdTool_x + 2, usdTool_y)
     flow.SetPos(uRender, usdTool_x + 4, usdTool_y)
 
-    comp.Unlock()
-
 
 @err_catcher(name=__name__)
 def create3dScene(plugin, origin, UUID):
@@ -71,7 +85,6 @@ def create3dScene(plugin, origin, UUID):
     comp = plugin.getCurrentComp()
     flow = comp.CurrentFrame.FlowView
 
-    comp.Lock()
 
     #	Get uLoader node
     fbxTool = plugin.getNodeByUID(UUID)
@@ -91,7 +104,6 @@ def create3dScene(plugin, origin, UUID):
     flow.SetPos(merge3d, fbxTool_x + 2, fbxTool_y)
     flow.SetPos(render3d, fbxTool_x + 4, fbxTool_y)
 
-    comp.Unlock()
 
 
 
@@ -226,7 +238,6 @@ def create3dScene(plugin, origin, UUID):
 
 #     fusion = self.fusion
 #     comp = fusion.GetCurrentComp()
-#     #comp.Lock()
 #     flow = comp.CurrentFrame.FlowView
 #     flow.Select(None)
 
@@ -292,7 +303,6 @@ def create3dScene(plugin, origin, UUID):
 # @err_catcher(name=__name__)
 # def importUSD(self, origin, importPath, UUID, nodeName, version, update=False):
 #     comp = self.getCurrentComp()
-#     comp.Lock()
 #     #	Add uLoader node
 #     usdTool = comp.AddTool("uLoader")
 #     #	Set import file path
@@ -301,7 +311,6 @@ def create3dScene(plugin, origin, UUID):
 #     usdTool.SetAttrs({"TOOLS_Name": nodeName})
 #     #	Add custom UUID
 #     usdTool.SetData('PrImportUID', UUID)
-#     comp.Unlock()
 #     return {"result": True, "doImport": True}
 
 
@@ -312,7 +321,6 @@ def create3dScene(plugin, origin, UUID):
 # @err_catcher(name=__name__)
 # def importFBX(self, importPath, origin):
 #     comp = self.getCurrentComp()
-#     comp.Lock()
 #     #	Add FBX Mesh node
 #     fbxTool = comp.AddTool("SurfaceFBXMesh")
 #     #	Set import mesh file path
@@ -326,7 +334,6 @@ def create3dScene(plugin, origin, UUID):
 #     fbxTool.SetAttrs({"TOOLS_Name": toolName})
 #     #	Add custom UUID
 #     fbxTool.SetData('PrImportUID', self.createUUID())
-#     comp.Unlock()
 #     return {"result": True, "doImport": True}
 #     return self.importFormatByUI(origin = origin, formatCall="FBXImport", filepath=importPath, global_scale=100)
 
@@ -413,7 +420,6 @@ def create3dScene(plugin, origin, UUID):
 #             #Set the position of the imported nodes relative to the previously active tool or last click in compView
 #             impnodes = [n for n in importedTools]
 #             if len(impnodes) > 0:
-#                 comp.Lock()
 
 #                 fisrtnode = impnodes[0]
 #                 fstnx, fstny = flow.GetPosTable(fisrtnode).values()
@@ -427,7 +433,6 @@ def create3dScene(plugin, origin, UUID):
 #                         newy = y+(aty-y)+offset[1]
 #                         flow.SetPos(n, newx-1, newy)
 
-#                 comp.Unlock()
 #             ##########
 
 #             importedNodes = []

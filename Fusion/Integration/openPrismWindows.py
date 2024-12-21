@@ -1,8 +1,57 @@
+# -*- coding: utf-8 -*-
+#
+####################################################
+#
+# PRISM - Pipeline for animation and VFX projects
+#
+# www.prism-pipeline.com
+#
+# contact: contact@prism-pipeline.com
+#
+####################################################
+#
+#
+# Copyright (C) 2016-2023 Richard Frangenberg
+# Copyright (C) 2023 Prism Software GmbH
+#
+# Licensed under GNU LGPL-3.0-or-later
+#
+# This file is part of Prism.
+#
+# Prism is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Lesser General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# Prism is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU Lesser General Public License for more details.
+#
+# You should have received a copy of the GNU Lesser General Public License
+# along with Prism.  If not, see <https://www.gnu.org/licenses/>.
+###########################################################################
+#
+#                BMD Fusion Studio Integration for Prism2
+#
+#             https://github.com/Animatect/Prism2_PluginFusion
+#
+#                           Esteban Covo
+#                     e.covo@magichammer.com.mx
+#                     https://magichammer.com.mx
+#
+#                           Joshua Breckeen
+#                              Alta Arts
+#                          josh@alta-arts.com
+#
+###########################################################################
+
+
 import sys
 import os
 import PrismInit
 
-import manageprismpaths
+import ManagePrismPaths							#	USED ?
 
 from qtpy import QtCore, QtGui, QtWidgets
 
@@ -31,6 +80,7 @@ def openProjectBrowser(globalpcore=None):
 		else:
 			popupError()
 
+
 def runPrismSaveScene(globalpcore=None):
 	if not globalpcore:
 		qapp = QtWidgets.QApplication.instance()
@@ -58,6 +108,7 @@ def runPrismSaveScene(globalpcore=None):
 		else:
 			popupError()
 
+
 def openPrismSaveWithComment(globalpcore=None):
 	if not globalpcore:
 		qapp = QtWidgets.QApplication.instance()
@@ -68,7 +119,7 @@ def openPrismSaveWithComment(globalpcore=None):
 		del pcore	
 		qapp.exec_()
 	else:
-		print("globalpcore")
+		print("[Prism] Globalpcore does not exist")
 		qapp = QtWidgets.QApplication.instance()
 		if qapp == None:
 			qapp = QtWidgets.QApplication(sys.argv)
@@ -88,7 +139,7 @@ def openPrismSaveWithComment(globalpcore=None):
 
 def openPrismStateManager(globalpcore=None):
 	if not globalpcore:
-		print("StateManager: No GlobalPcore")
+		print("[Prism] StateManager: No GlobalPcore")
 		qapp = QtWidgets.QApplication.instance()
 		if qapp == None:
 			qapp = QtWidgets.QApplication(sys.argv)
@@ -121,7 +172,7 @@ def openPrismStateManager(globalpcore=None):
 
 def openPrismSettings(globalpcore=None):
 	if not globalpcore:
-		print("ProjectBrowser no GlobalPcore")
+		print("[Prism] ProjectBrowser no GlobalPcore")
 		qapp = QtWidgets.QApplication.instance()
 		if qapp == None:
 			qapp = QtWidgets.QApplication(sys.argv)
