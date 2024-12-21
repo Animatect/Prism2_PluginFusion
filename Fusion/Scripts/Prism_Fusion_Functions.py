@@ -210,6 +210,24 @@ class Prism_Fusion_Functions(object):
 			'Chocolate': {'R': 0.5490196078431373, 'G': 0.35294117647058826, 'B': 0.24705882352941178}
 		}
 
+		#	Conversion for PBR names to Fusion uShader inputs
+		self.connectDict = {"ao": {"input": "occlusion", "colorspace": "linear"},
+				 	   	    "color": {"input": "diffuseColor", "colorspace": "sRGB"},
+				 	   		"metallic": {"input": "metallic", "colorspace": "linear"},
+							"roughness": {"input": "roughness", "colorspace": "linear"},
+							"normal": {"input": "normal", "colorspace": "linear"},
+							"displace": {"input": "displacement", "colorspace": "linear"},
+							"alpha": {"input": "opacity", "colorspace": "linear"},
+							"alphaThreshold": {"input": "opacityThreshold", "colorspace": "linear"},
+							"emit": {"input": "emissiveColor", "colorspace": "sRGB"},
+							"coat": {"input": "clearcoat", "colorspace": "linear"},
+							"coatRough": {"input": "clearcoatRoughness", "colorspace": "linear"},
+							"ior": {"input": "ior", "colorspace": "linear"},
+							"specColor": {"input": "specColor", "colorspace": "sRGB"}
+								}
+
+
+
 	@err_catcher(name=__name__)
 	def startup(self, origin):
 		# 	for obj in QApplication.topLevelWidgets():
