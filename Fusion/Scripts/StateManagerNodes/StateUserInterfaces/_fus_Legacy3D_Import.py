@@ -30,41 +30,95 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Prism.  If not, see <https://www.gnu.org/licenses/>.
+###########################################################################
+#
+#                BMD Fusion Studio Integration for Prism2
+#
+#             https://github.com/Animatect/Prism2_PluginFusion
+#
+#                           Esteban Covo
+#                     e.covo@magichammer.com.mx
+#                     https://magichammer.com.mx
+#
+#                           Joshua Breckeen
+#                              Alta Arts
+#                          josh@alta-arts.com
+#
+###########################################################################
 
 
 import os
+import logging
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
+from typing import TYPE_CHECKING, cast
+if TYPE_CHECKING:
+    from qtpy.QtWidgets import QLineEdit, QLabel, QPushButton, QCheckBox, QListWidget, QWidget
+    from PrismCore import PrismCore
+    from ProjectScripts.StateManager import StateManager
+    # import Legacy3D_ImportClass
+    from StateManagerNodes.StateUserInterfaces.fus_Legacy3D_Import_ui import Ui_wg_Legacy3D_Import
+    # indicate that Legacy3D_ImportClass is a subclass of Ui_wg_Legacy3D_Import
+    Legacy3D_ImportClass = cast('Legacy3D_ImportClass', Ui_wg_Legacy3D_Import, QWidget)
+
 from PrismUtils.Decorators import err_catcher
 
+logger = logging.getLogger(__name__)
 
+
+# type: ignore[attr-defined] # UI elements are created dynamically
 class Legacy3D_ImportClass(object):
     className = "Legacy3D_Import"
     listType = "Import"
     stateCategories = {"Import3d": [{"label": className, "stateType": className}]}
 
+    # Type hints for UI elements
+    e_name: 'QLineEdit'
+    l_name: 'QLabel' 
+    b_browse: 'QPushButton'
+    b_import: 'QPushButton'
+    b_importLatest: 'QPushButton'
+    b_createUsdScene: 'QPushButton'
+    b_nameSpaces: 'QPushButton'
+    b_selectAll: 'QPushButton'
+    chb_keepRefEdits: 'QCheckBox'
+    chb_autoUpdate: 'QCheckBox'
+    chb_abcPath: 'QCheckBox'
+    chb_autoNameSpaces: 'QCheckBox'
+    chb_trackObjects: 'QCheckBox'
+    l_class: 'QLabel'
+    l_curVersion: 'QLabel'
+    l_latestVersion: 'QLabel'
+    lw_objects: 'QListWidget'
+    w_currentVersion: 'QWidget'
+    w_latestVersion: 'QWidget'
+    w_importLatest: 'QWidget'
 
     @err_catcher(name=__name__)
     def setup(
         self,
-        state,
-        core,
-        stateManager,
+        state: object,
+        core:'PrismCore',
+        stateManager:'StateManager',
         node=None,
         importPath=None,
         stateData=None,
         openProductsBrowser=True,
         settings=None,
     ):
+        
         self.state = state
-        self.stateMode = "Legacy3D_Import"
+        self.stateMode:str = "Legacy3D_Import"                           #   TODO  Handle setting stateMode for the UI label.
+
+        self.core:PrismCore = core
+        self.stateManager:StateManager = stateManager
         self.fuseFuncts = self.core.appPlugin
 
-        self.core = core
-        self.stateManager = stateManager
+        self.supportedFormats = [".abc", ".fbx"]
+
         self.taskName = ""
         self.setName = ""
 
@@ -81,13 +135,10 @@ class Legacy3D_ImportClass(object):
         self.nodes = []
         self.nodeNames = []
 
-        self.f_abcPath.setVisible(False)
-        self.f_keepRefEdits.setVisible(False)
-
         self.oldPalette = self.b_importLatest.palette()
         self.updatePalette = QPalette()
-        self.updatePalette.setColor(QPalette.Button, QColor(200, 100, 0))
-        self.updatePalette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
+        self.updatePalette.setColor(QPalette.ColorRole.Button, QColor(200, 100, 0))
+        self.updatePalette.setColor(QPalette.ColorRole.ButtonText, QColor(255, 255, 255))
 
         createEmptyState = (
             QApplication.keyboardModifiers() == Qt.ControlModifier
@@ -99,7 +150,7 @@ class Legacy3D_ImportClass(object):
             and stateData is None
             and not createEmptyState
             and not self.stateManager.standalone
-        ):            
+        ):
             importPaths = self.requestImportPaths()
             if importPaths:
                 importPath = importPaths[-1]
@@ -108,6 +159,12 @@ class Legacy3D_ImportClass(object):
                         stateManager.importFile(importPath)
 
         if importPath:
+            _, extension = os.path.splitext(importPath)
+
+            if extension.lower() not in self.supportedFormats:
+                self.core.popup(f"{extension.upper()} is not supported with this Import State")           #   TESTING
+                return False
+
             self.setImportPath(importPath)
             result = self.importObject(settings=settings)
 
@@ -120,7 +177,7 @@ class Legacy3D_ImportClass(object):
         ):
             return False
 
-        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
+        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)                 #   USED???
         self.connectEvents()
 
         if stateData is not None:
@@ -129,10 +186,12 @@ class Legacy3D_ImportClass(object):
         self.nameChanged()
         self.updateUi()
 
+
     @err_catcher(name=__name__)
     def setStateMode(self, stateMode):
         self.stateMode = stateMode
         self.l_class.setText(stateMode)
+
 
     @err_catcher(name=__name__)
     def requestImportPaths(self):
@@ -141,17 +200,20 @@ class Legacy3D_ImportClass(object):
             if isinstance(res, dict) and res.get("importPaths") is not None:
                 return res["importPaths"]
 
-        import ProductBrowser
-        ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
+        from ProductBrowser import ProductBrowser
+        ts:ProductBrowser = ProductBrowser(core=self.core, importState=self)
         self.core.parentWindow(ts)
         ts.exec_()
         importPath = [ts.productPath]
         return importPath
 
+
     @err_catcher(name=__name__)
     def loadData(self, data):
         if "statename" in data:
             self.e_name.setText(data["statename"])
+        if "stateUID" in data:
+            self.stateUID = data["stateUID"]
         if "statemode" in data:
             self.setStateMode(data["statemode"])
         if "filepath" in data:
@@ -186,17 +248,32 @@ class Legacy3D_ImportClass(object):
 
         self.core.callback("onStateSettingsLoaded", self, data)
 
+
     @err_catcher(name=__name__)
     def connectEvents(self):
         self.e_name.textChanged.connect(self.nameChanged)
         self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
+        #   This is the "Browse" button
         self.b_browse.clicked.connect(self.browse)
         self.b_browse.customContextMenuRequested.connect(self.openFolder)
+        #   This is the "Re-Import" button
+        self.b_import.clicked.connect(lambda: self.importObject(update=True))
+        self.b_importLatest.clicked.connect(self.importLatest)
+        self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
+        self.b_createUsdScene.clicked.connect(self.createUsdScene)
+
+        self.e_name.textChanged.connect(self.nameChanged)
+        self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
+        #   This is the "Browse" button
+        self.b_browse.clicked.connect(self.browse)
+        self.b_browse.customContextMenuRequested.connect(self.openFolder)
+        #   This is the "Re-Import" button
         self.b_import.clicked.connect(self.importObject)
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
+        #   This Maybe will go
         self.chb_keepRefEdits.stateChanged.connect(self.stateManager.saveStatesToScene)
-        self.chb_autoNameSpaces.stateChanged.connect(self.autoNameSpaceChanged)
+        # self.chb_autoNameSpaces.stateChanged.connect(self.autoNameSpaceChanged)
         self.chb_abcPath.stateChanged.connect(self.stateManager.saveStatesToScene)
         self.chb_trackObjects.toggled.connect(self.updateTrackObjects)
         self.b_selectAll.clicked.connect(self.lw_objects.selectAll)
@@ -207,6 +284,7 @@ class Legacy3D_ImportClass(object):
             self.lw_objects.itemSelectionChanged.connect(
                 lambda: self.core.appPlugin.selectNodes(self)
             )
+
 
     @err_catcher(name=__name__)
     def nameChanged(self, text=None):
@@ -246,16 +324,18 @@ class Legacy3D_ImportClass(object):
 
         self.state.setText(0, name)
 
+
     @err_catcher(name=__name__)
     def getSortKey(self):
         cacheData = self.core.paths.getCachePathData(self.getImportPath())
         return cacheData.get("product")
 
+
     @err_catcher(name=__name__)
     def browse(self):
         import ProductBrowser
 
-        ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
+        ts = ProductBrowser(core=self.core, importState=self)
         self.core.parentWindow(ts)
         ts.exec_()
         importPath = ts.productPath
@@ -266,6 +346,7 @@ class Legacy3D_ImportClass(object):
                 self.setImportPath(importPath)
             self.updateUi()
 
+
     @err_catcher(name=__name__)
     def openFolder(self, pos):
         path = self.getImportPath()
@@ -273,6 +354,7 @@ class Legacy3D_ImportClass(object):
             path = os.path.dirname(path)
 
         self.core.openFolder(path)
+
 
     @err_catcher(name=__name__)
     def getImportPath(self):
@@ -282,6 +364,7 @@ class Legacy3D_ImportClass(object):
 
         return path
 
+
     @err_catcher(name=__name__)
     def setImportPath(self, path):
         self.importPath = path
@@ -290,11 +373,13 @@ class Legacy3D_ImportClass(object):
         self.updateUi()
         self.stateManager.saveStatesToScene()
 
+
     @err_catcher(name=__name__)
     def isShotCam(self, path=None):
         if not path:
             path = self.getImportPath()
         return path.endswith(".abc") and "/_ShotCam/" in path
+
 
     @err_catcher(name=__name__)
     def autoUpdateChanged(self, checked):
@@ -309,12 +394,6 @@ class Legacy3D_ImportClass(object):
 
         self.stateManager.saveStatesToScene()
 
-    @err_catcher(name=__name__)
-    def autoNameSpaceChanged(self, checked):
-        self.b_nameSpaces.setEnabled(not checked)
-        if not self.stateManager.standalone:
-            self.core.appPlugin.sm_import_removeNameSpaces(self)
-            self.stateManager.saveStatesToScene()
 
     @err_catcher(name=__name__)
     def runSanityChecks(self, cachePath):
@@ -327,6 +406,7 @@ class Legacy3D_ImportClass(object):
             return False
 
         return True
+
 
     @err_catcher(name=__name__)
     def checkFrameRange(self, cachePath):
@@ -348,7 +428,7 @@ class Legacy3D_ImportClass(object):
             fString,
             title="FPS mismatch",
             buttons=["Continue", "Cancel"],
-            icon=QMessageBox.Warning,
+            icon=QMessageBox.Icon.Warning,
         )
 
         if result == "Cancel":
@@ -356,11 +436,12 @@ class Legacy3D_ImportClass(object):
 
         return True
 
+
     @err_catcher(name=__name__)
     def importObject(self, update=False, path=None, settings=None):
 
         if not update:
-            self.stateUID = self.core.appPlugin.createUUID()
+            self.stateUID = self.fuseFuncts.createUUID()
 
         result = True
         if self.stateManager.standalone:
@@ -393,8 +474,6 @@ class Legacy3D_ImportClass(object):
         #     self.core.popup("Import into %s is not supported." % self.core.appPlugin.pluginName)
         #     return
 
-
-
         result = self.runSanityChecks(impFileName)
         if not result:
             return
@@ -403,33 +482,20 @@ class Legacy3D_ImportClass(object):
         self.taskName = cacheData.get("task")
         doImport = True
 
-        if self.chb_trackObjects.isChecked():
-            getattr(self.core.appPlugin, "sm_import_updateObjects", lambda x: None)(
-                self
-            )
-
-        # temporary workaround until all plugin handle the settings argument
-        # if self.core.appPlugin.pluginName == "Maya":
-        #     importResult = self.core.appPlugin.sm_import_importToApp(
-        #         self, doImport=doImport, update=update, impFileName=impFileName, settings=settings
-        #     )
-        # else:
-        #     importResult = self.core.appPlugin.sm_import_importToApp(
-        #         self, doImport=doImport, update=update, impFileName=impFileName
-        #     )
-        #	Set node name
+        
+		#	Set node name
         productName = cacheData["product"]
         productVersion = cacheData["version"]
         nodeName = f"{productName}_{productVersion}"
-        
+
         nodeData = {"nodeName": nodeName,
                     "nodeUID": self.stateUID,
                     "version": productVersion,
                     "Filepath": impFileName,
                     "product": productName,
                     "format": "abc"}
-# self.fuseFuncts
-        importResult = self.core.appPlugin.importLegacy3D(self,
+
+        importResult = self.fuseFuncts.importLegacy3D(self,
                                                 UUID=self.stateUID,
                                                 nodeData=nodeData,
                                                 update=update)
@@ -457,9 +523,6 @@ class Legacy3D_ImportClass(object):
                     msgStr += i + "\n"
                 self.core.popup(msgStr)
 
-            if self.chb_autoNameSpaces.isChecked():
-                self.core.appPlugin.sm_import_removeNameSpaces(self)
-
             if not result:
                 msgStr = "Import failed: %s" % impFileName
                 self.core.popup(msgStr, title="ImportFile")
@@ -477,6 +540,7 @@ class Legacy3D_ImportClass(object):
         self.stateManager.saveStatesToScene()
 
         return result
+
 
     @err_catcher(name=__name__)
     def importLatest(self, refreshUi=True, selectedStates=True):
@@ -507,6 +571,7 @@ class Legacy3D_ImportClass(object):
 
         self.stateManager.applyChangesToSelection = prevState
 
+
     @err_catcher(name=__name__)
     def checkLatestVersion(self):
         path = self.getImportPath()
@@ -519,6 +584,18 @@ class Legacy3D_ImportClass(object):
             latestVersionData = {}
 
         return curVersionData, latestVersionData
+    
+
+    #   Creates simple USD Scene with uMerge and URenderer
+    @err_catcher(name=__name__)
+    def createUsdScene(self):
+        if self.stateManager.standalone:
+            return
+        
+        UUID = self.stateUID
+        
+        result = self.fuseFuncts.createUsdScene(self, UUID)
+
 
     @err_catcher(name=__name__)
     def setStateColor(self, status):
@@ -533,6 +610,7 @@ class Legacy3D_ImportClass(object):
 
         self.statusColor = statusColor
         self.stateManager.tw_import.repaint()
+
 
     @err_catcher(name=__name__)
     def updateUi(self):
@@ -590,88 +668,37 @@ class Legacy3D_ImportClass(object):
                 else:
                     self.b_importLatest.setPalette(self.oldPalette)
 
-        isCache = self.stateMode == "ApplyCache"
-        self.f_nameSpaces.setVisible(not isCache)
-
-        self.lw_objects.clear()
-
-        if self.chb_trackObjects.isChecked():
-            self.gb_objects.setVisible(True)
-            getattr(self.core.appPlugin, "sm_import_updateObjects", lambda x: None)(
-                self
-            )
-
-            for i in self.nodes:
-                item = QListWidgetItem(self.core.appPlugin.getNodeName(self, i))
-                getattr(
-                    self.core.appPlugin,
-                    "sm_import_updateListItem",
-                    lambda x, y, z: None,
-                )(self, item, i)
-
-                self.lw_objects.addItem(item)
-        else:
-            self.gb_objects.setVisible(False)
-
         self.nameChanged()
         self.setStateColor(status)
         getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
-    @err_catcher(name=__name__)
-    def updateTrackObjects(self, state):
-        if not state:
-            if len(self.nodes) > 0:
-                msg = QMessageBox(
-                    QMessageBox.Question,
-                    "Track objects",
-                    "When you disable object tracking Prism won't be able to delete or replace the imported objects at a later point in time. You cannot undo this action. Are you sure you want to disable object tracking?",
-                    QMessageBox.Cancel,
-                )
-                msg.addButton("Continue", QMessageBox.YesRole)
-                msg.setParent(self.core.messageParent, Qt.Window)
-                action = msg.exec_()
-
-                if action != 0:
-                    self.chb_trackObjects.setChecked(True)
-                    return
-
-            self.nodes = []
-            getattr(
-                self.core.appPlugin, "sm_import_disableObjectTracking", lambda x: None
-            )(self)
-
-        self.updateUi()
-        self.stateManager.saveStatesToScene()
 
     @err_catcher(name=__name__)
-    def preDelete(
-        self,
-        item=None,
-        baseText="Do you also want to delete the connected objects?\n\n",
-    ):
-        if len(self.nodes) > 0 and self.stateMode != "ApplyCache":
-            message = baseText
-            validNodes = [
-                x for x in self.nodes if self.core.appPlugin.isNodeValid(self, x)
-            ]
-            if len(validNodes) > 0:
-                for idx, val in enumerate(validNodes):
-                    if idx > 5:
-                        message += "..."
-                        break
-                    else:
-                        message += self.core.appPlugin.getNodeName(self, val) + "\n"
+    def preDelete(self, item=None):
+        try:
+            #   Defaults to Delete the Node
+            delAction = "Yes"
 
-                if not self.core.uiAvailable:
-                    action = "Yes"
-                    print("delete objects:\n\n%s" % message)
-                else:
-                    action = self.core.popupQuestion(message, title="Delete State", parent=self.stateManager)
+            if not self.core.uiAvailable:
+                logger.debug(f"Deleting node: {item}")
 
-                if action == "Yes":
-                    self.core.appPlugin.deleteNodes(self, validNodes)
+            else:
+                nodeUID = self.stateUID
+                nodeName = self.fuseFuncts.getNodeNameByUID(nodeUID)
 
-        getattr(self.core.appPlugin, "sm_import_preDelete", lambda x: None)(self)
+                #   If the Loader exists, show popup question
+                if nodeName:
+                    message = f"Would you like to also remove the associated uLoader: {nodeName}?"
+                    buttons = ["Yes", "No"]
+                    buttonToBool = {"Yes": True, "No": False}
+
+                    response = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
+                    delAction = buttonToBool.get(response, False)
+
+                    self.fuseFuncts.deleteNode("import3d", nodeUID, delAction=delAction)
+        except:
+            logger.warning("ERROR: Unable to remove uLoader from Comp")
+
 
     @err_catcher(name=__name__)
     def getStateProps(self):
@@ -682,6 +709,7 @@ class Legacy3D_ImportClass(object):
 
         return {
             "statename": self.e_name.text(),
+            "stateUID": self.stateUID,
             "statemode": self.stateMode,
             "filepath": self.getImportPath(),
             "autoUpdate": str(self.chb_autoUpdate.isChecked()),

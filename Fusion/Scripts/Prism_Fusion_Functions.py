@@ -341,6 +341,20 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		return CompDb.nodeExists(comp, nodeUID)
 	
+	##############TODELETE############
+	@err_catcher(name=__name__)
+	def getNodeName(self, origin:Legacy3D_ImportClass, node:str):
+		if Fus3d.isNodeValid(origin, node):
+			try:
+				return node["name"]
+			except:
+				QMessageBox.warning(
+					self.core.messageParent, "Warning", "Cannot get name from %s" % node
+				)
+				return node
+		else:
+			return "invalid"
+	##############TODELETE############
 
 	@err_catcher(name=__name__)
 	def getNodeByUID(self, nodeUID):
@@ -927,7 +941,7 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)												#	TODO - USED?
 	def selectCam(self, origin):
-		if self.isNodeValid(origin, origin.curCam):
+		if Fus3d.isNodeValid(origin, origin.curCam):
 			select(origin.curCam)
 
 
@@ -1958,7 +1972,7 @@ class Prism_Fusion_Functions(object):
 		return result
 
 	@err_catcher(name=__name__)
-	def wrapped_importLegacy3D(self, origin:Legacy3D_ImportClass, UUID, nodeData, update=False):
+	def wrapped_importLegacy3D(self, origin:Legacy3D_ImportClass, UUID, nodeData, update=False, doImport=True):
 		comp:Composition_ = self.getCurrentComp()
 		flow:FlowView_ = comp.CurrentFrame.FlowView
 		importRes = False
@@ -1993,7 +2007,7 @@ class Prism_Fusion_Functions(object):
 
 			elif format == ".abc":
 				result = Fus3d.importAlembic(nodeData["Filepath"], self.fusion, origin)
-
+				print("importAlembic result: ", result)
 			else:
 				self.core.popup(f"Import format '{format}' is not supported")
 				logger.warning(f"ERROR:  Format not supported: {format}")
@@ -2037,7 +2051,7 @@ class Prism_Fusion_Functions(object):
 		# 		importRes = True
 
 
-		return {"result": importRes, "doImport": importRes}
+		return {"result": result, "doImport": doImport}
 
 
 	################################################
