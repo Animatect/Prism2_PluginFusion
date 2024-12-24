@@ -3171,12 +3171,12 @@ path = r\"%s\"
 
 	#	Colors tools in Comp based on Color mode in DCC settings
 	@err_catcher(name=__name__)
-	def colorTaskNodes(self, nodeUIDs, color, item, category):
+	def colorTaskNodes(self, nodeUIDs, type, color, item=None, category=None):
 		comp = self.getCurrentComp()
 
 		#	Colors the Loaders and wireless nodes
 		if self.taskColorMode == "All Nodes":
-			toolsToColorUID = CompDb.getAllConnectedNodes(comp, "import2d", nodeUIDs)
+			toolsToColorUID = CompDb.getAllConnectedNodes(comp, type, nodeUIDs)
 
 		#	Only colors the Loader nodes
 		elif self.taskColorMode == "Loader Nodes":
@@ -3188,8 +3188,9 @@ path = r\"%s\"
 			return
 		
 		#	Color the Project Browser Task
-		self.colorItem(item, color)
-		CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
+		if item:
+			self.colorItem(item, color)
+			CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
 		
 		if not toolsToColorUID:
 			logger.debug("There are not Loaders associated with this task.")
@@ -3321,7 +3322,7 @@ path = r\"%s\"
 
 					# we can pass name as a default argument in the lambda to "freeze" its value for each iteration
 					# even if the action isn't checkable, the triggered signal passes checked as an argument by default.
-					depAct.triggered.connect(lambda checked=False, color=color: self.colorTaskNodes(mediaNodeUIDs, color, item, category))
+					depAct.triggered.connect(lambda checked=False, color=color: self.colorTaskNodes(mediaNodeUIDs, "import2d", color, item, category))
 					icon = self.create_color_icon(qcolor)
 					depAct.setIcon(icon)
 					menuSelTaskC.addAction(depAct)
