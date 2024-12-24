@@ -72,7 +72,7 @@
          </font>
         </property>
         <property name="text">
-         <string>ImportFile</string>
+         <string>Import USD</string>
         </property>
        </widget>
       </item>
@@ -80,17 +80,69 @@
     </widget>
    </item>
    <item>
+    <widget class="QGroupBox" name="gb_taskColor">
+     <property name="enabled">
+      <bool>true</bool>
+     </property>
+     <property name="alignment">
+      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
+     </property>
+     <property name="checkable">
+      <bool>false</bool>
+     </property>
+     <property name="checked">
+      <bool>false</bool>
+     </property>
+     <layout class="QHBoxLayout" name="f_taskColor">
+      <property name="leftMargin">
+       <number>18</number>
+      </property>
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="rightMargin">
+       <number>18</number>
+      </property>
+      <property name="bottomMargin">
+       <number>0</number>
+      </property>
+      <item>
+       <widget class="QLabel" name="l_taskColor">
+        <property name="text">
+         <string>Task Color</string>
+        </property>
+       </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="cb_taskColor"/>
+      </item>
+     </layout>
+    </widget>
+   </item>
+   <item>
     <widget class="QGroupBox" name="gb_import">
      <property name="title">
-      <string>Import</string>
+      <string/>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
+      <property name="topMargin">
+       <number>0</number>
+      </property>
+      <property name="bottomMargin">
+       <number>9</number>
+      </property>
       <item>
-       <widget class="QGroupBox" name="groupBox">
+       <widget class="QGroupBox" name="gb_version">
         <property name="title">
          <string>Version</string>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_3">
+         <property name="topMargin">
+          <number>6</number>
+         </property>
+         <property name="bottomMargin">
+          <number>9</number>
+         </property>
          <item>
           <widget class="QWidget" name="w_currentVersion" native="true">
            <layout class="QHBoxLayout" name="horizontalLayout_5">
@@ -245,19 +297,6 @@
              <number>0</number>
             </property>
             <item>
-             <widget class="QPushButton" name="b_browse">
-              <property name="focusPolicy">
-               <enum>Qt::NoFocus</enum>
-              </property>
-              <property name="contextMenuPolicy">
-               <enum>Qt::NoContextMenu</enum>
-              </property>
-              <property name="text">
-               <string>Browse</string>
-              </property>
-             </widget>
-            </item>
-            <item>
              <widget class="QPushButton" name="b_importLatest">
               <property name="minimumSize">
                <size>
@@ -279,6 +318,19 @@
               </property>
              </widget>
             </item>
+            <item>
+             <widget class="QPushButton" name="b_browse">
+              <property name="focusPolicy">
+               <enum>Qt::NoFocus</enum>
+              </property>
+              <property name="contextMenuPolicy">
+               <enum>Qt::NoContextMenu</enum>
+              </property>
+              <property name="text">
+               <string>Browse Version</string>
+              </property>
+             </widget>
+            </item>
            </layout>
           </widget>
          </item>
@@ -292,6 +344,22 @@
              <number>0</number>
             </property>
             <item>
+             <spacer name="horizontalSpacer_6">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
+            </item>
+            <item>
              <widget class="QPushButton" name="b_import">
               <property name="focusPolicy">
                <enum>Qt::NoFocus</enum>
@@ -300,6 +368,22 @@
                <string>Re-Import</string>
               </property>
              </widget>
+            </item>
+            <item>
+             <spacer name="horizontalSpacer_5">
+              <property name="orientation">
+               <enum>Qt::Horizontal</enum>
+              </property>
+              <property name="sizeType">
+               <enum>QSizePolicy::Fixed</enum>
+              </property>
+              <property name="sizeHint" stdset="0">
+               <size>
+                <width>40</width>
+                <height>20</height>
+               </size>
+              </property>
+             </spacer>
             </item>
            </layout>
           </widget>
@@ -314,7 +398,7 @@
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_6">
          <item>
-          <widget class="QWidget" name="f_keepRefEdits" native="true">
+          <widget class="QWidget" name="f_usdScene" native="true">
            <layout class="QHBoxLayout" name="horizontalLayout_10">
             <property name="leftMargin">
              <number>9</number>
