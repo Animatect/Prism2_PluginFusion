@@ -1930,9 +1930,9 @@ class Prism_Fusion_Functions(object):
 		#	Get tool for each UID
 		texTools = [tool for uid in connectedTexs if (tool := CompDb.getNodeByUID(comp, uid))]
 		#	Stack uTextures and get the average position
-		xPos, yPos = Fus.stackNodesByList(comp, texTools, yoffset=0.6)
+		xPos, yPos = Fus.stackToolsByList(comp, texTools, yoffset=0.6)
 		#	Moves uShader to the right of the stack
-		Fus.set_node_position(flow, uShader, xPos+1, yPos)
+		Fus.setToolPosition(flow, uShader, xPos+1, yPos)
 
 		logger.debug("Added uTextures to Comp")
 		
