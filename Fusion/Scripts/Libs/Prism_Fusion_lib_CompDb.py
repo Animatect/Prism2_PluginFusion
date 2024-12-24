@@ -780,7 +780,11 @@ def getConnectedNodes(comp, listType:str, UUID:str) -> Union[list | None]:
     try:
         if UUID in cpData["nodes"][listType]:
             nodeData = cpData["nodes"][listType][UUID]
-            connectedNodes = nodeData["connectedNodes"]
+            if "connectedNodes" not in nodeData:
+                return []
+            
+            else:
+                connectedNodes = nodeData["connectedNodes"]
 
             #   If connected nodes is a dict with names
             if isinstance(connectedNodes, dict):
