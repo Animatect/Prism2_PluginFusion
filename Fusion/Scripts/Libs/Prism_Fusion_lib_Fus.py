@@ -242,6 +242,9 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-327
         if "nodeName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
 
+        if "groupName" in toolData:
+            tool.SetData('Prism_Group', toolData['groupName'])
+
         if "toolUID" in toolData:
             tool.SetData('Prism_UUID', toolData['toolUID'])
         if "nodeUID" in toolData:
@@ -265,6 +268,9 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-327
         if "shaderName" in toolData:
             tool.SetData('Prism_Shader', toolData['shaderName'])
 
+        if "shaderType" in toolData:
+            tool.SetData('Prism_ShaderType', toolData['shaderType'])
+
         if "texMap" in toolData:
             tool.SetData('Prism_TexMap', toolData['texMap'])
  
@@ -286,6 +292,9 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-327
         if "uTexFilepath" in toolData:
             tool["Filename"] = toolData['uTexFilepath']
 
+        if "matXfilePath" in toolData:
+            tool["MaterialFile"] = toolData["matXfilePath"]
+
         if "3dFilepath" in toolData:
             if toolData["format"] == ".fbx":
                 tool["ImportFile"] = toolData['3dFilepath']
@@ -305,7 +314,7 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-327
 
 
         #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
-        tool.SetAttrs({'TOOLS_NameSet': True})
+        # tool.SetAttrs({'TOOLS_NameSet': True})
 
         return tool
     
@@ -323,6 +332,9 @@ def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoC
         if "nodeName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
 
+        if "groupName" in toolData:
+            tool.SetData('Prism_Group', toolData['groupName'])
+
         if "version" in toolData:
             tool.SetData('Prism_Version', toolData['version'])
 
@@ -334,6 +346,9 @@ def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoC
 
         if "usdFilepath" in toolData:
             tool["Filename"] = toolData['usdFilepath']
+
+        if "matXfilePath" in toolData:
+            tool["MaterialFile"] = toolData["matXfilePath"]
 
         if "3dFilepath" in toolData:
             if toolData["format"] == ".fbx":
@@ -351,7 +366,7 @@ def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoC
 
 
         #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
-        tool.SetAttrs({'TOOLS_NameSet': True})
+        # tool.SetAttrs({'TOOLS_NameSet': True})
 
         return tool
     
@@ -385,9 +400,16 @@ def getToolData(tool:Tool) -> dict:
         return {}
     
 
-#   Creates a group with given tools and returns new UIDs.
+#   Creates a group with given tools and returns the Group UID and new UIDs.
 @err_catcher(name=__name__)
-def groupTools(comp, groupName:str, toolList:list, outputTool:Tool = None, inputTool:Tool = None) -> list[UUID]:
+def groupTools(comp,
+               origin,
+               groupName:str,
+               toolList:list,
+               outputTool:Tool = None,
+               inputTool:Tool = None
+               ) -> tuple[UUID, list[UUID]]:
+    
     success = False
     toolUIDs = []
     toolsToCopy = dict()
@@ -488,7 +510,13 @@ def groupTools(comp, groupName:str, toolList:list, outputTool:Tool = None, input
                 result = connectInputToOutput(input, output)
 
         if result:
-            return toolUIDs
+            #   Add UUID to Group Tool
+            groupUID = origin.createUUID()
+            groupTool = getToolByName(comp, groupName)
+            groupTool.SetData('Prism_UUID', groupUID)
+
+            return groupUID, toolUIDs
+        
 
     except Exception as e:
         logger.warning(f"ERROR: Failed to create group:\n{e}")

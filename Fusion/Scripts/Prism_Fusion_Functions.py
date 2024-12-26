@@ -1880,12 +1880,12 @@ class Prism_Fusion_Functions(object):
 			#	Configure Data
 			shdData = texData.copy()
 			del shdData["texFiles"]
-			shdData["nodeName"] = f"{texData['baseName']}_uShader"
-			shdData["shaderName"] = texData["baseName"]
+			shdData["toolName"] = f"{texData['toolName']}_uShader"
+			shdData["shaderName"] = texData["shaderName"]
 		
 			#	Add uShader tool
 			uShader = Fus.addTool(comp, "uShader", shdData)
-			logger.debug(f"Added uShader: {shdData['nodeName']}")
+			logger.debug(f"Added uShader: {shdData['toolName']}")
 		
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to add uShader to Comp:\n{e}")
@@ -1893,7 +1893,7 @@ class Prism_Fusion_Functions(object):
 			return False
 
 		#	Add uShader to Comp Database
-		del shdData["baseName"]
+		del shdData["toolName"]
 		CompDb.addNodeToDB(comp, "import3d", texData["nodeUID"], shdData)
 
 		#	Handle textures
@@ -1905,8 +1905,8 @@ class Prism_Fusion_Functions(object):
 				#	Configure texture data
 				texDict = {}
 				texDict["toolUID"] = toolUID
-				texDict["nodeName"] = f"{texData['baseName']}_{texture['map'].upper()}"
-				texDict["shaderName"] = texData["baseName"]
+				texDict["nodeName"] = f"{texData['toolName']}_{texture['map'].upper()}"
+				texDict["shaderName"] = texData["shaderName"]
 				texDict["texMap"] = texture["map"].upper()
 				texDict["uTexFilepath"] = texture["path"]				
 
@@ -1941,16 +1941,12 @@ class Prism_Fusion_Functions(object):
 			try:
 				#	Get tool data
 				toolData = Fus.getToolData(tool)
-
 				#	Get map type from data
 				mapType = (toolData.get("Prism_TexMap", None)).lower()
-
 				#	Get uShader connection data from map type
 				connectionData = self.connectDict.get(mapType, None)
-
 				#	Extract input name and colorspace
 				mapInput = connectionData.get("input", None)
-
 				#	Connect the tool to the uShader using mapInput
 				uShader[mapInput] = tool
 
@@ -1965,10 +1961,21 @@ class Prism_Fusion_Functions(object):
 			groupTools = texTools
 			groupTools.append(uShader)
 			#	Make group name
-			groupName = texData['baseName']
+			groupName = texData['shaderName']
 
 			#	Create group
-			newToolsUIDs = Fus.groupTools(comp, groupName, groupTools, outputTool=uShader)
+			groupUID, newToolsUIDs = Fus.groupTools(comp, self, groupName, groupTools, outputTool=uShader)
+			
+			#	Make Group Data
+			groupData = {"groupName": texData['shaderName'],
+						 "connectedNodes": newToolsUIDs}
+
+			#	Get Group Tool
+			groupTool = CompDb.getNodeByUID(comp, groupUID)
+
+			#	Uodate Group and add to Database
+			Fus.updateTool(groupTool, groupData)
+			CompDb.addNodeToDB(comp, "import3d", groupUID, groupData)
 
 			logger.debug(f"Created shader group: {groupName}")
 
@@ -1978,34 +1985,82 @@ class Prism_Fusion_Functions(object):
 
 		#	Set the colorspace for textures
 		#	(have to do it at the end since it gets reset in the group creation)
-		for uid in newToolsUIDs:
-			try:
-			#	Get tool data
-				tool = CompDb.getNodeByUID(comp, uid)
-				toolData = Fus.getToolData(tool)
+		if newToolsUIDs:
+			for uid in newToolsUIDs:
+				try:
+				#	Get tool data
+					tool = CompDb.getNodeByUID(comp, uid)
+					toolData = Fus.getToolData(tool)
 
-				#	Get map type from data
-				mapType = (toolData.get("Prism_TexMap", None)).lower()
+					#	Get map type from data
+					mapType = toolData.get("Prism_TexMap", None)
+					mapType = mapType.lower() if mapType is not None else None
 
-				#	Get colorspace from map type
-				connectionData = self.connectDict.get(mapType, None)
-				colorspace = connectionData.get("colorspace", None)
+					if mapType:
+						#	Get colorspace from map type
+						connectionData = self.connectDict.get(mapType, None)
+						colorspace = connectionData.get("colorspace", None)
 
-				#	Change to Fusion integer
-				colorCode = 0
-				if colorspace == "sRGB":
-					colorCode = 1
+						#	Change to Fusion integer
+						colorCode = 0
+						if colorspace == "sRGB":
+							colorCode = 1
 
-				#	Set the tools colorspace
-				tool["SourceColorSpace"] = colorCode
+						#	Set the tools colorspace
+						tool["SourceColorSpace"] = colorCode
 
-				logger.debug(f"Configured SourceColorSpace for {tool.Name}")
+						logger.debug(f"Configured SourceColorSpace for {tool.Name}")
 
-			except:
-				logger.warning(f"ERROR: Not able to set Source ColorSpace for {tool.Name}.")
+				except:
+					logger.warning(f"ERROR: Not able to set Source ColorSpace for {tool.Name}.")
 
 		comp.EndUndo()
 		comp.Unlock()
+
+
+
+	# #	Imports .fbx or .abc object into Comp
+	@err_catcher(name=__name__)
+	def createUsdMatX(self, origin, UUID, texData, update=False):
+		comp = self.getCurrentComp()
+		comp.Lock()
+		comp.StartUndo("Import USD MaterialX")	
+
+		result = self.wrapped_createUsdMatX(origin, UUID, texData, update)
+
+		comp.EndUndo()
+		comp.Unlock()
+
+		return result
+
+
+	#	Imports .fbx or .abc object into Comp
+	@err_catcher(name=__name__)
+	def wrapped_createUsdMatX(self, origin, UUID, matXData, update):
+		comp = self.getCurrentComp()
+		result = False
+
+		if not update:
+			#	Add uMaterialX tool
+			uMaterialX = Fus.addTool(comp, "uMaterialX", matXData)
+		
+			if uMaterialX:
+				#	Add to Comp Database
+				del matXData["toolName"]
+				addResult = CompDb.addNodeToDB(comp, "import3d", UUID, matXData)
+				if addResult:
+					result = True
+					
+		else:
+			tool = CompDb.getNodeByUID(comp, UUID)
+			uMaterialX = Fus.updateTool(tool, matXData)
+
+			if uMaterialX:
+				updateResult = CompDb.updateNodeInfo(comp, "import3d", UUID, matXData)
+				if updateResult:
+					result = True
+
+		return {"result": result, "doImport": result}
 
 
 	#	Imports .fbx or .abc object into Comp

@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>ImportFile</string>
+   <string>Object3d Import</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="leftMargin">
@@ -73,31 +73,6 @@
         </property>
         <property name="text">
          <string>Import 3D</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QGroupBox" name="gb_taskColor">
-     <layout class="QHBoxLayout" name="f_taskColor">
-      <property name="leftMargin">
-       <number>18</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>18</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
-      <item>
-       <widget class="QLabel" name="l_taskColor">
-        <property name="text">
-         <string>Task Color</string>
         </property>
        </widget>
       </item>

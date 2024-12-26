@@ -33,7 +33,7 @@
 
 
 import os
-import re
+# import re
 import logging
 
 from qtpy.QtCore import *
@@ -47,8 +47,8 @@ logger = logging.getLogger(__name__)
 
 
 
-class USD_TextureClass(object):
-    className = "USD_Texture"
+class USD_MaterialClass(object):
+    className = "USD_Material"
     listType = "Import"
     stateCategories = {"Import3d": [{"label": className, "stateType": className}]}
 
@@ -66,13 +66,13 @@ class USD_TextureClass(object):
     ):
         
         self.state = state
-        self.stateMode = "USD_Texture"                           #   TODO  Handle setting stateMode for the UI label.
+        self.stateMode = "USD_Material (empty)"
 
         self.core = core
         self.stateManager = stateManager
         self.fuseFuncts = self.core.appPlugin
 
-        self.supportedFormats = [".png", ".jpg", ".jpeg", ".tga", ".tif", ".tiff"]               #   TODO - add file types
+        self.supportedFormats = [".mtlx", ".png", ".jpg", ".jpeg", ".exr", ".tga", ".tif", ".tiff"]               #   TODO - add file types
 
         self.texTypes = {"color": ["diffuse", "diff", "color", "base color", "basecolor", "albedo", "col", "base"],                                     #   TODO - add more types
                          "metallic": ["metallic", "metal", "metalness", "met", "mtl"],
@@ -112,23 +112,18 @@ class USD_TextureClass(object):
         self.tw_textureFiles.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tw_textureFiles.customContextMenuRequested.connect(self.showContextMenu)
 
-        createEmptyState = (
-            QApplication.keyboardModifiers() == Qt.ControlModifier
-            or not self.core.uiAvailable
-            ) or not openProductsBrowser
+        #   Initially hidee the Panels
+        self.gb_matX.hide()
+        self.gb_textures.hide()
 
-        # if (
-        #     importPath is None
-        #     and stateData is None
-        #     and not createEmptyState
-        #     and not self.stateManager.standalone
-        # ):
-        #     importPaths = self.requestImportPaths()
-        #     if importPaths:
-        #         importPath = importPaths[-1]
-        #         if len(importPaths) > 1:
-        #             for importPath in importPaths[:-1]:
-        #                 stateManager.importFile(importPath)
+        self.cb_taskColor.setFixedWidth(125)
+        #	Gets task color settings from the DCC settings
+        self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
+        if self.taskColorMode == "Disabled":
+            self.cb_taskColor.hide()
+        else:
+            self.cb_taskColor.show()
+            self.populateTaskColorCombo()
 
         if importPath:
             _, extension = os.path.splitext(importPath)
@@ -149,7 +144,7 @@ class USD_TextureClass(object):
         # ):
         #     return False
 
-        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)                 #   USED???
+        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
 
         self.connectEvents()
 
@@ -160,9 +155,11 @@ class USD_TextureClass(object):
             self.stateUID = self.fuseFuncts.createUUID()
             self.lastExplorerDir = self.findProjectTexDir()
 
-            self.e_name.setText("USD Material (BLANK)")
+            self.e_name.setText(self.stateMode)
+            self.l_class.setText(self.stateMode)
 
-        # tip = ("Create a simple Fusion USD scene.\n\n"                #   TODO TOOLTIPS
+
+        # tip = ("Create a simple Fusion USD scene.\n\n"                    #######   TODO TOOLTIPS
         #        "This will add and connect:\n"
         #        "A uMerge and a uRenderer")
         # self.b_createUsdScene.setToolTip(tip)
@@ -178,21 +175,6 @@ class USD_TextureClass(object):
 
 
     @err_catcher(name=__name__)
-    def requestImportPaths(self):
-        result = self.core.callback("requestImportPath", self)
-        for res in result:
-            if isinstance(res, dict) and res.get("importPaths") is not None:
-                return res["importPaths"]
-
-        import ProductBrowser
-        ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
-        self.core.parentWindow(ts)
-        ts.exec_()
-        importPath = [ts.productPath]
-        return importPath
-
-
-    @err_catcher(name=__name__)
     def loadData(self, data):
         if "statename" in data:
             self.e_name.setText(data["statename"])
@@ -200,16 +182,16 @@ class USD_TextureClass(object):
             self.stateUID = data["stateUID"]
         if "statemode" in data:
             self.setStateMode(data["statemode"])
-            
+        if "taskColor" in data:
+            idx = self.cb_taskColor.findText(data["taskColor"])
+            if idx != -1:
+                self.cb_taskColor.setCurrentIndex(idx)
         if "textureFiles" in data:
             self.textureFiles = data["textureFiles"]
-
         if "taskname" in data:
             self.taskName = data["taskname"]
-
         if "setname" in data:
             self.setName = data["setname"]
-
         if "lastExplorerDir" in data:
             self.lastExplorerDir = data["lastExplorerDir"]
 
@@ -226,11 +208,59 @@ class USD_TextureClass(object):
         self.b_browse.clicked.connect(self.browse)
         self.b_browse.customContextMenuRequested.connect(self.openFolder)
         #   This is the "Re-Import" button
-        # self.b_import.clicked.connect(lambda: self.importObject(update=True))
+        # self.b_import.clicked.connect(lambda: self.importObject(update=True))                 #   TODO
         self.b_explorer.clicked.connect(self.openExplorer)
         self.b_createShader.clicked.connect(self.createUsdMaterial)
         self.tw_textureFiles.customContextMenuRequested.connect(self.showContextMenu)
+        self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
 
+
+    @err_catcher(name=__name__)
+    def populateTaskColorCombo(self):
+        #   Clear existing items
+        self.cb_taskColor.clear()
+
+        # Loop through color dictionary and add items with icons
+        for key in self.fuseFuncts.fusionToolsColorsDict.keys():
+            name = key
+            color = self.fuseFuncts.fusionToolsColorsDict[key]
+
+            # Create a QColor from the RGB values
+            qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
+
+            # Create icon with the color
+            icon = self.fuseFuncts.create_color_icon(qcolor)
+            self.cb_taskColor.addItem(QIcon(icon), name)
+
+
+    @err_catcher(name=__name__)
+    def setTaskColor(self, color):
+        #   Get rgb color from dict
+        colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
+        #   Color tool
+        self.fuseFuncts.colorTaskNodes(self.stateUID, "import3d", colorRGB, category="import3d")
+
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
+
+
+    @err_catcher(name=__name__)
+    def updateUi(self):
+
+        getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
+        
+
+    @err_catcher(name=__name__)
+    def nameChanged(self, text=None):
+        if not text:
+            name = self.e_name.text()
+        else:
+            name = f"USD_Mat ({text})"
+
+        self.state.setText(0, name)
+
+        self.stateManager.saveStatesToScene()
+    
 
     #   Gets the Project Texture dir from pipeline config
     @err_catcher(name=__name__)
@@ -250,76 +280,63 @@ class USD_TextureClass(object):
             return curPrj
         else:
             return None
-        
-
-    @err_catcher(name=__name__)
-    def nameChanged(self, text=None):
-        # text = self.e_name.text()
-        # cacheData = self.core.paths.getCachePathData(self.getImportPath())
-        # if cacheData.get("type") == "asset":
-        #     cacheData["entity"] = os.path.basename(cacheData.get("asset_path", ""))
-        # elif cacheData.get("type") == "shot":
-        #     shotName = self.core.entities.getShotName(cacheData)
-        #     if shotName:
-        #         cacheData["entity"] = shotName
-
-        # num = 0
-
-        # try:
-        #     if "{#}" in text:
-        #         while True:
-        #             cacheData["#"] = num or ""
-        #             name = text.format(**cacheData)
-        #             for state in self.stateManager.states:
-        #                 if state.ui.listType != "Import":
-        #                     continue
-
-        #                 if state is self.state:
-        #                     continue
-
-        #                 if state.text(0) == name:
-        #                     num += 1
-        #                     break
-        #             else:
-        #                 break
-        #     else:
-                # name = text.format(**cacheData)
-
-        # except Exception as e:
-        #     name = text
-
-        if not text:
-            name = self.e_name.text()
-        else:
-            name = f"USD_Mat ({text})"
-
-        self.state.setText(0, name)
-
-        self.stateManager.saveStatesToScene()
 
 
-
-    @err_catcher(name=__name__)
-    def getSortKey(self):
-        cacheData = self.core.paths.getCachePathData(self.getImportPath())
-        return cacheData.get("product")
-
-
+    #   From Browser Button
     @err_catcher(name=__name__)
     def browse(self):
-        import ProductBrowser
+        #   Get import paths from Libraries window
+        paths = self.launchLibBrowser()
 
-        ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
-        self.core.parentWindow(ts)
-        ts.exec_()
-        importPath = ts.productPath
+        if not paths:
+            return
+        
+        path = paths[0]
+        ext = os.path.splitext(os.path.basename(path))[1]
 
-        if importPath:
-            result = self.importObject(update=True, path=importPath)
-            if result:
-                self.setImportPath(importPath)
-            self.updateUi()
+        if ext not in self.supportedFormats:
+            logger.warning(f"ERROR:  '{ext}' format is not supported.")
+            self.core.popup(f"ERROR:  '{ext}' format is not supported.")
+            return
 
+        #   Handle MaterialX Import
+        if len(paths) == 1 and ext.lower() == ".mtlx":
+            self.importMatX(path)
+
+        #   Handle Texture set
+        else:
+            self.importTextureSet(paths)
+
+
+    #   Launch Libraries window and return selected Import Path(s)
+    @err_catcher(name=__name__)
+    def launchLibBrowser(self):
+        try:
+            #   Get Libraries Plugin
+            libs = self.core.getPlugin("Libraries")
+            if not libs:
+                raise Exception
+        except:
+            logger.warning("ERROR:  Libraries Plugin not installed.  Use the 'Open Explorer' button to choose Texture Set.")
+            self.core.popup("Libraries Plugin not installed.\n\n"
+                           "Use the 'Open Explorer' button to choose Texture Set.")
+            return None
+
+        try:
+            #   Call Libraries popup and return selected file path(s)
+            paths = libs.getAssetImportPaths()
+
+            if not paths:
+                logger.debug("Texture selection canceled.")
+                return None
+            
+            return paths
+            
+        except Exception as e:
+            self.core.popup(f"ERROR: Failed  Texture Set: {e}")
+            logger.warning(f"ERROR: selecting Texture Set: {e}")
+            return None
+        
 
     #   Opens File Explorer to pick texture files
     @err_catcher(name=__name__)
@@ -353,8 +370,145 @@ class USD_TextureClass(object):
                 elif os.path.isdir(firstItem):
                     self.lastExplorerDir = firstItem
 
-            #   Populate the list widget
-            self.populateTextList(textureFiles)
+                path = selectedItems[0]
+                ext = os.path.splitext(os.path.basename(path))[1]
+
+                if ext not in self.supportedFormats:
+                    logger.warning(f"ERROR:  '{ext}' format is not supported.")
+                    self.core.popup(f"ERROR:  '{ext}' format is not supported.")
+                    return
+
+                #   Handle MaterialX Import
+                if len(selectedItems) == 1 and ext.lower() == ".mtlx":
+                    self.importMatX(path)
+
+                #   Handle Texture set
+                else:
+                    self.importTextureSet(selectedItems)
+
+
+    @err_catcher(name=__name__)
+    def importMatX(self, importPath, update=False):
+        result = True
+
+        if self.stateManager.standalone:
+            return result
+
+        #   Get current comp filename
+        fileName = self.core.getCurrentFileName()
+
+        doImport = True
+
+        basename = os.path.basename(importPath)
+
+        #   Configure UI
+        self.setStateMode("MaterialX")
+        self.gb_matX.show()
+        self.e_matxFile.setText(basename)
+        
+        #   Make name without ext
+        matXname = os.path.splitext(basename)[0]
+        self.nameChanged(matXname)
+
+        #   Make dict
+        matxData = {"toolName": matXname,
+                    "nodeUID": self.stateUID,
+                    "shaderName": matXname,
+                    "shaderType": "MaterialX",
+                    "matXfilePath": importPath}
+        
+        #   Updates existing tool if it exists
+        update = self.fuseFuncts.nodeExists(self.stateUID)
+
+        #   Call fucntion to import
+        importResult = self.fuseFuncts.createUsdMatX(self,
+                                                     UUID=self.stateUID,
+                                                     texData=matxData,
+                                                     update=update)
+
+        if not importResult:
+            result = None
+            doImport = False
+        else:
+            result = importResult["result"]
+            doImport = importResult["doImport"]
+
+        if doImport:
+            if result == "canceled":
+                return
+
+        kwargs = {
+            "state": self,
+            "scenefile": fileName,
+        }
+        self.core.callback("postImport", **kwargs)
+        self.stateManager.saveImports()
+        self.updateUi()
+        self.stateManager.saveStatesToScene()
+
+        return result
+
+
+    @err_catcher(name=__name__)
+    def importTextureSet(self, textureFiles):
+        #   Configure UI
+        self.setStateMode("USD Material")
+        self.gb_textures.show()
+
+        if len(textureFiles) == 1:
+            full_fileList = []
+
+            #   Resolve Texture Set from selected file
+            try:
+                path = textureFiles[0]
+                texDir = os.path.dirname(path)
+                #   Loop through files to get full filepaths
+                for file in os.listdir(texDir):
+                    fullPath = os.path.join(texDir, file)
+                    full_fileList.append(fullPath)
+
+                #   Get matching texture set from file list
+                texSet = self.getTextureSet(full_fileList, path)
+
+                if not texSet:
+                    raise Exception
+
+            except Exception as e:
+                logger.warning(f"ERROR: Failed to extract Texture Set from selected File: {e}")
+                self.core.popup(f"Failed to extract Texture Set from selected File: {e}")
+                return
+        else:
+            #   Pass selected files
+            texSet = textureFiles
+            baseNames = [os.path.splitext(os.path.basename(f))[0] for f in texSet]
+            self.commonPrefix = self.findCommonPrefix(baseNames)
+
+        #   Populate the list widget
+        self.populateTextList(texSet)
+
+        self.nameChanged(self.commonPrefix)
+
+
+    @err_catcher(name=__name__)
+    def getTextureSet(self, fileList, knownFilename):
+        try:
+            # Extract the dir and basename of the known file
+            known_dir = os.path.dirname(knownFilename)
+            known_base = os.path.splitext(os.path.basename(knownFilename))[0]
+
+            # Find all files in the same directory as the known file
+            relevant_files = [f for f in fileList if os.path.dirname(f) == known_dir]
+
+            # Extract the "core name" of the known file (before any suffix or pass indicators)
+            coreName = known_base.split('_')[0] + '_' + known_base.split('_')[1]
+
+            # Filter files to match the exact core name prefix
+            matchingFiles = [f for f in relevant_files if os.path.splitext(os.path.basename(f))[0].startswith(coreName)]
+
+            return matchingFiles
+        
+        except:
+            return None
 
 
     #   Match map type to texture files
@@ -365,10 +519,10 @@ class USD_TextureClass(object):
 
         #   Get the common name in all texture files
         baseNames = [os.path.splitext(os.path.basename(f))[0] for f in fileList]
-        self.commonPrefix = self.findCommonPrefix(baseNames)
+        commonPrefix = self.findCommonPrefix(baseNames)
 
         #   Extract the texture part by removing the common prefix
-        texturePart = baseName[len(self.commonPrefix):].strip("_").lower()
+        texturePart = baseName[len(commonPrefix):].strip("_").lower()
 
         #   Get list of keywords sorted by length (longest first)
         sortedTexTypes = sorted(self.texTypes.items(),
@@ -401,6 +555,8 @@ class USD_TextureClass(object):
             commonPrefix = commonPrefix[:i]  
             if not commonPrefix:
                 break
+
+            self.commonPrefix = commonPrefix
                 
         return commonPrefix
 
@@ -424,42 +580,6 @@ class USD_TextureClass(object):
 
         # Show the menu at the cursor's position
         menu.exec_(self.tw_textureFiles.mapToGlobal(pos))
-
-
-    #   Clears all items from list
-    @err_catcher(name=__name__)
-    def clearTextureList(self):
-        #   Clear the list widget
-        self.tw_textureFiles.clearContents()
-        #   Reset textureFiles
-        self.textureFiles = []
-
-        self.refreshTexList()
-
-
-    #   Removes texture file from list
-    @err_catcher(name=__name__)
-    def removeSelectedItems(self):
-        # Get the selected items (QTableWidgetItems)
-        selItems = self.tw_textureFiles.selectedItems()
-
-        # Remove items from the list and self.textureFiles
-        rowsToRemove = set()
-        for item in selItems:
-            row = self.tw_textureFiles.row(item)
-            rowsToRemove.add(row)
-
-            # Retrieve the stored file path
-            filePath = self.tw_textureFiles.item(row, 2).text()
-
-            # Remove from the textureFiles list
-            self.textureFiles = [data for data in self.textureFiles if data["path"] != filePath]
-
-        # Remove rows from the table widget
-        for row in sorted(rowsToRemove, reverse=True):
-            self.tw_textureFiles.removeRow(row)
-
-        self.refreshTexList()
 
 
     # Receive the texture list and populate the table
@@ -507,8 +627,6 @@ class USD_TextureClass(object):
                 # Add Path column with the full file path (hidden)
                 pathItem = QTableWidgetItem(filePath)
                 self.tw_textureFiles.setItem(rowPosition, 2, pathItem)
-
-        self.nameChanged(self.commonPrefix)
 
         self.saveTexList()
 
@@ -562,7 +680,40 @@ class USD_TextureClass(object):
         self.saveTexList()
 
 
+    #   Clears all items from list
+    @err_catcher(name=__name__)
+    def clearTextureList(self):
+        #   Clear the list widget
+        self.tw_textureFiles.clearContents()
+        #   Reset textureFiles
+        self.textureFiles = []
 
+        self.refreshTexList()
+
+
+    #   Removes texture file from list
+    @err_catcher(name=__name__)
+    def removeSelectedItems(self):
+        # Get the selected items (QTableWidgetItems)
+        selItems = self.tw_textureFiles.selectedItems()
+
+        # Remove items from the list and self.textureFiles
+        rowsToRemove = set()
+        for item in selItems:
+            row = self.tw_textureFiles.row(item)
+            rowsToRemove.add(row)
+
+            # Retrieve the stored file path
+            filePath = self.tw_textureFiles.item(row, 2).text()
+
+            # Remove from the textureFiles list
+            self.textureFiles = [data for data in self.textureFiles if data["path"] != filePath]
+
+        # Remove rows from the table widget
+        for row in sorted(rowsToRemove, reverse=True):
+            self.tw_textureFiles.removeRow(row)
+
+        self.refreshTexList()
 
 
 
@@ -659,9 +810,11 @@ class USD_TextureClass(object):
         sendTexFiles = [item for item in self.textureFiles if item["map"] != "NONE"]
         
         #   Make dict
-        texData = {"baseName": self.commonPrefix,
-                    "nodeUID": self.stateUID,
-                    "texFiles": sendTexFiles}
+        texData = {"toolName": self.commonPrefix,
+                   "shaderName": self.commonPrefix,
+                   "shaderType": "uShader",
+                   "nodeUID": self.stateUID,
+                   "texFiles": sendTexFiles}
 
         #   Call fucntion to import
         importResult = self.fuseFuncts.createUsdMaterial(self,
@@ -675,8 +828,8 @@ class USD_TextureClass(object):
         else:
             result = importResult["result"]
             doImport = importResult["doImport"]
-            if result and "mode" in importResult:
-                self.setStateMode(importResult["mode"])
+            # if result and "mode" in importResult:
+            #     self.setStateMode(importResult["mode"])
 
         if doImport:
             if result == "canceled":
@@ -708,13 +861,6 @@ class USD_TextureClass(object):
         return result
 
 
-    @err_catcher(name=__name__)
-    def updateUi(self):
-
-        self.nameChanged()
-        getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
-
-
     #   Called from StateManager when deleting state
     @err_catcher(name=__name__)
     def preDelete(self, item=None):
@@ -734,7 +880,7 @@ class USD_TextureClass(object):
                 #   Get associated textures
                 connectedTools = nodeData.get("connectedNodes", [])
 
-                #   If the uShader exists, show popup question
+                #   If the material tool exists, show popup question
                 if nodeName:
                     message = f"Would you like to also remove the material ({nodeData['shaderName']}) from the Comp?"
                     buttons = ["Yes", "No"]
@@ -750,7 +896,7 @@ class USD_TextureClass(object):
                             self.fuseFuncts.deleteNode("import3d", uid, delAction=delAction)
 
         except:
-            logger.warning("ERROR: Unable to remove uLoader from Comp")
+            logger.warning("ERROR: Unable to remove Material from Comp")
 
 
     @err_catcher(name=__name__)
