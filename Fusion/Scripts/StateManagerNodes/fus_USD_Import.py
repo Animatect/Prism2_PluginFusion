@@ -49,6 +49,7 @@
 
 import os
 import logging
+from unicodedata import category
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -100,18 +101,15 @@ class USD_ImportClass(object):
         self.l_name.setVisible(False)
         self.e_name.setVisible(False)
 
+        self.nodes = []
+        self.nodeNames = []
+
         self.oldPalette = self.b_importLatest.palette()
         self.updatePalette = QPalette()
         self.updatePalette.setColor(QPalette.Button, QColor(200, 100, 0))
         self.updatePalette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
 
-        #	Gets task color settings from the DCC settings
-        self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
-        if self.taskColorMode == "Disabled":
-            self.gb_taskColor.setHidden(True)
-        else:
-            self.gb_taskColor.setHidden(False)
-            self.populateTaskColorCombo()
+        self.populateTaskColorCombo()
 
         createEmptyState = (
             QApplication.keyboardModifiers() == Qt.ControlModifier
@@ -135,7 +133,7 @@ class USD_ImportClass(object):
             _, extension = os.path.splitext(importPath)
 
             if extension.lower() not in self.supportedFormats:
-                self.core.popup(f"{extension.upper()} is not supported with this Import State")
+                self.core.popup(f"{extension.upper()} is not supported with this Import State")           #   TESTING
                 return False
 
             self.setImportPath(importPath)
@@ -150,7 +148,7 @@ class USD_ImportClass(object):
         ):
             return False
 
-        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
+        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)                 #   USED???
 
         self.connectEvents()
 
@@ -206,10 +204,6 @@ class USD_ImportClass(object):
             self.stateUID = data["stateUID"]
         if "statemode" in data:
             self.setStateMode(data["statemode"])
-        if "taskColor" in data:
-            idx = self.cb_taskColor.findText(data["taskColor"])
-            if idx != -1:
-                self.cb_taskColor.setCurrentIndex(idx)
         if "filepath" in data:
             data["filepath"] = getattr(
                 self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
@@ -217,6 +211,8 @@ class USD_ImportClass(object):
             self.setImportPath(data["filepath"])
         if "taskname" in data:
             self.taskName = data["taskname"]
+        if "nodenames" in data:
+            self.nodeNames = eval(data["nodenames"])
         if "setname" in data:
             self.setName = data["setname"]
         if "autoUpdate" in data:
@@ -265,9 +261,6 @@ class USD_ImportClass(object):
         #   Color tool
         self.fuseFuncts.colorTaskNodes(self.stateUID, "import3d", colorRGB, category="import3d")
 
-        self.stateManager.saveImports()
-        self.stateManager.saveStatesToScene()
-
 
     @err_catcher(name=__name__)
     def nameChanged(self, text=None):
@@ -306,9 +299,6 @@ class USD_ImportClass(object):
             name = text
 
         self.state.setText(0, name)
-
-        self.stateManager.saveImports()
-        self.stateManager.saveStatesToScene()
 
 
     @err_catcher(name=__name__)
@@ -378,7 +368,6 @@ class USD_ImportClass(object):
                 if curVersion.get("version") and latestVersion.get("version") and curVersion["version"] != latestVersion["version"]:
                     self.importLatest()
 
-        self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
 
 
@@ -457,6 +446,10 @@ class USD_ImportClass(object):
             self.core.popup("Invalid importpath:\n\n%s" % impFileName)
             return
 
+        # if not hasattr(self.core.appPlugin, "sm_import_importToApp"):
+        #     self.core.popup("Import into %s is not supported." % self.core.appPlugin.pluginName)
+        #     return
+
         result = self.runSanityChecks(impFileName)
         if not result:
             return
@@ -465,6 +458,7 @@ class USD_ImportClass(object):
 
         self.taskName = cacheData.get("task")
         doImport = True
+
         
 		#	Set node name
         productName = cacheData["product"]
@@ -478,7 +472,6 @@ class USD_ImportClass(object):
                     "product": productName,
                     "format": "USD"}
 
-        #   Call import function
         importResult = self.fuseFuncts.importUSD(self,
                                                 UUID=self.stateUID,
                                                 nodeData=nodeData,
@@ -497,6 +490,16 @@ class USD_ImportClass(object):
             if result == "canceled":
                 return
 
+            self.nodeNames = [
+                self.core.appPlugin.getNodeName(self, x) for x in self.nodes
+            ]
+            illegalNodes = self.core.checkIllegalCharacters(self.nodeNames)
+            if len(illegalNodes) > 0:
+                msgStr = "Objects with non-ascii characters were imported. Prism supports only the first 128 characters in the ascii table. Please rename the following objects as they will cause errors with Prism:\n\n"
+                for i in illegalNodes:
+                    msgStr += i + "\n"
+                self.core.popup(msgStr)
+
             if not result:
                 msgStr = "Import failed: %s" % impFileName
                 self.core.popup(msgStr, title="ImportFile")
@@ -505,8 +508,8 @@ class USD_ImportClass(object):
             "state": self,
             "scenefile": fileName,
             "importfile": impFileName,
+            "importedObjects": self.nodeNames,
         }
-
         self.core.callback("postImport", **kwargs)
         self.setImportPath(impFileName)
         self.stateManager.saveImports()
@@ -544,9 +547,6 @@ class USD_ImportClass(object):
                     state.ui.importLatest(refreshUi=refreshUi, selectedStates=False)
 
         self.stateManager.applyChangesToSelection = prevState
-
-        self.stateManager.saveImports()
-        self.stateManager.saveStatesToScene()
 
 
     @err_catcher(name=__name__)
@@ -637,12 +637,11 @@ class USD_ImportClass(object):
             else:
                 if curVersionName and latestVersionName:
                     status = "ok"
+                elif self.nodes:
+                    status = "ok"
 
-                #   Color green if is latest version
                 if useSS:
-                    self.b_importLatest.setStyleSheet(
-                        "QPushButton { background-color: rgb(0,130,0); }"
-                    )
+                    self.b_importLatest.setStyleSheet("")
                 else:
                     self.b_importLatest.setPalette(self.oldPalette)
 
@@ -684,9 +683,9 @@ class USD_ImportClass(object):
             "statename": self.e_name.text(),
             "stateUID": self.stateUID,
             "statemode": self.stateMode,
-            "taskColor": self.cb_taskColor.currentText(),
             "filepath": self.getImportPath(),
             "autoUpdate": str(self.chb_autoUpdate.isChecked()),
             "taskname": self.taskName,
+            "nodenames": str(self.nodeNames),
             "setname": self.setName,
         }

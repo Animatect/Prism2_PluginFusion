@@ -56,7 +56,6 @@ import math
 import glob
 import shutil
 import logging
-from datetime import datetime
 
 import BlackmagicFusion as bmd
 
@@ -133,6 +132,22 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to register callbacks:\n{e}")
 		
+		#	Dict for State Type for image import formats (for future-proofing)
+		self.imageImportHandlers = {
+			".exr": "Image_Import",
+			".dpx": "Image_Import",
+			".png": "Image_Import",
+			".tif": "Image_Import",
+			".jpg": "Image_Import",
+			".jpeg": "Image_Import",
+			".mov": "Image_Import",
+			".mp4": "Image_Import",
+			".mxf": "Image_Import",
+			".avi": "Image_Import",
+			".exr": "Image_Import",
+		}
+
+		#	Dict for 3d import methods
 		self.importHandlers = {
 			".abc": {"importFunction": self.import3dObject},
 			".fbx": {"importFunction": self.import3dObject},
@@ -149,7 +164,7 @@ class Prism_Fusion_Functions(object):
 		# 	".blend": {"exportFunction": self.exportBlend},
 		# }
 
-		#	Format dict to differentiate still/movie types
+		#	Format dict for Fusion naming and to differentiate still/movie types
 		self.outputFormats = [
 			{"extension": ".exr", "fuseName": "OpenEXRFormat", "type": "image"},
 			{"extension": ".dpx", "fuseName": "DPXFormat", "type": "image"},
@@ -190,6 +205,7 @@ class Prism_Fusion_Functions(object):
 			# "BMPFormat": "bmp",             # Windows BMP
 			# "YUVFormat": "yuv",             # YUV
 
+		#	Dict for Fusion tool coloring (colors come from native Fusion)
 		self.fusionToolsColorsDict = {
 			'Clear Color': {'R': 0.000011, 'G': 0.000011, 'B': 0.000011 },
 			'Orange': {'R': 0.9215686274509803, 'G': 0.43137254901960786, 'B': 0.0 },
@@ -430,8 +446,6 @@ class Prism_Fusion_Functions(object):
 	def sceneOpen(self, origin):
 		# if self.core.shouldAutosaveTimerRun():
 		# 	origin.startAutosaveTimer()
-
-
 		pass
 
 
@@ -473,7 +487,6 @@ class Prism_Fusion_Functions(object):
 		return [extFiles, []]
 
 	
-
 	@err_catcher(name=__name__)
 	def getSceneExtension(self, origin):
 		return self.sceneFormats[0]
@@ -879,11 +892,19 @@ class Prism_Fusion_Functions(object):
 			CompDb.removeNodeFromDB(comp, type, nodeUID)
 	
 
+
 	################################################
 	#                                              #
 	#                 STATE MANAGER                #
 	#                                              #
 	################################################
+
+
+	#	Gets called from StateManager to get Import State type
+	@err_catcher(name=__name__)
+	def sm_getImportHandlerType(self, extension):
+		return self.imageImportHandlers.get(extension.lower())
+
 
 	@err_catcher(name=__name__)
 	def sm_export_addObjects(self, origin, objects=None):
@@ -1023,20 +1044,29 @@ class Prism_Fusion_Functions(object):
 	#                                              #
 	################################################
 
+
+	#	TODO  TEMP
+
+	def makeImportData(self, context, aovDict, sourceData):
+		#	Function to aggregate data into importData
+		return Helper.makeImportData(self, context, aovDict, sourceData)
+
+
+
 	@err_catcher(name=__name__)
-	def importImages(self, mediaBrowser):
+	def importImages(self, mediaBrowser, importPath=None):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Import Media")
 
-		self.wrapped_ImportImages(mediaBrowser, comp)
+		self.wrapped_ImportImages(mediaBrowser, comp, importPath)
 
 		comp.EndUndo()
 		comp.Unlock()
 
 
 	@err_catcher(name=__name__)
-	def wrapped_ImportImages(self, mediaBrowser, comp):
+	def wrapped_ImportImages(self, mediaBrowser, comp, importPath):
 		try:
 			#	This is to cover that Prism's MediaBrowser.py call to this importImages passes
 			# 	the mediaPlayer object under the name mediaBrowser 
@@ -1065,6 +1095,10 @@ class Prism_Fusion_Functions(object):
 
 			#	Get AOV Contexts - empty list if 2drender
 			version = self.core.pb.mediaBrowser.getCurrentVersion()
+
+			print(f"*** version:\n{version}")                                              #    TESTING
+			self.core.popup(f"version:  {version}")                                      #    TESTING
+
 			aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
 
 		except Exception as e:
@@ -1297,7 +1331,7 @@ class Prism_Fusion_Functions(object):
 			logger.debug(f"Imported  and sorted {importData['identifier']}")
 
 
-			# self.core.popup(f"importData:  {importData}")					#	TESTING
+			self.core.popup(f"importData:  {importData}")					#	TESTING
 
 			sm = self.core.getStateManager()
 			sm.importFile(path=importData["files"][0]["basefile"], settings=importData)
@@ -3191,6 +3225,7 @@ path = r\"%s\"
 		if item:
 			self.colorItem(item, color)
 			CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
+			
 		
 		if not toolsToColorUID:
 			logger.debug("There are not Loaders associated with this task.")
@@ -3547,7 +3582,7 @@ path = r\"%s\"
 
 	#	This is called from the import buttons in the SM (Import Image and Import 3D)
 	@err_catcher(name=__name__)
-	def addImportState(self, origin, stateType, filepath=None):				#	TODO IMPLEMENT ADDING IMAGE IMPORT STATE TO SM WITH FILEPATH
+	def addImportState(self, origin, stateType, filepath=None):
 		importStates = []
 
 		curSel = origin.getCurrentItem(origin.activeList)
@@ -3575,8 +3610,6 @@ path = r\"%s\"
 							setActive=True,
 							**st.get("kwargs",{}))
 					)
-
-
 
 				menu.addAction(actSet)
 

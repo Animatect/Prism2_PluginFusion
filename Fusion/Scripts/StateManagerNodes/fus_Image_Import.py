@@ -71,10 +71,8 @@ class Image_ImportClass(object):
         state,
         core,
         stateManager,
-        node=None,
         importPath=None,
         stateData=None,
-        openProductsBrowser=True,                                               #   TODO  ???
         settings=None,
     ):
         self.state = state
@@ -82,10 +80,12 @@ class Image_ImportClass(object):
 
         self.core = core
         self.stateManager = stateManager
+        self.mediaPopup = None
+
         self.taskName = ""
         self.setName = ""
 
-        self.fuseFuncts = self.core.appPlugin                           #   TODO - change references to this in the code
+        self.fuseFuncts = self.core.appPlugin
 
         stateNameTemplate = "{entity}_{version}"
         self.stateNameTemplate = self.core.getConfig(
@@ -97,12 +97,6 @@ class Image_ImportClass(object):
         self.l_name.setVisible(False)
         self.e_name.setVisible(False)
 
-        self.nodes = []
-        self.nodeNames = []
-
-        # self.f_abcPath.setVisible(False)
-        # self.f_keepRefEdits.setVisible(False)
-
         self.oldPalette = self.b_importLatest.palette()
         self.updatePalette = QPalette()
         self.updatePalette.setColor(QPalette.Button, QColor(200, 100, 0))
@@ -113,51 +107,59 @@ class Image_ImportClass(object):
         createEmptyState = (
             QApplication.keyboardModifiers() == Qt.ControlModifier
             or not self.core.uiAvailable
-            ) or not openProductsBrowser                                                    #   TODO
+            )
 
+    #   Do one of the following:
 
+        #   1. Load State from Comp Data
         if stateData is not None:
             self.loadData(stateData)
+            logger.debug("Loaded State from saved data")                    #   TODO
 
-        else:
-            if settings:
-                #   Receive importData via "settings" kwarg
-                self.identifier = settings.get("identifier", None)
-                self.mediaType = settings.get("mediaType", None)
-                self.itemType = settings.get("itemType", None)
-                self.extension = settings.get("extension", None)
-                self.version = settings.get("version", None)
-                self.aov = settings.get("aov", "")
-                self.aovs = settings.get("aovs", "")
-                self.channel = settings.get("channel", "")
-                self.channels = settings.get("channels", "")
-                self.files = settings.get("files", None)
 
-        if (
+        #   2. If passed from FusFuncts. Receive importData via "settings" kwarg
+        elif settings:
+            self.identifier = settings.get("identifier", None)
+            self.mediaType = settings.get("mediaType", None)
+            self.itemType = settings.get("itemType", None)
+            self.extension = settings.get("extension", None)
+            self.version = settings.get("version", None)
+            self.aov = settings.get("aov", "")
+            self.aovs = settings.get("aovs", "")
+            self.channel = settings.get("channel", "")
+            self.channels = settings.get("channels", "")
+            self.files = settings.get("files", None)
+
+            logger.debug("Loaded State from data passed from ProjectBrowser Import")                #   TODO
+
+        #   3. Opens Media Popup to select import
+        elif (
             importPath is None
             and stateData is None
             and not createEmptyState
             and not self.stateManager.standalone
             ):
-            importPaths = self.requestImportPaths()
-            if importPaths:
-                importPath = importPaths[-1]
-                if len(importPaths) > 1:                                          #   TESTING
-                    for importPath in importPaths[:-1]:
-                        stateManager.importFile(importPath)
+            requestResult = self.requestImportPaths()
+            
+            # if importPaths:
+            #     importPath = importPaths[-1]
+            #     if len(importPaths) > 1:                                          #   TESTING
+            #         for importPath in importPaths[:-1]:
+            #             stateManager.importFile(importPath)
 
-        if importPath:
-            self.setImportPath(importPath)
-            result = self.importImage(settings=settings)
-
-            if not result:
+            if not requestResult:
+                logger.warning("Unable to Import Image from MediaBrowser.")                         #   TODO
+                self.core.popup("Unable to Import Image from MediaBrowser.")                                      #    TESTING
                 return False
             
-        elif (
-            stateData is None
-            and not createEmptyState
-            and not self.stateManager.standalone
-            ):
+        else:
+            # (
+            # stateData is None
+            # and not createEmptyState
+            # and not self.stateManager.standalone
+            # ):
+            logger.warning("Unable to Import Image.")                               #   TODO
+            self.core.popup("Unable to Import Image.")                                      #    TESTING
             return False
 
         getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
@@ -174,9 +176,90 @@ class Image_ImportClass(object):
         self.l_class.setText(stateMode)
 
 
+    @err_catcher(name=__name__)
+    def callMediaWindow(self):
+        if hasattr(self, "dlg_media"):
+            self.mediaPopup.close()
+
+        self.selectedMedia = None
+
+        self.mediaPopup = ReadMediaDialog(self)
+
+        self.mediaBrowser = self.mediaPopup.w_browser
+        self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
+
+        self.mediaPopup.mediaSelected.connect(lambda data: self.setSelectedMedia(data))
+        self.mediaPopup.exec_()
+
+        return self.selectedMedia
+
+
+    @err_catcher(name=__name__)                         #   TODO Simplify
+    def setSelectedMedia(self, data):
+        self.selectedMedia = data  # Save the selected media
+
 
     @err_catcher(name=__name__)
     def requestImportPaths(self):
+
+
+        versionData = self.callMediaWindow()
+
+        # print(f"*** versionData:\n{versionData}")                                              #    TESTING
+        self.core.popup(f"versionData:  {versionData}")                                      #    TESTING
+
+        if not versionData:
+            return
+
+
+        # self.core.popup(f"self.mediaPopup:  {dir(self.mediaPopup)}")                                      #    TESTING
+
+        # self.core.popup(f"self.mediaBrowser: {dir(self.mediaBrowser)}")                                      #    TESTING
+        # self.core.popup(f"self.mediaPlayer: {dir(self.mediaPlayer)}")                                      #    TESTING
+
+        #	Get Identifier Context Data
+        contextRaw = self.mediaPlayer.getSelectedContexts()
+
+        #	Seems sometimes context comes as a list
+        if isinstance(contextRaw, list):
+            context = contextRaw[0] if len(contextRaw) > 0 else None
+        else:
+            context = contextRaw
+
+        #	Get AOV Contexts - empty list if 2drender
+        # version = self.core.pb.mediaBrowser.getCurrentVersion()
+        version = self.mediaBrowser.getCurrentVersion()
+
+        aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
+
+        #	Get sourceData based on mediaType - used to get framerange
+        if "aov" in context:
+            sourceData = self.mediaPlayer.compGetImportPasses()
+        else:
+            sourceData = self.mediaPlayer.compGetImportSource()
+
+        importData = self.fuseFuncts.makeImportData(context, aovDict, sourceData)
+
+        self.core.popup(f"importData:  {importData}")                                      #    TESTING
+
+        self.identifier = importData.get("identifier", None)
+        self.mediaType = importData.get("mediaType", None)
+        self.itemType = importData.get("itemType", None)
+        self.extension = importData.get("extension", None)
+        self.version = importData.get("version", None)
+        self.aov = importData.get("aov", "")
+        self.aovs = importData.get("aovs", "")
+        self.channel = importData.get("channel", "")
+        self.channels = importData.get("channels", "")
+        self.files = importData.get("files", None)
+
+        self.core.popup(f"self.files:  {self.files}")                                      #    TESTING
+
+        self.setImportPath(self.files[0]["basefile"])
+
+        return True
+
+
         # try:
 
             #   TEMP BYPASS OF STATE MANAGER    #
@@ -210,12 +293,12 @@ class Image_ImportClass(object):
 
 
         #	Opens Project Browser
-        logger.debug("Opening Project Browser")
+        # logger.debug("Opening Project Browser")
 
-        self.core.projectBrowser()
-        #	Switch to Media Tab
-        if self.core.pb:
-            self.core.pb.showTab("Media")
+        # self.core.projectBrowser()
+        # #	Switch to Media Tab
+        # if self.core.pb:
+        #     self.core.pb.showTab("Media")
 
 
         # result = self.core.callback("requestImportPath", self)
@@ -246,8 +329,6 @@ class Image_ImportClass(object):
             self.setStateMode(data["statemode"])
         if "taskname" in data:
             self.taskName = data["taskname"]
-        if "nodenames" in data:
-            self.nodeNames = eval(data["nodenames"])
         if "setname" in data:
             self.setName = data["setname"]
         if "autoUpdate" in data:
@@ -459,41 +540,33 @@ class Image_ImportClass(object):
             self.core.popup("Invalid importpath:\n\n%s" % impFileName)
             return
 
-        if not hasattr(self.core.appPlugin, "sm_import_importToApp"):
-            self.core.popup("Import into %s is not supported." % self.core.appPlugin.pluginName)
-            return
+        # if not hasattr(self.core.appPlugin, "sm_import_importToApp"):
+        #     self.core.popup("Import into %s is not supported." % self.core.appPlugin.pluginName)
+        #     return
 
         result = self.runSanityChecks(impFileName)
         if not result:
             return
 
-        cacheData = self.core.paths.getCachePathData(impFileName)
-        self.taskName = cacheData.get("task")
         doImport = True
 
 
-        # temporary workaround until all plugin handle the settings argument
-        if self.core.appPlugin.pluginName == "Maya":
-            importResult = self.core.appPlugin.sm_import_importToApp(
-                self, doImport=doImport, update=update, impFileName=impFileName, settings=settings
-            )
-        else:
-            importResult = self.core.appPlugin.sm_import_importToApp(
-                self, doImport=doImport, update=update, impFileName=impFileName
-            )
+        # importResult = self.core.appPlugin.sm_import_importToApp(
+        #         self, doImport=doImport, update=update, impFileName=impFileName, settings=settings
+        #         )
 
-        if not importResult:
-            result = None
-            doImport = False
-        else:
-            result = importResult["result"]
-            doImport = importResult["doImport"]
-            if result and "mode" in importResult:
-                self.setStateMode(importResult["mode"])
+        # if not importResult:
+        #     result = None
+        #     doImport = False
+        # else:
+        #     result = importResult["result"]
+        #     doImport = importResult["doImport"]
+        #     if result and "mode" in importResult:
+        #         self.setStateMode(importResult["mode"])
 
-        if doImport:
-            if result == "canceled":
-                return
+        # if doImport:
+        #     if result == "canceled":
+        #         return
 
             # self.nodeNames = [
             #     self.core.appPlugin.getNodeName(self, x) for x in self.nodes
@@ -508,21 +581,22 @@ class Image_ImportClass(object):
             # if self.chb_autoNameSpaces.isChecked():
             #     self.core.appPlugin.sm_import_removeNameSpaces(self)
 
-            if not result:
-                msgStr = "Import failed: %s" % impFileName
-                self.core.popup(msgStr, title="ImportFile")
+            # if not result:
+            #     msgStr = "Import failed: %s" % impFileName
+            #     self.core.popup(msgStr, title="ImportFile")
 
         kwargs = {
             "state": self,
             "scenefile": fileName,
             "importfile": impFileName,
-            "importedObjects": self.nodeNames,
         }
         self.core.callback("postImport", **kwargs)
         self.setImportPath(impFileName)
         self.stateManager.saveImports()
         self.updateUi()
         self.stateManager.saveStatesToScene()
+
+        result = True
 
         return result
 
@@ -859,7 +933,6 @@ class Image_ImportClass(object):
             "filepath": self.getImportPath(),
             "autoUpdate": str(self.chb_autoUpdate.isChecked()),
             "taskname": self.taskName,
-            "nodenames": str(self.nodeNames),
             "setname": self.setName,
             "taskColor": self.cb_taskColor.currentText(),
 
@@ -875,3 +948,91 @@ class Image_ImportClass(object):
             "files": self.files
         }
 
+
+class ReadMediaDialog(QDialog):
+
+    mediaSelected = Signal(object)
+
+    def __init__(self, parent):
+        super(ReadMediaDialog, self).__init__()
+        self.plugin = parent
+        self.core = self.plugin.core
+        self.isValid = False
+        self.setupUi()
+
+
+    @err_catcher(name=__name__)
+    def setupUi(self):
+        filepath = self.core.getCurrentFileName()
+        entity = self.core.getScenefileData(filepath)
+        title = "Select Media"
+        self.setWindowTitle(title)
+        self.core.parentWindow(self)
+
+        import MediaBrowser
+        self.w_browser = MediaBrowser.MediaBrowser(core=self.core)
+        self.w_browser.headerHeightSet = True
+        self.w_browser.lw_version.itemDoubleClicked.disconnect()
+        self.w_browser.lw_version.itemDoubleClicked.connect(self.itemDoubleClicked)
+
+        self.lo_main = QVBoxLayout()
+        self.setLayout(self.lo_main)
+
+        self.bb_main = QDialogButtonBox()
+        self.bb_main.addButton("Import Selected", QDialogButtonBox.AcceptRole)
+        self.bb_main.addButton("Import Custom", QDialogButtonBox.AcceptRole)
+        self.bb_main.addButton("Open Project Browser", QDialogButtonBox.AcceptRole)
+        self.bb_main.addButton("Cancel", QDialogButtonBox.RejectRole)
+
+        self.bb_main.clicked.connect(self.buttonClicked)
+
+        self.lo_main.addWidget(self.w_browser)
+        self.lo_main.addWidget(self.bb_main)
+
+        self.w_browser.navigate([entity])
+
+
+    @err_catcher(name=__name__)
+    def itemDoubleClicked(self, item):
+        self.buttonClicked("select")
+
+
+    @err_catcher(name=__name__)
+    def buttonClicked(self, button):
+        if button == "select" or button.text() == "Import Selected":
+            data = self.w_browser.getCurrentSource()
+            if not data:
+                data = self.w_browser.getCurrentAOV()
+                if not data:
+                    data = self.w_browser.getCurrentVersion()
+                    if not data:
+                        data = self.w_browser.getCurrentIdentifier()
+
+            if not data:
+                msg = "Invalid version selected."
+                self.core.popup(msg, parent=self)
+                return
+
+            self.mediaSelected.emit(data)
+            self.accept()
+
+        elif button.text() == "Import Custom":
+            self.core.popup("Not Yet Implemented")                                      #    TESTING
+    
+        elif button.text() == "Open Project Browser":
+            self.reject()
+            self.openProjectBrowser()
+
+        elif button.text() == "Cancel":
+            self.reject()  # Close the dialog with no selection
+
+        else:
+            self.reject()  # Close the dialog with no selection
+
+
+
+    @err_catcher(name=__name__)
+    def openProjectBrowser(self):
+        self.core.projectBrowser()
+        if self.core.pb:
+            self.core.pb.showTab("Librairies")
