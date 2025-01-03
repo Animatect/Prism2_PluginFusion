@@ -1992,7 +1992,7 @@ class Prism_Fusion_Functions(object):
 
 			#	Get Extension
 			format:str = fileName[1].lower()
-
+			nodeData["format"] = format
 			if not os.path.exists(nodeData["Filepath"]):
 				QMessageBox.warning(
 					origin.core.messageParent, "Warning", "File %s does not exists" % nodeData["Filepath"]
@@ -2016,7 +2016,7 @@ class Prism_Fusion_Functions(object):
 			
 			# After import update the stateManager interface
 			if result:
-				result = Fus3d.createLegacy3DScene(origin, comp, flow, fileName)
+				result = Fus3d.createLegacy3DScene(origin, comp, flow, fileName, nodeData)
 
 
 

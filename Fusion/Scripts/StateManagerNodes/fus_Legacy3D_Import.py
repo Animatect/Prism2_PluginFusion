@@ -33,11 +33,18 @@
 
 
 import os
+import sys
+
+# Add parent directories to Python path
+current_dir = os.path.dirname(os.path.abspath(__file__))
+scripts_dir = os.path.dirname(current_dir)  # Scripts directory
+sys.path.append(scripts_dir)
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
+from Libs import Prism_Fusion_lib_3d as Fus3d
 from PrismUtils.Decorators import err_catcher
 
 
@@ -173,7 +180,7 @@ class Legacy3D_ImportClass(object):
             self.nodes = [
                 x[1]
                 for x in data["connectednodes"]
-                if self.core.appPlugin.isNodeValid(self, x[1])
+                if Fus3d.isNodeValid(self, x[1])
             ]
         if "taskname" in data:
             self.taskName = data["taskname"]
@@ -652,7 +659,7 @@ class Legacy3D_ImportClass(object):
         if len(self.nodes) > 0 and self.stateMode != "ApplyCache":
             message = baseText
             validNodes = [
-                x for x in self.nodes if self.core.appPlugin.isNodeValid(self, x)
+                x for x in self.nodes if Fus3d.isNodeValid(self, x)
             ]
             if len(validNodes) > 0:
                 for idx, val in enumerate(validNodes):

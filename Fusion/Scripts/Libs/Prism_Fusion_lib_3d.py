@@ -54,6 +54,9 @@ import pyperclip
 import time
 import os
 
+from . import Prism_Fusion_lib_CompDb as CompDb
+from . import Prism_Fusion_lib_Fus as Fus
+
 from PrismUtils.Decorators import err_catcher as err_catcher
 from typing import TYPE_CHECKING, Any
 if TYPE_CHECKING:
@@ -451,11 +454,11 @@ def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool
 #     return {"result": result, "doImport": doImport}
 
 @err_catcher(name=__name__)
-def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str)->bool:
+def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict)->bool:
     #check if there was a merge3D in the import and where was it connected to
     newNodes:list[str] = [n.Name for n in comp.GetToolList(True).values()]
 
-    atx, aty = -32768, -32768
+    atx, aty = 0, 0 #-32768, -32768
 
     refPosNode, positionedNodes = ReplaceBeforeImport(origin, comp, newNodes)
     cleanbeforeImport(origin)
@@ -470,14 +473,35 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
         fisrtnode = impnodes[0]
         fstnx, fstny = flow.GetPosTable(fisrtnode).values()
 
-        for n in impnodes:
-            if not n.Name in positionedNodes:
-                x,y  = flow.GetPosTable(n).values()
+        for tool in impnodes:
+            toolData["nodeName"] = tool.Name
+            toolUID = CompDb.createUUID()
+            if tool.GetData("Prism_UUID"):
+                toolUID = tool.GetData("Prism_UUID")
+            toolData["toolUID"] = toolUID
+
+            print("####!!!#####TOOLDATA:#####!!!####\n\n", toolData,"\n\n#########################")
+            
+            inputTools:list = [inpt.GetConnectedOutput().GetTool() for inpt in tool.GetInputList().values() if inpt.GetConnectedOutput()]
+            if len(inputTools)>0:
+                connectedNodesDict:dict= {}
+                for t in inputTools:
+                    tUID = CompDb.createUUID()
+                    if t.GetData("Prism_UUID"):
+                        tUID = t.GetData("Prism_UUID")
+                    print(f"{tool.Name} connections: {t.Name}")
+                    connectedNodesDict[t.Name]=tUID
+                
+                toolData["connectedNodes"] = connectedNodesDict
+            Fus.addToolData(tool, toolData)
+            CompDb.addNodeToDB(comp, "import3d", toolUID, toolData)
+            if not tool.Name in positionedNodes:
+                x,y  = flow.GetPosTable(tool).values()
 
                 offset = [x-fstnx,y-fstny]
                 newx = x+(atx-x)+offset[0]
                 newy = y+(aty-y)+offset[1]
-                flow.SetPos(n, newx-1, newy)
+                flow.SetPos(tool, newx-1, newy)
 
     ##########
 

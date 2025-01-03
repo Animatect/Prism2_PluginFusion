@@ -239,80 +239,10 @@ def getCurrentFrame(comp) -> int:
 
 #   Adds tool of specified type and configures given data
 @err_catcher(name=__name__)
-def addTool(comp, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
+def addTool(comp:Composition_, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
     try:
         tool = comp.AddTool(toolType, xPos, yPos, autoConnect)
-
-        if "toolName" in toolData:
-            tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
-        if "nodeName" in toolData:
-            tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
-
-        if "toolUID" in toolData:
-            tool.SetData('Prism_UUID', toolData['toolUID'])
-        if "nodeUID" in toolData:
-            tool.SetData('Prism_UUID', toolData['nodeUID'])
-
-        if "mediaId" in toolData:
-            tool.SetData('Prism_MediaID', toolData['mediaId'])
-
-        if "product" in toolData:
-            tool.SetData('Prism_Product', toolData['product'])
-
-        if "format" in toolData:
-            tool.SetData('Format', toolData['format'])
-
-        if "aov" in toolData:
-            tool.SetData('Prism_AOV', toolData['aov'])
-
-        if "channel" in toolData:
-            tool.SetData('Prism_Channel', toolData['channel'])
-
-        if "shaderName" in toolData:
-            tool.SetData('Prism_Shader', toolData['shaderName'])
-
-        if "texMap" in toolData:
-            tool.SetData('Prism_TexMap', toolData['texMap'])
- 
-        if "version" in toolData:
-            tool.SetData('Prism_Version', toolData['version'])
-
-        if "mediaType" in toolData:
-            tool.SetData('Prism_MediaType', toolData['mediaType'])
-
-        if "connectedNodes" in toolData:
-            tool.SetData('Prism_ConnectedNodes', toolData['connectedNodes'])
-
-        if "filepath" in toolData:
-            tool.Clip = toolData['filepath']
-
-        if "usdFilepath" in toolData:
-            tool["Filename"] = toolData['usdFilepath']
-
-        if "uTexFilepath" in toolData:
-            tool["Filename"] = toolData['uTexFilepath']
-
-        if "3dFilepath" in toolData:
-            if toolData["format"] == ".fbx":
-                tool["ImportFile"] = toolData['3dFilepath']
-            elif toolData["format"] == ".abc":
-                tool["Filename"] = toolData['3dFilepath']
-
-        if "fuseFormat" in toolData:
-            tool["OutputFormat"] = toolData['fuseFormat']
-
-        if "frame_start" in toolData:
-            tool.GlobalIn[0] = toolData["frame_start"]
-            tool.GlobalOut[0] = toolData["frame_end"]
-
-            tool.ClipTimeStart = 0
-            tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
-            tool.HoldLastFrame = 0
-
-
-        #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
-        tool.SetAttrs({'TOOLS_NameSet': True})
-
+        addToolData(tool, toolData)
         return tool
     
     except:
@@ -320,10 +250,85 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-327
         return None
     
 
+@err_catcher(name=__name__)
+def addToolData(tool:Tool_, toolData:dict={}) -> None:
+    if "toolName" in toolData:
+        tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
+    if "nodeName" in toolData:
+        tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
+
+    if "toolUID" in toolData:
+        tool.SetData('Prism_UUID', toolData['toolUID'])
+    if "nodeUID" in toolData:
+        tool.SetData('Prism_UUID', toolData['nodeUID'])
+
+    if "mediaId" in toolData:
+        tool.SetData('Prism_MediaID', toolData['mediaId'])
+
+    if "product" in toolData:
+        tool.SetData('Prism_Product', toolData['product'])
+
+    if "format" in toolData:
+        tool.SetData('Format', toolData['format'])
+
+    if "aov" in toolData:
+        tool.SetData('Prism_AOV', toolData['aov'])
+
+    if "channel" in toolData:
+        tool.SetData('Prism_Channel', toolData['channel'])
+
+    if "shaderName" in toolData:
+        tool.SetData('Prism_Shader', toolData['shaderName'])
+
+    if "texMap" in toolData:
+        tool.SetData('Prism_TexMap', toolData['texMap'])
+
+    if "version" in toolData:
+        tool.SetData('Prism_Version', toolData['version'])
+
+    if "mediaType" in toolData:
+        tool.SetData('Prism_MediaType', toolData['mediaType'])
+
+    if "connectedNodes" in toolData:
+        tool.SetData('Prism_ConnectedNodes', toolData['connectedNodes'])
+
+    if "filepath" in toolData:
+        tool.Clip = toolData['filepath']
+
+    if "usdFilepath" in toolData:
+        tool["Filename"] = toolData['usdFilepath']
+
+    if "uTexFilepath" in toolData:
+        tool["Filename"] = toolData['uTexFilepath']
+
+    if "3dFilepath" in toolData:
+        if toolData["format"] == ".fbx":
+            tool["ImportFile"] = toolData['3dFilepath']
+        elif toolData["format"] == ".abc":
+            tool["Filename"] = toolData['3dFilepath']
+
+    if "fuseFormat" in toolData:
+        tool["OutputFormat"] = toolData['fuseFormat']
+
+    if "frame_start" in toolData:
+        tool.GlobalIn[0] = toolData["frame_start"]
+        tool.GlobalOut[0] = toolData["frame_end"]
+
+        tool.ClipTimeStart = 0
+        tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
+        tool.HoldLastFrame = 0
+
+
+    #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
+    tool.SetAttrs({'TOOLS_NameSet': True})
+    
+
 #   Updates tool config for given data
 @err_catcher(name=__name__)
 def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
+    print("UPDATE TOOL 0")
     try:
+        print("UPDATE TOOL 1")
         if "toolName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
         if "nodeName" in toolData:
@@ -362,6 +367,7 @@ def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoC
         return tool
     
     except:
+        print("UPDATE TOOL 2")
         logger.warning(f"ERROR: Failed to update {tool} in Comp")
         return None
 
