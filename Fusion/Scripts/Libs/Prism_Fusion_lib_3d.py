@@ -469,16 +469,28 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     #Set the position of the imported nodes relative to the previously active tool or last click in compView
     impnodes = [n for n in importedTools]
     if len(impnodes) > 0:
+        # Find the rightmost tool
+        rightmost_tool:Tool_ = impnodes[0]
+        rightmost_x = flow.GetPosTable(rightmost_tool)[1]
+        
+        for tool in impnodes:
+            # Give a UUID to every imported node 
+            toolUID = CompDb.createUUID()
+            if not tool.GetData("Prism_UUID"):
+                toolUID = tool.SetData("Prism_UUID", toolUID)
+            tool_x = flow.GetPosTable(tool)[1]
+            if tool_x > rightmost_x:
+                rightmost_x = tool_x
+                rightmost_tool = tool
 
-        fisrtnode = impnodes[0]
+        fisrtnode:Tool_ = rightmost_tool  # Use the rightmost tool as the reference
         fstnx, fstny = flow.GetPosTable(fisrtnode).values()
 
         for tool in impnodes:
+            toolUID = tool.GetData("Prism_UUID")
             toolData["nodeName"] = tool.Name
-            toolUID = CompDb.createUUID()
-            if tool.GetData("Prism_UUID"):
-                toolUID = tool.GetData("Prism_UUID")
             toolData["toolUID"] = toolUID
+            toolData["entryNode"] = {fisrtnode.Name : fisrtnode.GetData("Prism_UUID")}
 
             print("####!!!#####TOOLDATA:#####!!!####\n\n", toolData,"\n\n#########################")
             
@@ -489,6 +501,8 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                     tUID = CompDb.createUUID()
                     if t.GetData("Prism_UUID"):
                         tUID = t.GetData("Prism_UUID")
+                    else:
+                        t.SetData("Prism_UUID", tUID)
                     print(f"{tool.Name} connections: {t.Name}")
                     connectedNodesDict[t.Name]=tUID
                 
