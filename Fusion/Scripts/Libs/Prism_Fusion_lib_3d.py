@@ -266,7 +266,9 @@ def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str):
     pyautogui.typewrite(filepath)
     time.sleep(interval)
     pyautogui.press("enter")
+    time.sleep(interval)
     pyautogui.press("enter")
+    time.sleep(interval)
     
     # Wait until file is imported
     elapsedtime = 0
@@ -281,7 +283,7 @@ def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str):
 
     
 @err_catcher(name=__name__)
-def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str, filepath:str, global_scale:float, options:dict = None, interval:float = 0.05):
+def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str, filepath:str, global_scale:float, options:dict = None, interval:float = 0.5):
     origin.stateManager.showMinimized()
     comp:Composition_ = fusion.GetCurrentComp()
     flow:FlowView_ = comp.CurrentFrame.FlowView
