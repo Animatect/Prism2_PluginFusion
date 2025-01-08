@@ -258,18 +258,20 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
             # Add your GUI elements here:
             ui.HGroup({},[
                 ui.HGap(1, 1),  # Spacer to push the button to the center horizontally
-                ui.HGroup({'Spacing': 5}, [
-                        ui.Label2({
-                            'Text': 'Timeout: ',
-                            'ToolTip': 'The amount of time in seconds the import should wait before failing.'}),
-                        ui.SpinBox({'ID': 'Spinner', 'Value': 60, 'Minimum': 0, 'Maximum': 60,'FixedSize': [50, 20],}),
-                        ui.Label3({'Text': 'secs'}),
-                    ]),
-                ui.Button({
-                    'ID': 'B',
-                    'Text': 'START IMPORT',
-                    'FixedSize': [200, 20], # Width x Height in pixels
-                }),
+                ui.VGroup({},[
+                    ui.HGroup({'Spacing': 5}, [
+                            ui.Label({
+                                'Text': 'Timeout: ',
+                                'ToolTip': 'The amount of time in seconds the import should wait before failing.'}),
+                            ui.SpinBox({'ID': 'Spinner', 'Value': 60, 'Minimum': 0, 'Maximum': 60,'FixedSize': [50, 20],}),
+                            ui.Label({'Text': 'secs'}),
+                        ]),
+                    ui.Button({
+                        'ID': 'B',
+                        'Text': 'START IMPORT',
+                        'FixedSize': [200, 20], # Width x Height in pixels
+                    }),
+                ]),
                 ui.HGap(1, 1),  # Spacer to push the button to the center horizontally
             ]),
         ]),
@@ -280,7 +282,7 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
     # The window was closed
     def _func(ev):
         nonlocal spinner_value
-        spinner_value = itm['Spinner'].Value  # Retrieve the spinner value
+        spinner_value = -1
         disp.ExitLoop()
     dlg.On.Legacy3DWin.Close = _func
 
@@ -346,8 +348,11 @@ def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str
     fString = "Importing this 3Dformat requires UI automation.\n\nPLEASE DO NOT USE THE MOUSE AFTER CLOSING THIS DIALOG UNTIL IMPORT IS DONE"
     #   Create a dialog to focus the fusion window and retrieves info from it.
     timeoutSecs:int = focusFusionDialog(fusion, fString)
+    imported:bool = False
 
-    imported:bool = doUiImport(fusion, formatCall, interval, filepath, timeoutSecs)
+    if timeoutSecs > 0:
+        imported = doUiImport(fusion, formatCall, interval, filepath, timeoutSecs)
+    
     origin.stateManager.showNormal()
 
     return imported
@@ -501,13 +506,13 @@ def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool
 def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict, stateUUID)->bool:
     #check if there was a merge3D in the import and where was it connected to
     newNodes:list[str] = [n.Name for n in comp.GetToolList(True).values()]
+    positionedNodes:list[str] = newNodes
+    atx, aty = Fus.find_LastClickPosition(comp)
 
-    atx, aty = 0, 0 #-32768, -32768
-
-    refPosNode, positionedNodes = ReplaceBeforeImport(origin, comp, newNodes)
+    # refPosNode, positionedNodes = ReplaceBeforeImport(origin, comp, newNodes)
     cleanbeforeImport(origin)
-    if refPosNode:
-        atx, aty = flow.GetPosTable(refPosNode).values()
+    # if refPosNode:
+        # atx, aty = flow.GetPosTable(refPosNode).values()
 
     importedTools = comp.GetToolList(True).values()
     #Set the position of the imported nodes relative to the previously active tool or last click in compView
