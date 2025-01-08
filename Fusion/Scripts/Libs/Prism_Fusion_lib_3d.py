@@ -53,6 +53,7 @@ import pyautogui
 import pyperclip
 import time
 import os
+import tkinter as tk
 
 from . import Prism_Fusion_lib_CompDb as CompDb
 from . import Prism_Fusion_lib_Fus as Fus
@@ -221,19 +222,55 @@ abc_options = {
     # "SamplingRate": 24
 }
 @err_catcher(name=__name__)
-def focusFusionDialog(fusion:Fusion_, msg:str):
+def focusFusionDialog(fusion:Fusion_, msg:str)->int:
     ui = fusion.UIManager
     disp = bmd.UIDispatcher(ui)
 
-    dlg = disp.AddWindow({'WindowTitle': 'My First Window', 'ID': 'MyWin', 'Geometry': [100, 100, 200, 50], 'Spacing': 0,},[
-        ui.VGroup({'Spacing': 0,},[
+    spinner_value = 0  # Variable to store the spinner value
+
+    tkinter = tk.Tk()
+    screen_width = tkinter.winfo_screenwidth()
+    screen_height = tkinter.winfo_screenheight()
+
+    center_x = screen_width // 2
+    center_y = screen_height // 2
+    width = 500
+
+    dlg = disp.AddWindow({
+        'WindowTitle': 'Legacy 3D Focus Window', 
+        'ID': 'Legacy3DWin', 
+        'Geometry': [center_x-(width*0.5), center_y, width, 170], 
+        'Spacing': 0,},[
+        
+        ui.VGroup({
+            'Spacing': 0,
+            'MinimumSize': [400, 150]
+            },[
+            ui.Label({
+                "ID": "Label", 
+                "Text": f"\n {msg} !\n",
+				"Alignment":{
+					"AlignHCenter":True,
+					"AlignVCenter":True,
+				},
+				"WordWrap":True,
+            }),
             # Add your GUI elements here:
             ui.HGroup({},[
-                # Add foru buttons that have an icon resource attached and no border shading
+                ui.HGap(1, 1),  # Spacer to push the button to the center horizontally
+                ui.HGroup({'Spacing': 5}, [
+                        ui.Label2({
+                            'Text': 'Timeout: ',
+                            'ToolTip': 'The amount of time in seconds the import should wait before failing.'}),
+                        ui.SpinBox({'ID': 'Spinner', 'Value': 60, 'Minimum': 0, 'Maximum': 60,'FixedSize': [50, 20],}),
+                        ui.Label3({'Text': 'secs'}),
+                    ]),
                 ui.Button({
                     'ID': 'B',
-                    'Text': 'The Button Label',
+                    'Text': 'START IMPORT',
+                    'FixedSize': [200, 20], # Width x Height in pixels
                 }),
+                ui.HGap(1, 1),  # Spacer to push the button to the center horizontally
             ]),
         ]),
     ])
@@ -242,12 +279,15 @@ def focusFusionDialog(fusion:Fusion_, msg:str):
 
     # The window was closed
     def _func(ev):
+        nonlocal spinner_value
+        spinner_value = itm['Spinner'].Value  # Retrieve the spinner value
         disp.ExitLoop()
-    dlg.On.MyWin.Close = _func
+    dlg.On.Legacy3DWin.Close = _func
 
     # Add your GUI element based event functions here:
     def _func(ev):
-        print('Button Clicked')
+        nonlocal spinner_value
+        spinner_value = itm['Spinner'].Value  # Retrieve the spinner value
         disp.ExitLoop()
     dlg.On.B.Clicked = _func
 
@@ -255,10 +295,12 @@ def focusFusionDialog(fusion:Fusion_, msg:str):
     disp.RunLoop()
     dlg.Hide()
 
+    return spinner_value
+
 
 
 @err_catcher(name=__name__)
-def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str):
+def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str, timeoutsecs:int):
     comp:Composition_ = fusion.GetCurrentComp()
     #Call the dialog
     fusion.QueueAction("Utility_Show", {"id":formatCall})
@@ -272,7 +314,7 @@ def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str):
     
     # Wait until file is imported
     elapsedtime = 0
-    while len(comp.GetToolList(True))<0 and elapsedtime < 20:
+    while len(comp.GetToolList(True))<0 and elapsedtime < timeoutsecs:
         loopinterval:float = 0.1
         elapsedtime += loopinterval
         time.sleep(loopinterval)
@@ -302,10 +344,10 @@ def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str
     
     #Warning
     fString = "Importing this 3Dformat requires UI automation.\n\nPLEASE DO NOT USE THE MOUSE AFTER CLOSING THIS DIALOG UNTIL IMPORT IS DONE"
-    #   Create a dialog to focus the fusion window.
-    focusFusionDialog(fusion, fString)
+    #   Create a dialog to focus the fusion window and retrieves info from it.
+    timeoutSecs:int = focusFusionDialog(fusion, fString)
 
-    imported:bool = doUiImport(fusion, formatCall, interval, filepath)
+    imported:bool = doUiImport(fusion, formatCall, interval, filepath, timeoutSecs)
     origin.stateManager.showNormal()
 
     return imported
@@ -456,7 +498,7 @@ def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool
 #     return {"result": result, "doImport": doImport}
 
 @err_catcher(name=__name__)
-def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict)->bool:
+def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict, stateUUID)->bool:
     #check if there was a merge3D in the import and where was it connected to
     newNodes:list[str] = [n.Name for n in comp.GetToolList(True).values()]
 
@@ -476,41 +518,50 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
         rightmost_x = flow.GetPosTable(rightmost_tool)[1]
         
         for tool in impnodes:
-            # Give a UUID to every imported node 
-            toolUID = CompDb.createUUID()
-            if not tool.GetData("Prism_UUID"):
-                toolUID = tool.SetData("Prism_UUID", toolUID)
             tool_x = flow.GetPosTable(tool)[1]
             if tool_x > rightmost_x:
                 rightmost_x = tool_x
                 rightmost_tool = tool
 
         fisrtnode:Tool_ = rightmost_tool  # Use the rightmost tool as the reference
+        # Reassign the State ID as the entry point node ID
+        fisrtnode.SetData("Prism_UUID", stateUUID)
         fstnx, fstny = flow.GetPosTable(fisrtnode).values()
 
         for tool in impnodes:
-            toolUID = tool.GetData("Prism_UUID")
-            toolData["nodeName"] = tool.Name
-            toolData["toolUID"] = toolUID
-            toolData["entryNode"] = {fisrtnode.Name : fisrtnode.GetData("Prism_UUID")}
+            thisToolData:dict = toolData.copy()
+            # Give a UUID to every imported node 
+            toolUID = CompDb.createUUID()
+            if tool.GetData("Prism_UUID"):
+                toolUID = tool.GetData("Prism_UUID")
+            else:
+                tool.SetData("Prism_UUID", toolUID)
+            thisToolData["nodeName"] = tool.Name
+            thisToolData["toolOrigName"] = tool.Name
+            thisToolData["toolUID"] = toolUID
+            thisToolData["nodeUID"] = toolUID
+            thisToolData["stateUID"] = stateUUID
+            thisToolData["tooltype"] = tool.GetAttrs('TOOLS_RegID')
+            thisToolData["entryNode"] = {fisrtnode.Name : fisrtnode.GetData("Prism_UUID")}
 
-            print("####!!!#####TOOLDATA:#####!!!####\n\n", toolData,"\n\n#########################")
+            # print("####!!!#####TOOLDATA:#####!!!####\n\n", toolData,"\n\n#########################")
             
             inputTools:list = [inpt.GetConnectedOutput().GetTool() for inpt in tool.GetInputList().values() if inpt.GetConnectedOutput()]
             if len(inputTools)>0:
                 connectedNodesDict:dict= {}
                 for t in inputTools:
+                    # print(f"Connected node name: {t.GetAttrs('TOOLS_Name')}")
                     tUID = CompDb.createUUID()
                     if t.GetData("Prism_UUID"):
                         tUID = t.GetData("Prism_UUID")
                     else:
                         t.SetData("Prism_UUID", tUID)
-                    print(f"{tool.Name} connections: {t.Name}")
-                    connectedNodesDict[t.Name]=tUID
+                    # print(f"{tool.Name} connections: {t.Name}")
+                    connectedNodesDict[t.GetAttrs('TOOLS_Name')]=tUID
                 
-                toolData["connectedNodes"] = connectedNodesDict
-            Fus.addToolData(tool, toolData)
-            CompDb.addNodeToDB(comp, "import3d", toolUID, toolData)
+                thisToolData["connectedNodes"] = connectedNodesDict
+            Fus.addToolData(tool, thisToolData)
+            CompDb.addNodeToDB(comp, "import3d", toolUID, thisToolData)
             if not tool.Name in positionedNodes:
                 x,y  = flow.GetPosTable(tool).values()
 
@@ -525,8 +576,8 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     for i in newNodes:
         #   Append sufix to objNames to identify product with unique Name
         node:Tool_ = getObject(comp, i)
-        newName:str = applyProductSufix(i, origin)
-        node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
+        newName:str =  node.GetAttrs("TOOLS_Name")# applyProductSufix(i, origin)
+        # node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
         importedNodes.append(getNode(newName))
 
     origin.setName = "Import_" + filename[0]			
@@ -535,8 +586,16 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     #   Deselect All
     flow.Select()
 
-    objs:list[Tool_] = [getObject(comp, x) for x in importedNodes]
-    
+    # Reselect based on the database.
+    objs:list[Tool_] = []
+    cpData = CompDb.loadPrismFileDb(comp)
+    for nodeuid in cpData["nodes"]["import3d"]:
+        nodeData:dict = cpData["nodes"]["import3d"][nodeuid]
+        if nodeData['stateUID']:
+            if nodeData['stateUID'] == stateUUID:
+                tool:Tool_ = CompDb.getNodeByUID(comp, nodeuid)
+                objs.append(tool)
+
     #   Select nodes in comp
     for o in objs:
         flow.Select(o)

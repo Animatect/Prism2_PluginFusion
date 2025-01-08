@@ -257,6 +257,9 @@ def addToolData(tool:Tool_, toolData:dict={}) -> None:
     if "nodeName" in toolData:
         tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
 
+
+    if "toolOrigName" in toolData:
+        tool.SetData('Prism_OrigName', toolData['toolOrigName'])
     if "toolUID" in toolData:
         tool.SetData('Prism_UUID', toolData['toolUID'])
     if "nodeUID" in toolData:

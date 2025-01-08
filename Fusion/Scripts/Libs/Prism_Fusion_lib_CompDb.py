@@ -371,7 +371,7 @@ def checkRecordInDb(comp, listType:str, UUID:str, nodeData:dict) -> Union[UUID |
         typeBranch = cpData["nodes"].get(listType, {})
 
         #   Items to compare in the records
-        checkItems = ["nodeName", "version", "filepath", "format", "mediaId", "displayName"]
+        checkItems = ["nodeName", "version", "filepath", "format", "mediaId", "displayName", "tooltype"]
 
         for recordUUID, recordData in typeBranch.items():
             #   Skip if the record does not have a "NodeData" structure

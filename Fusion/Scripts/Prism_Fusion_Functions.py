@@ -2016,7 +2016,7 @@ class Prism_Fusion_Functions(object):
 			
 			# After import update the stateManager interface
 			if result:
-				result = Fus3d.createLegacy3DScene(origin, comp, flow, fileName, nodeData)
+				result = Fus3d.createLegacy3DScene(origin, comp, flow, fileName, nodeData, UUID)
 
 
 
