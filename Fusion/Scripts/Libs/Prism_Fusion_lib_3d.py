@@ -503,11 +503,13 @@ def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool
 #     return {"result": result, "doImport": doImport}
 
 @err_catcher(name=__name__)
-def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict, stateUUID)->bool:
+def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict, stateUUID:str, initcoords:tuple=tuple((0,0)))->bool:
     #check if there was a merge3D in the import and where was it connected to
     newNodes:list[str] = [n.Name for n in comp.GetToolList(True).values()]
     positionedNodes:list[str] = newNodes
-    atx, aty = Fus.find_LastClickPosition(comp)
+
+    atx:float = initcoords[0] 
+    aty:float = initcoords[1]
 
     # refPosNode, positionedNodes = ReplaceBeforeImport(origin, comp, newNodes)
     cleanbeforeImport(origin)
@@ -567,13 +569,15 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 thisToolData["connectedNodes"] = connectedNodesDict
             Fus.addToolData(tool, thisToolData)
             CompDb.addNodeToDB(comp, "import3d", toolUID, thisToolData)
-            if not tool.Name in positionedNodes:
-                x,y  = flow.GetPosTable(tool).values()
-
-                offset = [x-fstnx,y-fstny]
-                newx = x+(atx-x)+offset[0]
-                newy = y+(aty-y)+offset[1]
-                flow.SetPos(tool, newx-1, newy)
+            # if not tool.Name in positionedNodes:
+            x,y  = flow.GetPosTable(tool).values()
+            # offset = [x-fstnx,y-fstny]
+            # newx = x+(atx-x)+offset[0]
+            # newy = y+(aty-y)+offset[1]
+            # flow.SetPos(tool, newx-1, newy)
+            newx = x+(atx-fstnx)
+            newy = y+(aty-fstny)
+            flow.SetPos(tool, newx-1, newy)
 
     ##########
 
