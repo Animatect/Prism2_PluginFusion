@@ -485,7 +485,7 @@ class Prism_Fusion_Functions(object):
 				if displaypopup:
 					self.core.popup("The State Manager was originally opened in another comp.\n"
 									"It will now close and open again to avoid corrupting this comp's state data.")
-					self.core.closeSM(restart=True)
+				self.core.closeSM(restart=True)
 				return False
 			
 		return True
