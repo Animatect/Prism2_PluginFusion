@@ -33,7 +33,7 @@
 
 
 import os
-# import re
+import re
 import logging
 
 from qtpy.QtCore import *
@@ -42,8 +42,23 @@ from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
 
-
 logger = logging.getLogger(__name__)
+
+
+SUPPORTEDFORMATS = [".mtlx", ".png", ".jpg", ".jpeg", ".exr", ".tga", ".tif", ".tiff"]
+
+TEXTYPES = {"color": ["diffuse", "diff", "color", "base color", "basecolor", "albedo", "col", "base"],
+                    "metallic": ["metallic", "metal", "metalness", "met", "mtl"],
+                    "roughness": ["roughness", "rough", "rgh", "glossiness", "glossy", "gloss"],
+                    "normal": ["normal", "norm", "nor", "nrm", "nml"],
+                    "ao": ["ao", "ambient occlusion", "ambientocclusion", "occlusion", "cavity"],
+                    "ARM": ["arm", "orm"],
+                    "emit": ["emmision", "emit"],
+                    "displace": ["displacement", "disp", "height", "bump", "bmp"],
+                    "alpha": ["alpha", "opacity"],
+                    "subsurface": ["sss", "subsurface", "ssscolor"],
+                    "clearcoat": ["clearcoat", "coat"],
+                    "coatRough": ["clearcoatRoughness, clearRough", "coarRoughness", "coatRough"]}
 
 
 
@@ -63,60 +78,82 @@ class USD_MaterialClass(object):
         stateData=None,
         openProductsBrowser=True,
         settings=None,
-    ):
-        
-        self.state = state
-        self.stateMode = "USD_Material (empty)"
+        ):
 
         self.core = core
+        self.state = state
         self.stateManager = stateManager
         self.fuseFuncts = self.core.appPlugin
 
-        self.supportedFormats = [".mtlx", ".png", ".jpg", ".jpeg", ".exr", ".tga", ".tif", ".tiff"]               #   TODO - add file types
+        #   Placeholder name until material selection
+        self.stateMode = "USD_Material (empty)"
 
-        self.texTypes = {"color": ["diffuse", "diff", "color", "base color", "basecolor", "albedo", "col", "base"],                                     #   TODO - add more types
-                         "metallic": ["metallic", "metal", "metalness", "met", "mtl"],
-                         "roughness": ["roughness", "rough", "rgh", "glossiness", "glossy", "gloss"],
-                         "normal": ["normal", "norm", "nor", "nrm", "nml"],
-                         "ao": ["ao", "ambient occlusion", "ambientocclusion", "occlusion", "cavity"],
-                         "ARM": ["arm", "orm"],
-                         "emit": ["emmision", "emit"],
-                         "displace": ["displacement", "disp", "height", "bump", "bmp"],
-                         "alpha": ["alpha", "opacity"],
-                         "subsurface": ["sss", "subsurface", "ssscolor"],
-                         "clearcoat": ["clearcoat", "coat"],
-                         "coatRough": ["clearcoatRoughness, clearRough", "coarRoughness", "coatRough"]}
+        #   Sets up UI elements
+        self.setupUI()
 
+        #   If importPath passed to State
+        if importPath:
+            if not self.isSupportedFormat(importPath):
+                _, extension = os.path.splitext(importPath)
+                self.core.popup(f"{extension.upper()} is not supported with this Import State")
+                return False
+
+        #   Checks if method exists in FusFuncts
+        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
+
+        #   Make empty list
         self.textureFiles = []
+        #   Starting Status Color for State
+        self.setStateColor("warning")
 
-        self.taskName = ""
-        self.setName = ""
+        #   Loads State Data
+        if stateData is not None:
+            self.loadData(stateData)
+        
+        #   Loads Defaults
+        else:
+            self.stateName = self.stateMode
+            self.stateUID = self.fuseFuncts.createUUID()
+            self.stateSet = False
+            self.lastExplorerDir = self.findProjectTexDir()
 
+            self.state.setText(0, self.stateMode)
+            self.e_name.setText(self.stateMode)
+            self.l_class.setText(self.stateMode)
+            self.textureFiles = []
+
+        self.connectEvents()
+        self.toolTips()
+        self.updateUi()
+
+
+    @err_catcher(name=__name__)
+    def setupUI(self):
+        #   Hide unused Items
         self.l_name.setVisible(False)
         self.e_name.setVisible(False)
-
         # Set the header labels for the table
         self.tw_textureFiles.setHorizontalHeaderLabels(["Map", "File", "Path"])
-
         # Hide the "Path" column
         self.tw_textureFiles.setColumnHidden(2, True)
-
         # Make the "File" column stretch to the right edge
         header = self.tw_textureFiles.horizontalHeader()
         header.setStretchLastSection(True)
-
         # Hide the row numbers
         self.tw_textureFiles.verticalHeader().setVisible(False)
-
         # Set context menu policy for right-click actions
         self.tw_textureFiles.setContextMenuPolicy(Qt.CustomContextMenu)
         self.tw_textureFiles.customContextMenuRequested.connect(self.showContextMenu)
-
-        #   Initially hidee the Panels
+        #   Hide Browse button if Libraries plugin is not installed
+        self.b_browse.setHidden(not self.core.getPlugin("Libraries"))
+        #   Initially hide the Panels
+        self.b_import.hide()
         self.gb_matX.hide()
         self.gb_textures.hide()
 
+        #   Set width of Task Color Combo
         self.cb_taskColor.setFixedWidth(125)
+
         #	Gets task color settings from the DCC settings
         self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
         if self.taskColorMode == "Disabled":
@@ -125,94 +162,163 @@ class USD_MaterialClass(object):
             self.cb_taskColor.show()
             self.populateTaskColorCombo()
 
-        if importPath:
-            _, extension = os.path.splitext(importPath)
-
-            if extension.lower() not in self.supportedFormats:
-                self.core.popup(f"{extension.upper()} is not supported with this Import State")
-                return False
-
-            # self.setImportPath(importPath)
-            # result = self.importObject(settings=settings)
-
-        #     if not result:
-        #         return False
-        # # elif (
-        #     stateData is None
-        #     and not createEmptyState
-        #     and not self.stateManager.standalone
-        # ):
-        #     return False
-
-        getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
-
-        self.connectEvents()
-
-        if stateData is not None:
-            self.loadData(stateData)
-        
-        else:
-            self.stateUID = self.fuseFuncts.createUUID()
-            self.lastExplorerDir = self.findProjectTexDir()
-
-            self.e_name.setText(self.stateMode)
-            self.l_class.setText(self.stateMode)
-
-
-        # tip = ("Create a simple Fusion USD scene.\n\n"                    #######   TODO TOOLTIPS
-        #        "This will add and connect:\n"
-        #        "A uMerge and a uRenderer")
-        # self.b_createUsdScene.setToolTip(tip)
-
-        self.nameChanged()
-        self.updateUi()
-
-
-    @err_catcher(name=__name__)
-    def setStateMode(self, stateMode):
-        self.stateMode = stateMode
-        self.l_class.setText(stateMode)
-
 
     @err_catcher(name=__name__)
     def loadData(self, data):
-        if "statename" in data:
-            self.e_name.setText(data["statename"])
+        if "stateName" in data:
+            self.stateName = data["stateName"]
         if "stateUID" in data:
             self.stateUID = data["stateUID"]
-        if "statemode" in data:
-            self.setStateMode(data["statemode"])
+        if "stateMode" in data:
+            self.stateMode = data["stateMode"]
+        if "stateSet" in data:
+            self.stateSet = data["stateSet"]
         if "taskColor" in data:
             idx = self.cb_taskColor.findText(data["taskColor"])
             if idx != -1:
                 self.cb_taskColor.setCurrentIndex(idx)
+        if "usdMatName" in data:
+            self.usdMatName = data["usdMatName"]
+            self.nameChanged(self.usdMatName)
         if "textureFiles" in data:
             self.textureFiles = data["textureFiles"]
-        if "taskname" in data:
-            self.taskName = data["taskname"]
-        if "setname" in data:
-            self.setName = data["setname"]
+        if "matxName" in data:
+            self.matxName = data["matxName"]
+            self.nameChanged(self.matxName)
+        if "matxFile" in data:
+            self.matxFile = data["matxFile"]
+        if "matxPath" in data:
+            self.matxPath = data["matxPath"]
         if "lastExplorerDir" in data:
             self.lastExplorerDir = data["lastExplorerDir"]
 
+        self.setStateMode(self.stateMode)
         self.refreshTexList()
+        self.updateUi()
 
         self.core.callback("onStateSettingsLoaded", self, data)
 
 
     @err_catcher(name=__name__)
     def connectEvents(self):
-        self.e_name.textChanged.connect(self.nameChanged)
-        self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
-        #   This is the "Browse" button
-        self.b_browse.clicked.connect(self.browse)
+        # self.e_name.textChanged.connect(self.nameChanged)
+        # self.e_name.editingFinished.connect(self.nameChanged)
+        self.b_browse.clicked.connect(self.browse)  #   "Browser Button"
         self.b_browse.customContextMenuRequested.connect(self.openFolder)
-        #   This is the "Re-Import" button
-        # self.b_import.clicked.connect(lambda: self.importObject(update=True))                 #   TODO
+        self.b_import.clicked.connect(self.reImport)  #    "Re-Import" button
         self.b_explorer.clicked.connect(self.openExplorer)
         self.b_createShader.clicked.connect(self.createUsdMaterial)
         self.tw_textureFiles.customContextMenuRequested.connect(self.showContextMenu)
         self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
+
+
+    @err_catcher(name=__name__)
+    def toolTips(self):
+        tip = "Select Color of associated Tools."
+        self.l_class.setToolTip(tip)
+        self.cb_taskColor.setToolTip(tip)
+
+        tip = "Opens Libraries Tab to Select Material File(s)."
+        self.b_browse.setToolTip(tip)
+
+        tip = "Opens File Explorer to Select Material File(s)."
+        self.b_explorer.setToolTip(tip)
+
+        tip = "Reloads Material in existing Tool."
+        self.b_import.setToolTip(tip)
+
+        tip = "Selected MaterialX File."
+        self.e_matxFile.setToolTip(tip)
+
+        tip = ("Selected Texture Image Files used for making the Material.\n\n"
+               "Configure the 'Map' to correspond to the correct Texture Type,\n"
+               "then click 'Create Material'.\n\n"
+               "  - Select 'None' to bypass using the Texture File\n"
+               "  - Right-click an item to Remove from List\n"
+               "  - Right-click on empty area to Clear the List")
+        self.tw_textureFiles.setToolTip(tip)
+
+        tip = "Creates USD Material using the Texture Files."
+        self.b_createShader.setToolTip(tip)
+
+
+    #   Checks if image format is supported
+    @err_catcher(name=__name__)
+    def isSupportedFormat(self, fileName):
+        ext = os.path.splitext(fileName)[-1].lower()
+        return ext in SUPPORTEDFORMATS
+    
+
+    @err_catcher(name=__name__)
+    def updateUi(self):
+        #   Gets method from FusFuncts if it exists
+        getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
+
+        #   Get status's
+        exists = self.fuseFuncts.nodeExists(self.stateUID)
+        set = self.stateSet
+
+        #   Sets up UI for State Mode
+        if self.stateMode == "MaterialX":
+            self.b_browse.setHidden(set)
+            self.b_explorer.setHidden(set)
+            self.b_import.setHidden(not set)
+            self.gb_matX.setHidden(not set)
+            self.e_matxFile.setText(self.matxFile)
+
+        elif self.stateMode == "USD Material":
+            self.gb_textures.show()
+            self.b_browse.setHidden(set)
+            self.b_explorer.setHidden(set)
+            self.b_import.setHidden(not set)
+            self.gb_textures.setEnabled(not set)
+            self.b_createShader.setHidden(set)
+
+        #   Colors State Status
+        if self.stateSet:
+            if exists:
+                self.setStateColor("ok")
+            else:
+                self.setStateColor("error")
+
+        self.stateManager.saveStatesToScene()
+
+
+    @err_catcher(name=__name__)
+    def setStateMode(self, stateMode):
+        self.stateMode = stateMode
+        self.l_class.setText(stateMode)
+        self.updateUi()
+
+
+    @err_catcher(name=__name__)
+    def nameChanged(self, text=None):
+        if not text:
+            name = self.e_name.text()
+        else:
+            name = f"USD_Mat ({text})"
+
+        self.stateName = name
+        self.e_name.setText(name)
+        self.state.setText(0, name)
+
+        self.stateManager.saveStatesToScene()
+
+
+    #   Sets State Status Color on SM list
+    @err_catcher(name=__name__)
+    def setStateColor(self, status):
+        if status == "ok":
+            statusColor = QColor(0, 130, 0)
+        elif status == "warning":
+            statusColor = QColor(200, 100, 0)
+        elif status == "error":
+            statusColor = QColor(130, 0, 0)
+        else:
+            statusColor = QColor(0, 0, 0, 0)
+
+        self.statusColor = statusColor
+        self.stateManager.tw_import.repaint()
 
 
     @err_catcher(name=__name__)
@@ -241,24 +347,6 @@ class USD_MaterialClass(object):
         self.fuseFuncts.colorTaskNodes(self.stateUID, "import3d", colorRGB, category="import3d")
 
         self.stateManager.saveImports()
-        self.stateManager.saveStatesToScene()
-
-
-    @err_catcher(name=__name__)
-    def updateUi(self):
-
-        getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
-        
-
-    @err_catcher(name=__name__)
-    def nameChanged(self, text=None):
-        if not text:
-            name = self.e_name.text()
-        else:
-            name = f"USD_Mat ({text})"
-
-        self.state.setText(0, name)
-
         self.stateManager.saveStatesToScene()
     
 
@@ -294,7 +382,7 @@ class USD_MaterialClass(object):
         path = paths[0]
         ext = os.path.splitext(os.path.basename(path))[1]
 
-        if ext not in self.supportedFormats:
+        if not self.isSupportedFormat(path):
             logger.warning(f"ERROR:  '{ext}' format is not supported.")
             self.core.popup(f"ERROR:  '{ext}' format is not supported.")
             return
@@ -373,7 +461,7 @@ class USD_MaterialClass(object):
                 path = selectedItems[0]
                 ext = os.path.splitext(os.path.basename(path))[1]
 
-                if ext not in self.supportedFormats:
+                if not self.isSupportedFormat(path):
                     logger.warning(f"ERROR:  '{ext}' format is not supported.")
                     self.core.popup(f"ERROR:  '{ext}' format is not supported.")
                     return
@@ -385,6 +473,53 @@ class USD_MaterialClass(object):
                 #   Handle Texture set
                 else:
                     self.importTextureSet(selectedItems)
+
+
+    #   Updates Material Tool or adds the Tool if it is not in the Comp
+    @err_catcher(name=__name__)
+    def reImport(self):
+
+        exists = self.fuseFuncts.nodeExists(self.stateUID)
+
+        if self.stateMode == "MaterialX":
+            if exists:
+                self.importMatX(self.matxPath, update=True)
+            else:
+                self.importMatX(self.matxPath)
+
+
+        elif self.stateMode == "USD Material":
+            if exists:
+                self.createUsdMaterial(update=True)
+            else:
+                self.createUsdMaterial()
+
+
+
+    @err_catcher(name=__name__)
+    def openFolder(self, pos):
+        path = self.getImportPath()
+        if os.path.isfile(path):
+            path = os.path.dirname(path)
+
+        self.core.openFolder(path)
+
+
+    @err_catcher(name=__name__)
+    def getImportPath(self):
+        path = getattr(self, "importPath", "")
+        if path:
+            path = os.path.normpath(path)
+
+        return path
+
+
+    @err_catcher(name=__name__)
+    def setImportPath(self, path):
+        self.importPath = path
+        self.stateManager.saveImports()
+        self.updateUi()
+        self.stateManager.saveStatesToScene()
 
 
     @err_catcher(name=__name__)
@@ -400,20 +535,21 @@ class USD_MaterialClass(object):
         doImport = True
 
         basename = os.path.basename(importPath)
+       
+        #   Make names
+        self.matxFile = basename
+        self.matxPath = importPath
+        self.matxName = os.path.splitext(basename)[0]
+        self.nameChanged(self.matxName)
 
         #   Configure UI
         self.setStateMode("MaterialX")
-        self.gb_matX.show()
-        self.e_matxFile.setText(basename)
-        
-        #   Make name without ext
-        matXname = os.path.splitext(basename)[0]
-        self.nameChanged(matXname)
+        self.stateSet = True
 
         #   Make dict
-        matxData = {"toolName": matXname,
+        matxData = {"toolName": self.matxName,
                     "nodeUID": self.stateUID,
-                    "shaderName": matXname,
+                    "shaderName": self.matxName,
                     "shaderType": "MaterialX",
                     "matXfilePath": importPath}
         
@@ -440,10 +576,12 @@ class USD_MaterialClass(object):
         kwargs = {
             "state": self,
             "scenefile": fileName,
-        }
+            }
         self.core.callback("postImport", **kwargs)
-        self.stateManager.saveImports()
+
         self.updateUi()
+
+        self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
 
         return result
@@ -481,12 +619,13 @@ class USD_MaterialClass(object):
             #   Pass selected files
             texSet = textureFiles
             baseNames = [os.path.splitext(os.path.basename(f))[0] for f in texSet]
-            self.commonPrefix = self.findCommonPrefix(baseNames)
+
+            #   Make Material Name
+            self.findCommonPrefix(baseNames)
+
 
         #   Populate the list widget
         self.populateTextList(texSet)
-
-        self.nameChanged(self.commonPrefix)
 
 
     @err_catcher(name=__name__)
@@ -525,7 +664,7 @@ class USD_MaterialClass(object):
         texturePart = baseName[len(commonPrefix):].strip("_").lower()
 
         #   Get list of keywords sorted by length (longest first)
-        sortedTexTypes = sorted(self.texTypes.items(),
+        sortedTexTypes = sorted(TEXTYPES.items(),
                     key=lambda item: -max(len(keyword) for keyword in item[1]))
 
         #   Loop through the sorted dict and check keywords
@@ -556,7 +695,9 @@ class USD_MaterialClass(object):
             if not commonPrefix:
                 break
 
-            self.commonPrefix = commonPrefix
+        #   Make Material Name with stripping trailing charactors
+        pattern = r'[_\-\.]+$'
+        self.usdMatName = re.sub(pattern, '', commonPrefix)
                 
         return commonPrefix
 
@@ -607,7 +748,7 @@ class USD_MaterialClass(object):
                 mapComboBox = QComboBox()
                 mapComboBox.currentIndexChanged.connect(lambda index, r=row: self.updateTexType(r))
                 mapComboBox.addItem("NONE")
-                for texType in self.texTypes.keys():
+                for texType in TEXTYPES.keys():
                     mapComboBox.addItem(texType.capitalize())
                 if matchedTexType:
                     index = mapComboBox.findText(matchedTexType.capitalize())
@@ -653,7 +794,7 @@ class USD_MaterialClass(object):
             mapComboBox = QComboBox()
             mapComboBox.currentIndexChanged.connect(lambda index, r=row: self.updateTexType(r))
             mapComboBox.addItem("NONE")
-            for texTypeKey in self.texTypes.keys():
+            for texTypeKey in TEXTYPES.keys():
                 mapComboBox.addItem(texTypeKey.capitalize())
             if texType:
                 index = mapComboBox.findText(texType.capitalize())
@@ -716,7 +857,6 @@ class USD_MaterialClass(object):
         self.refreshTexList()
 
 
-
     # Saves the table content to self.textureFiles
     @err_catcher(name=__name__)
     def saveTexList(self):
@@ -747,7 +887,6 @@ class USD_MaterialClass(object):
         self.stateManager.saveStatesToScene()
 
 
-
     #   Updates map in textureFiles
     @err_catcher(name=__name__)
     def updateTexType(self, row):
@@ -758,39 +897,6 @@ class USD_MaterialClass(object):
             self.textureFiles[row]['map'] = selected_text
 
         self.saveTexList()
-
-
-    #   Checks if image format is supported
-    @err_catcher(name=__name__)
-    def isSupportedFormat(self, fileName):
-        ext = os.path.splitext(fileName)[-1].lower()
-        return ext in self.supportedFormats
-
-
-    @err_catcher(name=__name__)
-    def openFolder(self, pos):
-        path = self.getImportPath()
-        if os.path.isfile(path):
-            path = os.path.dirname(path)
-
-        self.core.openFolder(path)
-
-
-    @err_catcher(name=__name__)
-    def getImportPath(self):
-        path = getattr(self, "importPath", "")
-        if path:
-            path = os.path.normpath(path)
-
-        return path
-
-
-    @err_catcher(name=__name__)
-    def setImportPath(self, path):
-        self.importPath = path
-        self.stateManager.saveImports()
-        self.updateUi()
-        self.stateManager.saveStatesToScene()
 
 
     #   Creates the material using textures
@@ -806,21 +912,26 @@ class USD_MaterialClass(object):
 
         doImport = True
 
+        self.nameChanged(self.usdMatName)
+        
         #   Only send textures that have a mapping (not NONE)
         sendTexFiles = [item for item in self.textureFiles if item["map"] != "NONE"]
         
+        # #   Updates existing tool if it exists
+        # update = self.fuseFuncts.nodeExists(self.stateUID)
+
         #   Make dict
-        texData = {"toolName": self.commonPrefix,
-                   "shaderName": self.commonPrefix,
+        texData = {"toolName": self.usdMatName,
+                   "shaderName": self.usdMatName,
                    "shaderType": "uShader",
                    "nodeUID": self.stateUID,
                    "texFiles": sendTexFiles}
 
-        #   Call fucntion to import
+        #   Call function to import
         importResult = self.fuseFuncts.createUsdMaterial(self,
-                                                         UUID=self.stateUID,
-                                                         texData=texData,
-                                                         update=update)
+                                                        UUID=self.stateUID,
+                                                        texData=texData,
+                                                        update=update)
 
         if not importResult:
             result = None
@@ -828,35 +939,23 @@ class USD_MaterialClass(object):
         else:
             result = importResult["result"]
             doImport = importResult["doImport"]
-            # if result and "mode" in importResult:
-            #     self.setStateMode(importResult["mode"])
 
         if doImport:
             if result == "canceled":
                 return
-
-            # self.nodeNames = [
-            #     self.core.appPlugin.getNodeName(self, x) for x in self.nodes
-            # ]
-            # illegalNodes = self.core.checkIllegalCharacters(self.nodeNames)
-            # if len(illegalNodes) > 0:
-            #     msgStr = "Objects with non-ascii characters were imported. Prism supports only the first 128 characters in the ascii table. Please rename the following objects as they will cause errors with Prism:\n\n"
-            #     for i in illegalNodes:
-            #         msgStr += i + "\n"
-            #     self.core.popup(msgStr)
-
-            # if not result:
-            #     # msgStr = "Import failed: %s" % impFileName
-            #     self.core.popup(msgStr, title="ImportFile")
 
         kwargs = {
             "state": self,
             "scenefile": fileName,
         }
         self.core.callback("postImport", **kwargs)
+
         self.stateManager.saveImports()
-        self.updateUi()
         self.stateManager.saveStatesToScene()
+
+        self.tw_textureFiles.clearSelection()
+        self.stateSet = True
+        self.updateUi()
 
         return result
 
@@ -878,7 +977,7 @@ class USD_MaterialClass(object):
                 nodeData = self.fuseFuncts.getNodeInfo("import3d", nodeUID)
 
                 #   Get associated textures
-                connectedTools = nodeData.get("connectedNodes", [])
+                connectedTools = nodeData.get("connectedNodes", {})
 
                 #   If the material tool exists, show popup question
                 if nodeName:
@@ -892,7 +991,7 @@ class USD_MaterialClass(object):
                     if response == "Yes":
                         self.fuseFuncts.deleteNode("import3d", nodeUID, delAction=delAction)
                         #   Delete all the textures
-                        for uid in connectedTools:
+                        for uid in connectedTools.values():
                             self.fuseFuncts.deleteNode("import3d", uid, delAction=delAction)
 
         except:
@@ -901,12 +1000,29 @@ class USD_MaterialClass(object):
 
     @err_catcher(name=__name__)
     def getStateProps(self):
-        return {
-            "statename": self.e_name.text(),
+        stateProps = {
+            "stateName": self.stateName,
             "stateUID": self.stateUID,
-            "statemode": self.stateMode,
-            "textureFiles": self.textureFiles,
-            "taskname": self.taskName,
-            "setname": self.setName,
+            "stateMode": self.stateMode,
+            "stateSet": self.stateSet,
+            "taskColor": self.cb_taskColor.currentText(),
             "lastExplorerDir": self.lastExplorerDir
-        }
+            }
+
+        # Add usdMatName only if it exists
+        if hasattr(self, "usdMatName") and self.usdMatName:
+            stateProps["usdMatName"] = self.usdMatName
+
+        if hasattr(self, "textureFiles") and self.textureFiles:
+            stateProps["textureFiles"] = self.textureFiles
+
+        if hasattr(self, "matxName") and self.matxName:
+            stateProps["matxName"] = self.matxName
+
+        if hasattr(self, "matxFile") and self.matxFile:
+            stateProps["matxFile"] = self.matxFile
+
+        if hasattr(self, "matxPath") and self.matxPath:
+            stateProps["matxPath"] = self.matxPath
+
+        return stateProps

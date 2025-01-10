@@ -407,7 +407,8 @@ def groupTools(comp,
                groupName:str,
                toolList:list,
                outputTool:Tool = None,
-               inputTool:Tool = None
+               inputTool:Tool = None,
+               pos=None
                ) -> tuple[UUID, list[UUID]]:
     
     success = False
@@ -514,6 +515,11 @@ def groupTools(comp,
             groupUID = origin.createUUID()
             groupTool = getToolByName(comp, groupName)
             groupTool.SetData('Prism_UUID', groupUID)
+
+            #   Sets Group Tool Position if passed
+            if pos:
+                flow = comp.CurrentFrame.FlowView
+                setToolPosition(flow, groupTool, pos[0], pos[1])
 
             return groupUID, toolUIDs
         

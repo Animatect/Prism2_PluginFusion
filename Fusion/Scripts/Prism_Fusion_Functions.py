@@ -55,6 +55,7 @@ import re
 import math
 import glob
 import shutil
+import time
 import logging
 from datetime import datetime
 
@@ -220,7 +221,7 @@ class Prism_Fusion_Functions(object):
 							"alpha": {"input": "opacity", "colorspace": "linear"},
 							"alphaThreshold": {"input": "opacityThreshold", "colorspace": "linear"},
 							"emit": {"input": "emissiveColor", "colorspace": "sRGB"},
-							"coat": {"input": "clearcoat", "colorspace": "linear"},
+							"clearcoat": {"input": "clearcoat", "colorspace": "linear"},
 							"coatRough": {"input": "clearcoatRoughness", "colorspace": "linear"},
 							"ior": {"input": "ior", "colorspace": "linear"},
 							"specColor": {"input": "specColor", "colorspace": "sRGB"}
@@ -1117,8 +1118,8 @@ class Prism_Fusion_Functions(object):
 		importData = Helper.makeImportData(self, context, aovDict, sourceData)
 
 		if not importData:
-			self.core.popup(f"ERROR:  Import Failed - Unable to make import data:\n{e}.")
-			logger.warning(f"ERROR:  Import Failed - Unable to make import data:\n{e}.")
+			self.core.popup(f"ERROR:  Import Failed - Unable to make import data.")
+			logger.warning(f"ERROR:  Import Failed - Unable to make import data.")
 			return
 
 		#	Get "Sorting" checkbox state	
@@ -1865,15 +1866,42 @@ class Prism_Fusion_Functions(object):
 
 	#	Creates group with uTextures and uShader
 	@err_catcher(name=__name__)
-	def createUsdMaterial(self, origin, UUID, texData, update):
+	def createUsdMaterial(self, origin, UUID, texData, update=False):
+		comp = self.getCurrentComp()
+		# comp.Lock()
+		comp.StartUndo("Create USD Material")
+
+		result = self.wrapped_createUsdMaterial(origin, UUID, texData, update)
+
+		comp.EndUndo()
+		# comp.Unlock()
+
+		return result
+
+
+	#	Creates group with uTextures and uShader
+	@err_catcher(name=__name__)
+	def wrapped_createUsdMaterial(self, origin, UUID, texData, update):
 		comp = self.getCurrentComp()
 		flow = comp.CurrentFrame.FlowView
 
 																		#	TODO add more connection types
 																		#	TODO handle ARM type (AO, ROUGH, MET)
+																		#	It seems Fusion cannot manipulate uTextures
+		#	If Update, just toggle Tool bypass
+		if update:
+			try:
+				sData = CompDb.getNodeInfo(comp, "import3d", UUID)
+				groupUID = sData["connectedNodes"]["Group"]
+				comp.Unlock()
+				CompDb.setPassThrough(comp, nodeUID=groupUID, passThrough=True)
+				CompDb.setPassThrough(comp, nodeUID=groupUID, passThrough=False)
+				comp.Lock()
 
-		comp.Lock()
-		comp.StartUndo()
+				return {"result": True, "doImport": True}
+			except:
+				logger.warning("ERROR: Failed to update USD Material")
+				return {"result": False, "doImport": False}
 
 		#	Add uShader
 		try:
@@ -1883,8 +1911,15 @@ class Prism_Fusion_Functions(object):
 			shdData["toolName"] = f"{texData['toolName']}_uShader"
 			shdData["shaderName"] = texData["shaderName"]
 		
+			#	Get Positions to not mess up flow
+			lastClicked = Fus.find_LastClickPosition(comp)
+			leftTool = Fus.findLeftmostLowerTool(comp, threshold=10)
+			left_x, left_y = Fus.getToolPosition(comp, leftTool)
+			temp_x = left_x - 20
+			temp_y = left_y - 20
+
 			#	Add uShader tool
-			uShader = Fus.addTool(comp, "uShader", shdData)
+			uShader = Fus.addTool(comp, "uShader", shdData, temp_x, temp_y)
 			logger.debug(f"Added uShader: {shdData['toolName']}")
 		
 		except Exception as e:
@@ -1898,7 +1933,7 @@ class Prism_Fusion_Functions(object):
 
 		#	Handle textures
 		try:
-			connectedTexs = []
+			connectedTexs = {}
 			for texture in texData["texFiles"]:
 				#	Create UIDs for each texture
 				toolUID = self.createUUID()
@@ -1911,12 +1946,14 @@ class Prism_Fusion_Functions(object):
 				texDict["uTexFilepath"] = texture["path"]				
 
 				#	Add uTexture
-				uTexture = Fus.addTool(comp, "uTexture", texDict)
+				uTexture = Fus.addTool(comp, "uTexture", texDict, temp_x, temp_y)
 
 				if uTexture:
-					#	Add to list
-					connectedTexs.append(toolUID)
+					#	Add uTexture to Database
 					CompDb.addNodeToDB(comp, "import3d", toolUID, texDict)
+
+					#	Add to Connected Textures Dict
+					connectedTexs[f"Tex_{texture['map'].upper()}"] = toolUID
 
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to add uTextures to Comp:\n{e}")
@@ -1928,7 +1965,7 @@ class Prism_Fusion_Functions(object):
 		CompDb.updateNodeInfo(comp, "import3d", texData["nodeUID"], updateDict)
 
 		#	Get tool for each UID
-		texTools = [tool for uid in connectedTexs if (tool := CompDb.getNodeByUID(comp, uid))]
+		texTools = [tool for uid in connectedTexs.values() if (tool := CompDb.getNodeByUID(comp, uid))]
 		#	Stack uTextures and get the average position
 		xPos, yPos = Fus.stackToolsByList(comp, texTools, yoffset=0.6)
 		#	Moves uShader to the right of the stack
@@ -1941,12 +1978,14 @@ class Prism_Fusion_Functions(object):
 			try:
 				#	Get tool data
 				toolData = Fus.getToolData(tool)
+
 				#	Get map type from data
 				mapType = (toolData.get("Prism_TexMap", None)).lower()
 				#	Get uShader connection data from map type
 				connectionData = self.connectDict.get(mapType, None)
 				#	Extract input name and colorspace
 				mapInput = connectionData.get("input", None)
+
 				#	Connect the tool to the uShader using mapInput
 				uShader[mapInput] = tool
 
@@ -1964,8 +2003,12 @@ class Prism_Fusion_Functions(object):
 			groupName = texData['shaderName']
 
 			#	Create group
-			groupUID, newToolsUIDs = Fus.groupTools(comp, self, groupName, groupTools, outputTool=uShader)
-			
+			groupUID, newToolsUIDs = Fus.groupTools(comp,
+										   			self,
+													groupName,
+													groupTools,
+													outputTool=uShader,
+													pos=lastClicked)
 			#	Make Group Data
 			groupData = {"groupName": texData['shaderName'],
 						 "connectedNodes": newToolsUIDs}
@@ -1976,6 +2019,10 @@ class Prism_Fusion_Functions(object):
 			#	Uodate Group and add to Database
 			Fus.updateTool(groupTool, groupData)
 			CompDb.addNodeToDB(comp, "import3d", groupUID, groupData)
+
+			#	Add Group UID to uShader database record
+			updateDict["connectedNodes"]["Group"] = groupUID
+			CompDb.updateNodeInfo(comp, "import3d", texData["nodeUID"], updateDict)
 
 			logger.debug(f"Created shader group: {groupName}")
 
@@ -2013,13 +2060,10 @@ class Prism_Fusion_Functions(object):
 
 				except:
 					logger.warning(f"ERROR: Not able to set Source ColorSpace for {tool.Name}.")
-
-		comp.EndUndo()
-		comp.Unlock()
+					comp.Unlock()
 
 
-
-	# #	Imports .fbx or .abc object into Comp
+	#	Creates MaterialX tool
 	@err_catcher(name=__name__)
 	def createUsdMatX(self, origin, UUID, texData, update=False):
 		comp = self.getCurrentComp()
@@ -2034,31 +2078,39 @@ class Prism_Fusion_Functions(object):
 		return result
 
 
-	#	Imports .fbx or .abc object into Comp
+	#	Creates MaterialX tool
 	@err_catcher(name=__name__)
 	def wrapped_createUsdMatX(self, origin, UUID, matXData, update):
 		comp = self.getCurrentComp()
 		result = False
 
 		if not update:
-			#	Add uMaterialX tool
-			uMaterialX = Fus.addTool(comp, "uMaterialX", matXData)
-		
-			if uMaterialX:
-				#	Add to Comp Database
-				del matXData["toolName"]
-				addResult = CompDb.addNodeToDB(comp, "import3d", UUID, matXData)
-				if addResult:
-					result = True
-					
-		else:
-			tool = CompDb.getNodeByUID(comp, UUID)
-			uMaterialX = Fus.updateTool(tool, matXData)
+			try:
+				#	Add uMaterialX tool
+				uMaterialX = Fus.addTool(comp, "uMaterialX", matXData)
+			
+				if uMaterialX:
+					#	Add to Comp Database
+					del matXData["toolName"]
+					addResult = CompDb.addNodeToDB(comp, "import3d", UUID, matXData)
+					if addResult:
+						result = True
+						logger.debug(f"Created MaterialX ({matXData['shaderName']})")
+			except:
+				logger.warning("ERROR:  Failed to create MaterialX material")
 
-			if uMaterialX:
-				updateResult = CompDb.updateNodeInfo(comp, "import3d", UUID, matXData)
-				if updateResult:
-					result = True
+		else:
+			try:
+				tool = CompDb.getNodeByUID(comp, UUID)
+				uMaterialX = Fus.updateTool(tool, matXData)
+
+				if uMaterialX:
+					updateResult = CompDb.updateNodeInfo(comp, "import3d", UUID, matXData)
+					if updateResult:
+						result = True
+						logger.debug(f"Updated MaterialX ({matXData['shaderName']})")
+			except:
+				logger.warning("ERROR: Failed to update MaterialX material")
 
 		return {"result": result, "doImport": result}
 

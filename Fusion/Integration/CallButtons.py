@@ -60,7 +60,7 @@ def CallButton(clickedBtn):
         holder = holders[len(holders)]
         holder.GetItems()[clickedBtn].Click()
     else:
-        print("Prism is not running.  Please RESET PRISM.")
+        print("[Prism]  Prism is not running.  Please RESET PRISM.")
         makeMessageDialog("Prism is not running.\n\nPlease RESET PRISM from the Fusion Prism Menu.")
 
 
