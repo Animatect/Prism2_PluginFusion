@@ -412,6 +412,15 @@ class Prism_Fusion_Functions(object):
 		if self.sm_checkCorrectComp(comp):
 			return CompDb.sm_readStates(comp)
 
+	@err_catcher(name=__name__)
+	def sm_createStatePressed(self, origin, stateType):
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			return []
+		
+		logger.warning(f"ERROR: Unable to to create state")
+		return None
+
 
 	#	Gets called from SM to remove all States
 	@err_catcher(name=__name__)
@@ -964,9 +973,9 @@ class Prism_Fusion_Functions(object):
 	def sm_export_startup(self, origin):
 		pass
 
-		@err_catcher(name=__name__)
-		def sm_export_setTaskText(self, origin, prevTaskName, newTaskName):
-			origin.l_taskName.setText(newTaskName)
+	@err_catcher(name=__name__)
+	def sm_export_setTaskText(self, origin, prevTaskName, newTaskName):
+		origin.l_taskName.setText(newTaskName)
 
 
 	@err_catcher(name=__name__)
@@ -3597,6 +3606,8 @@ path = r\"%s\"
 								 			self.getVersionStackContextFromPath,
 											self,
 											force=True)
+			self.core.plugins.monkeyPatch(origin.showStateMenu, self.showStateMenu, self, force=True)
+			self.core.plugins.monkeyPatch(origin.pasteStates, self.pasteStates, self, force=True)
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to load patched functions:\n{e}")
 
@@ -3686,47 +3697,51 @@ path = r\"%s\"
 	#	This is called from the import buttons in the SM (Import Image and Import 3D)
 	@err_catcher(name=__name__)
 	def addImportState(self, origin, stateType, filepath=None):				#	TODO IMPLEMENT ADDING IMAGE IMPORT STATE TO SM WITH FILEPATH
-		importStates = []
+		comp = self.getCurrentComp()	
+		if self.sm_checkCorrectComp(comp):
+			importStates = []
 
-		curSel = origin.getCurrentItem(origin.activeList)
-		if (origin.activeList == origin.tw_import
-			and curSel is not None
-			and curSel.ui.className == "Folder"
-			):
-			parent = curSel
-		else:
-			parent = None
+			curSel = origin.getCurrentItem(origin.activeList)
+			if (origin.activeList == origin.tw_import
+				and curSel is not None
+				and curSel.ui.className == "Folder"
+				):
+				parent = curSel
+			else:
+				parent = None
 
-		states = origin.stateTypes
-		for state in states:
-			importStates += getattr(origin.stateTypes[state], "stateCategories", {}).get(stateType, [])
+			states = origin.stateTypes
+			for state in states:
+				importStates += getattr(origin.stateTypes[state], "stateCategories", {}).get(stateType, [])
 
-		if len(importStates) == 1:
-			origin.createState(importStates[0]["stateType"], parent=parent, setActive=True)
-		else:
-			menu = QMenu(origin)
-			for importState in importStates:
-				actSet = QAction(importState["label"], origin)
-				actSet.triggered.connect(lambda x=None,
-							st=importState: origin.createState(st["stateType"],
-							parent=parent,
-							setActive=True,
-							**st.get("kwargs",{}))
-					)
+			if len(importStates) == 1:
+				origin.createState(importStates[0]["stateType"], parent=parent, setActive=True)
+			else:
+				menu = QMenu(origin)
+				for importState in importStates:
+					actSet = QAction(importState["label"], origin)
+					actSet.triggered.connect(lambda x=None,
+								st=importState: origin.createState(st["stateType"],
+								parent=parent,
+								setActive=True,
+								**st.get("kwargs",{}))
+						)
 
 
 
-				menu.addAction(actSet)
+					menu.addAction(actSet)
 
-			if not menu.isEmpty():
-				menu.exec_(QCursor.pos())
+				if not menu.isEmpty():
+					menu.exec_(QCursor.pos())
 
-		origin.activeList.setFocus()
+			origin.activeList.setFocus()
 
 
 	@err_catcher(name=__name__)
 	def addRenderGroup(self, origin):
-		origin.createState("RenderGroup")
+		comp = self.getCurrentComp()	
+		if self.sm_checkCorrectComp(comp):
+			origin.createState("RenderGroup")
 
 
 	##########################################
@@ -3884,6 +3899,58 @@ path = r\"%s\"
 
 					rcmenu.exec_(sm.activeList.mapToGlobal(pos))
 
+	@err_catcher(name=__name__)
+	def showStateMenu (self, listType=None, useSelection=False):
+		logger.debug("Loading patched function: 'showStateMenu'")
+		
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			sm = self.MP_stateManager			
+			globalPos = QCursor.pos()
+			parentState = None
+			if useSelection:
+				listWidget = sm.tw_import if listType == "Import" else sm.tw_export
+				if listWidget == sm.activeList:
+					parentState = sm.getCurrentItem(sm.activeList)
+			else:
+				pos = sm.activeList.mapFromGlobal(globalPos)
+				idx = sm.activeList.indexAt(pos)
+				parentState = sm.activeList.itemFromIndex(idx)
+
+			if parentState and parentState.ui.className != "Folder":
+				parentState = None
+
+			menu = sm.getStateMenu(listType, parentState)
+			menu.exec_(globalPos)
+			# self.core.plugins.callUnpatchedFunction(sm.showStateMenu, listType=listType, useSelection=useSelection)
+
+		else:
+			logger.warning(f"ERROR: Unable to to create state")
+
+	@err_catcher(name=__name__)
+	def pasteStates(self):
+		logger.debug("Loading patched function: 'showStateMenu'")
+		
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			sm = self.MP_stateManager
+
+			cb = QClipboard()
+			try:
+				rawText = cb.text("plain")[0]
+			except:
+				QMessageBox.warning(
+					sm.core.messageParent,
+					"Paste states",
+					"No valid state data in clipboard.",
+				)
+				return
+
+			sm.loadStates(rawText)
+
+			sm.showState()
+			sm.activeList.clearFocus()
+			sm.activeList.setFocus()
 
 	@err_catcher(name=__name__)
 	def getVersionStackContextFromPath(self, filepath, mediaType=None):
