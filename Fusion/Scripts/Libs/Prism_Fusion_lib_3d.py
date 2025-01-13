@@ -59,7 +59,7 @@ from . import Prism_Fusion_lib_CompDb as CompDb
 from . import Prism_Fusion_lib_Fus as Fus
 
 from PrismUtils.Decorators import err_catcher as err_catcher
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING, Any, Literal
 if TYPE_CHECKING:
     from StateManagerNodes.fus_Legacy3D_Import import Legacy3D_ImportClass
 else:
@@ -463,8 +463,8 @@ def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool
 #             impnodes = [n for n in importedTools]
 #             if len(impnodes) > 0:
 
-#                 fisrtnode = impnodes[0]
-#                 fstnx, fstny = flow.GetPosTable(fisrtnode).values()
+#                 firstnode = impnodes[0]
+#                 fstnx, fstny = flow.GetPosTable(firstnode).values()
 
 #                 for n in impnodes:
 #                     if not n.Name in positionedNodes:
@@ -505,18 +505,12 @@ def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool
 @err_catcher(name=__name__)
 def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict, stateUUID:str, initcoords:tuple=tuple((0,0)))->bool:
     #check if there was a merge3D in the import and where was it connected to
-    newNodes:list[str] = [n.Name for n in comp.GetToolList(True).values()]
-    positionedNodes:list[str] = newNodes
+    importedTools:list[Tool_] = comp.GetToolList(True).values()
+    # positionedNodes:list[str] = newNodes
 
     atx:float = initcoords[0] 
     aty:float = initcoords[1]
 
-    # refPosNode, positionedNodes = ReplaceBeforeImport(origin, comp, newNodes)
-    cleanbeforeImport(origin)
-    # if refPosNode:
-        # atx, aty = flow.GetPosTable(refPosNode).values()
-
-    importedTools = comp.GetToolList(True).values()
     #Set the position of the imported nodes relative to the previously active tool or last click in compView
     impnodes = [n for n in importedTools]
     if len(impnodes) > 0:
@@ -530,10 +524,20 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 rightmost_x = tool_x
                 rightmost_tool = tool
 
-        fisrtnode:Tool_ = rightmost_tool  # Use the rightmost tool as the reference
+        firstnode:Tool_ = rightmost_tool  # Use the rightmost tool as the reference
         # Reassign the State ID as the entry point node ID
-        fisrtnode.SetData("Prism_UUID", stateUUID)
-        fstnx, fstny = flow.GetPosTable(fisrtnode).values()
+        firstnode.SetData("Prism_UUID", stateUUID)
+        firstnode.SetAttrs({'TOOLS_Name' : f"ROOT_{toolData['product']}"})
+        fstnx, fstny = flow.GetPosTable(firstnode).values()
+
+        
+        newNodes:list[str] = [n.Name for n in importedTools]
+        stateNodesUIDs:list[str] = []
+        # refPosNode, positionedNodes = ReplaceBeforeImport(origin, comp, newNodes)
+        cleanbeforeImport(origin)
+        # if refPosNode:
+            # atx, aty = flow.GetPosTable(refPosNode).values()
+
 
         for tool in impnodes:
             thisToolData:dict = toolData.copy()
@@ -543,15 +547,14 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 toolUID = tool.GetData("Prism_UUID")
             else:
                 tool.SetData("Prism_UUID", toolUID)
+            stateNodesUIDs.append(toolUID)
             thisToolData["nodeName"] = tool.Name
             thisToolData["toolOrigName"] = tool.Name
             thisToolData["toolUID"] = toolUID
             thisToolData["nodeUID"] = toolUID
             thisToolData["stateUID"] = stateUUID
             thisToolData["tooltype"] = tool.GetAttrs('TOOLS_RegID')
-            thisToolData["entryNode"] = {fisrtnode.Name : fisrtnode.GetData("Prism_UUID")}
-
-            # print("####!!!#####TOOLDATA:#####!!!####\n\n", toolData,"\n\n#########################")
+            thisToolData["entryNode"] = {firstnode.Name : firstnode.GetData("Prism_UUID")}
             
             inputTools:list = [inpt.GetConnectedOutput().GetTool() for inpt in tool.GetInputList().values() if inpt.GetConnectedOutput()]
             if len(inputTools)>0:
@@ -580,7 +583,6 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
             flow.SetPos(tool, newx-1, newy)
 
     ##########
-
     importedNodes = []
     for i in newNodes:
         #   Append sufix to objNames to identify product with unique Name
@@ -589,8 +591,12 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
         # node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
         importedNodes.append(getNode(newName))
 
-    origin.setName = "Import_" + filename[0]			
+    origin.setName = "Import_" + filename[0]
     origin.nodes = importedNodes
+
+    # Add State to Comp Dict
+    stateData:dict = CompDb.buildStateData(origin.setName, origin.className, stateNodesUIDs, product=toolData["product"])
+    CompDb.addStateToDB(comp, "import", stateUUID, stateData)
 
     #   Deselect All
     flow.Select()
@@ -668,7 +674,69 @@ def cleanbeforeImport(origin:Legacy3D_ImportClass):
 
     origin.core.appPlugin.deleteNodes(origin, nodes)
     origin.nodes = []
-                
+
+@err_catcher(name=__name__)
+def getNodeStateTypes() -> list:
+    comp = fusion.GetCurrentComp()
+    cpData = CompDb.loadPrismFileDb(comp)
+    stateTypes:list = []
+    for n in cpData["nodes"]:
+        stateTypes.append(n)
+
+    return stateTypes
+
+@err_catcher(name=__name__)
+def getAllNodes() -> dict:
+    comp = fusion.GetCurrentComp()
+    cpData = CompDb.loadPrismFileDb(comp)
+    stateTypes:list[str] = getNodeStateTypes()
+    nodes:dict = {}
+    for stateType  in stateTypes:
+        stateTypeNodes:dict  = cpData["nodes"][stateType]
+        for item in stateTypeNodes.items():
+            nodes.update({item[0]:item[1]})
+    
+    return nodes
+
+@err_catcher(name=__name__)
+def getStateNodesList(stuid:str) -> list[str]:
+    allnodes = getAllNodes()
+    
+    # Use a list comprehension with robust key checks
+    nodels:list[str] = [
+        stateuid for stateuid, node_data in allnodes.items()
+        if node_data.get("stateUID") == stuid
+    ]
+    
+    return nodels
+
+@err_catcher(name=__name__)
+def getStateNodesOrigNameList(nodeUIDlist:list[str]) -> list[str]:
+    nodes:dict = getAllNodes()
+    nodeNmLs:list[str] = []
+
+    for nodeuid in nodeUIDlist:
+        node:dict = nodes.get(nodeuid)
+        if node:
+            toolorignm:str = node.get("toolOrigName")
+            if toolorignm:
+                nodeNmLs.append(toolorignm)
+    
+    return nodeNmLs
+
+@err_catcher(name=__name__)
+def getToolsFromNodeList(nodeUIDlist:list[str]) -> list[Tool_]:
+    comp = fusion.GetCurrentComp()
+    nodes:dict = getAllNodes()
+    tools:list[Tool_] = []
+
+    for nodeuid in nodeUIDlist:
+        if nodes.get(nodeuid):
+            tool = CompDb.getNodeByUID(comp, nodeuid)
+        tools.append(tool)
+
+    return tools
+
 
 @err_catcher(name=__name__)
 def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, newnodes:list[str])->tuple[Tool_|None, list[str]]:

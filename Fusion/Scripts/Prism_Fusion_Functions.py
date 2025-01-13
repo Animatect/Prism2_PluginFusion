@@ -391,7 +391,7 @@ class Prism_Fusion_Functions(object):
 	def sm_saveStates(self, origin, buf):
 		comp = self.getCurrentComp()
 		# The comp check for the imports should be done also in the  states operations.
-		# here we just do a check, but by doing it there we can actually interrupt the process 
+		# here we just do a check,  by doing that we can check again in another function  whare we can actually interrupt the process
 		# in the other functions if there is a problem but avoid corrupting the comp's states.
 		if self.sm_checkCorrectComp(comp, displaypopup=False, deleteSM=False):
 			CompDb.sm_saveStates(comp, buf)
