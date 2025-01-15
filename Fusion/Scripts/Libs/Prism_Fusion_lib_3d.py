@@ -355,7 +355,7 @@ def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str
     if timeoutSecs > 0:
         imported = doUiImport(fusion, formatCall, interval, filepath, timeoutSecs)
     
-    origin.stateManager.showNormal()
+    # origin.stateManager.showNormal()
 
     return imported
 
@@ -510,6 +510,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     importedTools:list[Tool_] = comp.GetToolList(True).values()
     isUpdate:bool = False
     positionedNodes:list[str] = []
+    unsuccesfulConnections:list[str] = []
 
     atx:float = initcoords[0] 
     aty:float = initcoords[1]
@@ -534,7 +535,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
         
         newNodes:list[str] = [n.Name for n in importedTools]
 
-        isUpdate, positionedNodes = ReplaceBeforeImport(origin, comp, stateUUID, importedTools, firstnode)
+        isUpdate, positionedNodes, unsuccesfulConnections = ReplaceBeforeImport(origin, comp, stateUUID, importedTools, firstnode)
         cleanbeforeImport(origin, stateUUID)
 
         # Reassign the State ID as the entry point node ID
@@ -619,6 +620,17 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
 
     #Set result to True if we have nodes
     result:bool = len(importedTools) > 0
+
+    #the statemanager was minimized on the import.
+    origin.stateManager.showNormal()
+
+    if isUpdate and len(unsuccesfulConnections)>0:
+        msg:str = "The Following connections were unsuccessful: \n"
+        for connection in unsuccesfulConnections:
+            msg += "\n" + connection
+
+        msg += "\n if possible reconnect manually."
+        print(msg)
 
     return result
 
@@ -750,6 +762,7 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
     stateTools:list[Tool_] = getToolsFromNodeList(comp, statenodesuids)
     oldSceneTool:Tool_|None = None
     positionednodes:list[str] = []
+    unsuccesfulconnections:list[str] = []
 
     if len(stateTools) < 1:
         return False, []
@@ -814,6 +827,7 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
         if newtool == sceneTool or toolType == "Merge3D":
             print("---- ",newtool.Name, " is SceneTool or Merge3D")
             continue
+
         print(newtool.Name, "is a regular node")
         oldtool:Tool_ = None
         if newtool.Name in stateNodesNames:
@@ -825,12 +839,14 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                             if t.GetData('Prism_UUID') == nodeuid:
                                 oldtool = t
                                 break
-            
+        
+
         # If there is a previous version of the same node.
         if oldtool:
             print(oldtool.Name, " is the oldtool")
             # check if it has valid inputs that are not part of previous import
-            connectedInputList:list = [inpt for inpt in oldtool.GetInputList().values() if inpt.GetConnectedOutput()]            
+            connectedInputList:list = [inpt for inpt in oldtool.GetInputList().values() if inpt.GetConnectedOutput()]
+            print("inputs:")     
             for inpt in connectedInputList:
                 input:Input_ = inpt
                 connectedOutput:Output_ = input.GetConnectedOutput()
@@ -840,10 +856,21 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                 if not connectedtool.GetAttrs("TOOLS_RegID") =="BezierSpline":
                     # check to avoid a connection that breaks the incoming hierarchy that we are not reconnecting nodes that belong to the orig scene.
                     if not connectedtool.GetData('Prism_UUID') or not connectedtool.GetData('Prism_UUID') in statenodesuids:
+                        print(inputName)
                         # if not connectedtool.Name in stateNodesNames:
-                        newtool.ConnectInput(inputName, connectedtool)
+                        connectionsuccess:bool = newtool.ConnectInput(inputName, connectedtool)
+                        if not connectionsuccess and " " in inputName:
+                            fixedName:str = inputName.replace(" ", ".") # some inputs convert "." to " "
+                            print(fixedName)
+                            connectionsuccess = newtool.ConnectInput(fixedName, connectedtool)
+                        
+                        if not connectionsuccess:
+                            connectionstring:str = f"{connectedtool.Name} --> {newtool.Name}.{inputName}"
+                            unsuccesfulconnections.append(connectionstring)
+                            
             Fus.matchToolPos(comp, newtool, oldtool)
             positionednodes.append(newtool.Name)
+        print("\n")
         
     # Reconnect the 3D Scene.    
     if sceneTool.GetAttrs("TOOLS_RegID") == "Merge3D":
@@ -851,7 +878,6 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
             mergednodes:list[Tool_] = []
             sceneinputs:list[Input_] = [input for input in oldSceneTool.GetInputList().values() if "SceneInput" in input.Name and input.GetConnectedOutput()]
             for input in sceneinputs:
-                print()
                 connectedOutput:Output_ = input.GetConnectedOutput()
                 connectedtool:Tool_ = connectedOutput.GetTool()
                 if not connectedtool.GetData('Prism_UUID') or not connectedtool.GetData('Prism_UUID') in statenodesuids:
@@ -863,7 +889,7 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                     # get the first of availible inputs.
                     input = newsceneinputs[0]
                     sceneTool.ConnectInput(input.Name, mergednode)
-                    comp.UpdateViews()  
+                    comp.UpdateViews()
 
     outConnections = oldSceneTool.GetOutputList()[1].GetConnectedInputs()
     for input in outConnections.values():
@@ -876,7 +902,7 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
         positionednodes.append(sceneTool.Name)
         
     # Return position
-    return True, positionednodes
+    return True, positionednodes, unsuccesfulconnections
 
 
 # @err_catcher(name=__name__)
