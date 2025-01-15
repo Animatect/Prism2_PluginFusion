@@ -68,6 +68,8 @@ else:
     FlowView_ = Any
     Fusion_ = Any
     Legacy3D_ImportClass = Any
+    Input_ = Any
+    Output_ = Any
 	
 
 @err_catcher(name=__name__)
@@ -506,7 +508,8 @@ def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool
 def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict, stateUUID:str, initcoords:tuple=tuple((0,0)))->bool:
     #check if there was a merge3D in the import and where was it connected to
     importedTools:list[Tool_] = comp.GetToolList(True).values()
-    # positionedNodes:list[str] = newNodes
+    isUpdate:bool = False
+    positionedNodes:list[str] = []
 
     atx:float = initcoords[0] 
     aty:float = initcoords[1]
@@ -532,11 +535,12 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
 
         
         newNodes:list[str] = [n.Name for n in importedTools]
-        stateNodesUIDs:list[str] = []
-        # refPosNode, positionedNodes = ReplaceBeforeImport(origin, comp, newNodes)
-        cleanbeforeImport(origin)
-        # if refPosNode:
-            # atx, aty = flow.GetPosTable(refPosNode).values()
+
+        isUpdate, positionedNodes = ReplaceBeforeImport(origin, comp, stateUUID, importedTools, firstnode)
+        cleanbeforeImport(origin, stateUUID)
+
+        if isUpdate and len(positionedNodes)>0:
+            atx, aty = flow.GetPosTable(firstnode).values()
 
 
         for tool in impnodes:
@@ -547,7 +551,6 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 toolUID = tool.GetData("Prism_UUID")
             else:
                 tool.SetData("Prism_UUID", toolUID)
-            stateNodesUIDs.append(toolUID)
             thisToolData["nodeName"] = tool.Name
             thisToolData["toolOrigName"] = tool.Name
             thisToolData["toolUID"] = toolUID
@@ -572,31 +575,28 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 thisToolData["connectedNodes"] = connectedNodesDict
             Fus.addToolData(tool, thisToolData)
             CompDb.addNodeToDB(comp, "import3d", toolUID, thisToolData)
-            # if not tool.Name in positionedNodes:
-            x,y  = flow.GetPosTable(tool).values()
-            # offset = [x-fstnx,y-fstny]
-            # newx = x+(atx-x)+offset[0]
-            # newy = y+(aty-y)+offset[1]
-            # flow.SetPos(tool, newx-1, newy)
-            newx = x+(atx-fstnx)
-            newy = y+(aty-fstny)
-            flow.SetPos(tool, newx-1, newy)
+            if not tool.Name in positionedNodes:
+                x,y  = flow.GetPosTable(tool).values()
+                newx = x+(atx-fstnx)
+                newy = y+(aty-fstny)
+                flow.SetPos(tool, newx-1, newy)
 
     ##########
-    importedNodes = []
-    for i in newNodes:
-        #   Append sufix to objNames to identify product with unique Name
-        node:Tool_ = getObject(comp, i)
-        newName:str =  node.GetAttrs("TOOLS_Name")# applyProductSufix(i, origin)
-        # node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
-        importedNodes.append(getNode(newName))
+    # importedNodes = []
+    # for i in newNodes:
+    #     #   Append sufix to objNames to identify product with unique Name
+    #     node:Tool_ = getObject(comp, i)
+    #     newName:str =  node.GetAttrs("TOOLS_Name") # applyProductSufix(i, origin)
+    #     # node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
+    #     importedNodes.append(getNode(newName))
+    
+    # add a suffix the name to make sure we don't deduplicate a name on the update by modifying its name making finding matching tools impossible.
+    for t in importedTools:
+        newName:str =  t.GetAttrs("TOOLS_Name") + "_" + toolData.get("product")
+        t.SetAttrs({'TOOLS_Name' : newName})
 
-    origin.setName = "Import_" + filename[0]
-    origin.nodes = importedNodes
-
-    # Add State to Comp Dict
-    stateData:dict = CompDb.buildStateData(origin.setName, origin.className, stateNodesUIDs, product=toolData["product"])
-    CompDb.addStateToDB(comp, "import", stateUUID, stateData)
+    origin.setName = "Import_" + toolData.get("product")
+    # origin.nodes = importedNodes
 
     #   Deselect All
     flow.Select()
@@ -616,7 +616,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
         flow.Select(o)
 
     #Set result to True if we have nodes
-    result:bool = len(importedNodes) > 0
+    result:bool = len(importedTools) > 0
 
     return result
 
@@ -665,19 +665,23 @@ def applyProductSufix(originalName:str, origin:Legacy3D_ImportClass)->str:
 
 
 # @err_catcher(name=__name__)
-def cleanbeforeImport(origin:Legacy3D_ImportClass):
-    if origin.nodes == []:
-        return
-    nodes:list[dict] = []
-    for o in origin.nodes:
-        nodes.append(getNode(o))
+def cleanbeforeImport(origin:Legacy3D_ImportClass, stateUID:str):
+    # if origin.nodes == []:
+    #     return
+    # nodes:list[dict] = []
+    # for o in origin.nodes:
+    #     nodes.append(getNode(o))
 
-    origin.core.appPlugin.deleteNodes(origin, nodes)
+    origin.core.appPlugin.deleteNodes(stateUID)
     origin.nodes = []
 
+def deleteTools(comp:Composition_, stateUID:str):
+    stateTools:list[Tool_] = getToolsFromNodeList(comp, getStateNodesList(comp, stateUID))
+    for tool in stateTools:	
+        tool.Delete()
+
 @err_catcher(name=__name__)
-def getNodeStateTypes() -> list:
-    comp = fusion.GetCurrentComp()
+def getNodeStateTypes(comp:Composition_) -> list:
     cpData = CompDb.loadPrismFileDb(comp)
     stateTypes:list = []
     for n in cpData["nodes"]:
@@ -686,10 +690,9 @@ def getNodeStateTypes() -> list:
     return stateTypes
 
 @err_catcher(name=__name__)
-def getAllNodes() -> dict:
-    comp = fusion.GetCurrentComp()
+def getAllNodes(comp:Composition_) -> dict:
     cpData = CompDb.loadPrismFileDb(comp)
-    stateTypes:list[str] = getNodeStateTypes()
+    stateTypes:list[str] = getNodeStateTypes(comp)
     nodes:dict = {}
     for stateType  in stateTypes:
         stateTypeNodes:dict  = cpData["nodes"][stateType]
@@ -699,8 +702,8 @@ def getAllNodes() -> dict:
     return nodes
 
 @err_catcher(name=__name__)
-def getStateNodesList(stuid:str) -> list[str]:
-    allnodes = getAllNodes()
+def getStateNodesList(comp:Composition_, stuid:str) -> list[str]:
+    allnodes = getAllNodes(comp)
     
     # Use a list comprehension with robust key checks
     nodels:list[str] = [
@@ -711,8 +714,8 @@ def getStateNodesList(stuid:str) -> list[str]:
     return nodels
 
 @err_catcher(name=__name__)
-def getStateNodesOrigNameList(nodeUIDlist:list[str]) -> list[str]:
-    nodes:dict = getAllNodes()
+def getStateNodesOrigNameList(comp:Composition_, nodeUIDlist:list[str]) -> list[str]:
+    nodes:dict = getAllNodes(comp)
     nodeNmLs:list[str] = []
 
     for nodeuid in nodeUIDlist:
@@ -725,9 +728,8 @@ def getStateNodesOrigNameList(nodeUIDlist:list[str]) -> list[str]:
     return nodeNmLs
 
 @err_catcher(name=__name__)
-def getToolsFromNodeList(nodeUIDlist:list[str]) -> list[Tool_]:
-    comp = fusion.GetCurrentComp()
-    nodes:dict = getAllNodes()
+def getToolsFromNodeList(comp:Composition_, nodeUIDlist:list[str]) -> list[Tool_]:
+    nodes:dict = getAllNodes(comp)
     tools:list[Tool_] = []
 
     for nodeuid in nodeUIDlist:
@@ -739,103 +741,142 @@ def getToolsFromNodeList(nodeUIDlist:list[str]) -> list[Tool_]:
 
 
 @err_catcher(name=__name__)
-def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, newnodes:list[str])->tuple[Tool_|None, list[str]]:
-    if origin.nodes == []:
-        return None, []
-    
-    nodes:list[dict] = []
-    nodenames:list[str] = []
-    outputnodes:list[dict] = []
+def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID:str, newtools:list[Tool_], sceneTool:Tool_)->tuple[bool, list[str]]:
+    alldbnodes:dict = getAllNodes(comp)
+    statenodesuids:list[str] = getStateNodesList(comp, stateUID)
+    stateNodesNames:list[str] = getStateNodesOrigNameList(comp, statenodesuids)
+    stateTools:list[Tool_] = getToolsFromNodeList(comp, statenodesuids)
+    oldSceneTool:Tool_|None = None
     positionednodes:list[str] = []
-    sceneNode:Tool_|None = None
+
+    if len(stateTools) < 1:
+        return False, []
+    
+    if alldbnodes.get(stateUID):
+        oldSceneTool = CompDb.getNodeByUID(comp, stateUID)
+    else:
+        return False, []
+
+    # nodes:list[dict] = []
+    # nodenames:list[str] = []
+    # outputnodes:list[dict] = []
+    # positionednodes:list[str] = []
+    # sceneNode:Tool_|None = None
     
     # We are going to collect the existing nodes and check if there is a merge3D or transform3D node that represents the entry of the scene.
-    for o in origin.nodes:
-        hasmerge:bool = False
-        node:Tool_ = comp.FindTool(o["name"])
-        if node:
-            # Store Scene Node Connections
-            nodeID:str  = node.GetAttrs("TOOLS_RegID")
-            ismerge:bool = nodeID == "Merge3D"
-            # We try to account for Transform3D nodes that are not standarly Named.
-            istrans3D:bool = nodeID == "Transform3D" and "Transform3D" in node.Name
-            # If there is no merge there should be a transform3D but if there is merge transform3D is out.
-            if ismerge or istrans3D:
-                if ismerge:
-                    hasmerge:bool = True
-                if ismerge or not hasmerge:
-                    outputnodes:list[dict] = [] # clean this variable in case there was an unaccounted node
-                    sceneNode:Tool_ = node
-                    connectedinputs:dict = node.output.GetConnectedInputs()
-                    if len(connectedinputs)>0:
-                        for v in connectedinputs.values():
-                            input:Input_ = v
-                            connectedNode:dict = {"node":input.GetTool().Name,"input":input.Name}
-                            outputnodes.append(connectedNode)
-            nodenames.append(node.Name)
-            nodes.append(node)
-    for o in newnodes:
-        newnode:Tool_ = comp.FindTool(o)
-        # Reconnect the scene node
-        if sceneNode:
-            nodeID:str = newnode.GetAttrs("TOOLS_RegID")
-            sceneNID:str = sceneNode.GetAttrs("TOOLS_RegID")
-            if nodeID == sceneNID:
+    # for o in origin.nodes:
+    #     hasmerge:bool = False
+    #     node:Tool_ = comp.FindTool(o["name"])
+    #     if node:
+    #         # Store Scene Node Connections
+    #         nodeID:str  = node.GetAttrs("TOOLS_RegID")
+    #         ismerge:bool = nodeID == "Merge3D"
+    #         # We try to account for Transform3D nodes that are not standarly Named.
+    #         istrans3D:bool = nodeID == "Transform3D" and "Transform3D" in node.Name
+    #         # If there is no merge there should be a transform3D but if there is merge transform3D is out.
+    #         if ismerge or istrans3D:
+    #             if ismerge:
+    #                 hasmerge:bool = True
+    #             if ismerge or not hasmerge:
+    #                 outputnodes:list[dict] = [] # clean this variable in case there was an unaccounted node
+    #                 sceneNode:Tool_ = node
+    #                 connectedinputs:dict = node.output.GetConnectedInputs()
+    #                 if len(connectedinputs)>0:
+    #                     for v in connectedinputs.values():
+    #                         input:Input_ = v
+    #                         connectedNode:dict = {"node":input.GetTool().Name,"input":input.Name}
+    #                         outputnodes.append(connectedNode)
+    #         nodenames.append(node.Name)
+    #         nodes.append(node)
+    # for o in newnodes:
+    #     newnode:Tool_ = comp.FindTool(o)
+    #     # Reconnect the scene node
+    #     if sceneNode:
+    #         nodeID:str = newnode.GetAttrs("TOOLS_RegID")
+    #         sceneNID:str = sceneNode.GetAttrs("TOOLS_RegID")
+    #         if nodeID == sceneNID:
 
-                # We try to account for Transform3D nodes that are not standarly Named.
-                proceed:bool = True
-                if nodeID == "Transform3D" and not "Transform3D" in newnode.Name:
-                    proceed = False
+    #             # We try to account for Transform3D nodes that are not standarly Named.
+    #             proceed:bool = True
+    #             if nodeID == "Transform3D" and not "Transform3D" in newnode.Name:
+    #                 proceed = False
                 
-                if proceed and len(outputnodes) > 0:
-                    for outn in outputnodes:
-                        tool:Tool_ = comp.FindTool(outn["node"])
-                        tool.ConnectInput(outn["input"], newnode)
-        # Match old to new
-        oldnodename:str = applyProductSufix(o, origin)
-        oldnode:Tool_ = comp.FindTool(oldnodename)
-
+    #             if proceed and len(outputnodes) > 0:
+    #                 for outn in outputnodes:
+    #                     tool:Tool_ = comp.FindTool(outn["node"])
+    #                     tool.ConnectInput(outn["input"], newnode)
+        
+    # Match new to old tools.
+    for newtool in newtools:
+        toolType:str  = newtool.GetAttrs("TOOLS_RegID")
+        oldtool:Tool_ = None
+        if newtool.Name in stateNodesNames:
+            for nodeuid in statenodesuids:
+                node:dict = alldbnodes.get(nodeuid)
+                if node:
+                    if newtool.Name == node.get("toolOrigName") and toolType == node.get("tooltype"):
+                        for t in stateTools:
+                            if t.GetData('Prism_UUID') == nodeuid:
+                                oldtool = t
+                                break
+            
         # If there is a previous version of the same node.
-        if oldnode:
-            # check if it has valid inputs that are not part of previous import
-            for inpt in oldnode.GetInputList().values():
-                input:Input_ = inpt
-                connectedOutput:Output_|None = input.GetConnectedOutput()
-                if connectedOutput:
-                    inputName:str = input.Name
-                    connectedtool:Tool_ = connectedOutput.GetTool()
-                    # Avoid Feyframe nodes
-                    if not connectedtool.GetAttrs("TOOLS_RegID") =="BezierSpline" and not newnode.GetAttrs("TOOLS_RegID") == "Merge3D":
-                        # check to avoid a connection that breaks the incoming hierarchy.
-                        if not connectedtool.Name in nodenames:
-                            newnode.ConnectInput(inputName, connectedtool)
-            # Reconnect the 3D Scene.
-            if sceneNode:
-                if sceneNode.GetAttrs("TOOLS_RegID") == "Merge3D":
-                    if oldnode.GetAttrs("TOOLS_RegID") == "Merge3D":
-                        mergednodes:list[Tool_] = []
-                        sceneinputs:list[Input_] = [input for input in oldnode.GetInputList().values() if "SceneInput" in input.Name]
-                        # newsceneinputs = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
-                        for input in sceneinputs:
-                            connectedOutput:Output_|None = input.GetConnectedOutput()
-                            if connectedOutput:
-                                connectedtool:Tool_ = connectedOutput.GetTool()
-                                if not connectedtool.Name in nodenames:
-                                    mergednodes.append(connectedtool)
-                        if newnode.GetAttrs("TOOLS_RegID") == "Merge3D" and len(mergednodes) > 0:
-                            newsceneinputs:list[Input_] = [input for input in newnode.GetInputList().values() if "SceneInput" in input.Name]
-                            for mergednode in mergednodes:
-                                for input in newsceneinputs:
-                                    connectedOutput:Output_|None = input.GetConnectedOutput()
-                                    if not connectedOutput:
-                                        newnode.ConnectInput(input.Name, mergednode)
-            # Match position.
-            import Prism_Fusion_lib_Fus as Fus
-            Fus.matchNodePos(comp, newnode, oldnode)
-            positionednodes.append(newnode.Name)
+        # if oldtool:
+        #     # if not oldtool == oldSceneTool:
+        #         # check if it has valid inputs that are not part of previous import
+        #     inputTools:list = [inpt.GetConnectedOutput() for inpt in oldtool.GetInputList().values() if inpt.GetConnectedOutput()]            
+        #     for inpt in oldtool.GetInputList().values():
+        #         input:Input_ = inpt
+        #         for co in inputTools:
+        #             connectedOutput:Output_ = co
+        #             if connectedOutput:
+        #                 inputName:str = input.Name
+        #                 connectedtool:Tool_ = connectedOutput.GetTool()
+        #                 # Avoid Keyframe nodes
+        #                 if not connectedtool.GetAttrs("TOOLS_RegID") =="BezierSpline":
+        #                     # check to avoid a connection that breaks the incoming hierarchy that we are not reconnecting nodes that belong to the orig scene.
+        #                     if connectedtool.GetData('Prism_UUID'):
+        #                         if not connectedtool.GetData('Prism_UUID') in statenodesuids:
+        #                         # if not connectedtool.Name in stateNodesNames:
+        #                             newtool.ConnectInput(inputName, connectedtool)
+        #    Fus.matchToolPos(comp, newtool, oldtool)
+        #    positionednodes.append(newtool.Name)
+        
+    # Reconnect the 3D Scene.
+    if sceneTool.GetAttrs("TOOLS_RegID") == "Merge3D":
+        if oldSceneTool.GetAttrs("TOOLS_RegID") == "Merge3D":
+            mergednodes:list[Tool_] = []
+            sceneinputs:list[Input_] = [input for input in oldSceneTool.GetInputList().values() if "SceneInput" in input.Name and input.GetConnectedOutput()]
+            for input in sceneinputs:
+                print()
+                connectedOutput:Output_ = input.GetConnectedOutput()
+                connectedtool:Tool_ = connectedOutput.GetTool()
+                if not connectedtool.GetData('Prism_UUID') or not connectedtool.GetData('Prism_UUID') in statenodesuids:
+                    print(connectedtool.Name)
+                    print("not in stateuids")
+                    mergednodes.append(connectedtool)
+            print(mergednodes)
+            if sceneTool.GetAttrs("TOOLS_RegID") == "Merge3D" and len(mergednodes) > 0:
+                for mergednode in mergednodes:
+                    # get empty inputs
+                    newsceneinputs:list = [input for input in sceneTool.GetInputList().values() if "SceneInput" in input.Name and not input.GetConnectedOutput()]
+                    # get the first of availible inputs.
+                    input = newsceneinputs[0]
+                    sceneTool.ConnectInput(input.Name, mergednode)
+                    comp.UpdateViews()
+
+    outConnections = oldSceneTool.GetOutputList()[1].GetConnectedInputs()
+    for input in outConnections.values():
+        inputName:str = input.Name
+        connectedtool = input.GetTool()
+        connectedtool.ConnectInput(inputName, sceneTool)
+
+        # Match positions.
+        Fus.matchToolPos(comp, sceneTool, oldSceneTool)
+        positionednodes.append(sceneTool.Name)
         
     # Return position
-    return (sceneNode, positionednodes) if sceneNode else (None, positionednodes)
+    return True, positionednodes
 
 
 # @err_catcher(name=__name__)

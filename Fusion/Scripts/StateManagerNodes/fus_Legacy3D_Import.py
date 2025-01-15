@@ -69,6 +69,7 @@ class Legacy3D_ImportClass(object):
         self.state = state
         self.stateMode = "Legacy3D_Import"
         self.fuseFuncts = self.core.appPlugin
+        self.stateUID = None
 
         self.core = core
         self.stateManager = stateManager
@@ -190,6 +191,8 @@ class Legacy3D_ImportClass(object):
             self.setName = data["setname"]
         if "autoUpdate" in data:
             self.chb_autoUpdate.setChecked(eval(data["autoUpdate"]))
+        if "stateUID" in data:
+            self.stateUID = data["stateUID"]
 
         self.core.callback("onStateSettingsLoaded", self, data)
 
@@ -366,7 +369,7 @@ class Legacy3D_ImportClass(object):
     @err_catcher(name=__name__)
     def importObject(self, update=False, path=None, settings=None):
 
-        if not update:
+        if not self.stateUID: #update:
             self.stateUID = self.core.appPlugin.createUUID()
 
         result = True
@@ -656,27 +659,27 @@ class Legacy3D_ImportClass(object):
         item=None,
         baseText="Do you also want to delete the connected objects?\n\n",
     ):
-        if len(self.nodes) > 0 and self.stateMode != "ApplyCache":
-            message = baseText
-            validNodes = [
-                x for x in self.nodes if Fus3d.isNodeValid(self, x)
-            ]
-            if len(validNodes) > 0:
-                for idx, val in enumerate(validNodes):
-                    if idx > 5:
-                        message += "..."
-                        break
-                    else:
-                        message += self.core.appPlugin.getNodeName(self, val) + "\n"
+        # if len(self.nodes) > 0 and self.stateMode != "ApplyCache":
+        message = baseText
+        #     validNodes = [
+        #         x for x in self.nodes if Fus3d.isNodeValid(self, x)
+        #     ]
+        #     if len(validNodes) > 0:
+        #         for idx, val in enumerate(validNodes):
+        #             if idx > 5:
+        #                 message += "..."
+        #                 break
+        #             else:
+        #                 message += self.core.appPlugin.getNodeName(self, val) + "\n"
 
-                if not self.core.uiAvailable:
-                    action = "Yes"
-                    print("delete objects:\n\n%s" % message)
-                else:
-                    action = self.core.popupQuestion(message, title="Delete State", parent=self.stateManager)
+        if not self.core.uiAvailable:
+            action = "Yes"
+            print("delete objects:\n\n%s" % message)
+        else:
+            action = self.core.popupQuestion(message, title="Delete State", parent=self.stateManager)
 
-                if action == "Yes":
-                    self.core.appPlugin.deleteNodes(self, validNodes)
+        if action == "Yes":
+            self.core.appPlugin.deleteNodes(self.stateUID)
 
         getattr(self.core.appPlugin, "sm_import_preDelete", lambda x: None)(self)
 
@@ -700,4 +703,5 @@ class Legacy3D_ImportClass(object):
             "taskname": self.taskName,
             "nodenames": str(self.nodeNames),
             "setname": self.setName,
+            "stateUID": self.stateUID,
         }

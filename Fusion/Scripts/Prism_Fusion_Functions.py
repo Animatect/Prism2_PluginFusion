@@ -3206,14 +3206,11 @@ path = r\"%s\"
 	
 
 	@err_catcher(name=__name__)
-	def deleteNodes(self, origin, handles, num=0):
-		comp = self.getCurrentComp()
-		for i in handles:	
-			if self.sm_checkCorrectComp(comp):
-				toolnm = i["name"]
-				tool = comp.FindTool(toolnm)
-				if tool:
-					tool.Delete()
+	def deleteNodes(self, stateUID):
+		comp:Composition_ = self.getCurrentComp()
+		comp.StartUndo("delete Legacy3D Nodes")
+		Fus3d.deleteTools(comp, stateUID)
+		comp.EndUndo()
 
 
 
