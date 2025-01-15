@@ -528,8 +528,6 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 rightmost_tool = tool
 
         firstnode:Tool_ = rightmost_tool  # Use the rightmost tool as the reference
-        # Reassign the State ID as the entry point node ID
-        firstnode.SetData("Prism_UUID", stateUUID)
         firstnode.SetAttrs({'TOOLS_Name' : f"ROOT_{toolData['product']}"})
         fstnx, fstny = flow.GetPosTable(firstnode).values()
 
@@ -538,6 +536,10 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
 
         isUpdate, positionedNodes = ReplaceBeforeImport(origin, comp, stateUUID, importedTools, firstnode)
         cleanbeforeImport(origin, stateUUID)
+
+        # Reassign the State ID as the entry point node ID
+        # This Has to be done after cleaning the scene so in case of update the old firstnode (which shares UID) is gone.
+        firstnode.SetData("Prism_UUID", stateUUID)
 
         if isUpdate and len(positionedNodes)>0:
             atx, aty = flow.GetPosTable(firstnode).values()
@@ -677,7 +679,7 @@ def cleanbeforeImport(origin:Legacy3D_ImportClass, stateUID:str):
 
 def deleteTools(comp:Composition_, stateUID:str):
     stateTools:list[Tool_] = getToolsFromNodeList(comp, getStateNodesList(comp, stateUID))
-    for tool in stateTools:	
+    for tool in stateTools:
         tool.Delete()
 
 @err_catcher(name=__name__)
@@ -809,6 +811,10 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
     # Match new to old tools.
     for newtool in newtools:
         toolType:str  = newtool.GetAttrs("TOOLS_RegID")
+        if newtool == sceneTool or toolType == "Merge3D":
+            print("---- ",newtool.Name, " is SceneTool or Merge3D")
+            continue
+        print(newtool.Name, "is a regular node")
         oldtool:Tool_ = None
         if newtool.Name in stateNodesNames:
             for nodeuid in statenodesuids:
@@ -821,28 +827,25 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                                 break
             
         # If there is a previous version of the same node.
-        # if oldtool:
-        #     # if not oldtool == oldSceneTool:
-        #         # check if it has valid inputs that are not part of previous import
-        #     inputTools:list = [inpt.GetConnectedOutput() for inpt in oldtool.GetInputList().values() if inpt.GetConnectedOutput()]            
-        #     for inpt in oldtool.GetInputList().values():
-        #         input:Input_ = inpt
-        #         for co in inputTools:
-        #             connectedOutput:Output_ = co
-        #             if connectedOutput:
-        #                 inputName:str = input.Name
-        #                 connectedtool:Tool_ = connectedOutput.GetTool()
-        #                 # Avoid Keyframe nodes
-        #                 if not connectedtool.GetAttrs("TOOLS_RegID") =="BezierSpline":
-        #                     # check to avoid a connection that breaks the incoming hierarchy that we are not reconnecting nodes that belong to the orig scene.
-        #                     if connectedtool.GetData('Prism_UUID'):
-        #                         if not connectedtool.GetData('Prism_UUID') in statenodesuids:
-        #                         # if not connectedtool.Name in stateNodesNames:
-        #                             newtool.ConnectInput(inputName, connectedtool)
-        #    Fus.matchToolPos(comp, newtool, oldtool)
-        #    positionednodes.append(newtool.Name)
+        if oldtool:
+            print(oldtool.Name, " is the oldtool")
+            # check if it has valid inputs that are not part of previous import
+            connectedInputList:list = [inpt for inpt in oldtool.GetInputList().values() if inpt.GetConnectedOutput()]            
+            for inpt in connectedInputList:
+                input:Input_ = inpt
+                connectedOutput:Output_ = input.GetConnectedOutput()
+                inputName:str = input.Name
+                connectedtool:Tool_ = connectedOutput.GetTool()
+                # Avoid Keyframe nodes
+                if not connectedtool.GetAttrs("TOOLS_RegID") =="BezierSpline":
+                    # check to avoid a connection that breaks the incoming hierarchy that we are not reconnecting nodes that belong to the orig scene.
+                    if not connectedtool.GetData('Prism_UUID') or not connectedtool.GetData('Prism_UUID') in statenodesuids:
+                        # if not connectedtool.Name in stateNodesNames:
+                        newtool.ConnectInput(inputName, connectedtool)
+            Fus.matchToolPos(comp, newtool, oldtool)
+            positionednodes.append(newtool.Name)
         
-    # Reconnect the 3D Scene.
+    # Reconnect the 3D Scene.    
     if sceneTool.GetAttrs("TOOLS_RegID") == "Merge3D":
         if oldSceneTool.GetAttrs("TOOLS_RegID") == "Merge3D":
             mergednodes:list[Tool_] = []
@@ -852,10 +855,7 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                 connectedOutput:Output_ = input.GetConnectedOutput()
                 connectedtool:Tool_ = connectedOutput.GetTool()
                 if not connectedtool.GetData('Prism_UUID') or not connectedtool.GetData('Prism_UUID') in statenodesuids:
-                    print(connectedtool.Name)
-                    print("not in stateuids")
                     mergednodes.append(connectedtool)
-            print(mergednodes)
             if sceneTool.GetAttrs("TOOLS_RegID") == "Merge3D" and len(mergednodes) > 0:
                 for mergednode in mergednodes:
                     # get empty inputs
@@ -863,7 +863,7 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                     # get the first of availible inputs.
                     input = newsceneinputs[0]
                     sceneTool.ConnectInput(input.Name, mergednode)
-                    comp.UpdateViews()
+                    comp.UpdateViews()  
 
     outConnections = oldSceneTool.GetOutputList()[1].GetConnectedInputs()
     for input in outConnections.values():
