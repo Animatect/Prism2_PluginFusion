@@ -3314,6 +3314,24 @@ path = r\"%s\"
 			except:
 				pass
 
+	@err_catcher(name=__name__)
+	def colorLegacy3DTaskNodes(self, stateUID, color):
+		comp = self.getCurrentComp()
+		# in Legacy3d we give an empty list to the parameter with the stateIdinside as only param.
+		statenodesuids:list[str] = Fus3d.getStateNodesList(comp, stateUID)
+		toolsToColor:list[Tool_] = Fus3d.getToolsFromNodeList(comp, statenodesuids)
+
+		#	If the RGB is the Clear Color code
+		for tool in toolsToColor:
+			try:
+				if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
+					tool.TileColor = None
+				else:
+					tool.TileColor = color
+					logger.debug(f"Set color of tool: {tool.Name}")
+			except:
+				logger.warning(f"ERROR: Cannot set color of tool: {tool.Name}.")
+
 
 	#	Colors tools in Comp based on Color mode in DCC settings
 	@err_catcher(name=__name__)
