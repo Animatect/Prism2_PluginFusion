@@ -3133,6 +3133,45 @@ path = r\"%s\"
 					logger.warning("Error (Failed to create versionInfo Farm job)")
 					return "error (Failed to create versionInfo Farm job)", False
 
+	@err_catcher(name=__name__)
+	def create3DRenderNode(self, stateUID):
+		comp:Composition_ = self.getCurrentComp()
+		flow:FlowView_ = comp.CurrentFrame.FlowView
+		try:
+			scenetool = CompDb.getNodeByUID(comp, stateUID)
+			if scenetool:
+				x:float = 0.0
+				y:float = 0.0
+				x, y = flow.GetPosTable(scenetool).values()
+				mrg:Tool_ = comp.AddTool("Merge3D", x, y)
+				flow.SetPos(mrg, x+1.5, y)
+				ren:Tool_ = comp.AddTool("Renderer3D", x, y)
+				flow.SetPos(ren, x+3, y)
+
+				if scenetool.Name.startswith("ROOT_"):
+					product = scenetool.Name.split("ROOT_")[1]
+					mrg.SetAttrs({'TOOLS_Name' : "3DSceneMerge_" + product})
+					ren.SetAttrs({'TOOLS_Name' : "3DRender_" + product})
+				
+				mrg.ConnectInput("SceneInput1", scenetool)
+				ren.ConnectInput("SceneInput", mrg)
+
+				flow.Select()
+				flow.Select(mrg)
+				flow.Select(ren)
+				Fus.focusOnTool(comp, mrg, 1.0)
+
+		except Exception as e:
+			logger.warning(f"Error: {e} (Failed to create 3DScene correctly)")
+
+	@err_catcher(name=__name__)
+	def sm_view_FocusStateTool(self, stateUID):
+		comp:Composition_ = self.getCurrentComp()
+		focustool = CompDb.getNodeByUID(comp, stateUID)
+		if focustool:
+			Fus.focusOnTool(comp, focustool)
+		else:
+			self.core.popup("No state tool was found",  severity="info")
 
 	#	NOT USED HERE
 	@err_catcher(name=__name__)
@@ -3294,7 +3333,7 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def selecttasknodes(self, nodeUIDs):
 		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
+		flow:FlowView_ = comp.CurrentFrame.FlowView
 		# deselect all nodes
 		flow.Select()
 

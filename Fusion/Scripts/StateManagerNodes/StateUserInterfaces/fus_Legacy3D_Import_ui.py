@@ -16,7 +16,7 @@ class Ui_wg_Legacy3D_Import(object):
     def setupUi(self, wg_Legacy3D_Import):
         if not wg_Legacy3D_Import.objectName():
             wg_Legacy3D_Import.setObjectName(u"wg_Legacy3D_Import")
-        wg_Legacy3D_Import.resize(340, 600)
+        wg_Legacy3D_Import.resize(423, 668)
         self.verticalLayout = QVBoxLayout(wg_Legacy3D_Import)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
@@ -192,23 +192,50 @@ class Ui_wg_Legacy3D_Import(object):
 
         self.verticalLayout_3.addWidget(self.widget)
 
+        self.label = QLabel(self.gb_version)
+        self.label.setObjectName(u"label")
+        self.label.setWordWrap(True)
+
+        self.verticalLayout_3.addWidget(self.label)
+
 
         self.verticalLayout_2.addWidget(self.gb_version)
 
         self.gb_options = QGroupBox(self.gb_import)
         self.gb_options.setObjectName(u"gb_options")
-        self.verticalLayout_6 = QVBoxLayout(self.gb_options)
-        self.verticalLayout_6.setObjectName(u"verticalLayout_6")
-        self.f_usdScene = QWidget(self.gb_options)
-        self.f_usdScene.setObjectName(u"f_usdScene")
-        self.horizontalLayout_10 = QHBoxLayout(self.f_usdScene)
+        self.verticalLayout_4 = QVBoxLayout(self.gb_options)
+        self.verticalLayout_4.setObjectName(u"verticalLayout_4")
+        self.f_viewFocus = QWidget(self.gb_options)
+        self.f_viewFocus.setObjectName(u"f_viewFocus")
+        self.horizontalLayout_11 = QHBoxLayout(self.f_viewFocus)
+        self.horizontalLayout_11.setObjectName(u"horizontalLayout_11")
+        self.horizontalLayout_11.setContentsMargins(9, 0, 9, 0)
+        self.horizontalSpacer_7 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_11.addItem(self.horizontalSpacer_7)
+
+        self.b_focusView = QPushButton(self.f_viewFocus)
+        self.b_focusView.setObjectName(u"b_focusView")
+
+        self.horizontalLayout_11.addWidget(self.b_focusView)
+
+        self.horizontalSpacer_8 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_11.addItem(self.horizontalSpacer_8)
+
+
+        self.verticalLayout_4.addWidget(self.f_viewFocus)
+
+        self.f_3DScene = QWidget(self.gb_options)
+        self.f_3DScene.setObjectName(u"f_3DScene")
+        self.horizontalLayout_10 = QHBoxLayout(self.f_3DScene)
         self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
         self.horizontalLayout_10.setContentsMargins(9, 0, 9, 0)
         self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout_10.addItem(self.horizontalSpacer_3)
 
-        self.b_createRenderNode = QPushButton(self.f_usdScene)
+        self.b_createRenderNode = QPushButton(self.f_3DScene)
         self.b_createRenderNode.setObjectName(u"b_createRenderNode")
 
         self.horizontalLayout_10.addWidget(self.b_createRenderNode)
@@ -218,7 +245,7 @@ class Ui_wg_Legacy3D_Import(object):
         self.horizontalLayout_10.addItem(self.horizontalSpacer_4)
 
 
-        self.verticalLayout_6.addWidget(self.f_usdScene)
+        self.verticalLayout_4.addWidget(self.f_3DScene)
 
 
         self.verticalLayout_2.addWidget(self.gb_options)
@@ -240,7 +267,7 @@ class Ui_wg_Legacy3D_Import(object):
     def retranslateUi(self, wg_Legacy3D_Import):
         wg_Legacy3D_Import.setWindowTitle(QCoreApplication.translate("wg_Legacy3D_Import", u"ImportFile", None))
         self.l_name.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"State name:", None))
-        self.l_class.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Import USD", None))
+        self.l_class.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Legacy3D_Import", None))
         self.l_taskColor.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Task Color", None))
         self.gb_import.setTitle("")
         self.gb_version.setTitle(QCoreApplication.translate("wg_Legacy3D_Import", u"Version", None))
@@ -253,7 +280,9 @@ class Ui_wg_Legacy3D_Import(object):
         self.b_importLatest.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Import latest Version", None))
         self.b_browse.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Browse Version", None))
         self.b_import.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Re-Import", None))
+        self.label.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"<html><head/><body><p align=\"center\">Be mindful of the re-connect limitations, Merge3D nodes that are not the Root node cannot be processed, avoid connecting anything new to them, use for this purpose the Root node or use the create Render Node button to create a Merge Node.</p></body></html>", None))
         self.gb_options.setTitle(QCoreApplication.translate("wg_Legacy3D_Import", u"Options", None))
+        self.b_focusView.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Focus View on State Node", None))
         self.b_createRenderNode.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Create Render Node", None))
     # retranslateUi
 

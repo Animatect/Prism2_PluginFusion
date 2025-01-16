@@ -1088,4 +1088,40 @@ def getChannelData(loaderChannels:list) -> dict:
         logger.warning("ERROR: Failed to get channel data")
         return None
     
+###### VIEW FOCUS ######
+
+# @err_catcher(name=__name__)
+def calculate_new_position(toolX, toolY):
+    deltax = toolX - (-0.5)
+    deltay = toolY - (-0.5)
+    # the ratio is the ammount the viewer moves to center the node for each 0.5 units
+    xscaled_delta = deltax * (55/0.5)
+    yscaled_delta = deltay * (16.5/0.5)
+
+    return xscaled_delta, yscaled_delta
+
+# @err_catcher(name=__name__)
+def focusOnTool(comp:Composition_, tool:Tool_, scalefactor = 0.5):
+    flow:FlowView_ = comp.CurrentFrame.FlowView
+    # tool = comp.Background1
+    Xpos, Ypos = flow.GetPosTable(tool).values()
+    x, y = calculate_new_position(Xpos, Ypos)
+
+    new_bookmark:dict = {'__flags': 1048832, 
+                    'Offset': {'__flags': 256, 1.0: x, 2.0: y}, 
+                    'Name': 'prismRefocus', 
+                    'Scale': scalefactor}
+    bookmarks = flow.GetBookmarkList()
+    next_key = max(bookmarks.keys()) + 1.0
+    bookmarks[next_key] = new_bookmark
+    flow.SetBookmarkList(bookmarks)
+    # for b in flow.GetBookmarkList().values():
+    #     print(b.get("Name"))
+    # bm = flow.GetBookmark("prismRefocus")
+    # print(bm, " --> ",flow.GetPosTable(tool).values())
+    flow.GoToBookmark('prismRefocus')
+    flow.DeleteBookmark('prismRefocus')
+
+########################
+    
 

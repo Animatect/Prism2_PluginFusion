@@ -243,6 +243,7 @@ class Legacy3D_ImportClass(object):
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
         self.b_createRenderNode.clicked.connect(self.createRenderNode)
+        self.b_focusView.clicked.connect(self.focusView)
         self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
 
 
@@ -572,13 +573,14 @@ class Legacy3D_ImportClass(object):
     #   Creates simple USD Scene with uMerge and URenderer
     @err_catcher(name=__name__)
     def createRenderNode(self):
-        # if self.stateManager.standalone:
-        #     return
+        if self.stateManager.standalone:
+            return
         
-        # UUID = self.stateUID
-        
-        # result = self.fuseFuncts.createUsdScene(self, UUID)
-        print("clicked")
+        self.fuseFuncts.create3DRenderNode(self.stateUID)
+
+    @err_catcher(name=__name__)
+    def focusView(self):
+        self.fuseFuncts.sm_view_FocusStateTool(self.stateUID)
 
 
     @err_catcher(name=__name__)
