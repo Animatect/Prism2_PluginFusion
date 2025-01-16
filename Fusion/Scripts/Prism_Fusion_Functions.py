@@ -1999,12 +1999,14 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def importLegacy3D(self, origin:Legacy3D_ImportClass, UUID, nodeData, update=False):
 		comp:Composition_ = self.getCurrentComp()
+		flow:FlowView_ = comp.CurrentFrame.FlowView
 
 		# Check that we are not importing in a comp different than the one we started the stateManager from
 		if self.sm_checkCorrectComp(comp):
 			comp.Lock()
 			comp.StartUndo("Import Legacy3D")
 
+			flow.InsertBookmark("3dImportBM") # Save where the view is at the time of import.
 			result:dict[str, bool] = self.wrapped_importLegacy3D(origin, UUID, nodeData, update)
 
 			comp.EndUndo()

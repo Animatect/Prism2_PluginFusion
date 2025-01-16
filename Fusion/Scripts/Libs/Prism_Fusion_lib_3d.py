@@ -535,6 +535,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
         
         newNodes:list[str] = [n.Name for n in importedTools]
 
+        flow.GoToBookmark('3dImportBM')
         isUpdate, positionedNodes, unsuccesfulConnections = ReplaceBeforeImport(origin, comp, stateUUID, importedTools, firstnode)
         cleanbeforeImport(origin, stateUUID)
 
@@ -604,11 +605,8 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     
     
     # Re-center view on the creation coordinates.
-    #   Deselect All
-    # flow.Select()
-    # flow.Select(firstnode)
-    # temptool:Tool_ = comp.AddToolAction("Background")
-    # temptool.Delete()
+    flow.GoToBookmark('3dImportBM')
+    flow.DeleteBookmark('3dImportBM')
 
     #   Deselect All
     flow.Select()
