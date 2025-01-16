@@ -630,7 +630,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
             msg += "\n" + connection
 
         msg += "\n if possible reconnect manually."
-        print(msg)
+        origin.core.popup(msg, severity="info")
 
     return result
 
@@ -825,7 +825,6 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
     for newtool in newtools:
         toolType:str  = newtool.GetAttrs("TOOLS_RegID")
         if newtool == sceneTool or toolType == "Merge3D":
-            print("---- ",newtool.Name, " is SceneTool or Merge3D")
             continue
 
         print(newtool.Name, "is a regular node")
@@ -843,10 +842,8 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
 
         # If there is a previous version of the same node.
         if oldtool:
-            print(oldtool.Name, " is the oldtool")
             # check if it has valid inputs that are not part of previous import
             connectedInputList:list = [inpt for inpt in oldtool.GetInputList().values() if inpt.GetConnectedOutput()]
-            print("inputs:")     
             for inpt in connectedInputList:
                 input:Input_ = inpt
                 connectedOutput:Output_ = input.GetConnectedOutput()
@@ -856,12 +853,10 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                 if not connectedtool.GetAttrs("TOOLS_RegID") =="BezierSpline":
                     # check to avoid a connection that breaks the incoming hierarchy that we are not reconnecting nodes that belong to the orig scene.
                     if not connectedtool.GetData('Prism_UUID') or not connectedtool.GetData('Prism_UUID') in statenodesuids:
-                        print(inputName)
-                        # if not connectedtool.Name in stateNodesNames:
+                        # Merge is only supported for the Scene node.                        
                         connectionsuccess:bool = newtool.ConnectInput(inputName, connectedtool)
                         if not connectionsuccess and " " in inputName:
                             fixedName:str = inputName.replace(" ", ".") # some inputs convert "." to " "
-                            print(fixedName)
                             connectionsuccess = newtool.ConnectInput(fixedName, connectedtool)
                         
                         if not connectionsuccess:
@@ -870,7 +865,6 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                             
             Fus.matchToolPos(comp, newtool, oldtool)
             positionednodes.append(newtool.Name)
-        print("\n")
         
     # Reconnect the 3D Scene.    
     if sceneTool.GetAttrs("TOOLS_RegID") == "Merge3D":
