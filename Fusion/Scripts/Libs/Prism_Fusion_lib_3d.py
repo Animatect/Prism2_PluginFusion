@@ -601,6 +601,15 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     origin.setName = "Import_" + toolData.get("product")
     # origin.nodes = importedNodes
 
+    
+    
+    # Re-center view on the creation coordinates.
+    #   Deselect All
+    # flow.Select()
+    # flow.Select(firstnode)
+    # temptool:Tool_ = comp.AddToolAction("Background")
+    # temptool.Delete()
+
     #   Deselect All
     flow.Select()
 
@@ -609,10 +618,10 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     cpData = CompDb.loadPrismFileDb(comp)
     for nodeuid in cpData["nodes"]["import3d"]:
         nodeData:dict = cpData["nodes"]["import3d"][nodeuid]
-        if nodeData['stateUID']:
-            if nodeData['stateUID'] == stateUUID:
-                tool:Tool_ = CompDb.getNodeByUID(comp, nodeuid)
-                objs.append(tool)
+        nodeStateUID:str|None = nodeData.get('stateUID')
+        if nodeStateUID and nodeStateUID == stateUUID:
+            tool:Tool_ = CompDb.getNodeByUID(comp, nodeuid)
+            objs.append(tool)
 
     #   Select nodes in comp
     for o in objs:
@@ -765,12 +774,12 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
     unsuccesfulconnections:list[str] = []
 
     if len(stateTools) < 1:
-        return False, []
+        return False, [], []
     
     if alldbnodes.get(stateUID):
         oldSceneTool = CompDb.getNodeByUID(comp, stateUID)
     else:
-        return False, []
+        return False, [], []
 
     # nodes:list[dict] = []
     # nodenames:list[str] = []
@@ -827,7 +836,6 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
         if newtool == sceneTool or toolType == "Merge3D":
             continue
 
-        print(newtool.Name, "is a regular node")
         oldtool:Tool_ = None
         if newtool.Name in stateNodesNames:
             for nodeuid in statenodesuids:
@@ -895,7 +903,6 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
         Fus.matchToolPos(comp, sceneTool, oldSceneTool)
         positionednodes.append(sceneTool.Name)
         
-    # Return position
     return True, positionednodes, unsuccesfulconnections
 
 
