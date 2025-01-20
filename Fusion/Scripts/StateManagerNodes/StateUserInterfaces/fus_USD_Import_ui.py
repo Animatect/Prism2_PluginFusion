@@ -45,29 +45,13 @@ class Ui_wg_USD_Import(object):
 
         self.horizontalLayout_2.addWidget(self.l_class)
 
-
-        self.verticalLayout.addWidget(self.f_name)
-
-        self.gb_taskColor = QGroupBox(wg_USD_Import)
-        self.gb_taskColor.setObjectName(u"gb_taskColor")
-        self.gb_taskColor.setEnabled(True)
-        self.gb_taskColor.setCheckable(False)
-        self.gb_taskColor.setChecked(False)
-        self.f_taskColor = QHBoxLayout(self.gb_taskColor)
-        self.f_taskColor.setObjectName(u"f_taskColor")
-        self.f_taskColor.setContentsMargins(18, 0, 18, 0)
-        self.l_taskColor = QLabel(self.gb_taskColor)
-        self.l_taskColor.setObjectName(u"l_taskColor")
-
-        self.f_taskColor.addWidget(self.l_taskColor)
-
-        self.cb_taskColor = QComboBox(self.gb_taskColor)
+        self.cb_taskColor = QComboBox(self.f_name)
         self.cb_taskColor.setObjectName(u"cb_taskColor")
 
-        self.f_taskColor.addWidget(self.cb_taskColor)
+        self.horizontalLayout_2.addWidget(self.cb_taskColor)
 
 
-        self.verticalLayout.addWidget(self.gb_taskColor)
+        self.verticalLayout.addWidget(self.f_name)
 
         self.gb_import = QGroupBox(wg_USD_Import)
         self.gb_import.setObjectName(u"gb_import")
@@ -89,7 +73,7 @@ class Ui_wg_USD_Import(object):
 
         self.horizontalLayout_5.addWidget(self.label_3)
 
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
         self.horizontalLayout_5.addItem(self.horizontalSpacer)
 
@@ -111,7 +95,7 @@ class Ui_wg_USD_Import(object):
 
         self.horizontalLayout_6.addWidget(self.label_6)
 
-        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
         self.horizontalLayout_6.addItem(self.horizontalSpacer_2)
 
@@ -133,7 +117,7 @@ class Ui_wg_USD_Import(object):
 
         self.horizontalLayout_14.addWidget(self.l_autoUpdate)
 
-        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
         self.horizontalLayout_14.addItem(self.horizontalSpacer_10)
 
@@ -155,14 +139,14 @@ class Ui_wg_USD_Import(object):
         self.b_importLatest.setObjectName(u"b_importLatest")
         self.b_importLatest.setMinimumSize(QSize(0, 0))
         self.b_importLatest.setMaximumSize(QSize(99999, 16777215))
-        self.b_importLatest.setFocusPolicy(Qt.NoFocus)
+        self.b_importLatest.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self.horizontalLayout_7.addWidget(self.b_importLatest)
 
         self.b_browse = QPushButton(self.w_importLatest)
         self.b_browse.setObjectName(u"b_browse")
-        self.b_browse.setFocusPolicy(Qt.NoFocus)
-        self.b_browse.setContextMenuPolicy(Qt.NoContextMenu)
+        self.b_browse.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.b_browse.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
 
         self.horizontalLayout_7.addWidget(self.b_browse)
 
@@ -174,17 +158,17 @@ class Ui_wg_USD_Import(object):
         self.horizontalLayout = QHBoxLayout(self.widget)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.horizontalLayout.setContentsMargins(-1, 0, -1, 0)
-        self.horizontalSpacer_6 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.horizontalSpacer_6 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout.addItem(self.horizontalSpacer_6)
 
         self.b_import = QPushButton(self.widget)
         self.b_import.setObjectName(u"b_import")
-        self.b_import.setFocusPolicy(Qt.NoFocus)
+        self.b_import.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self.horizontalLayout.addWidget(self.b_import)
 
-        self.horizontalSpacer_5 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.horizontalSpacer_5 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout.addItem(self.horizontalSpacer_5)
 
@@ -203,7 +187,7 @@ class Ui_wg_USD_Import(object):
         self.horizontalLayout_10 = QHBoxLayout(self.f_usdScene)
         self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
         self.horizontalLayout_10.setContentsMargins(9, 0, 9, 0)
-        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout_10.addItem(self.horizontalSpacer_3)
 
@@ -212,7 +196,7 @@ class Ui_wg_USD_Import(object):
 
         self.horizontalLayout_10.addWidget(self.b_createUsdScene)
 
-        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
 
         self.horizontalLayout_10.addItem(self.horizontalSpacer_4)
 
@@ -222,7 +206,7 @@ class Ui_wg_USD_Import(object):
 
         self.verticalLayout_2.addWidget(self.gb_options)
 
-        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 
         self.verticalLayout_2.addItem(self.verticalSpacer)
 
@@ -237,10 +221,9 @@ class Ui_wg_USD_Import(object):
     # setupUi
 
     def retranslateUi(self, wg_USD_Import):
-        wg_USD_Import.setWindowTitle(QCoreApplication.translate("wg_USD_Import", u"ImportFile", None))
+        wg_USD_Import.setWindowTitle(QCoreApplication.translate("wg_USD_Import", u"USD Import", None))
         self.l_name.setText(QCoreApplication.translate("wg_USD_Import", u"State name:", None))
         self.l_class.setText(QCoreApplication.translate("wg_USD_Import", u"Import USD", None))
-        self.l_taskColor.setText(QCoreApplication.translate("wg_USD_Import", u"Task Color", None))
         self.gb_import.setTitle("")
         self.gb_version.setTitle(QCoreApplication.translate("wg_USD_Import", u"Version", None))
         self.label_3.setText(QCoreApplication.translate("wg_USD_Import", u"Current Version:", None))

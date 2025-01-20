@@ -105,12 +105,13 @@ class Object3d_ImportClass(object):
         self.updatePalette.setColor(QPalette.Button, QColor(200, 100, 0))
         self.updatePalette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
 
+        self.cb_taskColor.setFixedWidth(125)
         #	Gets task color settings from the DCC settings
         self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
         if self.taskColorMode == "Disabled":
-            self.gb_taskColor.setHidden(True)
+            self.cb_taskColor.hide()
         else:
-            self.gb_taskColor.setHidden(False)
+            self.cb_taskColor.show()
             self.populateTaskColorCombo()
 
         createEmptyState = (

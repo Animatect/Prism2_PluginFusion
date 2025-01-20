@@ -258,12 +258,16 @@ def addToolData(tool:Tool_, toolData:dict={}) -> None:
         tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
 
 
-    if "toolOrigName" in toolData:
-        tool.SetData('Prism_OrigName', toolData['toolOrigName'])
     if "toolUID" in toolData:
         tool.SetData('Prism_UUID', toolData['toolUID'])
     if "nodeUID" in toolData:
         tool.SetData('Prism_UUID', toolData['nodeUID'])
+
+    if "groupName" in toolData:
+            tool.SetData('Prism_Group', toolData['groupName'])
+
+    if "toolOrigName" in toolData:
+        tool.SetData('Prism_OrigName', toolData['toolOrigName'])
 
     if "mediaId" in toolData:
         tool.SetData('Prism_MediaID', toolData['mediaId'])
@@ -282,6 +286,9 @@ def addToolData(tool:Tool_, toolData:dict={}) -> None:
 
     if "shaderName" in toolData:
         tool.SetData('Prism_Shader', toolData['shaderName'])
+
+    if "shaderType" in toolData:
+        tool.SetData('Prism_ShaderType', toolData['shaderType'])
 
     if "texMap" in toolData:
         tool.SetData('Prism_TexMap', toolData['texMap'])
@@ -303,6 +310,9 @@ def addToolData(tool:Tool_, toolData:dict={}) -> None:
 
     if "uTexFilepath" in toolData:
         tool["Filename"] = toolData['uTexFilepath']
+
+    if "matXfilePath" in toolData:
+        tool["MaterialFile"] = toolData["matXfilePath"]
 
     if "3dFilepath" in toolData:
         if toolData["format"] == ".fbx":
@@ -337,6 +347,9 @@ def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoC
         if "nodeName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
 
+        if "groupName" in toolData:
+            tool.SetData('Prism_Group', toolData['groupName'])
+
         if "version" in toolData:
             tool.SetData('Prism_Version', toolData['version'])
 
@@ -348,6 +361,9 @@ def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoC
 
         if "usdFilepath" in toolData:
             tool["Filename"] = toolData['usdFilepath']
+
+        if "matXfilePath" in toolData:
+            tool["MaterialFile"] = toolData["matXfilePath"]
 
         if "3dFilepath" in toolData:
             if toolData["format"] == ".fbx":
@@ -365,7 +381,7 @@ def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoC
 
 
         #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
-        tool.SetAttrs({'TOOLS_NameSet': True})
+        # tool.SetAttrs({'TOOLS_NameSet': True})
 
         return tool
     
@@ -400,9 +416,17 @@ def getToolData(tool:Tool) -> dict:
         return {}
     
 
-#   Creates a group with given tools and returns new UIDs.
-
-def groupTools(comp, groupName:str, toolList:list, outputTool:Tool = None, inputTool:Tool = None) -> list[UUID]:
+#   Creates a group with given tools and returns the Group UID and new UIDs.
+@err_catcher(name=__name__)
+def groupTools(comp,
+               origin,
+               groupName:str,
+               toolList:list,
+               outputTool:Tool = None,
+               inputTool:Tool = None,
+               pos=None
+               ) -> tuple[UUID, list[UUID]]:
+    
     success = False
     toolUIDs = []
     toolsToCopy = dict()
@@ -503,7 +527,18 @@ def groupTools(comp, groupName:str, toolList:list, outputTool:Tool = None, input
                 result = connectInputToOutput(input, output)
 
         if result:
-            return toolUIDs
+            #   Add UUID to Group Tool
+            groupUID = origin.createUUID()
+            groupTool = getToolByName(comp, groupName)
+            groupTool.SetData('Prism_UUID', groupUID)
+
+            #   Sets Group Tool Position if passed
+            if pos:
+                flow = comp.CurrentFrame.FlowView
+                setToolPosition(flow, groupTool, pos[0], pos[1])
+
+            return groupUID, toolUIDs
+        
 
     except Exception as e:
         logger.warning(f"ERROR: Failed to create group:\n{e}")

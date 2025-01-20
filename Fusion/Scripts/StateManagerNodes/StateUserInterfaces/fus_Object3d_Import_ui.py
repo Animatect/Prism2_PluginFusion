@@ -45,26 +45,13 @@ class Ui_wg_Object3d_Import(object):
 
         self.horizontalLayout_2.addWidget(self.l_class)
 
-
-        self.verticalLayout.addWidget(self.f_name)
-
-        self.gb_taskColor = QGroupBox(wg_Object3d_Import)
-        self.gb_taskColor.setObjectName(u"gb_taskColor")
-        self.f_taskColor = QHBoxLayout(self.gb_taskColor)
-        self.f_taskColor.setObjectName(u"f_taskColor")
-        self.f_taskColor.setContentsMargins(18, 0, 18, 0)
-        self.l_taskColor = QLabel(self.gb_taskColor)
-        self.l_taskColor.setObjectName(u"l_taskColor")
-
-        self.f_taskColor.addWidget(self.l_taskColor)
-
-        self.cb_taskColor = QComboBox(self.gb_taskColor)
+        self.cb_taskColor = QComboBox(self.f_name)
         self.cb_taskColor.setObjectName(u"cb_taskColor")
 
-        self.f_taskColor.addWidget(self.cb_taskColor)
+        self.horizontalLayout_2.addWidget(self.cb_taskColor)
 
 
-        self.verticalLayout.addWidget(self.gb_taskColor)
+        self.verticalLayout.addWidget(self.f_name)
 
         self.gb_import = QGroupBox(wg_Object3d_Import)
         self.gb_import.setObjectName(u"gb_import")
@@ -233,10 +220,9 @@ class Ui_wg_Object3d_Import(object):
     # setupUi
 
     def retranslateUi(self, wg_Object3d_Import):
-        wg_Object3d_Import.setWindowTitle(QCoreApplication.translate("wg_Object3d_Import", u"ImportFile", None))
+        wg_Object3d_Import.setWindowTitle(QCoreApplication.translate("wg_Object3d_Import", u"Object3d Import", None))
         self.l_name.setText(QCoreApplication.translate("wg_Object3d_Import", u"State name:", None))
         self.l_class.setText(QCoreApplication.translate("wg_Object3d_Import", u"Import 3D", None))
-        self.l_taskColor.setText(QCoreApplication.translate("wg_Object3d_Import", u"Task Color", None))
         self.gb_import.setTitle("")
         self.gb_version.setTitle(QCoreApplication.translate("wg_Object3d_Import", u"Version", None))
         self.label_3.setText(QCoreApplication.translate("wg_Object3d_Import", u"Current Version:", None))
