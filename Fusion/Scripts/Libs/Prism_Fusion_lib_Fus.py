@@ -913,19 +913,23 @@ def matchToolPos(comp, nodeTomove:Tool_, nodeInPos:Tool_):
 #Get last click on comp view.
 
 def find_LastClickPosition(comp:Composition_) -> list[float, float]:
-    flow:FlowView_ = comp.CurrentFrame.FlowView
-    # Store selection
-    origSel:list[Tool_] = comp.GetToolList(True).values()
-    # Deselect all
-    flow.Select()
+    try:
+        flow:FlowView_ = comp.CurrentFrame.FlowView
+        # Store selection
+        origSel:list[Tool_] = comp.GetToolList(True).values()
+        # Deselect all
+        flow.Select()
 
-    posNode:Tool_ = comp.AddToolAction("Background")
-    x,y = getToolPosition(comp, posNode)
-    posNode.Delete()
+        posNode:Tool_ = comp.AddTool("Background", xpos=-32768, ypos=-32768)
+        x,y = getToolPosition(comp, posNode)
+        posNode.Delete()
 
-    selectToolList(flow, origSel)
+        selectToolList(flow, origSel)
 
-    return x,y
+        return x,y
+    
+    except:
+        return 0,0
     # return -32768, -32768
 
 
