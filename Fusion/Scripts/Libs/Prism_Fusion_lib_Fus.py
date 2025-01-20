@@ -52,11 +52,17 @@
 
 import os
 import re
-from typing import Union, Dict, Tuple, Any
 import logging
 
-from PrismUtils.Decorators import err_catcher as err_catcher
+from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
+if TYPE_CHECKING:
+    pass
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
 
+from PrismUtils.Decorators import err_catcher as err_catcher
 logger = logging.getLogger(__name__)
 
 
@@ -70,7 +76,7 @@ Toolname = str
 
 
 #	Returns the filename of the current comp
-@err_catcher(name=__name__)
+
 def getCurrentFileName(comp, origin=None, path=True) -> str:
     try:
         if comp is None:
@@ -84,7 +90,7 @@ def getCurrentFileName(comp, origin=None, path=True) -> str:
         logger.warning(f"ERROR: Failed to get current filename:\n{e}")
 
 
-@err_catcher(name=__name__)
+
 def openScene(fusion, sceneFormats:list, filepath:str, force=False) -> bool:
     if os.path.splitext(filepath)[1] not in sceneFormats:
         return False
@@ -98,7 +104,7 @@ def openScene(fusion, sceneFormats:list, filepath:str, force=False) -> bool:
     return True
 
 
-@err_catcher(name=__name__)
+
 def saveScene(comp, filepath:str, details={}) -> bool:
     try:
         #Save function returns True on success, False on failure
@@ -113,7 +119,7 @@ def saveScene(comp, filepath:str, details={}) -> bool:
         return False
     
 
-@err_catcher(name=__name__)
+
 def getFrameRange(comp) -> Tuple[int, int]:
     try:
         startframe = comp.GetAttrs()["COMPN_GlobalStart"]
@@ -125,7 +131,7 @@ def getFrameRange(comp) -> Tuple[int, int]:
     
 
 #	Sets the supplied framerange to the comp
-@err_catcher(name=__name__)
+
 def setFrameRange(comp, startFrame:int, endFrame:int):
     try:
         comp.SetAttrs(
@@ -147,7 +153,7 @@ def setFrameRange(comp, startFrame:int, endFrame:int):
 
 
 
-@err_catcher(name=__name__)
+
 def getRenderRange(comp) -> Tuple[int, int]:
     try:
         startframe = comp.GetAttrs()["COMPN_RenderStart"]
@@ -159,7 +165,7 @@ def getRenderRange(comp) -> Tuple[int, int]:
     
 
 #	Sets the supplied framerange to the comp
-@err_catcher(name=__name__)
+
 def setRenderRange(comp, startFrame:int, endFrame:int):
     try:
         comp.SetAttrs(
@@ -174,7 +180,7 @@ def setRenderRange(comp, startFrame:int, endFrame:int):
 
 
 
-@err_catcher(name=__name__)
+
 def getFPS(comp) -> float:
     try:
         return comp.GetPrefs()["Comp"]["FrameFormat"]["Rate"]
@@ -184,7 +190,7 @@ def getFPS(comp) -> float:
     
 
 
-@err_catcher(name=__name__)
+
 def setFPS(comp, fps:float):
     try:
         return comp.SetPrefs({"Comp.FrameFormat.Rate": fps})
@@ -193,7 +199,7 @@ def setFPS(comp, fps:float):
 
 
 
-@err_catcher(name=__name__)
+
 def getResolution(comp) -> Tuple[int, int]:
     try:
         width = comp.GetPrefs()[
@@ -208,7 +214,7 @@ def getResolution(comp) -> Tuple[int, int]:
         return [None, None]
     
 
-@err_catcher(name=__name__)
+
 def setResolution(comp, width:int=None, height:int=None):
     try:
         comp.SetPrefs(
@@ -221,7 +227,7 @@ def setResolution(comp, width:int=None, height:int=None):
         logger.warning(f"ERROR: Failed to set the resolution to the comp:\n{e}")
 
 
-@err_catcher(name=__name__)
+
 def getCurrentFrame(comp) -> int:
     try:
         return comp.CurrentTime
@@ -232,81 +238,11 @@ def getCurrentFrame(comp) -> int:
 
 
 #   Adds tool of specified type and configures given data
-@err_catcher(name=__name__)
-def addTool(comp, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
+
+def addTool(comp:Composition_, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
     try:
         tool = comp.AddTool(toolType, xPos, yPos, autoConnect)
-
-        if "toolName" in toolData:
-            tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
-        if "nodeName" in toolData:
-            tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
-
-        if "toolUID" in toolData:
-            tool.SetData('Prism_UUID', toolData['toolUID'])
-        if "nodeUID" in toolData:
-            tool.SetData('Prism_UUID', toolData['nodeUID'])
-
-        if "mediaId" in toolData:
-            tool.SetData('Prism_MediaID', toolData['mediaId'])
-
-        if "product" in toolData:
-            tool.SetData('Prism_Product', toolData['product'])
-
-        if "format" in toolData:
-            tool.SetData('Format', toolData['format'])
-
-        if "aov" in toolData:
-            tool.SetData('Prism_AOV', toolData['aov'])
-
-        if "channel" in toolData:
-            tool.SetData('Prism_Channel', toolData['channel'])
-
-        if "shaderName" in toolData:
-            tool.SetData('Prism_Shader', toolData['shaderName'])
-
-        if "texMap" in toolData:
-            tool.SetData('Prism_TexMap', toolData['texMap'])
- 
-        if "version" in toolData:
-            tool.SetData('Prism_Version', toolData['version'])
-
-        if "mediaType" in toolData:
-            tool.SetData('Prism_MediaType', toolData['mediaType'])
-
-        if "connectedNodes" in toolData:
-            tool.SetData('Prism_ConnectedNodes', toolData['connectedNodes'])
-
-        if "filepath" in toolData:
-            tool.Clip = toolData['filepath']
-
-        if "usdFilepath" in toolData:
-            tool["Filename"] = toolData['usdFilepath']
-
-        if "uTexFilepath" in toolData:
-            tool["Filename"] = toolData['uTexFilepath']
-
-        if "3dFilepath" in toolData:
-            if toolData["format"] == ".fbx":
-                tool["ImportFile"] = toolData['3dFilepath']
-            elif toolData["format"] == ".abc":
-                tool["Filename"] = toolData['3dFilepath']
-
-        if "fuseFormat" in toolData:
-            tool["OutputFormat"] = toolData['fuseFormat']
-
-        if "frame_start" in toolData:
-            tool.GlobalIn[0] = toolData["frame_start"]
-            tool.GlobalOut[0] = toolData["frame_end"]
-
-            tool.ClipTimeStart = 0
-            tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
-            tool.HoldLastFrame = 0
-
-
-        #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
-        tool.SetAttrs({'TOOLS_NameSet': True})
-
+        addToolData(tool, toolData)
         return tool
     
     except:
@@ -314,10 +250,88 @@ def addTool(comp, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-327
         return None
     
 
+
+def addToolData(tool:Tool_, toolData:dict={}) -> None:
+    if "toolName" in toolData:
+        tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
+    if "nodeName" in toolData:
+        tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
+
+
+    if "toolOrigName" in toolData:
+        tool.SetData('Prism_OrigName', toolData['toolOrigName'])
+    if "toolUID" in toolData:
+        tool.SetData('Prism_UUID', toolData['toolUID'])
+    if "nodeUID" in toolData:
+        tool.SetData('Prism_UUID', toolData['nodeUID'])
+
+    if "mediaId" in toolData:
+        tool.SetData('Prism_MediaID', toolData['mediaId'])
+
+    if "product" in toolData:
+        tool.SetData('Prism_Product', toolData['product'])
+
+    if "format" in toolData:
+        tool.SetData('Format', toolData['format'])
+
+    if "aov" in toolData:
+        tool.SetData('Prism_AOV', toolData['aov'])
+
+    if "channel" in toolData:
+        tool.SetData('Prism_Channel', toolData['channel'])
+
+    if "shaderName" in toolData:
+        tool.SetData('Prism_Shader', toolData['shaderName'])
+
+    if "texMap" in toolData:
+        tool.SetData('Prism_TexMap', toolData['texMap'])
+
+    if "version" in toolData:
+        tool.SetData('Prism_Version', toolData['version'])
+
+    if "mediaType" in toolData:
+        tool.SetData('Prism_MediaType', toolData['mediaType'])
+
+    if "connectedNodes" in toolData:
+        tool.SetData('Prism_ConnectedNodes', toolData['connectedNodes'])
+
+    if "filepath" in toolData:
+        tool.Clip = toolData['filepath']
+
+    if "usdFilepath" in toolData:
+        tool["Filename"] = toolData['usdFilepath']
+
+    if "uTexFilepath" in toolData:
+        tool["Filename"] = toolData['uTexFilepath']
+
+    if "3dFilepath" in toolData:
+        if toolData["format"] == ".fbx":
+            tool["ImportFile"] = toolData['3dFilepath']
+        elif toolData["format"] == ".abc":
+            tool["Filename"] = toolData['3dFilepath']
+
+    if "fuseFormat" in toolData:
+        tool["OutputFormat"] = toolData['fuseFormat']
+
+    if "frame_start" in toolData:
+        tool.GlobalIn[0] = toolData["frame_start"]
+        tool.GlobalOut[0] = toolData["frame_end"]
+
+        tool.ClipTimeStart = 0
+        tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
+        tool.HoldLastFrame = 0
+
+
+    #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
+    tool.SetAttrs({'TOOLS_NameSet': True})
+    
+
 #   Updates tool config for given data
-@err_catcher(name=__name__)
+
 def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
+    print("UPDATE TOOL 0")
     try:
+        print("UPDATE TOOL 1")
         if "toolName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
         if "nodeName" in toolData:
@@ -356,12 +370,13 @@ def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoC
         return tool
     
     except:
+        print("UPDATE TOOL 2")
         logger.warning(f"ERROR: Failed to update {tool} in Comp")
         return None
 
 
 #   Returns Prism Data contained in Tool
-@err_catcher(name=__name__)
+
 def getToolData(tool:Tool) -> dict:
     try:
         #   Get all the tool data
@@ -386,7 +401,7 @@ def getToolData(tool:Tool) -> dict:
     
 
 #   Creates a group with given tools and returns new UIDs.
-@err_catcher(name=__name__)
+
 def groupTools(comp, groupName:str, toolList:list, outputTool:Tool = None, inputTool:Tool = None) -> list[UUID]:
     success = False
     toolUIDs = []
@@ -496,7 +511,7 @@ def groupTools(comp, groupName:str, toolList:list, outputTool:Tool = None, input
 
 
 #   Returns tool that matches name
-@err_catcher(name=__name__)
+
 def getToolByName(comp, toolName:str) -> Tool:
     try:
         for tool in comp.GetToolList(False).values():
@@ -511,7 +526,7 @@ def getToolByName(comp, toolName:str) -> Tool:
 
 
 #   Returns type of tool
-@err_catcher(name=__name__)
+
 def getToolType(tool:Tool) -> str:
     try:
         return tool.GetAttrs("TOOLS_RegID")
@@ -521,7 +536,7 @@ def getToolType(tool:Tool) -> str:
 
 
 #   Returns all tools of specified type
-@err_catcher(name=__name__)
+
 def getAllToolsByType(comp, toolType:str) -> list[Tool]:
     try:
         toolList = []
@@ -536,7 +551,7 @@ def getAllToolsByType(comp, toolType:str) -> list[Tool]:
     
 
 #   Returns tools selected in Comp with optional Tool Type
-@err_catcher(name=__name__)
+
 def getSelectedTools(comp, toolType:str=None) -> list[Tool]:
     try:
         toolList = []
@@ -555,7 +570,7 @@ def getSelectedTools(comp, toolType:str=None) -> list[Tool]:
 
 
 #   Tries to find last tool in the flow
-@err_catcher(name=__name__)
+
 def getLastTool(comp) -> Tool | None:
     try:
         for tool in comp.GetToolList(False).values():
@@ -567,7 +582,7 @@ def getLastTool(comp) -> Tool | None:
         
     
 #   Finds if tool has any outputs connected
-@err_catcher(name=__name__)
+
 def hasConnectedOutputs(tool) -> bool:
     if not tool:
         return False
@@ -587,7 +602,7 @@ def hasConnectedOutputs(tool) -> bool:
 
 
 #   Finds if tool has an input connected
-@err_catcher(name=__name__)
+
 def hasConnectedInput(tool) -> bool:
     if not tool:
         return False
@@ -605,7 +620,7 @@ def hasConnectedInput(tool) -> bool:
 
 
 #   Connects two tools
-@err_catcher(name=__name__)
+
 def connectTools(toolFrom:Tool, toolTo:Tool) -> bool:
     try:
         #   Connect MainOutput to 1st MainInput (works for most situations)
@@ -618,7 +633,7 @@ def connectTools(toolFrom:Tool, toolTo:Tool) -> bool:
 
 
 #   Takes Fusion input and output objects and makes connection
-@err_catcher(name=__name__)
+
 def connectInputToOutput(input:ToolOption, output:ToolOption) -> bool:
     try:
         #   Connects input socket object to output socket object
@@ -631,7 +646,7 @@ def connectInputToOutput(input:ToolOption, output:ToolOption) -> bool:
 
 
 #   Returns output socket object
-@err_catcher(name=__name__)
+
 def getToolOutputSocket(tool) -> ToolOption:
     try:
         return tool.FindMainOutput(1)
@@ -641,7 +656,7 @@ def getToolOutputSocket(tool) -> ToolOption:
     
 
 #   Returns list of input sockets that are connected to the tool's output
-@err_catcher(name=__name__)
+
 def getInputsFromOutput(tool) -> list[ToolOption]:
     try:
         #   Gets the Fusion table of inputs
@@ -660,7 +675,7 @@ def getInputsFromOutput(tool) -> list[ToolOption]:
 
 
 #   Returns matching input socket from Input name
-@err_catcher(name=__name__)
+
 def getMatchingInputSocket(tool, inputName:str) -> ToolOption:
     try:
         #   Gets the Fusion table of inputs
@@ -682,7 +697,7 @@ def getMatchingInputSocket(tool, inputName:str) -> ToolOption:
 
 
 #   Finds if tool has an input connected
-@err_catcher(name=__name__)
+
 def getToolBefore(tool) -> Tool:
     try:
         return tool.FindMainInput(1).GetConnectedOutput()
@@ -692,7 +707,7 @@ def getToolBefore(tool) -> Tool:
 
 
 #	Sets up the name based on avail data
-@err_catcher(name=__name__)
+
 def makeLdrName(importData:dict) -> str:
     try:
         ldrName = importData.get('identifier') or importData.get("mediaId")
@@ -713,7 +728,7 @@ def makeLdrName(importData:dict) -> str:
     
 
 #	Sets up the name based on avail data
-@err_catcher(name=__name__)
+
 def makeWirelessName(importData:dict) -> str:
     try:
         wirelessName = (importData.get('identifier')
@@ -739,7 +754,7 @@ def makeWirelessName(importData:dict) -> str:
 
 #   The name of this function comes for its initial use to position
 #   the "state manager node" that what used before using SetData.
-@err_catcher(name=__name__)
+
 def setToolPosition(comp, node, find_min=True, x_offset=-2, y_offset=0, ignore_node_type:str=None, refNode:Tool=None):
     # Get the active composition
     flow = comp.CurrentFrame.FlowView
@@ -768,7 +783,7 @@ def setToolPosition(comp, node, find_min=True, x_offset=-2, y_offset=0, ignore_n
 
 
 #   Returns Position of Tool
-@err_catcher(name=__name__)
+# 
 def getToolPosition(comp, tool:Tool) -> Tuple[float, float]:
     flow = comp.CurrentFrame.FlowView
     try:
@@ -779,7 +794,7 @@ def getToolPosition(comp, tool:Tool) -> Tuple[float, float]:
 
 
 #   Set Tool Position in Comp
-@err_catcher(name=__name__)
+# 
 def setToolPosition(flow, tool:Tool, x:float, y:float):
     try:
         flow.SetPos(tool, x, y)
@@ -788,7 +803,7 @@ def setToolPosition(flow, tool:Tool, x:float, y:float):
 
 
 #   Sets Tool Position Relative to Another Tool
-@err_catcher(name=__name__)
+# 
 def setToolPosRelative(comp, tool, refTool, x_offset:float=1, y_offset:float=0):
     try:
         flow = comp.CurrentFrame.FlowView
@@ -803,7 +818,7 @@ def setToolPosRelative(comp, tool, refTool, x_offset:float=1, y_offset:float=0):
 
 
 #   Set Tool Position Depending on Type
-@err_catcher(name=__name__)
+
 def setToolToLeft(comp, tool, refNode=None, x_offset:float=0, y_offset:float=1):
     try:
         if refNode:
@@ -822,7 +837,7 @@ def setToolToLeft(comp, tool, refNode=None, x_offset:float=0, y_offset:float=1):
 
 
 #   Checks if Tool is within a Threshold Distance of Another Tool OR Position
-@err_catcher(name=__name__)
+
 def isToolNearTool(comp, tool, refTool:Tool=None, refPos:Tuple[float, float]=None, thresh:float=3) -> bool:
     flow = comp.CurrentFrame.FlowView
 
@@ -853,26 +868,38 @@ def isToolNearTool(comp, tool, refTool:Tool=None, refPos:Tuple[float, float]=Non
         return True
 
 
-@err_catcher(name=__name__)
-def matchToolPos(comp, nodeTomove:Tool, nodeInPos:Tool):
+
+def matchToolPos(comp, nodeTomove:Tool_, nodeInPos:Tool_):
     flow = comp.CurrentFrame.FlowView
     x,y = getToolPosition(comp, nodeInPos)
     setToolPosition(flow, nodeTomove, x, y)
 
 
 #Get last click on comp view.
-@err_catcher(name=__name__)
-def find_LastClickPosition(comp) -> Tuple[int, int]:
-    flow = comp.CurrentFrame.FlowView
-    posNode = comp.AddToolAction("Background")
+
+def find_LastClickPosition(comp:Composition_) -> list[float, float]:
+    flow:FlowView_ = comp.CurrentFrame.FlowView
+    # Store selection
+    origSel:list[Tool_] = comp.GetToolList(True).values()
+    # Deselect all
+    flow.Select()
+
+    posNode:Tool_ = comp.AddToolAction("Background")
     x,y = getToolPosition(comp, posNode)
     posNode.Delete()
+
+    selectToolList(flow, origSel)
 
     return x,y
     # return -32768, -32768
 
 
-@err_catcher(name=__name__)
+
+def selectToolList(flow:FlowView_, tools:list[Tool_]) -> None:
+    for t in tools:
+        flow.Select(t)
+
+
 def posRelativeToTool(comp, tool, xoffset:float=3) -> bool:
     flow = comp.CurrentFrame.FlowView
     #check if there is selection
@@ -896,7 +923,7 @@ def posRelativeToTool(comp, tool, xoffset:float=3) -> bool:
 
 
 # Arranges nodes in a vertical stack
-@err_catcher(name=__name__)
+
 def stackToolsByList(comp, toolList: list[Tool], xoffset:float=0, yoffset:float=1):
     flow = comp.CurrentFrame.FlowView
 
@@ -938,7 +965,7 @@ def stackToolsByList(comp, toolList: list[Tool], xoffset:float=0, yoffset:float=
 
 
 #	Arranges nodes in a vertcal stack
-@err_catcher(name=__name__)
+
 def stackToolsByType(comp, nodetostack:Tool, yoffset:float=3, tooltype:str="Saver"):
     flow = comp.CurrentFrame.FlowView
 
@@ -974,7 +1001,7 @@ def stackToolsByType(comp, nodetostack:Tool, yoffset:float=3, tooltype:str="Save
         flow.SetPos(nodetostack, origx, thresh_y_position + yoffset)
 
 
-@err_catcher(name=__name__)
+
 def findLeftmostLowerTool(comp, threshold:float=0.5) -> Tool:
     flow = comp.CurrentFrame.FlowView
 
@@ -995,7 +1022,23 @@ def findLeftmostLowerTool(comp, threshold:float=0.5) -> Tool:
         return None
 
 
-@err_catcher(name=__name__)
+
+def getRefPosition(comp:Composition_, flow:FlowView_) -> tuple[float,float]:
+    #try to get an active tool to set a ref position
+    activetool:Tool_ = None
+    try:
+        activetool = comp.ActiveTool()
+    except:
+        pass
+    if activetool and not activetool.GetAttrs("TOOLS_RegID") =="BezierSpline":
+        atx, aty = flow.GetPosTable(activetool).values()
+    else:
+        atx, aty = find_LastClickPosition(comp)
+
+    return atx, aty
+
+
+
 def getLoaderChannels(tool) -> list[str]:
     # Get all loader channels and filter out the ones to skip
     skip = {			
@@ -1022,7 +1065,7 @@ def getLoaderChannels(tool) -> list[str]:
     return sortedChannels
 
 
-@err_catcher(name=__name__)
+
 def getChannelData(loaderChannels:list) -> dict:
     try:
         channelData = {}
@@ -1044,5 +1087,41 @@ def getChannelData(loaderChannels:list) -> dict:
     except:
         logger.warning("ERROR: Failed to get channel data")
         return None
+    
+###### VIEW FOCUS ######
+
+# 
+def calculate_new_position(toolX, toolY):
+    deltax = toolX - (-0.5)
+    deltay = toolY - (-0.5)
+    # the ratio is the ammount the viewer moves to center the node for each 0.5 units
+    xscaled_delta = deltax * (55/0.5)
+    yscaled_delta = deltay * (16.5/0.5)
+
+    return xscaled_delta, yscaled_delta
+
+# 
+def focusOnTool(comp:Composition_, tool:Tool_, scalefactor = 0.5):
+    flow:FlowView_ = comp.CurrentFrame.FlowView
+    # tool = comp.Background1
+    Xpos, Ypos = flow.GetPosTable(tool).values()
+    x, y = calculate_new_position(Xpos, Ypos)
+
+    new_bookmark:dict = {'__flags': 1048832, 
+                    'Offset': {'__flags': 256, 1.0: x, 2.0: y}, 
+                    'Name': 'prismRefocus', 
+                    'Scale': scalefactor}
+    bookmarks = flow.GetBookmarkList()
+    next_key = max(bookmarks.keys()) + 1.0
+    bookmarks[next_key] = new_bookmark
+    flow.SetBookmarkList(bookmarks)
+    # for b in flow.GetBookmarkList().values():
+    #     print(b.get("Name"))
+    # bm = flow.GetBookmark("prismRefocus")
+    # print(bm, " --> ",flow.GetPosTable(tool).values())
+    flow.GoToBookmark('prismRefocus')
+    flow.DeleteBookmark('prismRefocus')
+
+########################
     
 

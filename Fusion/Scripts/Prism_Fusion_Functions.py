@@ -59,7 +59,8 @@ import logging
 from datetime import datetime
 
 import BlackmagicFusion as bmd
-
+import inspect
+print(inspect.getmodule('fusionscript'))
 package_path = os.path.join(os.path.dirname(__file__), 'thirdparty')
 sys.path.append(package_path)
 
@@ -71,8 +72,16 @@ from qtpy.QtWidgets import *
 
 import pyautogui
 import pyperclip
+
 from PrismUtils.Decorators import err_catcher as err_catcher
 
+from typing import TYPE_CHECKING
+if TYPE_CHECKING:
+	from PrismCore import PrismCore
+	from ProjectScripts.StateManager import StateManager
+	from ProjectScripts.MediaBrowser import MediaBrowser, MediaPlayer
+from StateManagerNodes.fus_Legacy3D_Import import Legacy3D_ImportClass
+	
 #	Import Prism Fusion Libraries
 import Libs.Prism_Fusion_lib_Helper as Helper
 import Libs.Prism_Fusion_lib_Fus as Fus
@@ -85,14 +94,15 @@ logger = logging.getLogger(__name__)
 
 class Prism_Fusion_Functions(object):
 	def __init__(self, core, plugin):
-		self.core = core
+		self.core:PrismCore = core
 		self.plugin = plugin
-		self.fusion = bmd.scriptapp("Fusion")
-		self.comp = None # This comp is used by the stateManager to avoid overriding the state data on wrong comps
+		self.fusion:Fusion_ = bmd.scriptapp("Fusion")
+		self.comp:Composition_ = None # This comp is used by the stateManager to avoid overriding the state data on wrong comps
 
-		self.MP_stateManager = None # Reference to the stateManager to be used on the monkeypatched functions.
-		self.MP_mediaBrowser = None # Reference to the mediaBrowser to be used on the monkeypatched functions.
-		self.MP_mediaPlayer = None # Reference to the mediaPlayer to be used on the monkeypatched functions.
+		
+		self.MP_stateManager:StateManager = None # Reference to the stateManager to be used on the monkeypatched functions.
+		self.MP_mediaBrowser:MediaBrowser = None # Reference to the mediaBrowser to be used on the monkeypatched functions.
+		self.MP_mediaPlayer:MediaPlayer = None # Reference to the mediaPlayer to be used on the monkeypatched functions.
 		# self.MP_importState = None # Reference to the importState to be used on the monkeypatched functions.
 
 		self.popup = None # Reference of popUp dialog that shows before opening a window when it takes some time.
@@ -331,6 +341,20 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		return CompDb.nodeExists(comp, nodeUID)
 	
+	##############TODELETE############
+	@err_catcher(name=__name__)
+	def getNodeName(self, origin:Legacy3D_ImportClass, node:str):
+		if Fus3d.isNodeValid(origin, node):
+			try:
+				return node["name"]
+			except:
+				QMessageBox.warning(
+					self.core.messageParent, "Warning", "Cannot get name from %s" % node
+				)
+				return node
+		else:
+			return "invalid"
+	##############TODELETE############
 
 	@err_catcher(name=__name__)
 	def getNodeByUID(self, nodeUID):
@@ -366,14 +390,19 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def sm_saveStates(self, origin, buf):
 		comp = self.getCurrentComp()
-		if self.sm_checkCorrectComp(comp):
+		# The comp check for the imports should be done also in the  states operations.
+		# here we just do a check,  by doing that we can check again in another function  whare we can actually interrupt the process
+		# in the other functions if there is a problem but avoid corrupting the comp's states.
+		if self.sm_checkCorrectComp(comp, displaypopup=False, deleteSM=False):
 			CompDb.sm_saveStates(comp, buf)
 
 
 	@err_catcher(name=__name__)
 	def sm_saveImports(self, origin, importPaths):
 		comp = self.getCurrentComp()
-		if self.sm_checkCorrectComp(comp):
+		# The comp check for the imports should be done also in the import and delete functions for import states.
+		# here we just do a check, but by doing it there we can actually interrupt the process.
+		if self.sm_checkCorrectComp(comp, displaypopup=False, deleteSM=False):
 			CompDb.sm_saveImports(comp, importPaths)
 
 
@@ -382,6 +411,15 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			return CompDb.sm_readStates(comp)
+
+	@err_catcher(name=__name__)
+	def sm_createStatePressed(self, origin, stateType):
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			return []
+		
+		logger.warning(f"ERROR: Unable to to create state")
+		return None
 
 
 	#	Gets called from SM to remove all States
@@ -445,10 +483,18 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to resolve the current Fusion comp:\n{e}")
 			return None
-		
 
 	@err_catcher(name=__name__)
-	def sm_checkCorrectComp(self, comp, displaypopup=True):
+	def sm_import_startup(self, origin):
+		pass
+
+	@err_catcher(name=__name__)
+	def sm_checkCorrectComp(self, comp, displaypopup:bool=True, deleteSM:bool=True):
+		
+		# import traceback
+		# print("Function called from:")
+		# print("".join(traceback.format_stack(limit=5)))
+		# print(f"Comps are: {comp} vs {self.comp}")
 		if self.comp:
 			try:
 				if self.comp.GetAttrs("COMPS_Name") == comp.GetAttrs("COMPS_Name"):
@@ -461,6 +507,8 @@ class Prism_Fusion_Functions(object):
 				if displaypopup:
 					self.core.popup("The State Manager was originally opened in another comp.\n"
 									"It will now close and open again to avoid corrupting this comp's state data.")
+				# deleteSM allows to use this function as a boolean check without deleting the StateManager.
+				if deleteSM:
 					self.core.closeSM(restart=True)
 				return False
 			
@@ -917,7 +965,7 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)												#	TODO - USED?
 	def selectCam(self, origin):
-		if self.isNodeValid(origin, origin.curCam):
+		if Fus3d.isNodeValid(origin, origin.curCam):
 			select(origin.curCam)
 
 
@@ -925,9 +973,9 @@ class Prism_Fusion_Functions(object):
 	def sm_export_startup(self, origin):
 		pass
 
-		@err_catcher(name=__name__)
-		def sm_export_setTaskText(self, origin, prevTaskName, newTaskName):
-			origin.l_taskName.setText(newTaskName)
+	@err_catcher(name=__name__)
+	def sm_export_setTaskText(self, origin, prevTaskName, newTaskName):
+		origin.l_taskName.setText(newTaskName)
 
 
 	@err_catcher(name=__name__)
@@ -1758,17 +1806,20 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def importUSD(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
-		comp.Lock()
-		comp.StartUndo("Import USD")
+		if self.sm_checkCorrectComp(comp):
+			comp.Lock()
+			comp.StartUndo("Import USD")
 
-		result = self.wrapped_importUSD(origin, UUID, nodeData, update)
+			result = self.wrapped_importUSD(origin, UUID, nodeData, update)
 
-		comp.EndUndo()
-		comp.Unlock()
+			comp.EndUndo()
+			comp.Unlock()
+		else:
+			logger.warning(f"ERROR: Unable to import USD")
+			return {"result": False, "doImport": False}
 
 		return result
-
-
+	
 	#	Imports or updates USD scene or object
 	@err_catcher(name=__name__)
 	def wrapped_importUSD(self, origin, UUID, nodeData, update=False):
@@ -1819,14 +1870,16 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def createUsdScene(self, origin, UUID):
 		comp = self.getCurrentComp()
-		comp.Lock()
-		comp.StartUndo("Create USD Scene")
+		if self.sm_checkCorrectComp(comp):
+			comp.Lock()
+			comp.StartUndo("Create USD Scene")
 
-		self.wrapped_createUsdScene(origin, UUID, comp)
+			self.wrapped_createUsdScene(origin, UUID, comp)
 
-		comp.EndUndo()
-		comp.Unlock()
-
+			comp.EndUndo()
+			comp.Unlock()
+		else:
+			logger.warning(f"ERROR: Unable to create USD scene")
 
 	@err_catcher(name=__name__)
 	def wrapped_createUsdScene(self, origin, UUID, comp):
@@ -1842,13 +1895,17 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def import3dObject(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
-		comp.Lock()
-		comp.StartUndo("Import 3D Object")	
+		if self.sm_checkCorrectComp(comp):
+			comp.Lock()
+			comp.StartUndo("Import 3D Object")	
 
-		result = self.wrapped_import3dObject(origin, UUID, nodeData, comp=comp, update=update)
+			result = self.wrapped_import3dObject(origin, UUID, nodeData, comp=comp, update=update)
 
-		comp.EndUndo()
-		comp.Unlock()
+			comp.EndUndo()
+			comp.Unlock()
+		else:
+			logger.warning(f"ERROR: Unable to import 3d object")
+			return {"result": False, "doImport": False}
 
 		return result
 
@@ -1910,32 +1967,139 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def create3dScene(self, origin, UUID):
 		comp = self.getCurrentComp()
-		comp.Lock()
-		comp.StartUndo("Create 3D Scene")	
+		if self.sm_checkCorrectComp(comp):
+			comp.Lock()
+			comp.StartUndo("Create 3D Scene")	
 
-		self.wrapped_create3dScene(origin, UUID)
+			self.wrapped_create3dScene(origin, UUID)
 
-		comp.EndUndo()
-		comp.Unlock()
+			comp.EndUndo()
+			comp.Unlock()
+		else:
+			logger.warning(f"ERROR: Unable to create 3d scene")
 
 	
 	#	Creates simple 3d scene - adds merge3d and render3d
 	@err_catcher(name=__name__)
-	def wrapped_create3dScene(self, origin, UUID):
+	def wrapped_create3dScene(self, origin, UUID):		
 		try:
 			Fus3d.create3dScene(self, origin, UUID)
 			logger.debug(f"Created 3d Scene for {UUID}")
 
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to create 3d scene:\n{e}")
-	
+		
+		
 
 	@err_catcher(name=__name__)
 	def importBlenderCam(self, origin, importPath, UUID, nodeName, version, update=False):
 		# return Fus3d.importFBX(self, origin, importPath, UUID, nodeName, version, update=False)
 		pass
 
+	@err_catcher(name=__name__)
+	def importLegacy3D(self, origin:Legacy3D_ImportClass, UUID, nodeData, update=False):
+		comp:Composition_ = self.getCurrentComp()
+		flow:FlowView_ = comp.CurrentFrame.FlowView
 
+		# Check that we are not importing in a comp different than the one we started the stateManager from
+		if self.sm_checkCorrectComp(comp):
+			comp.Lock()
+			comp.StartUndo("Import Legacy3D")
+
+			flow.InsertBookmark("3dImportBM") # Save where the view is at the time of import.
+			result:dict[str, bool] = self.wrapped_importLegacy3D(origin, UUID, nodeData, update)
+
+			comp.EndUndo()
+			comp.Unlock()
+		else:
+			logger.warning(f"ERROR: Unable to import 3D Scene")
+			return {"result": False, "doImport": False}
+
+		return result
+
+	@err_catcher(name=__name__)
+	def wrapped_importLegacy3D(self, origin:Legacy3D_ImportClass, UUID, nodeData, update=False, doImport=True):
+		comp:Composition_ = self.getCurrentComp()
+		flow:FlowView_ = comp.CurrentFrame.FlowView
+		importRes = False
+
+		#	Add new 3D Scene
+		# if not update:
+		try:
+			#	Import file
+			fileName:tuple[str, str] = os.path.splitext(os.path.basename(nodeData["Filepath"]))
+			origin.setName = ""
+			result:bool = False
+			
+			atx, aty = Fus.getRefPosition(comp, flow)
+
+			#	Get Extension
+			format:str = fileName[1].lower()
+			nodeData["format"] = format
+			if not os.path.exists(nodeData["Filepath"]):
+				QMessageBox.warning(
+					origin.core.messageParent, "Warning", "File %s does not exists" % nodeData["Filepath"]
+				)
+				return {"result": False, "doImport": False}
+			else:
+				pass
+
+			# Do the importing
+			if format == ".fbx":
+				result = Fus3d.importFBX(nodeData["Filepath"], self.fusion, origin)
+
+			elif format == ".abc":
+				result = Fus3d.importAlembic(nodeData["Filepath"], self.fusion, origin)
+				print("importAlembic result: ", result)
+			else:
+				self.core.popup(f"Import format '{format}' is not supported")
+				logger.warning(f"ERROR:  Format not supported: {format}")
+				
+				
+				#the statemanager was minimized on the import.
+				return {"result": False, "doImport": False}
+			
+			# After import update the stateManager interface
+			if result:
+				initcoords:tuple = (atx, aty)
+				result = Fus3d.createLegacy3DScene(origin, comp, flow, fileName, nodeData, UUID, initcoords)
+
+				
+				logger.debug(f"Imported Legacy3D Scene: {nodeData['product']}")
+
+		except Exception as e:
+			
+			#the statemanager was minimized on the import.
+			logger.warning(f"ERROR: Unable to import Legacy3D Scene:\n{e}")
+			return {"result": False, "doImport": False}
+			
+			# if uLdr:
+			# 	#	Add to Comp Database
+			# 	addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
+			# 	importRes = True
+		
+		#	Update uLoader
+		# else:
+		# 	try:
+		# 		#	Get tool
+		# 		tool = CompDb.getNodeByUID(comp, UUID)
+		# 		#	 Update tool data
+		# 		uLdr = Fus.updateTool(tool, nodeData)
+
+		# 		logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
+		# 		importRes = True
+
+		# 	except Exception as e:
+		# 		logger.warning(f"ERROR: Failed to update uLoader:\n{e}")
+
+		# 	if uLdr:
+		# 		#	Update Comp DB record
+		# 		CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
+		# 		importRes = True
+
+		
+		#the statemanager was minimized on the import.
+		return {"result": result, "doImport": doImport}
 
 
 	################################################
@@ -2973,6 +3137,45 @@ path = r\"%s\"
 					logger.warning("Error (Failed to create versionInfo Farm job)")
 					return "error (Failed to create versionInfo Farm job)", False
 
+	@err_catcher(name=__name__)
+	def create3DRenderNode(self, stateUID):
+		comp:Composition_ = self.getCurrentComp()
+		flow:FlowView_ = comp.CurrentFrame.FlowView
+		try:
+			scenetool = CompDb.getNodeByUID(comp, stateUID)
+			if scenetool:
+				x:float = 0.0
+				y:float = 0.0
+				x, y = flow.GetPosTable(scenetool).values()
+				mrg:Tool_ = comp.AddTool("Merge3D", x, y)
+				flow.SetPos(mrg, x+1.5, y)
+				ren:Tool_ = comp.AddTool("Renderer3D", x, y)
+				flow.SetPos(ren, x+3, y)
+
+				if scenetool.Name.startswith("ROOT_"):
+					product = scenetool.Name.split("ROOT_")[1]
+					mrg.SetAttrs({'TOOLS_Name' : "3DSceneMerge_" + product})
+					ren.SetAttrs({'TOOLS_Name' : "3DRender_" + product})
+				
+				mrg.ConnectInput("SceneInput1", scenetool)
+				ren.ConnectInput("SceneInput", mrg)
+
+				flow.Select()
+				flow.Select(mrg)
+				flow.Select(ren)
+				Fus.focusOnTool(comp, mrg, 1.0)
+
+		except Exception as e:
+			logger.warning(f"Error: {e} (Failed to create 3DScene correctly)")
+
+	@err_catcher(name=__name__)
+	def sm_view_FocusStateTool(self, stateUID):
+		comp:Composition_ = self.getCurrentComp()
+		focustool = CompDb.getNodeByUID(comp, stateUID)
+		if focustool:
+			Fus.focusOnTool(comp, focustool)
+		else:
+			self.core.popup("No state tool was found",  severity="info")
 
 	#	NOT USED HERE
 	@err_catcher(name=__name__)
@@ -3048,14 +3251,11 @@ path = r\"%s\"
 	
 
 	@err_catcher(name=__name__)
-	def deleteNodes(self, origin, handles, num=0):
-		comp = self.getCurrentComp()
-		for i in handles:	
-			if self.sm_checkCorrectComp(comp):
-				toolnm = i["name"]
-				tool = comp.FindTool(toolnm)
-				if tool:
-					tool.Delete()
+	def deleteNodes(self, stateUID):
+		comp:Composition_ = self.getCurrentComp()
+		comp.StartUndo("delete Legacy3D Nodes")
+		Fus3d.deleteTools(comp, stateUID)
+		comp.EndUndo()
 
 
 
@@ -3137,7 +3337,7 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def selecttasknodes(self, nodeUIDs):
 		comp = self.getCurrentComp()
-		flow = comp.CurrentFrame.FlowView
+		flow:FlowView_ = comp.CurrentFrame.FlowView
 		# deselect all nodes
 		flow.Select()
 
@@ -3156,6 +3356,24 @@ path = r\"%s\"
 					flow.Select(tool, True)
 			except:
 				pass
+
+	@err_catcher(name=__name__)
+	def colorLegacy3DTaskNodes(self, stateUID, color):
+		comp = self.getCurrentComp()
+		# in Legacy3d we give an empty list to the parameter with the stateIdinside as only param.
+		statenodesuids:list[str] = Fus3d.getStateNodesList(comp, stateUID)
+		toolsToColor:list[Tool_] = Fus3d.getToolsFromNodeList(comp, statenodesuids)
+
+		#	If the RGB is the Clear Color code
+		for tool in toolsToColor:
+			try:
+				if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
+					tool.TileColor = None
+				else:
+					tool.TileColor = color
+					logger.debug(f"Set color of tool: {tool.Name}")
+			except:
+				logger.warning(f"ERROR: Cannot set color of tool: {tool.Name}.")
 
 
 	#	Colors tools in Comp based on Color mode in DCC settings
@@ -3448,6 +3666,8 @@ path = r\"%s\"
 								 			self.getVersionStackContextFromPath,
 											self,
 											force=True)
+			self.core.plugins.monkeyPatch(origin.showStateMenu, self.showStateMenu, self, force=True)
+			self.core.plugins.monkeyPatch(origin.pasteStates, self.pasteStates, self, force=True)
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to load patched functions:\n{e}")
 
@@ -3537,47 +3757,51 @@ path = r\"%s\"
 	#	This is called from the import buttons in the SM (Import Image and Import 3D)
 	@err_catcher(name=__name__)
 	def addImportState(self, origin, stateType, filepath=None):				#	TODO IMPLEMENT ADDING IMAGE IMPORT STATE TO SM WITH FILEPATH
-		importStates = []
+		comp = self.getCurrentComp()	
+		if self.sm_checkCorrectComp(comp):
+			importStates = []
 
-		curSel = origin.getCurrentItem(origin.activeList)
-		if (origin.activeList == origin.tw_import
-			and curSel is not None
-			and curSel.ui.className == "Folder"
-			):
-			parent = curSel
-		else:
-			parent = None
+			curSel = origin.getCurrentItem(origin.activeList)
+			if (origin.activeList == origin.tw_import
+				and curSel is not None
+				and curSel.ui.className == "Folder"
+				):
+				parent = curSel
+			else:
+				parent = None
 
-		states = origin.stateTypes
-		for state in states:
-			importStates += getattr(origin.stateTypes[state], "stateCategories", {}).get(stateType, [])
+			states = origin.stateTypes
+			for state in states:
+				importStates += getattr(origin.stateTypes[state], "stateCategories", {}).get(stateType, [])
 
-		if len(importStates) == 1:
-			origin.createState(importStates[0]["stateType"], parent=parent, setActive=True)
-		else:
-			menu = QMenu(origin)
-			for importState in importStates:
-				actSet = QAction(importState["label"], origin)
-				actSet.triggered.connect(lambda x=None,
-							st=importState: origin.createState(st["stateType"],
-							parent=parent,
-							setActive=True,
-							**st.get("kwargs",{}))
-					)
+			if len(importStates) == 1:
+				origin.createState(importStates[0]["stateType"], parent=parent, setActive=True)
+			else:
+				menu = QMenu(origin)
+				for importState in importStates:
+					actSet = QAction(importState["label"], origin)
+					actSet.triggered.connect(lambda x=None,
+								st=importState: origin.createState(st["stateType"],
+								parent=parent,
+								setActive=True,
+								**st.get("kwargs",{}))
+						)
 
 
 
-				menu.addAction(actSet)
+					menu.addAction(actSet)
 
-			if not menu.isEmpty():
-				menu.exec_(QCursor.pos())
+				if not menu.isEmpty():
+					menu.exec_(QCursor.pos())
 
-		origin.activeList.setFocus()
+			origin.activeList.setFocus()
 
 
 	@err_catcher(name=__name__)
 	def addRenderGroup(self, origin):
-		origin.createState("RenderGroup")
+		comp = self.getCurrentComp()	
+		if self.sm_checkCorrectComp(comp):
+			origin.createState("RenderGroup")
 
 
 	##########################################
@@ -3624,117 +3848,169 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def rclTree(self, pos, activeList):
 		logger.debug("Loading patched function: 'rclTree'")
+		if self.sm_checkCorrectComp(self.getCurrentComp()):
+			sm = self.MP_stateManager
+			if sm:			
+				rcmenu = QMenu(sm)
 
-		sm = self.MP_stateManager
-		if sm:			
-			rcmenu = QMenu(sm)
+				# we check if the rclick is over a state
+				idx = sm.activeList.indexAt(pos)
+				parentState = sm.activeList.itemFromIndex(idx)
+				if parentState:
+					sm.rClickedItem = parentState
 
-            # we check if the rclick is over a state
-			idx = sm.activeList.indexAt(pos)
-			parentState = sm.activeList.itemFromIndex(idx)
-			if parentState:
-				sm.rClickedItem = parentState
+					# if parentState.ui.className == "ImportFile":
+					# 	self.MP_importState = parentState.ui
+					# 	self.core.plugins.monkeyPatch(parentState.ui.preDelete, self.preDelete, self, force=True)
 
-				# if parentState.ui.className == "ImportFile":
-				# 	self.MP_importState = parentState.ui
-				# 	self.core.plugins.monkeyPatch(parentState.ui.preDelete, self.preDelete, self, force=True)
+					#From here the only line that changes is the commented one in "render" state.
+					actExecute = QAction("Execute", sm)
+					actExecute.triggered.connect(lambda: sm.publish(executeState=True))
 
-				#From here the only line that changes is the commented one in "render" state.
-				actExecute = QAction("Execute", sm)
-				actExecute.triggered.connect(lambda: sm.publish(executeState=True))
+					menuExecuteV = QMenu("Execute as previous version", sm)
 
-				menuExecuteV = QMenu("Execute as previous version", sm)
+					actSort = None
+					selItems = sm.getSelectedStates()
+					if len(selItems) > 1:
+						parents = []
+						for item in selItems:
+							if item.parent() not in parents:
+								parents.append(item.parent())
 
-				actSort = None
-				selItems = sm.getSelectedStates()
-				if len(selItems) > 1:
-					parents = []
-					for item in selItems:
-						if item.parent() not in parents:
-							parents.append(item.parent())
+						if len(parents) == 1:
+							actSort = QAction("Sort", sm)
+							actSort.triggered.connect(lambda: sm.sortStates(selItems))
 
-					if len(parents) == 1:
-						actSort = QAction("Sort", sm)
-						actSort.triggered.connect(lambda: sm.sortStates(selItems))
+					actCopy = QAction("Copy", sm)
+					actCopy.triggered.connect(sm.copyState)
 
-				actCopy = QAction("Copy", sm)
-				actCopy.triggered.connect(sm.copyState)
+					actPaste = QAction("Paste", sm)
+					actPaste.triggered.connect(sm.pasteStates)
 
-				actPaste = QAction("Paste", sm)
-				actPaste.triggered.connect(sm.pasteStates)
+					actRename = QAction("Rename", sm)
+					actRename.triggered.connect(sm.renameState)
 
-				actRename = QAction("Rename", sm)
-				actRename.triggered.connect(sm.renameState)
+					actDel = QAction("Delete", sm)
+					actDel.triggered.connect(sm.deleteState)
 
-				actDel = QAction("Delete", sm)
-				actDel.triggered.connect(sm.deleteState)
-
-				if parentState is None:
-					actCopy.setEnabled(False)
-					actRename.setEnabled(False)
-					actDel.setEnabled(False)
-					actExecute.setEnabled(False)
-					menuExecuteV.setEnabled(False)
-				elif hasattr(parentState.ui, "l_pathLast"):
-					outPath = parentState.ui.getOutputName()
-
-					if not outPath or not outPath[0]:
+					if parentState is None:
+						actCopy.setEnabled(False)
+						actRename.setEnabled(False)
+						actDel.setEnabled(False)
+						actExecute.setEnabled(False)
 						menuExecuteV.setEnabled(False)
-					else:
-						outPath = outPath[0]
-						if "render" in parentState.ui.className.lower():
-							# GET PATHS FROM VERSIONS IN 2DRENDERS FOLDER
-							existingVersions = sm.core.mediaProducts.getVersionsFromSameVersionStack(
-								outPath, mediaType="2drenders"
-							)
-						elif "playblast" in parentState.ui.className.lower():
-							existingVersions = sm.core.mediaProducts.getVersionsFromSameVersionStack(
-								outPath, mediaType="playblasts"
-							)
+					elif hasattr(parentState.ui, "l_pathLast"):
+						outPath = parentState.ui.getOutputName()
+
+						if not outPath or not outPath[0]:
+							menuExecuteV.setEnabled(False)
 						else:
-							existingVersions = sm.core.products.getVersionsFromSameVersionStack(
-								outPath
-							)
-						for version in sorted(
-							existingVersions, key=lambda x: x["version"], reverse=True
-						):
-							name = version["version"]
-							actV = QAction(name, sm)
-							actV.triggered.connect(
-								lambda y=None, v=version["version"]: sm.publish(
-									executeState=True, useVersion=v
+							outPath = outPath[0]
+							if "render" in parentState.ui.className.lower():
+								# GET PATHS FROM VERSIONS IN 2DRENDERS FOLDER
+								existingVersions = sm.core.mediaProducts.getVersionsFromSameVersionStack(
+									outPath, mediaType="2drenders"
 								)
-							)
-							menuExecuteV.addAction(actV)
+							elif "playblast" in parentState.ui.className.lower():
+								existingVersions = sm.core.mediaProducts.getVersionsFromSameVersionStack(
+									outPath, mediaType="playblasts"
+								)
+							else:
+								existingVersions = sm.core.products.getVersionsFromSameVersionStack(
+									outPath
+								)
+							for version in sorted(
+								existingVersions, key=lambda x: x["version"], reverse=True
+							):
+								name = version["version"]
+								actV = QAction(name, sm)
+								actV.triggered.connect(
+									lambda y=None, v=version["version"]: sm.publish(
+										executeState=True, useVersion=v
+									)
+								)
+								menuExecuteV.addAction(actV)
 
-				if menuExecuteV.isEmpty():
-					menuExecuteV.setEnabled(False)
+					if menuExecuteV.isEmpty():
+						menuExecuteV.setEnabled(False)
 
-				# Check if it is Image Render #
-				if parentState.ui.className != "ImageRender":
-					menuExecuteV.setEnabled(False)
+					# Check if it is Image Render #
+					if parentState.ui.className != "ImageRender":
+						menuExecuteV.setEnabled(False)
 
-				###############################
+					###############################
 
-				if parentState is None or parentState.ui.className == "Folder":
-					createMenu = sm.getStateMenu(parentState=parentState)
-					rcmenu.addMenu(createMenu)
+					if parentState is None or parentState.ui.className == "Folder":
+						createMenu = sm.getStateMenu(parentState=parentState)
+						rcmenu.addMenu(createMenu)
 
-				if sm.activeList == sm.tw_export:
-					if not sm.standalone:
-						rcmenu.addAction(actExecute)
-						rcmenu.addMenu(menuExecuteV)
+					if sm.activeList == sm.tw_export:
+						if not sm.standalone:
+							rcmenu.addAction(actExecute)
+							rcmenu.addMenu(menuExecuteV)
 
-				if actSort:
-					rcmenu.addAction(actSort)
+					if actSort:
+						rcmenu.addAction(actSort)
 
-				rcmenu.addAction(actCopy)
-				rcmenu.addAction(actPaste)
-				rcmenu.addAction(actRename)
-				rcmenu.addAction(actDel)
+					rcmenu.addAction(actCopy)
+					rcmenu.addAction(actPaste)
+					rcmenu.addAction(actRename)
+					rcmenu.addAction(actDel)
 
-				rcmenu.exec_(sm.activeList.mapToGlobal(pos))
+					rcmenu.exec_(sm.activeList.mapToGlobal(pos))
 
+	@err_catcher(name=__name__)
+	def showStateMenu (self, listType=None, useSelection=False):
+		logger.debug("Loading patched function: 'showStateMenu'")
+		
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			sm = self.MP_stateManager			
+			globalPos = QCursor.pos()
+			parentState = None
+			if useSelection:
+				listWidget = sm.tw_import if listType == "Import" else sm.tw_export
+				if listWidget == sm.activeList:
+					parentState = sm.getCurrentItem(sm.activeList)
+			else:
+				pos = sm.activeList.mapFromGlobal(globalPos)
+				idx = sm.activeList.indexAt(pos)
+				parentState = sm.activeList.itemFromIndex(idx)
+
+			if parentState and parentState.ui.className != "Folder":
+				parentState = None
+
+			menu = sm.getStateMenu(listType, parentState)
+			menu.exec_(globalPos)
+			# self.core.plugins.callUnpatchedFunction(sm.showStateMenu, listType=listType, useSelection=useSelection)
+
+		else:
+			logger.warning(f"ERROR: Unable to to create state")
+
+	@err_catcher(name=__name__)
+	def pasteStates(self):
+		logger.debug("Loading patched function: 'showStateMenu'")
+		
+		comp = self.getCurrentComp()
+		if self.sm_checkCorrectComp(comp):
+			sm = self.MP_stateManager
+
+			cb = QClipboard()
+			try:
+				rawText = cb.text("plain")[0]
+			except:
+				QMessageBox.warning(
+					sm.core.messageParent,
+					"Paste states",
+					"No valid state data in clipboard.",
+				)
+				return
+
+			sm.loadStates(rawText)
+
+			sm.showState()
+			sm.activeList.clearFocus()
+			sm.activeList.setFocus()
 
 	@err_catcher(name=__name__)
 	def getVersionStackContextFromPath(self, filepath, mediaType=None):

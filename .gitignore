@@ -1,4 +1,7 @@
 *.pyc
 Fusion/.fusion_typings/
-*.fusion_typings/
+.fusion_typings/
+.prism_typings/
 .vscode/settings.json
+.extrafiles
+/Fusion/Scripts/StateManagerNodes/StateUserInterfaces/.trashy

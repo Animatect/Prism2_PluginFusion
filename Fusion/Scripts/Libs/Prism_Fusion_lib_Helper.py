@@ -70,7 +70,7 @@ Toolname = str
 
 
 #   Gets list of AOV's from Prism
-@err_catcher(name=__name__)
+
 def getAovNamesFromAovDict(aovDict:list) -> list:
     try:
         aovNames = []
@@ -84,7 +84,7 @@ def getAovNamesFromAovDict(aovDict:list) -> list:
 
 
 #	Configures name to conform with Fusion Restrictions
-@err_catcher(name=__name__)
+
 def getFusLegalName(origName:str, check:bool=False) -> str:			#	TODO  Restructure and logging
     """
         Fusion has strict naming for nodes.  You can only use:
@@ -120,7 +120,7 @@ def getFusLegalName(origName:str, check:bool=False) -> str:			#	TODO  Restructur
 
 
 #   Makes import data dict from various Prism data sources
-@err_catcher(name=__name__)
+
 def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
     #   Get mediaType from Context
     mediaType = context["mediaType"]
@@ -279,7 +279,7 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
 
 
 #   Return File data based on desired AOV
-@err_catcher(name=__name__)
+
 def getFileDataFromAOV(fileList:list, aov:str) -> dict:
     #   If list is one item, jut return the item
     if len(fileList) == 1:
@@ -295,7 +295,7 @@ def getFileDataFromAOV(fileList:list, aov:str) -> dict:
 
 
 #	Returns an average luminance value
-@err_catcher(name=__name__)
+
 def calculateLuminance(color:dict) -> float:
     try:
         r,g,b = color['R'], color['G'], color['B']
@@ -308,7 +308,7 @@ def calculateLuminance(color:dict) -> float:
     
 
 #	Determines if color is bighter than threshold
-@err_catcher(name=__name__)
+
 def isBgBright(color:dict, threshold=0.5) -> bool:
     luminance = calculateLuminance(color)
     return luminance > threshold

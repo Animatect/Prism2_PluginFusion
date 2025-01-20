@@ -147,7 +147,7 @@ Toolname = str
 
 
 #	Creates UUID
-@err_catcher(name=__name__)
+
 def createUUID(simple:bool=False, length:int=8) -> str:
     #	Creates simple Date/Time UID
     if simple:
@@ -174,7 +174,7 @@ def createUUID(simple:bool=False, length:int=8) -> str:
 
 
 #   Creates Default Database
-@err_catcher(name=__name__)
+
 def createDefaultPrismFileDb(comp) -> dict:
     #   This template needs to have the required keys.
     #   Add additional keys as needed.
@@ -205,7 +205,7 @@ def createDefaultPrismFileDb(comp) -> dict:
 
 
 #   Returns the Database Dict
-@err_catcher(name=__name__)
+
 def loadPrismFileDb(comp) -> dict:
     try:
         cpData_str = comp.GetData("PrismDB")
@@ -222,7 +222,7 @@ def loadPrismFileDb(comp) -> dict:
 
 
 #   Saves the Database Dict
-@err_catcher(name=__name__)
+
 def savePrismFileDb(comp, cpData_orig:dict):
 
     #   Clean DB dict before saving
@@ -239,14 +239,14 @@ def savePrismFileDb(comp, cpData_orig:dict):
         comp.SetData("PrismDB", cpData_str)
         logger.debug("Saved Prism Comp Database to Comp")
 
-        print(f"\n***  Prism Database:\n{print(comp.GetData('PrismDB'))}\n")                            #   TESTING
+        # print(f"\n***  Prism Database:\n{print(comp.GetData('PrismDB'))}\n")                            #   TESTING
 
     except:
         logger.warning("ERROR: Failed to save Prism Comp Database to Comp")
 
 
 #   Removes DB records if the node does not exist in Comp
-@err_catcher(name=__name__)
+
 def cleanPrismFileDb(comp, cpData_orig:dict) -> dict:
     try:
         cpData_cleaned = cpData_orig.copy()
@@ -272,7 +272,7 @@ def cleanPrismFileDb(comp, cpData_orig:dict) -> dict:
 
 
 #   Adds a new Media Identifier to the DB
-@err_catcher(name=__name__)
+
 def addPrismDbIdentifier(comp, category:str, name:str, color:int):
     cpData = loadPrismFileDb(comp)
     try:
@@ -285,7 +285,7 @@ def addPrismDbIdentifier(comp, category:str, name:str, color:int):
 
 
 #   Returns the Color of a Given Identifier
-@err_catcher(name=__name__)
+
 def getPrismDbIdentifierColor(comp, category:str, name:str) -> Union[Color, None]:
     try:
         logger.debug(f"Getting Identifier Color for {name}")
@@ -303,7 +303,7 @@ def getPrismDbIdentifierColor(comp, category:str, name:str) -> Union[Color, None
 
 
 #   Sets/Gets the checkbox state of the dialog as part of the comp data.
-@err_catcher(name=__name__)
+
 def sortingEnabled(comp, save:bool=False, checked:bool=None) -> bool:
     cpData = loadPrismFileDb(comp)
 
@@ -324,7 +324,7 @@ def sortingEnabled(comp, save:bool=False, checked:bool=None) -> bool:
     
 
 #   Adds new Node to the DB
-@err_catcher(name=__name__)
+
 def addNodeToDB(comp, listType:str, UUID:str, nodeData:dict) -> bool:
     cpData = loadPrismFileDb(comp)
 
@@ -362,7 +362,7 @@ def addNodeToDB(comp, listType:str, UUID:str, nodeData:dict) -> bool:
 
 #   Checks is there is already a record in the Database
 #   This is to cover if a node was added, then deleted in Fusion, and added again.
-@err_catcher(name=__name__)
+
 def checkRecordInDb(comp, listType:str, UUID:str, nodeData:dict) -> Union[UUID | bool]:
     cpData = loadPrismFileDb(comp)
 
@@ -371,7 +371,7 @@ def checkRecordInDb(comp, listType:str, UUID:str, nodeData:dict) -> Union[UUID |
         typeBranch = cpData["nodes"].get(listType, {})
 
         #   Items to compare in the records
-        checkItems = ["nodeName", "version", "filepath", "format", "mediaId", "displayName"]
+        checkItems = ["nodeName", "version", "filepath", "format", "mediaId", "displayName", "tooltype"]
 
         for recordUUID, recordData in typeBranch.items():
             #   Skip if the record does not have a "NodeData" structure
@@ -408,7 +408,7 @@ def checkRecordInDb(comp, listType:str, UUID:str, nodeData:dict) -> Union[UUID |
 
 
 #   Removes a Node from the DB
-@err_catcher(name=__name__)
+
 def removeNodeFromDB(comp, listType:str, UUID:str):
     cpData = loadPrismFileDb(comp)
 
@@ -425,7 +425,7 @@ def removeNodeFromDB(comp, listType:str, UUID:str):
 
 
 #   Gets the database record for a given importData dict
-@err_catcher(name=__name__)
+
 def getUIDsFromImportData(comp, listType:str, importData:dict) -> dict:
     cpData = loadPrismFileDb(comp)
 
@@ -478,7 +478,7 @@ def getUIDsFromImportData(comp, listType:str, importData:dict) -> dict:
 
 
 #   Gets the database record for a given Identifier
-@err_catcher(name=__name__)
+
 def getDbRecordFromMediaId(comp, listType:str, mediaId:str) -> dict:
     cpData = loadPrismFileDb(comp)
 
@@ -503,7 +503,7 @@ def getDbRecordFromMediaId(comp, listType:str, mediaId:str) -> dict:
 
 
 #   Updates the Node's Data in the DB
-@err_catcher(name=__name__)
+
 def updateNodeInfo(comp, listType:str, UUID:str, nodeData:dict) -> bool:
     cpData = loadPrismFileDb(comp)
 
@@ -535,7 +535,7 @@ def updateNodeInfo(comp, listType:str, UUID:str, nodeData:dict) -> bool:
         
 
 #   Return a list of MediaIds for a given type
-@err_catcher(name=__name__)
+
 def getMediaIDsForType(comp, listType:str) -> list[str]:
     #   Get database data
     cpData = loadPrismFileDb(comp)
@@ -559,7 +559,7 @@ def getMediaIDsForType(comp, listType:str) -> list[str]:
 
 
 #   Return the Node Data for a given Node
-@err_catcher(name=__name__)
+
 def getNodeInfo(comp, listType:str, UUID:str) -> dict:
     cpData = loadPrismFileDb(comp)
 
@@ -575,7 +575,7 @@ def getNodeInfo(comp, listType:str, UUID:str) -> dict:
 
 
 #   Returns list of import files based on selected tools
-@err_catcher(name=__name__)
+
 def getFilesFromSelTools(comp, importData:dict, selUIDs:list) -> list[str]:
     selItems = []
     #   Get files list
@@ -605,7 +605,7 @@ def getFilesFromSelTools(comp, importData:dict, selUIDs:list) -> list[str]:
 
 
 #   Compares two version data dicts and returns result and message
-@err_catcher(name=__name__)
+
 def compareVersions(origVerRecord:dict, updateVerRecord:dict) -> Tuple[bool, str]:
     try:
         #   Get original version
@@ -658,7 +658,7 @@ def compareVersions(origVerRecord:dict, updateVerRecord:dict) -> Tuple[bool, str
 
 
 #	Checks if a matching tool exists in the comp
-@err_catcher(name=__name__)
+
 def nodeExists(comp, nodeUID:str) -> bool:
     if getNodeByUID(comp, nodeUID):
         return True
@@ -666,7 +666,7 @@ def nodeExists(comp, nodeUID:str) -> bool:
 
 
 #   Returns tool based on UID
-@err_catcher(name=__name__)
+
 def getNodeByUID(comp, nodeUID:str) -> Union[Tool, None]:
     try:
         #   Gets all tools
@@ -686,7 +686,7 @@ def getNodeByUID(comp, nodeUID:str) -> Union[Tool, None]:
 
 
 #   Returns tool name based on UID
-@err_catcher(name=__name__)
+
 def getNodeNameByUID(comp, nodeUID:str) -> Toolname:
     tool = getNodeByUID(comp, nodeUID)
     toolName = getNodeNameByTool(tool)
@@ -695,7 +695,7 @@ def getNodeNameByUID(comp, nodeUID:str) -> Toolname:
 
 
 #   Returns tool name for tool
-@err_catcher(name=__name__)
+
 def getNodeNameByTool(tool:Tool) -> Toolname:
     try:
         toolName = tool.GetAttrs()["TOOLS_Name"]
@@ -706,7 +706,7 @@ def getNodeNameByTool(tool:Tool) -> Toolname:
     
 
 #   Returns tool's UID
-@err_catcher(name=__name__)
+
 def getNodeUidFromTool(tool) -> str:
     try:
         nodeUID = tool.GetData('Prism_UUID')
@@ -717,7 +717,7 @@ def getNodeUidFromTool(tool) -> str:
 
 
 #   Returns tool UID based on Identifier
-@err_catcher(name=__name__)
+
 def getNodeUidFromMediaId(comp, listType:str, mediaId:str) -> Union[str | list | None]:
     cpData = loadPrismFileDb(comp)
 
@@ -746,7 +746,7 @@ def getNodeUidFromMediaId(comp, listType:str, mediaId:str) -> Union[str | list |
     
 
 #   Returns tool UID based on Identifier display name
-@err_catcher(name=__name__)
+
 def getNodeUidFromMediaDisplayname(comp, listType:str, mediaId:str) -> Union[UUID | None]:
     cpData = loadPrismFileDb(comp)
 
@@ -773,7 +773,7 @@ def getNodeUidFromMediaDisplayname(comp, listType:str, mediaId:str) -> Union[UUI
 
 
 #   Returns the Connected Nodes for a given Node
-@err_catcher(name=__name__)
+
 def getConnectedNodes(comp, listType:str, UUID:str) -> Union[list | None]:
     cpData = loadPrismFileDb(comp)
 
@@ -807,7 +807,7 @@ def getConnectedNodes(comp, listType:str, UUID:str) -> Union[list | None]:
 
 #	Gets either single UID or List of UID's
 #	and returns the original and all connected UUID's
-@err_catcher(name=__name__)
+
 def getAllConnectedNodes(comp, listType:str, nodeUIDs:Union[list|str]) -> list[Tool]:
     mainToolsUIDs = []
     allToolUIDs = []
@@ -836,7 +836,7 @@ def getAllConnectedNodes(comp, listType:str, nodeUIDs:Union[list|str]) -> list[T
 
 
 # Checks if tool is set to pass-through mode
-@err_catcher(name=__name__)
+
 def isPassThrough(comp, nodeUID:str=None, node:str=None) -> bool:
     if nodeUID:
         node = getNodeByUID(comp, nodeUID)
@@ -845,7 +845,7 @@ def isPassThrough(comp, nodeUID:str=None, node:str=None) -> bool:
 
 
 #	Sets the Fusion node's passthrough
-@err_catcher(name=__name__)
+
 def setPassThrough(comp, nodeUID:str=None, node:str=None, passThrough=False):
     if nodeUID:
         node = getNodeByUID(comp, nodeUID)
@@ -853,7 +853,7 @@ def setPassThrough(comp, nodeUID:str=None, node:str=None, passThrough=False):
 
 
 #   Reloads the Loaders and sets the clip start/end/length
-@err_catcher(name=__name__)
+
 def reloadLoader(fusion, comp, node, filePath=None, firstframe=None, lastframe=None):
     try:
         if filePath:
@@ -884,7 +884,7 @@ def reloadLoader(fusion, comp, node, filePath=None, firstframe=None, lastframe=N
 ################################
 ###        STATE DATA        ###
 
-@err_catcher(name=__name__)
+
 def setDefaultState(comp):
     defaultState = """{
     "states": [
@@ -903,7 +903,7 @@ def setDefaultState(comp):
         logger.warning(f"ERROR: Unable to save default State Data to comp: {comp}")
 
 
-@err_catcher(name=__name__)
+
 def sm_saveStates(comp, buf:str):
     try:
         comp.SetData("prismStates", buf + "_..._")
@@ -912,14 +912,14 @@ def sm_saveStates(comp, buf:str):
         logger.warning(f"ERROR: Unable to save State Data to comp: {comp}")
 
 
-@err_catcher(name=__name__)
+
 def sm_saveImports(comp, importPaths:str):
     prismdata = comp.GetData("prismStates")
     prismdata += importPaths.replace("\\\\", "\\")
     comp.SetData("prismStates", prismdata)
 
 
-@err_catcher(name=__name__)
+
 def sm_readStates(comp) -> str:
     try:
         prismdata = comp.GetData("prismStates")
@@ -934,13 +934,13 @@ def sm_readStates(comp) -> str:
 
 
 #	Gets called from SM to remove all States
-@err_catcher(name=__name__)
+
 def sm_deleteStates(comp):
     #	Sets the states datablock to empty default state
     setDefaultState()
 
 
-@err_catcher(name=__name__)
+
 def getImportPaths(comp) -> str:
     prismdata = comp.GetData("prismStates")
     return prismdata.split("_..._")[1]
