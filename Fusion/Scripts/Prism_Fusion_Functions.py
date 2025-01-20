@@ -2012,7 +2012,7 @@ class Prism_Fusion_Functions(object):
 			comp.EndUndo()
 			comp.Unlock()
 		else:
-			logger.warning(f"ERROR: Unable to import USD")
+			logger.warning(f"ERROR: Unable to import 3D Scene")
 			return {"result": False, "doImport": False}
 
 		return result
@@ -2057,7 +2057,6 @@ class Prism_Fusion_Functions(object):
 				
 				
 				#the statemanager was minimized on the import.
-				origin.stateManager.showNormal()
 				return {"result": False, "doImport": False}
 			
 			# After import update the stateManager interface
@@ -2065,14 +2064,12 @@ class Prism_Fusion_Functions(object):
 				initcoords:tuple = (atx, aty)
 				result = Fus3d.createLegacy3DScene(origin, comp, flow, fileName, nodeData, UUID, initcoords)
 
-
-
+				
 				logger.debug(f"Imported Legacy3D Scene: {nodeData['product']}")
 
 		except Exception as e:
 			
 			#the statemanager was minimized on the import.
-			origin.stateManager.showNormal()
 			logger.warning(f"ERROR: Unable to import Legacy3D Scene:\n{e}")
 			return {"result": False, "doImport": False}
 			
@@ -2102,7 +2099,6 @@ class Prism_Fusion_Functions(object):
 
 		
 		#the statemanager was minimized on the import.
-		origin.stateManager.showNormal()
 		return {"result": result, "doImport": doImport}
 
 

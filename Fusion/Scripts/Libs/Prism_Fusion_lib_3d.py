@@ -355,7 +355,6 @@ def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str
     if timeoutSecs > 0:
         imported = doUiImport(fusion, formatCall, interval, filepath, timeoutSecs)
     
-    # origin.stateManager.showNormal()
 
     return imported
 
