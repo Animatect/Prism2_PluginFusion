@@ -519,8 +519,8 @@ class Legacy3D_ImportClass(object):
         self.stateManager.saveImports()
         self.updateUi()
         self.stateManager.saveStatesToScene()
-        
-        self.stateManager.stateManager.showNormal()
+
+        self.stateManager.showNormal()
 
         return result
 

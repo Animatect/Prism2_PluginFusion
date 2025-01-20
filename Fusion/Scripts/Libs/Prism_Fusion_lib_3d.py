@@ -72,7 +72,7 @@ else:
     Output_ = Any
 	
 
-@err_catcher(name=__name__)
+
 def createUsdScene(plugin, origin, UUID):
 
     comp = plugin.getCurrentComp()
@@ -97,7 +97,7 @@ def createUsdScene(plugin, origin, UUID):
     flow.SetPos(uRender, usdTool_x + 4, usdTool_y)
 
 
-@err_catcher(name=__name__)
+
 def create3dScene(plugin, origin, UUID):
 
     comp = plugin.getCurrentComp()
@@ -132,7 +132,7 @@ def create3dScene(plugin, origin, UUID):
 
 
 
-# @err_catcher(name=__name__)
+# 
 # def getPythonLocation(self)-> str:
 #     ospath = os.path.dirname(os.__file__)
 #     path_components = os.path.split(ospath)
@@ -142,7 +142,7 @@ def create3dScene(plugin, origin, UUID):
 #     return python_location
 
 
-# @err_catcher(name=__name__)
+# 
 # def create_and_run_bat(self):
 #     import subprocess
 #     home_dir = os.path.expanduser("~")
@@ -168,7 +168,7 @@ def create3dScene(plugin, origin, UUID):
 #     return bat_file_path
 
 
-# @err_catcher(name=__name__)
+# 
 # def focus_fusion_window(self):
 #     import subprocess
 #     # Get all windows
@@ -223,7 +223,7 @@ abc_options = {
     "InvCameras": True
     # "SamplingRate": 24
 }
-@err_catcher(name=__name__)
+
 def focusFusionDialog(fusion:Fusion_, msg:str)->int:
     ui = fusion.UIManager
     disp = bmd.UIDispatcher(ui)
@@ -303,7 +303,7 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
 
 
 
-@err_catcher(name=__name__)
+
 def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str, timeoutsecs:int):
     comp:Composition_ = fusion.GetCurrentComp()
     #Call the dialog
@@ -328,7 +328,7 @@ def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str, tim
         return False
 
     
-@err_catcher(name=__name__)
+
 def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str, filepath:str, global_scale:float, options:dict = None, interval:float = 0.5):
     origin.stateManager.showMinimized()
     comp:Composition_ = fusion.GetCurrentComp()
@@ -359,7 +359,7 @@ def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str
     return imported
 
 
-@err_catcher(name=__name__)
+
 def importAlembic(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
     return importFormatByUI(
         fusion=fusion, 
@@ -370,7 +370,7 @@ def importAlembic(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->
         options=abc_options
     )
 
-@err_catcher(name=__name__)
+
 def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
     return importFormatByUI(
         fusion=fusion, 
@@ -381,20 +381,20 @@ def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool
     )
 
 
-# @err_catcher(name=__name__)
+# 
 # def importBlenderCam(self, importPath, origin):
 #     from MH_BlenderCam_Fusion_Importer import BlenderCameraImporter
 #     BcamImporter = BlenderCameraImporter()
 #     return BcamImporter.import_blender_camera(importPath)
 
 
-# @err_catcher(name=__name__)
+# 
 # def sm_import_disableObjectTracking(self, origin):
 #     self.deleteNodes(origin, [origin.setName])
 
 
 # # #Main Import function
-# @err_catcher(name=__name__)
+# 
 # def sm_import_importToApp(self, origin, doImport, update, impFileName):
 
 
@@ -503,7 +503,7 @@ def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool
 
 #     return {"result": result, "doImport": doImport}
 
-@err_catcher(name=__name__)
+
 def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict, stateUUID:str, initcoords:tuple=tuple((0,0)))->bool:
     #check if there was a merge3D in the import and where was it connected to
     importedTools:list[Tool_] = comp.GetToolList(True).values()
@@ -637,7 +637,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
 
     return result
 
-@err_catcher(name=__name__)
+
 def getNode(obj:str|dict|Tool_)->dict:
     if type(obj) == str:
         node = {"name": obj}
@@ -648,7 +648,7 @@ def getNode(obj:str|dict|Tool_)->dict:
     return node
 
 
-@err_catcher(name=__name__)
+
 def selectNodes(origin:Legacy3D_ImportClass):
     if origin.lw_objects.selectedItems() != []:
         nodes:list[dict] = []
@@ -659,12 +659,12 @@ def selectNodes(origin:Legacy3D_ImportClass):
         # select(nodes)
                 
 
-@err_catcher(name=__name__)
+
 def isNodeValid(origin, handle):
     return True
     
 
-@err_catcher(name=__name__)
+
 def getObject(comp:Composition_, node:str|dict)->Tool_:
     if type(node) == str:
         node = getNode(node)
@@ -672,7 +672,7 @@ def getObject(comp:Composition_, node:str|dict)->Tool_:
     return comp.FindTool(node["name"])
 
 
-@err_catcher(name=__name__)
+
 def applyProductSufix(originalName:str, origin:Legacy3D_ImportClass)->str:
     newName:str = originalName + "_" + origin.importPath.split("_")[-2]
     return newName
@@ -681,7 +681,7 @@ def applyProductSufix(originalName:str, origin:Legacy3D_ImportClass)->str:
 #######################################################
 
 
-# @err_catcher(name=__name__)
+# 
 def cleanbeforeImport(origin:Legacy3D_ImportClass, stateUID:str):
     # if origin.nodes == []:
     #     return
@@ -697,7 +697,7 @@ def deleteTools(comp:Composition_, stateUID:str):
     for tool in stateTools:
         tool.Delete()
 
-@err_catcher(name=__name__)
+
 def getNodeStateTypes(comp:Composition_) -> list:
     cpData = CompDb.loadPrismFileDb(comp)
     stateTypes:list = []
@@ -706,7 +706,7 @@ def getNodeStateTypes(comp:Composition_) -> list:
 
     return stateTypes
 
-@err_catcher(name=__name__)
+
 def getAllNodes(comp:Composition_) -> dict:
     cpData = CompDb.loadPrismFileDb(comp)
     stateTypes:list[str] = getNodeStateTypes(comp)
@@ -718,7 +718,7 @@ def getAllNodes(comp:Composition_) -> dict:
     
     return nodes
 
-@err_catcher(name=__name__)
+
 def getStateNodesList(comp:Composition_, stuid:str) -> list[str]:
     allnodes = getAllNodes(comp)
     
@@ -730,7 +730,7 @@ def getStateNodesList(comp:Composition_, stuid:str) -> list[str]:
     
     return nodels
 
-@err_catcher(name=__name__)
+
 def getStateNodesOrigNameList(comp:Composition_, nodeUIDlist:list[str]) -> list[str]:
     nodes:dict = getAllNodes(comp)
     nodeNmLs:list[str] = []
@@ -744,7 +744,7 @@ def getStateNodesOrigNameList(comp:Composition_, nodeUIDlist:list[str]) -> list[
     
     return nodeNmLs
 
-@err_catcher(name=__name__)
+
 def getToolsFromNodeList(comp:Composition_, nodeUIDlist:list[str]) -> list[Tool_]:
     nodes:dict = getAllNodes(comp)
     tools:list[Tool_] = []
@@ -757,7 +757,7 @@ def getToolsFromNodeList(comp:Composition_, nodeUIDlist:list[str]) -> list[Tool_
     return tools
 
 
-@err_catcher(name=__name__)
+
 def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID:str, newtools:list[Tool_], sceneTool:Tool_)->tuple[bool, list[str]]:
     alldbnodes:dict = getAllNodes(comp)
     statenodesuids:list[str] = getStateNodesList(comp, stateUID)
@@ -900,11 +900,11 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
     return True, positionednodes, unsuccesfulconnections
 
 
-# @err_catcher(name=__name__)
+# 
 # def sm_import_updateObjects(self, origin):
 #     pass
 
 
-# @err_catcher(name=__name__)
+# 
 # def sm_import_removeNameSpaces(self, origin):
 #     pass
