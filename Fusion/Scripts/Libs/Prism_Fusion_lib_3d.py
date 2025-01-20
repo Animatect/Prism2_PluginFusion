@@ -628,9 +628,6 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     #Set result to True if we have nodes
     result:bool = len(importedTools) > 0
 
-    #the statemanager was minimized on the import.
-    origin.stateManager.showNormal()
-
     if isUpdate and len(unsuccesfulConnections)>0:
         msg:str = "The Following connections were unsuccessful: \n"
         for connection in unsuccesfulConnections:
