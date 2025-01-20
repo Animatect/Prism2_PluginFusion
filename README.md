@@ -17,9 +17,10 @@ https://prism-pipeline.com/
 - Rendering through Prism's State Manager.
 - Image loading into Fusion through Prism's Project Browser.
 - Farm Render submission through Deadline.
+- USD, FBX, and ABC object and scene importing
+- USD and MaterialX material importing
 - Tested with Fusion Studio versions 18 and 19.
 - This integration does not work with Resolve Fusion, though it is planned for the future.
-- Sometimes the Startup Popup appears twice.  Sarting twice has no adverse effects.
 - As of Prism version 2.0.12, the automatic Media Conversion is not able to function.  This is working as of Prism 2.0.13.
 - To aid is use, tooltips are provided throughout.
 
@@ -28,7 +29,6 @@ https://prism-pipeline.com/
 ## **Installation**
 
 This plugin is for Windows only, as Prism2 only supports Windows at this time.
-
 <br/>
 
 - You can either download the latest stable release version from: [Latest Release](https://github.com/Animatect/Prism2_PluginFusion/releases/latest)

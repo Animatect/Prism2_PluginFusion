@@ -59,7 +59,7 @@ Task coloring and selecting can be accessed by right-clicking the Media Identifi
 
 ![Task Color Menu](DocsImages/TaskColor_menu.png)
 
-Selecting a color from the dropdown menu will apply the color to the Task Identifier, and the Fusion Tools in the Comp based on the user preferences in the Prism Settings (see [**Interface**](Interface.md)).  This allows the user to visually associate the Tools in the Comp with the Media ID and aids in organization.  The color can be cleared and reset to the defalt color by selecting "Clear Color" from the list.
+Selecting a color from the dropdown menu will apply the color to the Task Identifier, and the Fusion Tools in the Comp based on the user preferences in the Prism Settings (see [**Interface**](Interface.md)).  This allows the user to visually associate the Tools in the Comp with the Media ID and aids in organization.  The color can be cleared and reset to the default color by selecting "Clear Color" from the list.
 
 * Note: the colors themselves are from Fusion's coloring and cannot be edited.
 
@@ -73,6 +73,7 @@ This allows the user to quickly select all the Tools that are associated with th
 
 <br/>
 
+___
 jump to:
 
 [**Interface**](Interface.md)

@@ -89,6 +89,7 @@ Fusion has a native auto-save function that will periodically save the Comp to a
 
 <br/>
 
+___
 jump to:
 
 [**Rendering**](Rendering.md)
