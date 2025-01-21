@@ -1845,6 +1845,7 @@ class Prism_Fusion_Functions(object):
 
 		return result
 	
+	
 	#	Imports or updates USD scene or object
 	@err_catcher(name=__name__)
 	def wrapped_importUSD(self, origin, UUID, nodeData, update=False):
@@ -1887,7 +1888,6 @@ class Prism_Fusion_Functions(object):
 				CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
 				importRes = True
 
-
 		return {"result": importRes, "doImport": importRes}
 	
 
@@ -1905,6 +1905,7 @@ class Prism_Fusion_Functions(object):
 			comp.Unlock()
 		else:
 			logger.warning(f"ERROR: Unable to create USD scene")
+
 
 	@err_catcher(name=__name__)
 	def wrapped_createUsdScene(self, origin, UUID, comp):
@@ -2209,8 +2210,8 @@ class Prism_Fusion_Functions(object):
 				#	Add 3d Tool
 				ldr3d = Fus.addTool(comp, toolType, nodeData)
 				
-				comp.Unlock()
-				comp.EndUndo()
+				# comp.Unlock()
+				# comp.EndUndo()
 
 				logger.debug(f"Imported 3d object: {nodeData['product']}")
 
