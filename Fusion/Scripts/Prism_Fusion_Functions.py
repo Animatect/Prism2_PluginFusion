@@ -1831,10 +1831,13 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def importUSD(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
+		flow:FlowView_ = comp.CurrentFrame.FlowView
+
 		if self.sm_checkCorrectComp(comp):
 			comp.Lock()
 			comp.StartUndo("Import USD")
 
+			flow.InsertBookmark("USD_Import")
 			result = self.wrapped_importUSD(origin, UUID, nodeData, update)
 
 			comp.EndUndo()
@@ -1922,9 +1925,12 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def createUsdMaterial(self, origin, UUID, texData, update=False):
 		comp = self.getCurrentComp()
+		flow:FlowView_ = comp.CurrentFrame.FlowView
+
 		# comp.Lock()
 		comp.StartUndo("Create USD Material")
 
+		flow.InsertBookmark("USDmat_Import")
 		result = self.wrapped_createUsdMaterial(origin, UUID, texData, update)
 
 		comp.EndUndo()
@@ -2121,9 +2127,12 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def createUsdMatX(self, origin, UUID, texData, update=False):
 		comp = self.getCurrentComp()
+		flow:FlowView_ = comp.CurrentFrame.FlowView
+
 		comp.Lock()
 		comp.StartUndo("Import USD MaterialX")	
 
+		flow.InsertBookmark("USDmatX_Import")
 		result = self.wrapped_createUsdMatX(origin, UUID, texData, update)
 
 		comp.EndUndo()
@@ -2173,10 +2182,13 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def import3dObject(self, origin, UUID, nodeData, update=False):
 		comp = self.getCurrentComp()
+		flow:FlowView_ = comp.CurrentFrame.FlowView
+
 		if self.sm_checkCorrectComp(comp):
 			comp.Lock()
 			comp.StartUndo("Import 3D Object")	
 
+			flow.InsertBookmark("3dObject_Import")
 			result = self.wrapped_import3dObject(origin, UUID, nodeData, comp=comp, update=update)
 
 			comp.EndUndo()
@@ -3419,6 +3431,7 @@ path = r\"%s\"
 				if not versionResult:
 					logger.warning("Error (Failed to create versionInfo Farm job)")
 					return "error (Failed to create versionInfo Farm job)", False
+				
 
 	@err_catcher(name=__name__)
 	def create3DRenderNode(self, stateUID):
@@ -3451,14 +3464,17 @@ path = r\"%s\"
 		except Exception as e:
 			logger.warning(f"Error: {e} (Failed to create 3DScene correctly)")
 
+
 	@err_catcher(name=__name__)
 	def sm_view_FocusStateTool(self, stateUID):
 		comp:Composition_ = self.getCurrentComp()
 		focustool = CompDb.getNodeByUID(comp, stateUID)
+
 		if focustool:
 			Fus.focusOnTool(comp, focustool)
 		else:
 			self.core.popup("No state tool was found",  severity="info")
+
 
 	#	NOT USED HERE
 	@err_catcher(name=__name__)

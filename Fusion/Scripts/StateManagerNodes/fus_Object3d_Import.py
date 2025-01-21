@@ -238,6 +238,7 @@ class Object3d_ImportClass(object):
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
         self.b_create3dScene.clicked.connect(self.create3dScene)
+        self.b_focusView.clicked.connect(self.focusView)
         self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
 
 
@@ -563,6 +564,12 @@ class Object3d_ImportClass(object):
             latestVersionData = {}
 
         return curVersionData, latestVersionData
+
+
+    #   Centers Flow View on Tool
+    @err_catcher(name=__name__)
+    def focusView(self):
+        self.fuseFuncts.sm_view_FocusStateTool(self.stateUID)
 
 
     #   Creates simple 3d Scene with Merge3d and Renderer3d

@@ -404,7 +404,7 @@
             <item>
              <widget class="QPushButton" name="b_focusView">
               <property name="text">
-               <string>Focus View on State Node</string>
+               <string>Focus View</string>
               </property>
              </widget>
             </item>

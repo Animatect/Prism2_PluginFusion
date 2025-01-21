@@ -264,7 +264,7 @@ class Ui_wg_Legacy3D_Import(object):
         self.b_import.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Re-Import", None))
         self.label.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"<html><head/><body><p align=\"center\">Be mindful of the re-connect limitations:  Merge3D nodes that are not the Root node cannot be processed so avoid connecting anything new to them.  Use for this purpose the Root node or use the create Render Node button to create a Merge Node.</p></body></html>", None))
         self.gb_options.setTitle(QCoreApplication.translate("wg_Legacy3D_Import", u"Options", None))
-        self.b_focusView.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Focus View on State Node", None))
+        self.b_focusView.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Focus View", None))
         self.b_createRenderNode.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Create Render Node", None))
     # retranslateUi
 

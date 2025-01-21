@@ -1142,6 +1142,7 @@ def calculate_new_position(toolX, toolY):
 # 
 def focusOnTool(comp:Composition_, tool:Tool_, scalefactor = 0.5):
     flow:FlowView_ = comp.CurrentFrame.FlowView
+
     # tool = comp.Background1
     Xpos, Ypos = flow.GetPosTable(tool).values()
     x, y = calculate_new_position(Xpos, Ypos)
@@ -1150,7 +1151,9 @@ def focusOnTool(comp:Composition_, tool:Tool_, scalefactor = 0.5):
                     'Offset': {'__flags': 256, 1.0: x, 2.0: y}, 
                     'Name': 'prismRefocus', 
                     'Scale': scalefactor}
+    
     bookmarks = flow.GetBookmarkList()
+
     next_key = max(bookmarks.keys()) + 1.0
     bookmarks[next_key] = new_bookmark
     flow.SetBookmarkList(bookmarks)

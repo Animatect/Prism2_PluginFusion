@@ -238,6 +238,7 @@ class USD_ImportClass(object):
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
         self.b_createUsdScene.clicked.connect(self.createUsdScene)
+        self.b_focusView.clicked.connect(self.focusView)
         self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
 
 
@@ -563,6 +564,11 @@ class USD_ImportClass(object):
 
         return curVersionData, latestVersionData
     
+    #   Centers Flow View on Tool
+    @err_catcher(name=__name__)
+    def focusView(self):
+        self.fuseFuncts.sm_view_FocusStateTool(self.stateUID)
+
 
     #   Creates simple USD Scene with uMerge and URenderer
     @err_catcher(name=__name__)

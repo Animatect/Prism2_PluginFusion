@@ -55,7 +55,7 @@ class Ui_wg_USD_Material(object):
 
         self.gb_import = QGroupBox(wg_USD_Material)
         self.gb_import.setObjectName(u"gb_import")
-        sizePolicy = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Expanding)
+        sizePolicy = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Expanding)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.gb_import.sizePolicy().hasHeightForWidth())
@@ -64,7 +64,7 @@ class Ui_wg_USD_Material(object):
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
         self.groupBox = QGroupBox(self.gb_import)
         self.groupBox.setObjectName(u"groupBox")
-        sizePolicy1 = QSizePolicy(QSizePolicy.Policy.Preferred, QSizePolicy.Policy.Fixed)
+        sizePolicy1 = QSizePolicy(QSizePolicy.Preferred, QSizePolicy.Fixed)
         sizePolicy1.setHorizontalStretch(0)
         sizePolicy1.setVerticalStretch(0)
         sizePolicy1.setHeightForWidth(self.groupBox.sizePolicy().hasHeightForWidth())
@@ -78,8 +78,8 @@ class Ui_wg_USD_Material(object):
         self.horizontalLayout_7.setContentsMargins(9, 0, 9, 0)
         self.b_browse = QPushButton(self.w_browse)
         self.b_browse.setObjectName(u"b_browse")
-        self.b_browse.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.b_browse.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+        self.b_browse.setFocusPolicy(Qt.NoFocus)
+        self.b_browse.setContextMenuPolicy(Qt.NoContextMenu)
 
         self.horizontalLayout_7.addWidget(self.b_browse)
 
@@ -87,7 +87,7 @@ class Ui_wg_USD_Material(object):
         self.b_explorer.setObjectName(u"b_explorer")
         self.b_explorer.setMinimumSize(QSize(0, 0))
         self.b_explorer.setMaximumSize(QSize(99999, 16777215))
-        self.b_explorer.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.b_explorer.setFocusPolicy(Qt.NoFocus)
 
         self.horizontalLayout_7.addWidget(self.b_explorer)
 
@@ -101,7 +101,7 @@ class Ui_wg_USD_Material(object):
         self.horizontalLayout.setContentsMargins(-1, 0, -1, 0)
         self.b_import = QPushButton(self.widget)
         self.b_import.setObjectName(u"b_import")
-        self.b_import.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.b_import.setFocusPolicy(Qt.NoFocus)
 
         self.horizontalLayout.addWidget(self.b_import)
 
@@ -110,6 +110,31 @@ class Ui_wg_USD_Material(object):
 
 
         self.verticalLayout_2.addWidget(self.groupBox)
+
+        self.gb_options = QGroupBox(self.gb_import)
+        self.gb_options.setObjectName(u"gb_options")
+        self.verticalLayout_7 = QVBoxLayout(self.gb_options)
+        self.verticalLayout_7.setObjectName(u"verticalLayout_7")
+        self.f_focusView = QHBoxLayout()
+        self.f_focusView.setObjectName(u"f_focusView")
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.f_focusView.addItem(self.horizontalSpacer)
+
+        self.b_focusView = QPushButton(self.gb_options)
+        self.b_focusView.setObjectName(u"b_focusView")
+
+        self.f_focusView.addWidget(self.b_focusView)
+
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.f_focusView.addItem(self.horizontalSpacer_2)
+
+
+        self.verticalLayout_7.addLayout(self.f_focusView)
+
+
+        self.verticalLayout_2.addWidget(self.gb_options)
 
         self.gb_matX = QGroupBox(self.gb_import)
         self.gb_matX.setObjectName(u"gb_matX")
@@ -141,13 +166,13 @@ class Ui_wg_USD_Material(object):
         if (self.tw_textureFiles.columnCount() < 3):
             self.tw_textureFiles.setColumnCount(3)
         self.tw_textureFiles.setObjectName(u"tw_textureFiles")
-        sizePolicy2 = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
+        sizePolicy2 = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
         sizePolicy2.setHorizontalStretch(0)
         sizePolicy2.setVerticalStretch(0)
         sizePolicy2.setHeightForWidth(self.tw_textureFiles.sizePolicy().hasHeightForWidth())
         self.tw_textureFiles.setSizePolicy(sizePolicy2)
         self.tw_textureFiles.setMinimumSize(QSize(0, 400))
-        self.tw_textureFiles.setSelectionBehavior(QAbstractItemView.SelectionBehavior.SelectItems)
+        self.tw_textureFiles.setSelectionBehavior(QAbstractItemView.SelectItems)
         self.tw_textureFiles.setShowGrid(False)
         self.tw_textureFiles.setColumnCount(3)
 
@@ -155,14 +180,14 @@ class Ui_wg_USD_Material(object):
 
         self.b_createShader = QPushButton(self.gb_textures)
         self.b_createShader.setObjectName(u"b_createShader")
-        self.b_createShader.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.b_createShader.setFocusPolicy(Qt.NoFocus)
 
         self.verticalLayout_6.addWidget(self.b_createShader)
 
 
         self.verticalLayout_2.addWidget(self.gb_textures)
 
-        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.verticalLayout_2.addItem(self.verticalSpacer)
 
@@ -184,6 +209,8 @@ class Ui_wg_USD_Material(object):
         self.b_browse.setText(QCoreApplication.translate("wg_USD_Material", u"Browse", None))
         self.b_explorer.setText(QCoreApplication.translate("wg_USD_Material", u"Open Explorer", None))
         self.b_import.setText(QCoreApplication.translate("wg_USD_Material", u"Re-Import", None))
+        self.gb_options.setTitle("")
+        self.b_focusView.setText(QCoreApplication.translate("wg_USD_Material", u"Focus View", None))
         self.gb_matX.setTitle(QCoreApplication.translate("wg_USD_Material", u"MaterialX", None))
         self.gb_textures.setTitle(QCoreApplication.translate("wg_USD_Material", u"Textures", None))
         self.b_createShader.setText(QCoreApplication.translate("wg_USD_Material", u"Create Material", None))

@@ -73,7 +73,7 @@ class Ui_wg_USD_Import(object):
 
         self.horizontalLayout_5.addWidget(self.label_3)
 
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_5.addItem(self.horizontalSpacer)
 
@@ -95,7 +95,7 @@ class Ui_wg_USD_Import(object):
 
         self.horizontalLayout_6.addWidget(self.label_6)
 
-        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_6.addItem(self.horizontalSpacer_2)
 
@@ -117,7 +117,7 @@ class Ui_wg_USD_Import(object):
 
         self.horizontalLayout_14.addWidget(self.l_autoUpdate)
 
-        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_14.addItem(self.horizontalSpacer_10)
 
@@ -139,14 +139,14 @@ class Ui_wg_USD_Import(object):
         self.b_importLatest.setObjectName(u"b_importLatest")
         self.b_importLatest.setMinimumSize(QSize(0, 0))
         self.b_importLatest.setMaximumSize(QSize(99999, 16777215))
-        self.b_importLatest.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.b_importLatest.setFocusPolicy(Qt.NoFocus)
 
         self.horizontalLayout_7.addWidget(self.b_importLatest)
 
         self.b_browse = QPushButton(self.w_importLatest)
         self.b_browse.setObjectName(u"b_browse")
-        self.b_browse.setFocusPolicy(Qt.FocusPolicy.NoFocus)
-        self.b_browse.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
+        self.b_browse.setFocusPolicy(Qt.NoFocus)
+        self.b_browse.setContextMenuPolicy(Qt.NoContextMenu)
 
         self.horizontalLayout_7.addWidget(self.b_browse)
 
@@ -158,19 +158,19 @@ class Ui_wg_USD_Import(object):
         self.horizontalLayout = QHBoxLayout(self.widget)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.horizontalLayout.setContentsMargins(-1, 0, -1, 0)
-        self.horizontalSpacer_6 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_9 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
-        self.horizontalLayout.addItem(self.horizontalSpacer_6)
+        self.horizontalLayout.addItem(self.horizontalSpacer_9)
 
         self.b_import = QPushButton(self.widget)
         self.b_import.setObjectName(u"b_import")
-        self.b_import.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.b_import.setFocusPolicy(Qt.NoFocus)
 
         self.horizontalLayout.addWidget(self.b_import)
 
-        self.horizontalSpacer_5 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_6 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
-        self.horizontalLayout.addItem(self.horizontalSpacer_5)
+        self.horizontalLayout.addItem(self.horizontalSpacer_6)
 
 
         self.verticalLayout_3.addWidget(self.widget)
@@ -182,31 +182,46 @@ class Ui_wg_USD_Import(object):
         self.gb_options.setObjectName(u"gb_options")
         self.verticalLayout_6 = QVBoxLayout(self.gb_options)
         self.verticalLayout_6.setObjectName(u"verticalLayout_6")
-        self.f_usdScene = QWidget(self.gb_options)
+        self.f_viewFocus = QHBoxLayout()
+        self.f_viewFocus.setObjectName(u"f_viewFocus")
+        self.horizontalSpacer_7 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.f_viewFocus.addItem(self.horizontalSpacer_7)
+
+        self.b_focusView = QPushButton(self.gb_options)
+        self.b_focusView.setObjectName(u"b_focusView")
+
+        self.f_viewFocus.addWidget(self.b_focusView)
+
+        self.horizontalSpacer_8 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.f_viewFocus.addItem(self.horizontalSpacer_8)
+
+
+        self.verticalLayout_6.addLayout(self.f_viewFocus)
+
+        self.f_usdScene = QHBoxLayout()
         self.f_usdScene.setObjectName(u"f_usdScene")
-        self.horizontalLayout_10 = QHBoxLayout(self.f_usdScene)
-        self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
-        self.horizontalLayout_10.setContentsMargins(9, 0, 9, 0)
-        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
-        self.horizontalLayout_10.addItem(self.horizontalSpacer_3)
+        self.f_usdScene.addItem(self.horizontalSpacer_3)
 
-        self.b_createUsdScene = QPushButton(self.f_usdScene)
+        self.b_createUsdScene = QPushButton(self.gb_options)
         self.b_createUsdScene.setObjectName(u"b_createUsdScene")
 
-        self.horizontalLayout_10.addWidget(self.b_createUsdScene)
+        self.f_usdScene.addWidget(self.b_createUsdScene)
 
-        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
-        self.horizontalLayout_10.addItem(self.horizontalSpacer_4)
+        self.f_usdScene.addItem(self.horizontalSpacer_4)
 
 
-        self.verticalLayout_6.addWidget(self.f_usdScene)
+        self.verticalLayout_6.addLayout(self.f_usdScene)
 
 
         self.verticalLayout_2.addWidget(self.gb_options)
 
-        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.verticalLayout_2.addItem(self.verticalSpacer)
 
@@ -236,6 +251,7 @@ class Ui_wg_USD_Import(object):
         self.b_browse.setText(QCoreApplication.translate("wg_USD_Import", u"Browse Version", None))
         self.b_import.setText(QCoreApplication.translate("wg_USD_Import", u"Re-Import", None))
         self.gb_options.setTitle(QCoreApplication.translate("wg_USD_Import", u"Options", None))
-        self.b_createUsdScene.setText(QCoreApplication.translate("wg_USD_Import", u"Create Scene", None))
+        self.b_focusView.setText(QCoreApplication.translate("wg_USD_Import", u"Focus View", None))
+        self.b_createUsdScene.setText(QCoreApplication.translate("wg_USD_Import", u"Create Render Node", None))
     # retranslateUi
 

@@ -181,6 +181,27 @@ class Ui_wg_Object3d_Import(object):
         self.gb_options.setObjectName(u"gb_options")
         self.verticalLayout_6 = QVBoxLayout(self.gb_options)
         self.verticalLayout_6.setObjectName(u"verticalLayout_6")
+        self.f_focusView = QWidget(self.gb_options)
+        self.f_focusView.setObjectName(u"f_focusView")
+        self.horizontalLayout_12 = QHBoxLayout(self.f_focusView)
+        self.horizontalLayout_12.setObjectName(u"horizontalLayout_12")
+        self.horizontalLayout_12.setContentsMargins(9, 0, 9, 0)
+        self.horizontalSpacer_9 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.horizontalLayout_12.addItem(self.horizontalSpacer_9)
+
+        self.b_focusView = QPushButton(self.f_focusView)
+        self.b_focusView.setObjectName(u"b_focusView")
+
+        self.horizontalLayout_12.addWidget(self.b_focusView)
+
+        self.horizontalSpacer_11 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.horizontalLayout_12.addItem(self.horizontalSpacer_11)
+
+
+        self.verticalLayout_6.addWidget(self.f_focusView)
+
         self.f_3dScene = QWidget(self.gb_options)
         self.f_3dScene.setObjectName(u"f_3dScene")
         self.horizontalLayout_10 = QHBoxLayout(self.f_3dScene)
@@ -235,6 +256,7 @@ class Ui_wg_Object3d_Import(object):
         self.b_browse.setText(QCoreApplication.translate("wg_Object3d_Import", u"Browse Version", None))
         self.b_import.setText(QCoreApplication.translate("wg_Object3d_Import", u"Re-Import", None))
         self.gb_options.setTitle(QCoreApplication.translate("wg_Object3d_Import", u"Options", None))
-        self.b_create3dScene.setText(QCoreApplication.translate("wg_Object3d_Import", u"Create Scene", None))
+        self.b_focusView.setText(QCoreApplication.translate("wg_Object3d_Import", u"Focus View", None))
+        self.b_create3dScene.setText(QCoreApplication.translate("wg_Object3d_Import", u"Create Render Node", None))
     # retranslateUi
 

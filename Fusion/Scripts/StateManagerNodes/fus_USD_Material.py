@@ -209,6 +209,7 @@ class USD_MaterialClass(object):
         self.b_explorer.clicked.connect(self.openExplorer)
         self.b_createShader.clicked.connect(self.createUsdMaterial)
         self.tw_textureFiles.customContextMenuRequested.connect(self.showContextMenu)
+        self.b_focusView.clicked.connect(self.focusView)
         self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
 
 
@@ -958,6 +959,12 @@ class USD_MaterialClass(object):
         self.updateUi()
 
         return result
+
+
+    #   Centers Flow View on Tool
+    @err_catcher(name=__name__)
+    def focusView(self):
+        self.fuseFuncts.sm_view_FocusStateTool(self.stateUID)
 
 
     #   Called from StateManager when deleting state
