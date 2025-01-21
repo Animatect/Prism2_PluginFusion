@@ -45,30 +45,13 @@ class Ui_wg_Legacy3D_Import(object):
 
         self.horizontalLayout_2.addWidget(self.l_class)
 
-
-        self.verticalLayout.addWidget(self.f_name)
-
-        self.gb_taskColor = QGroupBox(wg_Legacy3D_Import)
-        self.gb_taskColor.setObjectName(u"gb_taskColor")
-        self.gb_taskColor.setEnabled(True)
-        self.gb_taskColor.setAlignment(Qt.AlignLeading|Qt.AlignLeft|Qt.AlignVCenter)
-        self.gb_taskColor.setCheckable(False)
-        self.gb_taskColor.setChecked(False)
-        self.f_taskColor = QHBoxLayout(self.gb_taskColor)
-        self.f_taskColor.setObjectName(u"f_taskColor")
-        self.f_taskColor.setContentsMargins(18, 0, 18, 0)
-        self.l_taskColor = QLabel(self.gb_taskColor)
-        self.l_taskColor.setObjectName(u"l_taskColor")
-
-        self.f_taskColor.addWidget(self.l_taskColor)
-
-        self.cb_taskColor = QComboBox(self.gb_taskColor)
+        self.cb_taskColor = QComboBox(self.f_name)
         self.cb_taskColor.setObjectName(u"cb_taskColor")
 
-        self.f_taskColor.addWidget(self.cb_taskColor)
+        self.horizontalLayout_2.addWidget(self.cb_taskColor)
 
 
-        self.verticalLayout.addWidget(self.gb_taskColor)
+        self.verticalLayout.addWidget(self.f_name)
 
         self.gb_import = QGroupBox(wg_Legacy3D_Import)
         self.gb_import.setObjectName(u"gb_import")
@@ -90,7 +73,7 @@ class Ui_wg_Legacy3D_Import(object):
 
         self.horizontalLayout_5.addWidget(self.label_3)
 
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_5.addItem(self.horizontalSpacer)
 
@@ -112,7 +95,7 @@ class Ui_wg_Legacy3D_Import(object):
 
         self.horizontalLayout_6.addWidget(self.label_6)
 
-        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_6.addItem(self.horizontalSpacer_2)
 
@@ -134,7 +117,7 @@ class Ui_wg_Legacy3D_Import(object):
 
         self.horizontalLayout_14.addWidget(self.l_autoUpdate)
 
-        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_14.addItem(self.horizontalSpacer_10)
 
@@ -175,7 +158,7 @@ class Ui_wg_Legacy3D_Import(object):
         self.horizontalLayout = QHBoxLayout(self.widget)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.horizontalLayout.setContentsMargins(-1, 0, -1, 0)
-        self.horizontalSpacer_6 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_6 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
         self.horizontalLayout.addItem(self.horizontalSpacer_6)
 
@@ -185,7 +168,7 @@ class Ui_wg_Legacy3D_Import(object):
 
         self.horizontalLayout.addWidget(self.b_import)
 
-        self.horizontalSpacer_5 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_5 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
         self.horizontalLayout.addItem(self.horizontalSpacer_5)
 
@@ -210,7 +193,7 @@ class Ui_wg_Legacy3D_Import(object):
         self.horizontalLayout_11 = QHBoxLayout(self.f_viewFocus)
         self.horizontalLayout_11.setObjectName(u"horizontalLayout_11")
         self.horizontalLayout_11.setContentsMargins(9, 0, 9, 0)
-        self.horizontalSpacer_7 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_7 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
         self.horizontalLayout_11.addItem(self.horizontalSpacer_7)
 
@@ -219,7 +202,7 @@ class Ui_wg_Legacy3D_Import(object):
 
         self.horizontalLayout_11.addWidget(self.b_focusView)
 
-        self.horizontalSpacer_8 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_8 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
         self.horizontalLayout_11.addItem(self.horizontalSpacer_8)
 
@@ -231,7 +214,7 @@ class Ui_wg_Legacy3D_Import(object):
         self.horizontalLayout_10 = QHBoxLayout(self.f_3DScene)
         self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
         self.horizontalLayout_10.setContentsMargins(9, 0, 9, 0)
-        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
         self.horizontalLayout_10.addItem(self.horizontalSpacer_3)
 
@@ -240,7 +223,7 @@ class Ui_wg_Legacy3D_Import(object):
 
         self.horizontalLayout_10.addWidget(self.b_createRenderNode)
 
-        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Policy.Fixed, QSizePolicy.Policy.Minimum)
+        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
         self.horizontalLayout_10.addItem(self.horizontalSpacer_4)
 
@@ -250,7 +233,7 @@ class Ui_wg_Legacy3D_Import(object):
 
         self.verticalLayout_2.addWidget(self.gb_options)
 
-        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+        self.verticalSpacer = QSpacerItem(20, 40, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.verticalLayout_2.addItem(self.verticalSpacer)
 
@@ -268,7 +251,6 @@ class Ui_wg_Legacy3D_Import(object):
         wg_Legacy3D_Import.setWindowTitle(QCoreApplication.translate("wg_Legacy3D_Import", u"ImportFile", None))
         self.l_name.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"State name:", None))
         self.l_class.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Legacy3D_Import", None))
-        self.l_taskColor.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Task Color", None))
         self.gb_import.setTitle("")
         self.gb_version.setTitle(QCoreApplication.translate("wg_Legacy3D_Import", u"Version", None))
         self.label_3.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Current Version:", None))
@@ -280,7 +262,7 @@ class Ui_wg_Legacy3D_Import(object):
         self.b_importLatest.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Import latest Version", None))
         self.b_browse.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Browse Version", None))
         self.b_import.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Re-Import", None))
-        self.label.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"<html><head/><body><p align=\"center\">Be mindful of the re-connect limitations, Merge3D nodes that are not the Root node cannot be processed, avoid connecting anything new to them, use for this purpose the Root node or use the create Render Node button to create a Merge Node.</p></body></html>", None))
+        self.label.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"<html><head/><body><p align=\"center\">Be mindful of the re-connect limitations:  Merge3D nodes that are not the Root node cannot be processed so avoid connecting anything new to them.  Use for this purpose the Root node or use the create Render Node button to create a Merge Node.</p></body></html>", None))
         self.gb_options.setTitle(QCoreApplication.translate("wg_Legacy3D_Import", u"Options", None))
         self.b_focusView.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Focus View on State Node", None))
         self.b_createRenderNode.setText(QCoreApplication.translate("wg_Legacy3D_Import", u"Create Render Node", None))

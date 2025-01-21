@@ -115,9 +115,9 @@ class Legacy3D_ImportClass(object):
         #	Gets task color settings from the DCC settings
         self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
         if self.taskColorMode == "Disabled":
-            self.gb_taskColor.setHidden(True)
+            self.cb_taskColor.hide()
         else:
-            self.gb_taskColor.setHidden(False)
+            self.cb_taskColor.show()
             self.populateTaskColorCombo()
 
         createEmptyState = (

@@ -68,49 +68,11 @@
        <widget class="QLabel" name="l_class">
         <property name="font">
          <font>
-          <weight>75</weight>
           <bold>true</bold>
          </font>
         </property>
         <property name="text">
          <string>Legacy3D_Import</string>
-        </property>
-       </widget>
-      </item>
-     </layout>
-    </widget>
-   </item>
-   <item>
-    <widget class="QGroupBox" name="gb_taskColor">
-     <property name="enabled">
-      <bool>true</bool>
-     </property>
-     <property name="alignment">
-      <set>Qt::AlignLeading|Qt::AlignLeft|Qt::AlignVCenter</set>
-     </property>
-     <property name="checkable">
-      <bool>false</bool>
-     </property>
-     <property name="checked">
-      <bool>false</bool>
-     </property>
-     <layout class="QHBoxLayout" name="f_taskColor">
-      <property name="leftMargin">
-       <number>18</number>
-      </property>
-      <property name="topMargin">
-       <number>0</number>
-      </property>
-      <property name="rightMargin">
-       <number>18</number>
-      </property>
-      <property name="bottomMargin">
-       <number>0</number>
-      </property>
-      <item>
-       <widget class="QLabel" name="l_taskColor">
-        <property name="text">
-         <string>Task Color</string>
         </property>
        </widget>
       </item>
@@ -392,7 +354,7 @@
          <item>
           <widget class="QLabel" name="label">
            <property name="text">
-            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;Be mindful of the re-connect limitations, Merge3D nodes that are not the Root node cannot be processed, avoid connecting anything new to them, use for this purpose the Root node or use the create Render Node button to create a Merge Node.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;Be mindful of the re-connect limitations:  Merge3D nodes that are not the Root node cannot be processed so avoid connecting anything new to them.  Use for this purpose the Root node or use the create Render Node button to create a Merge Node.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
            </property>
            <property name="wordWrap">
             <bool>true</bool>
