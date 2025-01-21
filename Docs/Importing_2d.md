@@ -3,6 +3,8 @@ Importing images into Fusion can be done utilizing the native method by drag/dro
 
 To import into Fusion first launch the Project Browser from the Prism menu in Fusion, and right click on the image in the viewer.
 
+    Note:  importing images through the State Manager is planned in the near future.
+
 ![PB Rightclick](DocsImages/PB-Rightclick.png)
 
 Depending on the type of image file (video file, image sequence, still image) various options will be displayed allowing the user to import as desired (see sections below).
@@ -61,7 +63,7 @@ Task coloring and selecting can be accessed by right-clicking the Media Identifi
 
 Selecting a color from the dropdown menu will apply the color to the Task Identifier, and the Fusion Tools in the Comp based on the user preferences in the Prism Settings (see [**Interface**](Interface.md)).  This allows the user to visually associate the Tools in the Comp with the Media ID and aids in organization.  The color can be cleared and reset to the default color by selecting "Clear Color" from the list.
 
-* Note: the colors themselves are from Fusion's coloring and cannot be edited.
+    Note: the colors themselves are from Fusion's coloring and cannot be edited.
 
 <br/>
 
