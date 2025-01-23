@@ -920,7 +920,11 @@ def find_LastClickPosition(comp:Composition_) -> list[float, float]:
         # Deselect all
         flow.Select()
 
-        posNode:Tool_ = comp.AddTool("Background", xpos=-32768, ypos=-32768)
+        posNode:Tool_|None = comp.AddToolAction("Background")
+        
+        if not posNode:
+            posNode = comp.AddTool("Background", xpos=-32768, ypos=-32768)
+        
         x,y = getToolPosition(comp, posNode)
         posNode.Delete()
 

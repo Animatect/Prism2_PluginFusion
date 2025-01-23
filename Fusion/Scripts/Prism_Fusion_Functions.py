@@ -2186,7 +2186,7 @@ class Prism_Fusion_Functions(object):
 
 		if self.sm_checkCorrectComp(comp):
 			comp.Lock()
-			comp.StartUndo("Import 3D Object")	
+			comp.StartUndo("Import 3D Object")
 
 			flow.InsertBookmark("3dObject_Import")
 			result = self.wrapped_import3dObject(origin, UUID, nodeData, comp=comp, update=update)
@@ -2326,6 +2326,8 @@ class Prism_Fusion_Functions(object):
 			origin.setName = ""
 			result:bool = False
 			
+			# check if there is an active tool or selection.
+			# if not, get the last clicked pos.
 			atx, aty = Fus.getRefPosition(comp, flow)
 
 			#	Get Extension

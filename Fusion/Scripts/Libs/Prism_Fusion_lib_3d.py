@@ -54,6 +54,7 @@ import pyperclip
 import time
 import os
 import tkinter as tk
+import logging
 
 from . import Prism_Fusion_lib_CompDb as CompDb
 from . import Prism_Fusion_lib_Fus as Fus
@@ -71,7 +72,7 @@ else:
     Input_ = Any
     Output_ = Any
 	
-
+logger = logging.getLogger(__name__)
 
 def createUsdScene(plugin, origin, UUID):
 
@@ -695,7 +696,13 @@ def cleanbeforeImport(origin:Legacy3D_ImportClass, stateUID:str):
 def deleteTools(comp:Composition_, stateUID:str):
     stateTools:list[Tool_] = getToolsFromNodeList(comp, getStateNodesList(comp, stateUID))
     for tool in stateTools:
-        tool.Delete()
+        try:
+            tool.Delete()
+            if tool.GetData("Prism_UUID"):
+                CompDb.removeNodeFromDB(comp, "import3d", tool.GetData("Prism_UUID"))
+
+        except:
+            logger.debug("Could not delete the tool.")
 
 
 def getNodeStateTypes(comp:Composition_) -> list:
@@ -758,7 +765,7 @@ def getToolsFromNodeList(comp:Composition_, nodeUIDlist:list[str]) -> list[Tool_
 
 
 
-def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID:str, newtools:list[Tool_], sceneTool:Tool_)->tuple[bool, list[str]]:
+def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID:str, newtools:list[Tool_], sceneTool:Tool_)->tuple[bool, list[str], list[str]]:
     alldbnodes:dict = getAllNodes(comp)
     statenodesuids:list[str] = getStateNodesList(comp, stateUID)
     stateNodesNames:list[str] = getStateNodesOrigNameList(comp, statenodesuids)
@@ -774,56 +781,7 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
         oldSceneTool = CompDb.getNodeByUID(comp, stateUID)
     else:
         return False, [], []
-
-    # nodes:list[dict] = []
-    # nodenames:list[str] = []
-    # outputnodes:list[dict] = []
-    # positionednodes:list[str] = []
-    # sceneNode:Tool_|None = None
     
-    # We are going to collect the existing nodes and check if there is a merge3D or transform3D node that represents the entry of the scene.
-    # for o in origin.nodes:
-    #     hasmerge:bool = False
-    #     node:Tool_ = comp.FindTool(o["name"])
-    #     if node:
-    #         # Store Scene Node Connections
-    #         nodeID:str  = node.GetAttrs("TOOLS_RegID")
-    #         ismerge:bool = nodeID == "Merge3D"
-    #         # We try to account for Transform3D nodes that are not standarly Named.
-    #         istrans3D:bool = nodeID == "Transform3D" and "Transform3D" in node.Name
-    #         # If there is no merge there should be a transform3D but if there is merge transform3D is out.
-    #         if ismerge or istrans3D:
-    #             if ismerge:
-    #                 hasmerge:bool = True
-    #             if ismerge or not hasmerge:
-    #                 outputnodes:list[dict] = [] # clean this variable in case there was an unaccounted node
-    #                 sceneNode:Tool_ = node
-    #                 connectedinputs:dict = node.output.GetConnectedInputs()
-    #                 if len(connectedinputs)>0:
-    #                     for v in connectedinputs.values():
-    #                         input:Input_ = v
-    #                         connectedNode:dict = {"node":input.GetTool().Name,"input":input.Name}
-    #                         outputnodes.append(connectedNode)
-    #         nodenames.append(node.Name)
-    #         nodes.append(node)
-    # for o in newnodes:
-    #     newnode:Tool_ = comp.FindTool(o)
-    #     # Reconnect the scene node
-    #     if sceneNode:
-    #         nodeID:str = newnode.GetAttrs("TOOLS_RegID")
-    #         sceneNID:str = sceneNode.GetAttrs("TOOLS_RegID")
-    #         if nodeID == sceneNID:
-
-    #             # We try to account for Transform3D nodes that are not standarly Named.
-    #             proceed:bool = True
-    #             if nodeID == "Transform3D" and not "Transform3D" in newnode.Name:
-    #                 proceed = False
-                
-    #             if proceed and len(outputnodes) > 0:
-    #                 for outn in outputnodes:
-    #                     tool:Tool_ = comp.FindTool(outn["node"])
-    #                     tool.ConnectInput(outn["input"], newnode)
-        
     # Match new to old tools.
     for newtool in newtools:
         toolType:str  = newtool.GetAttrs("TOOLS_RegID")
@@ -859,7 +817,10 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                         connectionsuccess:bool = newtool.ConnectInput(inputName, connectedtool)
                         if not connectionsuccess and " " in inputName:
                             fixedName:str = inputName.replace(" ", ".") # some inputs convert "." to " "
-                            connectionsuccess = newtool.ConnectInput(fixedName, connectedtool)
+                            try:
+                                connectionsuccess = newtool.ConnectInput(fixedName, connectedtool)
+                            except Exception as e:
+                                logger.warning(e)
                         
                         if not connectionsuccess:
                             connectionstring:str = f"{connectedtool.Name} --> {newtool.Name}.{inputName}"
@@ -884,7 +845,10 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                     newsceneinputs:list = [input for input in sceneTool.GetInputList().values() if "SceneInput" in input.Name and not input.GetConnectedOutput()]
                     # get the first of availible inputs.
                     input = newsceneinputs[0]
-                    sceneTool.ConnectInput(input.Name, mergednode)
+                    try:
+                        sceneTool.ConnectInput(input.Name, mergednode)
+                    except Exception as e:
+                        logger.warning(e)
                     comp.UpdateViews()
 
     outConnections = oldSceneTool.GetOutputList()[1].GetConnectedInputs()
@@ -893,9 +857,9 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
         connectedtool = input.GetTool()
         connectedtool.ConnectInput(inputName, sceneTool)
 
-        # Match positions.
-        Fus.matchToolPos(comp, sceneTool, oldSceneTool)
-        positionednodes.append(sceneTool.Name)
+    # Match positions.
+    Fus.matchToolPos(comp, sceneTool, oldSceneTool)
+    positionednodes.append(sceneTool.Name)
         
     return True, positionednodes, unsuccesfulconnections
 
