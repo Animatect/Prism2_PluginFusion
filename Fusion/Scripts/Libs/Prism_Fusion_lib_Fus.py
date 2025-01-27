@@ -331,6 +331,8 @@ def addToolData(tool:Tool_, toolData:dict={}) -> None:
         tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
         tool.HoldLastFrame = 0
 
+    #   add the DB data to be able to reconstruct it
+    tool.SetData('Prism_dbData', toolData)
 
     #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
     tool.SetAttrs({'TOOLS_NameSet': True})
@@ -339,9 +341,9 @@ def addToolData(tool:Tool_, toolData:dict={}) -> None:
 #   Updates tool config for given data
 
 def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
-    print("UPDATE TOOL 0")
+    # print("UPDATE TOOL 0")
     try:
-        print("UPDATE TOOL 1")
+        # print("UPDATE TOOL 1")
         if "toolName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
         if "nodeName" in toolData:
@@ -380,13 +382,27 @@ def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoC
             tool.HoldLastFrame = 0
 
 
+        #   add the DB data to be able to reconstruct it
+        if tool.GetData('Prism_dbData'):
+            print(0)
+            data:dict = tool.GetData('Prism_dbData')
+            print(data)
+            updatedKeys = toolData.keys()
+            for key in updatedKeys:
+                if data[key]:
+                    data[key] = toolData[key]
+                    
+            tool.SetData('Prism_dbData', data)
+        else:
+            tool.SetData('Prism_dbData', toolData)
+
         #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
         # tool.SetAttrs({'TOOLS_NameSet': True})
 
         return tool
     
     except:
-        print("UPDATE TOOL 2")
+        # print("UPDATE TOOL 2")
         logger.warning(f"ERROR: Failed to update {tool} in Comp")
         return None
 
