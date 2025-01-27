@@ -3899,7 +3899,7 @@ path = r\"%s\"
 		origin.setWindowIcon(QIcon(self.prismAppIcon))
 		#	Remove Import buttons
 		origin.b_createImport.deleteLater()
-		origin.b_shotCam.deleteLater()
+		# origin.b_shotCam.deleteLater()
 
 		#	Remove Export and Playblast buttons
 		origin.b_createExport.deleteLater()
@@ -3967,6 +3967,7 @@ path = r\"%s\"
 								 			self.getVersionStackContextFromPath,
 											self,
 											force=True)
+			self.core.plugins.monkeyPatch(origin.shotCam, self.shotCam, self, force=True)
 			self.core.plugins.monkeyPatch(origin.showStateMenu, self.showStateMenu, self, force=True)
 			self.core.plugins.monkeyPatch(origin.pasteStates, self.pasteStates, self, force=True)
 		except Exception as e:
@@ -4478,6 +4479,60 @@ path = r\"%s\"
 
 		self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
 		self.onMediaBrowserTaskUpdate(mediabrowser)
+
+	#	This imports shotcams as a legacy
+	@err_catcher(name=__name__)
+	def shotCam(self):
+		logger.debug("Loading state manager patched function: 'shotCam'")
+		if self.sm_checkCorrectComp(self.getCurrentComp()):
+			sm = self.MP_stateManager
+
+		sm.saveEnabled = False
+		for i in sm.states:
+			if i.ui.className == "Legacy3D_Import" and i.ui.taskName == "ShotCam":
+				mCamState = i.ui
+				camState = i
+
+		if "mCamState" in locals():
+			mCamState.importLatest()
+			sm.selectState(camState)
+		else:
+			fileName = sm.core.getCurrentFileName()
+			fnameData = sm.core.getScenefileData(fileName)
+			if not (
+				os.path.exists(fileName)
+				and sm.core.fileInPipeline(fileName)
+			):
+				sm.core.showFileNotInProjectWarning(title="Warning")
+				sm.saveEnabled = True
+				return False
+
+			if fnameData.get("type") != "shot":
+				msgStr = "Shotcams are not supported for assets."
+				sm.core.popup(msgStr)
+				sm.saveEnabled = True
+				return False
+
+			if sm.core.getConfig("globals", "productTasks", config="project"):
+				fnameData["department"] = os.getenv("PRISM_SHOTCAM_DEPARTMENT", "Layout")
+				fnameData["task"] = os.getenv("PRISM_SHOTCAM_TASK", "Cameras")
+
+			filepath = sm.core.products.getLatestVersionpathFromProduct(
+				"_ShotCam", entity=fnameData
+			)
+			if not filepath:
+				sm.core.popup("Could not find a shotcam for the current shot.")
+				sm.saveEnabled = True
+				return False
+
+			sm.createState("Legacy3D_Import", importPath=filepath, setActive=True)
+
+		sm.setListActive(sm.tw_import)
+		sm.activateWindow()
+		sm.activeList.setFocus()
+		sm.saveEnabled = True
+		sm.saveStatesToScene()
+
 
 
 
