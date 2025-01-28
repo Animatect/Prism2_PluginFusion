@@ -468,6 +468,10 @@ class Legacy3D_ImportClass(object):
         if not result:
             return
 
+        
+        #   Get file extension
+        _, extension = os.path.splitext(impFileName)
+
         cacheData = self.core.paths.getCachePathData(impFileName)
 
         self.taskName = cacheData.get("task")
@@ -483,7 +487,8 @@ class Legacy3D_ImportClass(object):
                     "version": productVersion,
                     "Filepath": impFileName,
                     "product": productName,
-                    "format": "abc"}
+                    "listType": "import3d",
+                    "format": extension.lower()}
 
         #   Call import function
         importResult = self.core.appPlugin.importLegacy3D(self,

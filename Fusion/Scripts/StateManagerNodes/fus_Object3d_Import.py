@@ -483,6 +483,7 @@ class Object3d_ImportClass(object):
                     "version": productVersion,
                     "3dFilepath": impFileName,
                     "product": productName,
+                    "listType": "import3d",
                     "format": extension.lower()}
 
         #   Call import function

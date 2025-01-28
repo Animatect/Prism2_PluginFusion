@@ -478,6 +478,7 @@ class USD_ImportClass(object):
                     "version": productVersion,
                     "usdFilepath": impFileName,
                     "product": productName,
+                    "listType": "import3d",
                     "format": "USD"}
 
         #   Call import function

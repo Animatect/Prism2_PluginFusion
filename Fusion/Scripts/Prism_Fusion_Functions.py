@@ -1321,7 +1321,8 @@ class Prism_Fusion_Functions(object):
 							"extension": importData["extension"],
 							"fuseFormat": self.getFuseFormat(importData["extension"]),
 							"frame_start": importItem["frame_start"],
-							"frame_end": importItem["frame_end"]
+							"frame_end": importItem["frame_end"],
+							"listType": "import2d",
 							}
 
 				try:
@@ -3979,6 +3980,10 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):
 		self.smUI = origin
+		# Reintegrate Nodes that are not in the DB
+		comp = self.getCurrentComp()	
+		if self.sm_checkCorrectComp(comp):
+			CompDb.updatePrismFileDB(comp)
 
 		##	Resizes the StateManager Window
 		# 	Check if SM has a resize method and resize it
@@ -4004,7 +4009,7 @@ path = r\"%s\"
 				self.smUI.splitter.setSizes([LeftSize, RightSize])
 			except:
 				pass
-
+				
 		try:
 			self.popup.close()
 		except:
