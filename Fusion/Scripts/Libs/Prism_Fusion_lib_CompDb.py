@@ -78,10 +78,8 @@ else:
 logger = logging.getLogger(__name__)
 
 
-### THIS IS A LIBRARY FOR THE PRISM DATABASE SAVED TO THE COMP  ###
-
-
-#   LETS KEEP THIS STRUCTURE UPDATED WITH CHANGES
+####################################################################################
+####   THIS IS A TEMPLATE FOR THE PRISM DATABASE STRUCTURE SAVED IN THE COMP    ####
 
 #   DataBase Structure:                                 ####   TODO - MAKE SURE IT IS ACCURATE     ####
 #
@@ -151,6 +149,7 @@ logger = logging.getLogger(__name__)
 #                     }
 #                  }
 
+####################################################################################
 
 
 #   For Python Type Hints
@@ -253,7 +252,7 @@ def savePrismFileDb(comp, cpData_orig:dict):
         comp.SetData("PrismDB", cpData_str)
         logger.debug("Saved Prism Comp Database to Comp")
 
-        # print(f"\n***  Prism Database:\n{print(comp.GetData('PrismDB'))}\n")                            #   TESTING
+        print(f"\n***  Prism Database:\n{print(comp.GetData('PrismDB'))}\n")                            #   TESTING
 
     except:
         logger.warning("ERROR: Failed to save Prism Comp Database to Comp")
@@ -285,9 +284,8 @@ def cleanPrismFileDb(comp, cpData_orig:dict) -> dict:
         return None
 
 
-#   Adds a new Media Identifier to the DB
-
 #   Adds DB records if the node does not exist in the DB but does exist in the comp.
+
 def updatePrismFileDB(comp:Composition_):
     # be sure to add the nodetype/category to the database and the data in the Fus library function (where it goes in the DB). 
     flow:FlowView_ = comp.CurrentFrame.FlowView    
@@ -307,6 +305,7 @@ def updatePrismFileDB(comp:Composition_):
                 # add the node to the database records
                     addNodeToDB(comp, listType, tooluid, tool.GetData("Prism_dbData"))
                     # TODO Alternatively add a State...
+
 
 def addPrismDbIdentifier(comp, category:str, name:str, color:int):
     cpData = loadPrismFileDb(comp)
@@ -386,7 +385,6 @@ def addNodeToDB(comp, listType:str, UUID:str, nodeData:dict) -> bool:
             logger.debug(f"Added {nodeData['toolName']} to the Comp Database")
         else:
             logger.debug(f"Added {UUID} to the Comp Database")
-
 
         return True
 

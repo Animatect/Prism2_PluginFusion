@@ -57,9 +57,6 @@ import logging
 
 from PrismUtils.Decorators import err_catcher as err_catcher
 
-logger = logging.getLogger(__name__)
-
-
 #   For Python Type Hints
 FusionComp = Dict
 Tool = Any
@@ -67,6 +64,9 @@ ToolOption = Any
 Color = int
 UUID = str
 Toolname = str
+
+logger = logging.getLogger(__name__)
+
 
 
 #   Gets list of AOV's from Prism

@@ -54,6 +54,8 @@ import os
 import re
 import logging
 
+from PrismUtils.Decorators import err_catcher as err_catcher
+
 from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
 if TYPE_CHECKING:
     pass
@@ -62,10 +64,6 @@ else:
     Composition_ = Any
     FlowView_ = Any
 
-from PrismUtils.Decorators import err_catcher as err_catcher
-logger = logging.getLogger(__name__)
-
-
 #   For Python Type Hints
 FusionComp = Dict
 Tool = Any
@@ -73,6 +71,41 @@ ToolOption = Any
 Color = int
 UUID = str
 Toolname = str
+
+logger = logging.getLogger(__name__)
+
+
+#####################################################################################
+####   THIS IS A TEMPLATE FOR THE PRISM DATABASE STRUCTURE SAVED TO EACH TOOL    ####
+
+#   Example DataBase Structure:                                 ####   TODO - MAKE SURE IT IS ACCURATE     ####
+#
+#   Tool:
+#       CustomData = {
+#				Prism_UUID = "7d1a2de3",
+#				Prism_Data = {
+#					nodeName = "SingleLyr-SingleAOV_RGB_master",
+#					version = "master",
+#					toolUID = "7d1a2de3",
+#					mediaId = "SingleLyr-SingleAOV",
+#					displayName = "SingleLyr-SingleAOV",
+#					mediaType = "3drenders",
+#					aov = "RGB",
+#					filepath = "N:\\Data\\Projects\\Prism Tests\\01_Production\\Shots\\010_MEDIA\\010_MEDIA\\Renders\\3dRender\\SingleLyr-SingleAOV\\master\\RGB\\010_MEDIA-010_MEDIA_SingleLyr-SingleAOV_master_RGB.0001.exr",
+#					extension = ".exr",
+#					fuseFormat = "OpenEXRFormat",
+#					frame_start = 1,
+#					frame_end = 19,
+#					listType = "import2d"
+#				    Prism_ConnectedNodes = {
+#					    wireless_IN = "9ac8d29b",
+#					    wireless_OUT = "759785d1"
+#				        },
+#                   }
+#			}
+
+
+####################################################################################
 
 
 #	Returns the filename of the current comp
@@ -238,7 +271,6 @@ def getCurrentFrame(comp) -> int:
 
 
 #   Adds tool of specified type and configures given data
-
 def addTool(comp:Composition_, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
     try:
         tool = comp.AddTool(toolType, xPos, yPos, autoConnect)
@@ -248,7 +280,6 @@ def addTool(comp:Composition_, toolType:str, toolData:dict={}, xPos:int=-32768, 
     except:
         logger.warning(f"ERROR: Failed to add {toolType} to Comp")
         return None
-    
 
 
 def addToolData(tool:Tool_, toolData:dict={}) -> None:
@@ -340,10 +371,8 @@ def addToolData(tool:Tool_, toolData:dict={}) -> None:
 
 #   Updates tool config for given data
 
-def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
-    # print("UPDATE TOOL 0")
+def updateToolData(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
     try:
-        # print("UPDATE TOOL 1")
         if "toolName" in toolData:
             tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
         if "nodeName" in toolData:
@@ -384,9 +413,7 @@ def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoC
 
         #   add the DB data to be able to reconstruct it
         if tool.GetData('Prism_dbData'):
-            print(0)
             data:dict = tool.GetData('Prism_dbData')
-            print(data)
             updatedKeys = toolData.keys()
             for key in updatedKeys:
                 if data[key]:
@@ -401,14 +428,13 @@ def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoC
 
         return tool
     
-    except:
-        # print("UPDATE TOOL 2")
+    except Exception as e:
         logger.warning(f"ERROR: Failed to update {tool} in Comp")
+        logger.warning(e)
         return None
 
 
 #   Returns Prism Data contained in Tool
-
 def getToolData(tool:Tool) -> dict:
     try:
         #   Get all the tool data
@@ -829,7 +855,7 @@ def setToolPosition(comp, node, find_min=True, x_offset=-2, y_offset=0, ignore_n
         setToolPosition(flow, node, thresh_x_position + x_offset, thresh_y_position + y_offset)
     else:
         flow.Select()
-        x,y = find_LastClickPosition(comp)
+        x,y = findLastClickPosition(comp)
         flow.SetPos(node, x, y)
 
 
@@ -928,7 +954,7 @@ def matchToolPos(comp, nodeTomove:Tool_, nodeInPos:Tool_):
 
 #Get last click on comp view.
 
-def find_LastClickPosition(comp:Composition_) -> list[float, float]:
+def findLastClickPosition(comp:Composition_) -> list[float, float]:
     try:
         flow:FlowView_ = comp.CurrentFrame.FlowView
         # Store selection
@@ -1092,7 +1118,7 @@ def getRefPosition(comp:Composition_, flow:FlowView_) -> tuple[float,float]:
     if activetool and not activetool.GetAttrs("TOOLS_RegID") =="BezierSpline":
         atx, aty = flow.GetPosTable(activetool).values()
     else:
-        atx, aty = find_LastClickPosition(comp)
+        atx, aty = findLastClickPosition(comp)
 
     return atx, aty
 
@@ -1150,7 +1176,7 @@ def getChannelData(loaderChannels:list) -> dict:
 ###### VIEW FOCUS ######
 
 # 
-def calculate_new_position(toolX, toolY):
+def calcNewPosition(toolX, toolY):
     deltax = toolX - (-0.5)
     deltay = toolY - (-0.5)
     # the ratio is the ammount the viewer moves to center the node for each 0.5 units
@@ -1165,7 +1191,7 @@ def focusOnTool(comp:Composition_, tool:Tool_, scalefactor = 0.5):
 
     # tool = comp.Background1
     Xpos, Ypos = flow.GetPosTable(tool).values()
-    x, y = calculate_new_position(Xpos, Ypos)
+    x, y = calcNewPosition(Xpos, Ypos)
 
     new_bookmark:dict = {'__flags': 1048832, 
                     'Offset': {'__flags': 256, 1.0: x, 2.0: y}, 
