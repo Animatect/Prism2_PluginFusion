@@ -274,7 +274,7 @@ def cleanPrismFileDb(comp, cpData_orig:dict) -> dict:
 
             # Remove the invalid UIDs from the current subcategory
             for uid in uids_to_remove:
-                logger.warning(f"Cleaned {uid} record from Database")
+                logger.debug(f"Cleaned {uid} record from Database")
                 del nodes[uid]
 
         return cpData_cleaned
@@ -298,12 +298,12 @@ def updatePrismFileDB(comp:Composition_):
         tooluid:str|None = tool.GetData("Prism_UUID")
         if not tooluid in alldbnodes:
         # if a node is not in the db check if has dbData property/data
-            dbData:dict = tool.GetData("Prism_dbData")
+            dbData:dict = tool.GetData("Prism_ToolData")
             if dbData:
-                listType:str|None = tool.GetData("Prism_dbData").get("listType")
+                listType:str|None = tool.GetData("Prism_ToolData").get("listType")
                 if listType:
                 # add the node to the database records
-                    addNodeToDB(comp, listType, tooluid, tool.GetData("Prism_dbData"))
+                    addNodeToDB(comp, listType, tooluid, tool.GetData("Prism_ToolData"))
                     # TODO Alternatively add a State...
 
 

@@ -211,11 +211,11 @@ class Object3d_ImportClass(object):
             idx = self.cb_taskColor.findText(data["taskColor"])
             if idx != -1:
                 self.cb_taskColor.setCurrentIndex(idx)
-        if "3dFilepath" in data:
-            data["3dFilepath"] = getattr(
+        if "object3dFilepath" in data:
+            data["object3dFilepath"] = getattr(
                 self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
-            )(data["3dFilepath"])
-            self.setImportPath(data["3dFilepath"])
+            )(data["object3dFilepath"])
+            self.setImportPath(data["object3dFilepath"])
         if "taskname" in data:
             self.taskName = data["taskname"]
         if "setname" in data:
@@ -481,11 +481,11 @@ class Object3d_ImportClass(object):
         nodeData = {"nodeName": nodeName,
                     "nodeUID": self.stateUID,
                     "version": productVersion,
-                    "3dFilepath": impFileName,
+                    "object3dFilepath": impFileName,
                     "product": productName,
                     "listType": "import3d",
                     "format": extension.lower()}
-
+        
         #   Call import function
         importResult = self.fuseFuncts.import3dObject(self,
                                                       UUID=self.stateUID,
@@ -696,7 +696,7 @@ class Object3d_ImportClass(object):
             "stateUID": self.stateUID,
             "statemode": self.stateMode,
             "taskColor": self.cb_taskColor.currentText(),
-            "3dFilepath": self.getImportPath(),
+            "object3dFilepath": self.getImportPath(),
             "autoUpdate": str(self.chb_autoUpdate.isChecked()),
             "taskname": self.taskName,
             "setname": self.setName,

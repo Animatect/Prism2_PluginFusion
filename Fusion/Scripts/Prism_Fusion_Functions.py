@@ -892,7 +892,7 @@ class Prism_Fusion_Functions(object):
 
 			if sv:
 				#	Update Saver Info
-				Fus.updateToolData(sv, nodeData)
+				Fus.configureTool(sv, nodeData)
 
 				#	Update Node in Comp Database
 				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
@@ -912,7 +912,7 @@ class Prism_Fusion_Functions(object):
 			sv = CompDb.getNodeByUID(comp, nodeUID)
 			if sv:
 				#	Update Saver
-				Fus.updateToolData(sv, nodeData)
+				Fus.configureTool(sv, nodeData)
 				#	Update Comp Database
 				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
 
@@ -1602,7 +1602,7 @@ class Prism_Fusion_Functions(object):
 					#	Get original Loader
 					ldr = CompDb.getNodeByUID(comp, uid)
 					#	Update Loader config
-					Fus.updateToolData(ldr, toolData)
+					Fus.configureTool(ldr, toolData)
 					#	Update Database record
 					CompDb.updateNodeInfo(comp, "import2d", uid, toolData)
 					
@@ -1688,7 +1688,7 @@ class Prism_Fusion_Functions(object):
 			nodeData["connectedNodes"] = {"wireless_IN": wirelessInUID,
 								 		  "wireless_OUT": wirelessOutUID}
 
-			Fus.updateToolData(ldr, nodeData)
+			Fus.configureTool(ldr, nodeData)
 			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
 
 			#	Select the wireless out
@@ -1879,7 +1879,7 @@ class Prism_Fusion_Functions(object):
 				#	Get tool
 				tool = CompDb.getNodeByUID(comp, UUID)
 				#	 Update tool data
-				uLdr = Fus.updateToolData(tool, nodeData)
+				uLdr = Fus.configureTool(tool, nodeData)
 
 				logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
 				importRes = True
@@ -2041,7 +2041,7 @@ class Prism_Fusion_Functions(object):
 				toolData = Fus.getToolData(tool)
 
 				#	Get map type from data
-				mapType = (toolData.get("Prism_TexMap", None)).lower()
+				mapType = (toolData.get("texMap", None)).lower()
 				#	Get uShader connection data from map type
 				connectionData = self.connectDict.get(mapType, None)
 				#	Extract input name and colorspace
@@ -2078,7 +2078,7 @@ class Prism_Fusion_Functions(object):
 			groupTool = CompDb.getNodeByUID(comp, groupUID)
 
 			#	Uodate Group and add to Database
-			Fus.updateToolData(groupTool, groupData)
+			Fus.configureTool(groupTool, groupData)
 			CompDb.addNodeToDB(comp, "import3d", groupUID, groupData)
 
 			#	Add Group UID to uShader database record
@@ -2166,7 +2166,7 @@ class Prism_Fusion_Functions(object):
 		else:
 			try:
 				tool = CompDb.getNodeByUID(comp, UUID)
-				uMaterialX = Fus.updateToolData(tool, matXData)
+				uMaterialX = Fus.configureTool(tool, matXData)
 
 				if uMaterialX:
 					updateResult = CompDb.updateNodeInfo(comp, "import3d", UUID, matXData)
@@ -2222,9 +2222,6 @@ class Prism_Fusion_Functions(object):
 
 				#	Add 3d Tool
 				ldr3d = Fus.addTool(comp, toolType, nodeData)
-				
-				# comp.Unlock()
-				# comp.EndUndo()
 
 				logger.debug(f"Imported 3d object: {nodeData['product']}")
 
@@ -2243,7 +2240,7 @@ class Prism_Fusion_Functions(object):
 				#	Get tool
 				tool = CompDb.getNodeByUID(comp, UUID)
 				#	 Update tool data
-				ldr3d = Fus.updateToolData(tool, nodeData)
+				ldr3d = Fus.configureTool(tool, nodeData)
 
 				logger.debug(f"Updated Loader3d: {nodeData['nodeName']}")
 				importRes = True
@@ -2382,7 +2379,7 @@ class Prism_Fusion_Functions(object):
 		# 		#	Get tool
 		# 		tool = CompDb.getNodeByUID(comp, UUID)
 		# 		#	 Update tool data
-		# 		uLdr = Fus.updateToolData(tool, nodeData)
+		# 		uLdr = Fus.configureTool(tool, nodeData)
 
 		# 		logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
 		# 		importRes = True
