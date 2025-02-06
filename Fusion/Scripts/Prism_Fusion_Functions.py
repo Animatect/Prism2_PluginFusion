@@ -3897,7 +3897,6 @@ path = r\"%s\"
 		origin.setWindowIcon(QIcon(self.prismAppIcon))
 		#	Remove Import buttons
 		origin.b_createImport.deleteLater()
-		# origin.b_shotCam.deleteLater()
 
 		#	Remove Export and Playblast buttons
 		origin.b_createExport.deleteLater()
@@ -4482,6 +4481,7 @@ path = r\"%s\"
 		self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
 		self.onMediaBrowserTaskUpdate(mediabrowser)
 
+
 	#	This imports shotcams as a legacy
 	@err_catcher(name=__name__)
 	def shotCam(self):
@@ -4522,6 +4522,7 @@ path = r\"%s\"
 			filepath = sm.core.products.getLatestVersionpathFromProduct(
 				"_ShotCam", entity=fnameData
 			)
+			
 			if not filepath:
 				sm.core.popup("Could not find a shotcam for the current shot.")
 				sm.saveEnabled = True

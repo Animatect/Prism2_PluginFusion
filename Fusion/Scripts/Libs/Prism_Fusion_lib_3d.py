@@ -294,11 +294,14 @@ def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool
 
 
 def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict, stateUUID:str, initcoords:tuple=tuple((0,0)))->bool:
-    #check if there was a merge3D in the import and where was it connected to
+    #   check if there was a merge3D in the import and where was it connected to
     importedTools:list[Tool_] = comp.GetToolList(True).values()
     isUpdate:bool = False
     positionedNodes:list[str] = []
     unsuccesfulConnections:list[str] = []
+
+    product = toolData["product"]
+    version = toolData["version"]
 
     atx:float = initcoords[0] 
     aty:float = initcoords[1]
@@ -317,7 +320,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 rightmost_tool = tool
 
         firstnode:Tool_ = rightmost_tool  # Use the rightmost tool as the reference
-        firstnode.SetAttrs({'TOOLS_Name' : f"ROOT_{toolData['product']}"})
+        firstnode.SetAttrs({'TOOLS_Name' : f"ROOT_{product}"})
         fstnx, fstny = flow.GetPosTable(firstnode).values()
 
         
@@ -384,7 +387,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     
     # add a suffix the name to make sure we don't deduplicate a name on the update by modifying its name making finding matching tools impossible.
     for t in importedTools:
-        newName:str =  t.GetAttrs("TOOLS_Name") + "_" + toolData.get("product")
+        newName:str =  f"{t.GetAttrs('TOOLS_Name')}_{toolData.get('product')}_{version}"
         t.SetAttrs({'TOOLS_Name' : newName})
 
     origin.setName = "Import_" + toolData.get("product")
