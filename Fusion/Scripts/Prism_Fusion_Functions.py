@@ -1856,8 +1856,8 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		importRes = False
 
-		#	Add new uLoader
-		if not update:
+		#	Add new uLoader if not update or if the Tool is not in the Comp
+		if not update or not CompDb.nodeExists(comp, UUID):
 			try:
 				#	Add tool
 				uLdr = Fus.addTool(comp, "uLoader", nodeData)
@@ -2207,8 +2207,8 @@ class Prism_Fusion_Functions(object):
 
 		format = nodeData["format"]
 
-		#	Add new 3d Loader
-		if not update:
+		#	Add new 3d Loader if not update or Tool is not in the Comp
+		if not update or not CompDb.nodeExists(comp, UUID):
 			try:
 				#	Add tooltype based on format
 				if format == ".fbx":
