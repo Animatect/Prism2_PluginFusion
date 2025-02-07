@@ -891,7 +891,7 @@ class Prism_Fusion_Functions(object):
 
 			if sv:
 				#	Update Saver Info
-				Fus.updateTool(sv, nodeData)
+				Fus.configureTool(sv, nodeData)
 
 				#	Update Node in Comp Database
 				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
@@ -911,7 +911,7 @@ class Prism_Fusion_Functions(object):
 			sv = CompDb.getNodeByUID(comp, nodeUID)
 			if sv:
 				#	Update Saver
-				Fus.updateTool(sv, nodeData)
+				Fus.configureTool(sv, nodeData)
 				#	Update Comp Database
 				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
 
@@ -1320,7 +1320,8 @@ class Prism_Fusion_Functions(object):
 							"extension": importData["extension"],
 							"fuseFormat": self.getFuseFormat(importData["extension"]),
 							"frame_start": importItem["frame_start"],
-							"frame_end": importItem["frame_end"]
+							"frame_end": importItem["frame_end"],
+							"listType": "import2d",
 							}
 
 				try:
@@ -1600,7 +1601,7 @@ class Prism_Fusion_Functions(object):
 					#	Get original Loader
 					ldr = CompDb.getNodeByUID(comp, uid)
 					#	Update Loader config
-					Fus.updateTool(ldr, toolData)
+					Fus.configureTool(ldr, toolData)
 					#	Update Database record
 					CompDb.updateNodeInfo(comp, "import2d", uid, toolData)
 					
@@ -1686,7 +1687,7 @@ class Prism_Fusion_Functions(object):
 			nodeData["connectedNodes"] = {"wireless_IN": wirelessInUID,
 								 		  "wireless_OUT": wirelessOutUID}
 
-			Fus.updateTool(ldr, nodeData)
+			Fus.configureTool(ldr, nodeData)
 			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
 
 			#	Select the wireless out
@@ -1713,7 +1714,7 @@ class Prism_Fusion_Functions(object):
 					if (
 						abs(Fus.getToolPosition(comp, l)[0] - leftmostpos) <= flowThresh
 						and l.GetData("Prism_UUID")
-						and l.GetData('Prism_MediaID')
+						and l.GetData('Prism_ToolData')
 						)
 						]
 			
@@ -1728,7 +1729,9 @@ class Prism_Fusion_Functions(object):
 
 		sortedloaders = []
 		for mediaId in mediaIDs:
-			lyloaders = [l for l in loaders if l.GetData('Prism_MediaID') == mediaId]
+
+			lyloaders = [l for l in loaders if l.GetData("Prism_ToolData") and l.GetData("Prism_ToolData").get("mediaId") == mediaId]
+
 			sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
 			sortedloaders += sorted_loader_names
 			
@@ -1740,7 +1743,7 @@ class Prism_Fusion_Functions(object):
 		
 		# To check if a node is in a layer or if we've switched layers, we first store a refernce layer
 		# update it and compare it in each iteration.
-		lastLoaderLyr = sortedloaders[0].GetData('Prism_MediaID')
+		lastLoaderLyr = sortedloaders[0].GetData("Prism_ToolData").get("mediaId")
 
 		try:
 			new_X = leftmostpos
@@ -1752,8 +1755,8 @@ class Prism_Fusion_Functions(object):
 			for ldr in sortedloaders:
 				#   Get Loader data
 				ldrData = Fus.getToolData(ldr)
-				connectedTools = ldrData["Prism_ConnectedNodes"]
-				lyrNm = ldrData['Prism_MediaID']
+				connectedTools = ldrData["connectedNodes"]
+				lyrNm = ldrData['mediaId']
 
 				# We reconnect to solve an issue that creates "Ghost" connections until comp is reopened.
 				inNode =  CompDb.getNodeByUID(comp, connectedTools["wireless_IN"])
@@ -1854,8 +1857,8 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		importRes = False
 
-		#	Add new uLoader
-		if not update:
+		#	Add new uLoader if not update or if the Tool is not in the Comp
+		if not update or not CompDb.nodeExists(comp, UUID):
 			try:
 				#	Add tool
 				uLdr = Fus.addTool(comp, "uLoader", nodeData)
@@ -1877,7 +1880,7 @@ class Prism_Fusion_Functions(object):
 				#	Get tool
 				tool = CompDb.getNodeByUID(comp, UUID)
 				#	 Update tool data
-				uLdr = Fus.updateTool(tool, nodeData)
+				uLdr = Fus.configureTool(tool, nodeData)
 
 				logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
 				importRes = True
@@ -1971,7 +1974,7 @@ class Prism_Fusion_Functions(object):
 			shdData["shaderName"] = texData["shaderName"]
 		
 			#	Get Positions to not mess up flow
-			lastClicked = Fus.find_LastClickPosition(comp)
+			lastClicked = Fus.findLastClickPosition(comp)
 			leftTool = Fus.findLeftmostLowerTool(comp, threshold=10)
 			left_x, left_y = Fus.getToolPosition(comp, leftTool)
 			temp_x = left_x - 20
@@ -2039,7 +2042,7 @@ class Prism_Fusion_Functions(object):
 				toolData = Fus.getToolData(tool)
 
 				#	Get map type from data
-				mapType = (toolData.get("Prism_TexMap", None)).lower()
+				mapType = (toolData.get("texMap", None)).lower()
 				#	Get uShader connection data from map type
 				connectionData = self.connectDict.get(mapType, None)
 				#	Extract input name and colorspace
@@ -2076,7 +2079,7 @@ class Prism_Fusion_Functions(object):
 			groupTool = CompDb.getNodeByUID(comp, groupUID)
 
 			#	Uodate Group and add to Database
-			Fus.updateTool(groupTool, groupData)
+			Fus.configureTool(groupTool, groupData)
 			CompDb.addNodeToDB(comp, "import3d", groupUID, groupData)
 
 			#	Add Group UID to uShader database record
@@ -2164,7 +2167,7 @@ class Prism_Fusion_Functions(object):
 		else:
 			try:
 				tool = CompDb.getNodeByUID(comp, UUID)
-				uMaterialX = Fus.updateTool(tool, matXData)
+				uMaterialX = Fus.configureTool(tool, matXData)
 
 				if uMaterialX:
 					updateResult = CompDb.updateNodeInfo(comp, "import3d", UUID, matXData)
@@ -2205,8 +2208,8 @@ class Prism_Fusion_Functions(object):
 
 		format = nodeData["format"]
 
-		#	Add new 3d Loader
-		if not update:
+		#	Add new 3d Loader if not update or Tool is not in the Comp
+		if not update or not CompDb.nodeExists(comp, UUID):
 			try:
 				#	Add tooltype based on format
 				if format == ".fbx":
@@ -2220,9 +2223,6 @@ class Prism_Fusion_Functions(object):
 
 				#	Add 3d Tool
 				ldr3d = Fus.addTool(comp, toolType, nodeData)
-				
-				# comp.Unlock()
-				# comp.EndUndo()
 
 				logger.debug(f"Imported 3d object: {nodeData['product']}")
 
@@ -2241,7 +2241,7 @@ class Prism_Fusion_Functions(object):
 				#	Get tool
 				tool = CompDb.getNodeByUID(comp, UUID)
 				#	 Update tool data
-				ldr3d = Fus.updateTool(tool, nodeData)
+				ldr3d = Fus.configureTool(tool, nodeData)
 
 				logger.debug(f"Updated Loader3d: {nodeData['nodeName']}")
 				importRes = True
@@ -2395,7 +2395,7 @@ class Prism_Fusion_Functions(object):
 		# 		#	Get tool
 		# 		tool = CompDb.getNodeByUID(comp, UUID)
 		# 		#	 Update tool data
-		# 		uLdr = Fus.updateTool(tool, nodeData)
+		# 		uLdr = Fus.configureTool(tool, nodeData)
 
 		# 		logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
 		# 		importRes = True
@@ -3913,7 +3913,6 @@ path = r\"%s\"
 		origin.setWindowIcon(QIcon(self.prismAppIcon))
 		#	Remove Import buttons
 		origin.b_createImport.deleteLater()
-		# origin.b_shotCam.deleteLater()
 
 		#	Remove Export and Playblast buttons
 		origin.b_createExport.deleteLater()
@@ -3993,6 +3992,10 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):
 		self.smUI = origin
+		# Reintegrate Nodes that are not in the DB
+		comp = self.getCurrentComp()	
+		if self.sm_checkCorrectComp(comp):
+			CompDb.updatePrismFileDB(comp)
 
 		##	Resizes the StateManager Window
 		# 	Check if SM has a resize method and resize it
@@ -4018,7 +4021,7 @@ path = r\"%s\"
 				self.smUI.splitter.setSizes([LeftSize, RightSize])
 			except:
 				pass
-
+				
 		try:
 			self.popup.close()
 		except:
@@ -4494,6 +4497,7 @@ path = r\"%s\"
 		self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
 		self.onMediaBrowserTaskUpdate(mediabrowser)
 
+
 	#	This imports shotcams as a legacy
 	@err_catcher(name=__name__)
 	def shotCam(self):
@@ -4534,6 +4538,7 @@ path = r\"%s\"
 			filepath = sm.core.products.getLatestVersionpathFromProduct(
 				"_ShotCam", entity=fnameData
 			)
+			
 			if not filepath:
 				sm.core.popup("Could not find a shotcam for the current shot.")
 				sm.saveEnabled = True

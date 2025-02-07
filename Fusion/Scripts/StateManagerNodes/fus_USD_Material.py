@@ -552,6 +552,7 @@ class USD_MaterialClass(object):
                     "nodeUID": self.stateUID,
                     "shaderName": self.matxName,
                     "shaderType": "MaterialX",
+                    "listType": "import3d",
                     "matXfilePath": importPath}
         
         #   Updates existing tool if it exists

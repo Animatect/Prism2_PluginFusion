@@ -56,18 +56,30 @@ import re
 import uuid
 import hashlib
 from datetime import datetime
-from typing import Union, Dict, Tuple, Any
+from typing import TYPE_CHECKING, Union, Dict, Tuple, Any
 import logging
 
+from . import Prism_Fusion_lib_3d as Fus3D 
+
 from PrismUtils.Decorators import err_catcher as err_catcher
+
+from typing import TYPE_CHECKING, Any, Literal
+if TYPE_CHECKING:
+    from StateManagerNodes.fus_Legacy3D_Import import Legacy3D_ImportClass
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
+    Fusion_ = Any
+    Legacy3D_ImportClass = Any
+    Input_ = Any
+    Output_ = Any
 
 logger = logging.getLogger(__name__)
 
 
-### THIS IS A LIBRARY FOR THE PRISM DATABASE SAVED TO THE COMP  ###
-
-
-#   LETS KEEP THIS STRUCTURE UPDATED WITH CHANGES
+####################################################################################
+####   THIS IS A TEMPLATE FOR THE PRISM DATABASE STRUCTURE SAVED IN THE COMP    ####
 
 #   DataBase Structure:                                 ####   TODO - MAKE SURE IT IS ACCURATE     ####
 #
@@ -137,6 +149,7 @@ logger = logging.getLogger(__name__)
 #                     }
 #                  }
 
+####################################################################################
 
 
 #   For Python Type Hints
@@ -261,7 +274,7 @@ def cleanPrismFileDb(comp, cpData_orig:dict) -> dict:
 
             # Remove the invalid UIDs from the current subcategory
             for uid in uids_to_remove:
-                logger.warning(f"Cleaned {uid} record from Database")
+                logger.debug(f"Cleaned {uid} record from Database")
                 del nodes[uid]
 
         return cpData_cleaned
@@ -271,7 +284,28 @@ def cleanPrismFileDb(comp, cpData_orig:dict) -> dict:
         return None
 
 
-#   Adds a new Media Identifier to the DB
+#   Adds DB records if the node does not exist in the DB but does exist in the comp.
+
+def updatePrismFileDB(comp:Composition_):
+    # be sure to add the nodetype/category to the database and the data in the Fus library function (where it goes in the DB). 
+    flow:FlowView_ = comp.CurrentFrame.FlowView    
+    # get all nodes in the comp that have a Prism UUID
+    prismTools:list[Tool_] = [t for t in comp.GetToolList().values() if t.GetData("Prism_UUID")]
+    # get all nodes in the database as a collection.
+    alldbnodes:dict = Fus3D.getAllNodes(comp)
+    # check if the nodes that have a UUID exist in the database nodes collection.
+    for tool in prismTools:
+        tooluid:str|None = tool.GetData("Prism_UUID")
+        if not tooluid in alldbnodes:
+        # if a node is not in the db check if has dbData property/data
+            dbData:dict = tool.GetData("Prism_ToolData")
+            if dbData:
+                listType:str|None = tool.GetData("Prism_ToolData").get("listType")
+                if listType:
+                # add the node to the database records
+                    addNodeToDB(comp, listType, tooluid, tool.GetData("Prism_ToolData"))
+                    # TODO Alternatively add a State...
+
 
 def addPrismDbIdentifier(comp, category:str, name:str, color:int):
     cpData = loadPrismFileDb(comp)
@@ -351,7 +385,6 @@ def addNodeToDB(comp, listType:str, UUID:str, nodeData:dict) -> bool:
             logger.debug(f"Added {nodeData['toolName']} to the Comp Database")
         else:
             logger.debug(f"Added {UUID} to the Comp Database")
-
 
         return True
 

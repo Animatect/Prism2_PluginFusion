@@ -54,6 +54,8 @@ import os
 import re
 import logging
 
+from PrismUtils.Decorators import err_catcher as err_catcher
+
 from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
 if TYPE_CHECKING:
     pass
@@ -62,10 +64,6 @@ else:
     Composition_ = Any
     FlowView_ = Any
 
-from PrismUtils.Decorators import err_catcher as err_catcher
-logger = logging.getLogger(__name__)
-
-
 #   For Python Type Hints
 FusionComp = Dict
 Tool = Any
@@ -73,6 +71,41 @@ ToolOption = Any
 Color = int
 UUID = str
 Toolname = str
+
+logger = logging.getLogger(__name__)
+
+
+#####################################################################################
+####   THIS IS A TEMPLATE FOR THE PRISM DATABASE STRUCTURE SAVED TO EACH TOOL    ####
+
+#   Example DataBase Structure:                                 ####   TODO - MAKE SURE IT IS ACCURATE     ####
+#
+#   Tool:
+#       CustomData = {
+#				Prism_UUID = "7d1a2de3",
+#				Prism_ToolData = {
+#					nodeName = "SingleLyr-SingleAOV_RGB_master",
+#					version = "master",
+#					toolUID = "7d1a2de3",
+#					mediaId = "SingleLyr-SingleAOV",
+#					displayName = "SingleLyr-SingleAOV",
+#					mediaType = "3drenders",
+#					aov = "RGB",
+#					filepath = "N:\\Data\\Projects\\Prism Tests\\01_Production\\Shots\\010_MEDIA\\010_MEDIA\\Renders\\3dRender\\SingleLyr-SingleAOV\\master\\RGB\\010_MEDIA-010_MEDIA_SingleLyr-SingleAOV_master_RGB.0001.exr",
+#					extension = ".exr",
+#					fuseFormat = "OpenEXRFormat",
+#					frame_start = 1,
+#					frame_end = 19,
+#					listType = "import2d"
+#				    Prism_ConnectedNodes = {
+#					    wireless_IN = "9ac8d29b",
+#					    wireless_OUT = "759785d1"
+#				        },
+#                   }
+#			}
+
+
+####################################################################################
 
 
 #	Returns the filename of the current comp
@@ -238,69 +271,28 @@ def getCurrentFrame(comp) -> int:
 
 
 #   Adds tool of specified type and configures given data
-
 def addTool(comp:Composition_, toolType:str, toolData:dict={}, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
     try:
         tool = comp.AddTool(toolType, xPos, yPos, autoConnect)
-        addToolData(tool, toolData)
+        configureTool(tool, toolData)
+
         return tool
     
     except:
         logger.warning(f"ERROR: Failed to add {toolType} to Comp")
         return None
-    
 
 
-def addToolData(tool:Tool_, toolData:dict={}) -> None:
+def configureTool(tool:Tool_, toolData:dict={}) -> None:
     if "toolName" in toolData:
         tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
     if "nodeName" in toolData:
         tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
 
-
     if "toolUID" in toolData:
         tool.SetData('Prism_UUID', toolData['toolUID'])
     if "nodeUID" in toolData:
         tool.SetData('Prism_UUID', toolData['nodeUID'])
-
-    if "groupName" in toolData:
-            tool.SetData('Prism_Group', toolData['groupName'])
-
-    if "toolOrigName" in toolData:
-        tool.SetData('Prism_OrigName', toolData['toolOrigName'])
-
-    if "mediaId" in toolData:
-        tool.SetData('Prism_MediaID', toolData['mediaId'])
-
-    if "product" in toolData:
-        tool.SetData('Prism_Product', toolData['product'])
-
-    if "format" in toolData:
-        tool.SetData('Format', toolData['format'])
-
-    if "aov" in toolData:
-        tool.SetData('Prism_AOV', toolData['aov'])
-
-    if "channel" in toolData:
-        tool.SetData('Prism_Channel', toolData['channel'])
-
-    if "shaderName" in toolData:
-        tool.SetData('Prism_Shader', toolData['shaderName'])
-
-    if "shaderType" in toolData:
-        tool.SetData('Prism_ShaderType', toolData['shaderType'])
-
-    if "texMap" in toolData:
-        tool.SetData('Prism_TexMap', toolData['texMap'])
-
-    if "version" in toolData:
-        tool.SetData('Prism_Version', toolData['version'])
-
-    if "mediaType" in toolData:
-        tool.SetData('Prism_MediaType', toolData['mediaType'])
-
-    if "connectedNodes" in toolData:
-        tool.SetData('Prism_ConnectedNodes', toolData['connectedNodes'])
 
     if "filepath" in toolData:
         tool.Clip = toolData['filepath']
@@ -314,11 +306,11 @@ def addToolData(tool:Tool_, toolData:dict={}) -> None:
     if "matXfilePath" in toolData:
         tool["MaterialFile"] = toolData["matXfilePath"]
 
-    if "3dFilepath" in toolData:
+    if "object3dFilepath" in toolData:
         if toolData["format"] == ".fbx":
-            tool["ImportFile"] = toolData['3dFilepath']
+            tool["ImportFile"] = toolData['object3dFilepath']
         elif toolData["format"] == ".abc":
-            tool["Filename"] = toolData['3dFilepath']
+            tool["Filename"] = toolData['object3dFilepath']
 
     if "fuseFormat" in toolData:
         tool["OutputFormat"] = toolData['fuseFormat']
@@ -331,85 +323,108 @@ def addToolData(tool:Tool_, toolData:dict={}) -> None:
         tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
         tool.HoldLastFrame = 0
 
-
     #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
     tool.SetAttrs({'TOOLS_NameSet': True})
+
+    addToolData(tool, toolData)
+
+    return tool
+
+
+def addToolData(tool:Tool_, toolData:dict={}) -> None:
+
+    #   add the DB data to be able to reconstruct it
+    tool.SetData('Prism_ToolData', toolData)
+
     
 
 #   Updates tool config for given data
 
-def updateTool(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
-    print("UPDATE TOOL 0")
-    try:
-        print("UPDATE TOOL 1")
-        if "toolName" in toolData:
-            tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
-        if "nodeName" in toolData:
-            tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
+# def updateToolData(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
 
-        if "groupName" in toolData:
-            tool.SetData('Prism_Group', toolData['groupName'])
+#     print(f"\n\ntoolData:\n\n{toolData}")                                        #   TESTING
 
-        if "version" in toolData:
-            tool.SetData('Prism_Version', toolData['version'])
+#     try:
+#         if "toolName" in toolData:
+#             tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
+#         if "nodeName" in toolData:
+#             tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
 
-        if "connectedNodes" in toolData:
-            tool.SetData('Prism_ConnectedNodes', toolData['connectedNodes'])
+#         if "groupName" in toolData:
+#             tool.SetData('Prism_Group', toolData['groupName'])
 
-        if "filepath" in toolData:
-            tool.Clip = toolData['filepath']
+#         if "version" in toolData:
+#             tool.SetData('Prism_Version', toolData['version'])
 
-        if "usdFilepath" in toolData:
-            tool["Filename"] = toolData['usdFilepath']
+#         if "connectedNodes" in toolData:
+#             tool.SetData('Prism_ConnectedNodes', toolData['connectedNodes'])
 
-        if "matXfilePath" in toolData:
-            tool["MaterialFile"] = toolData["matXfilePath"]
+#         if "filepath" in toolData:
+#             tool.Clip = toolData['filepath']
 
-        if "3dFilepath" in toolData:
-            if toolData["format"] == ".fbx":
-                tool["ImportFile"] = toolData['3dFilepath']
-            elif toolData["format"] == ".abc":
-                tool["Filename"] = toolData['3dFilepath']
+#         if "usdFilepath" in toolData:
+#             tool["Filename"] = toolData['usdFilepath']
 
-        if "frame_start" in toolData:
-            tool.GlobalIn[0] = toolData["frame_start"]
-            tool.GlobalOut[0] = toolData["frame_end"]
+#         if "matXfilePath" in toolData:
+#             tool["MaterialFile"] = toolData["matXfilePath"]
 
-            tool.ClipTimeStart = 0
-            tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
-            tool.HoldLastFrame = 0
+#         if "3dFilepath" in toolData:
+#             if toolData["format"] == ".fbx":
+#                 tool["ImportFile"] = toolData['3dFilepath']
+#             elif toolData["format"] == ".abc":
+#                 tool["Filename"] = toolData['3dFilepath']
+
+#         if "frame_start" in toolData:
+#             tool.GlobalIn[0] = toolData["frame_start"]
+#             tool.GlobalOut[0] = toolData["frame_end"]
+
+#             tool.ClipTimeStart = 0
+#             tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
+#             tool.HoldLastFrame = 0
+
+
+
+
+        # #   add the DB data to be able to reconstruct it
+        # if tool.GetData('Prism_ToolData'):
+
+        #     data:dict = tool.GetData('Prism_ToolData')
+
+        #     print(f"*** data: {data}")                                              #    TESTING
+
+        #     updatedKeys = toolData.keys()
+
+        #     print(f"*** updatedKeys:  {updatedKeys}")                               #    TESTING
+
+        #     for key in updatedKeys:
+        #         print(f"*** key:  {key}")                                           #    TESTING
+
+        #         if data[key]:
+        #             data[key] = toolData[key]
+                    
+        #     tool.SetData('Prism_ToolData', data)
+        # else:
+        #     tool.SetData('Prism_ToolData', toolData)
+
+
 
 
         #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
         # tool.SetAttrs({'TOOLS_NameSet': True})
 
-        return tool
+    #     return tool
     
-    except:
-        print("UPDATE TOOL 2")
-        logger.warning(f"ERROR: Failed to update {tool} in Comp")
-        return None
+    # except Exception as e:
+    #     logger.warning(f"ERROR: Failed to update {tool} in Comp")
+    #     logger.warning(e)
+    #     return None
 
 
 #   Returns Prism Data contained in Tool
-
 def getToolData(tool:Tool) -> dict:
     try:
-        #   Get all the tool data
-        allData = tool.GetData()
-
-        # Extract only the keys starting with "Prism"
-        prismKeys = {key: value for key, value in allData.items() if str(value).startswith("Prism")}
-
-        prismData = {}
-
-        #   Get key value pairs
-        for key, value in prismKeys.items():
-            data = tool.GetData(value)
-            #   Add to dict
-            prismData[value] = data
-
-        return prismData
+        toolData = tool.GetData('Prism_ToolData')
+        return toolData
 
     except Exception as e:
         logger.warning(f"ERROR: Unable to get tool data from: {tool}\n{e}")
@@ -435,7 +450,7 @@ def groupTools(comp,
     try:
         for tool in toolList:
             #   Add UUID to list
-            uid = getToolData(tool)["Prism_UUID"]
+            uid = tool.GetData("Prism_UUID")
             toolUIDs.append(uid)
 
             #   Copys the settings code
@@ -787,34 +802,41 @@ def makeWirelessName(importData:dict) -> str:
         return None
     
 
+##  THIS COMMENTS OUT A DUPLICATE METHOD    ##
+##  vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv    ##
+
 #   The name of this function comes for its initial use to position
 #   the "state manager node" that what used before using SetData.
 
-def setToolPosition(comp, node, find_min=True, x_offset=-2, y_offset=0, ignore_node_type:str=None, refNode:Tool=None):
-    # Get the active composition
-    flow = comp.CurrentFrame.FlowView
+# def setToolPosition(comp, node, find_min=True, x_offset=-2, y_offset=0, ignore_node_type:str=None, refNode:Tool=None):
+#     # Get the active composition
+#     flow = comp.CurrentFrame.FlowView
 
-    if not comp:
-        # No active composition
-        return
+#     if not comp:
+#         # No active composition
+#         return
 
-    # Get all nodes in the composition
-    all_nodes = comp.GetToolList(False).values()
+#     # Get all nodes in the composition
+#     all_nodes = comp.GetToolList(False).values()
 
-    if not all_nodes:
-        flow.SetPos(node, 0, 0)
-        return
+#     if not all_nodes:
+#         flow.SetPos(node, 0, 0)
+#         return
 
-    # xmost_node, thresh_x_position, thresh_y_position = self.find_extreme_position(node, ignore_node_type, find_min)
+#     # xmost_node, thresh_x_position, thresh_y_position = self.find_extreme_position(node, ignore_node_type, find_min)
 
-    # if xmost_node:
-    if refNode:
-        thresh_x_position, thresh_y_position = postable = flow.GetPosTable(refNode).values()
-        setToolPosition(flow, node, thresh_x_position + x_offset, thresh_y_position + y_offset)
-    else:
-        flow.Select()
-        x,y = find_LastClickPosition(comp)
-        flow.SetPos(node, x, y)
+#     # if xmost_node:
+#     if refNode:
+#         thresh_x_position, thresh_y_position = postable = flow.GetPosTable(refNode).values()
+#         setToolPosition(flow, node, thresh_x_position + x_offset, thresh_y_position + y_offset)
+#     else:
+#         flow.Select()
+#         x,y = findLastClickPosition(comp)
+#         flow.SetPos(node, x, y)
+
+##  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^   ##
+##  REMOVE IF NO ERRORS                         ##
+
 
 
 #   Returns Position of Tool
@@ -824,15 +846,16 @@ def getToolPosition(comp, tool:Tool) -> Tuple[float, float]:
     try:
         return list(flow.GetPosTable(tool).values())
     except:
-        logger.warning(f"ERROR: Unable to get position of {tool}.")
+        logger.debug(f"ERROR: Unable to get position of {tool}.")
         return 0, 0
 
 
 #   Set Tool Position in Comp
 # 
-def setToolPosition(flow, tool:Tool, x:float, y:float):
+def setToolPosition(flow, tool:Tool, xPos:float, yPos:float):
     try:
-        flow.SetPos(tool, x, y)
+        flow.SetPos(tool, xPos, yPos)
+
     except:
         logger.warning(f"ERROR: Unable to set position of {tool}")
 
@@ -866,7 +889,9 @@ def setToolToLeft(comp, tool, refNode=None, x_offset:float=0, y_offset:float=1):
                 setToolPosRelative(comp, tool, refNode, x_offset = -8, y_offset = 0)
         else:
             #   Just put in position
-            setToolPosition(comp, tool, x_offset = 0, y_offset = 0)
+            flow = comp.CurrentFrame.FlowView
+            setToolPosition(flow, tool, 0, 0)
+
     except:
         logger.warning(f"ERROR: Unable to set {tool} to the left")
 
@@ -910,9 +935,9 @@ def matchToolPos(comp, nodeTomove:Tool_, nodeInPos:Tool_):
     setToolPosition(flow, nodeTomove, x, y)
 
 
-#Get last click on comp view.
+#   Get last click on comp view.
 
-def find_LastClickPosition(comp:Composition_) -> list[float, float]:
+def findLastClickPosition(comp:Composition_) -> list[float, float]:
     try:
         flow:FlowView_ = comp.CurrentFrame.FlowView
         # Store selection
@@ -1044,7 +1069,6 @@ def stackToolsByType(comp, nodetostack:Tool, yoffset:float=3, tooltype:str="Save
         flow.SetPos(nodetostack, origx, thresh_y_position + yoffset)
 
 
-
 def findLeftmostLowerTool(comp, threshold:float=0.5) -> Tool:
     flow = comp.CurrentFrame.FlowView
 
@@ -1065,7 +1089,6 @@ def findLeftmostLowerTool(comp, threshold:float=0.5) -> Tool:
         return None
 
 
-
 def getRefPosition(comp:Composition_, flow:FlowView_) -> tuple[float,float]:
     #try to get an active tool to set a ref position
     activetool:Tool_ = None
@@ -1076,10 +1099,9 @@ def getRefPosition(comp:Composition_, flow:FlowView_) -> tuple[float,float]:
     if activetool and not activetool.GetAttrs("TOOLS_RegID") =="BezierSpline":
         atx, aty = flow.GetPosTable(activetool).values()
     else:
-        atx, aty = find_LastClickPosition(comp)
+        atx, aty = findLastClickPosition(comp)
 
     return atx, aty
-
 
 
 def getLoaderChannels(tool) -> list[str]:
@@ -1108,7 +1130,6 @@ def getLoaderChannels(tool) -> list[str]:
     return sortedChannels
 
 
-
 def getChannelData(loaderChannels:list) -> dict:
     try:
         channelData = {}
@@ -1131,10 +1152,11 @@ def getChannelData(loaderChannels:list) -> dict:
         logger.warning("ERROR: Failed to get channel data")
         return None
     
+
 ###### VIEW FOCUS ######
 
 # 
-def calculate_new_position(toolX, toolY):
+def calcNewPosition(toolX, toolY):
     deltax = toolX - (-0.5)
     deltay = toolY - (-0.5)
     # the ratio is the ammount the viewer moves to center the node for each 0.5 units
@@ -1149,7 +1171,7 @@ def focusOnTool(comp:Composition_, tool:Tool_, scalefactor = 0.5):
 
     # tool = comp.Background1
     Xpos, Ypos = flow.GetPosTable(tool).values()
-    x, y = calculate_new_position(Xpos, Ypos)
+    x, y = calcNewPosition(Xpos, Ypos)
 
     new_bookmark:dict = {'__flags': 1048832, 
                     'Offset': {'__flags': 256, 1.0: x, 2.0: y}, 
