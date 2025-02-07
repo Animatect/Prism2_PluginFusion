@@ -183,14 +183,17 @@ class PrismHolderClass(object):
 		if global_Prism.pcore.getPlugin("Fusion").pbUI:
 			print("[Prism] Project Browser is already opened")
 		else:
+			print("[Prism]  Opening Project Browser")
 			opw.openProjectBrowser(global_Prism.pcore)
 
 
 	def on_btn_saveVersion_clicked(self, ev):
+		print("[Prism]  Saving Version")
 		opw.runPrismSaveScene(global_Prism.pcore)
 
 
 	def on_btn_saveComment_clicked(self, ev):
+		print("[Prism]  Opening Save Dialog")
 		opw.openPrismSaveWithComment(global_Prism.pcore)
 
 
@@ -198,10 +201,12 @@ class PrismHolderClass(object):
 		if global_Prism.pcore.getPlugin("Fusion").smUI:
 			print("[Prism] State Manager is already opened")
 		else:
+			print("[Prism]  Opening State Manager")
 			opw.openPrismStateManager(global_Prism.pcore)
 
 
 	def on_btn_prismSettings_clicked(self, ev):
+		print("[Prism]  Opening Settings")
 		opw.openPrismSettings(global_Prism.pcore)
 
 
