@@ -145,12 +145,11 @@ class Prism_Fusion_Functions(object):
 			logger.warning(f"ERROR: Failed to register callbacks:\n{e}")
 		
 		self.importHandlers = {
-			".abc": {"importFunction": self.import3dObject},
-			".fbx": {"importFunction": self.import3dObject},
-			".bcam":{"importFunction": self.importBlenderCam},
-			".usd":{"importFunction": self.importUSD},
-			".usda":{"importFunction": self.importUSD},
-			".usdc":{"importFunction": self.importUSD}
+			".abc": {"importFunction": self.importAbc},
+			".fbx": {"importFunction": self.importFbx},
+			# ".usd":{"importFunction": self.importUSD},
+			# ".usda":{"importFunction": self.importUSD},
+			# ".usdc":{"importFunction": self.importUSD}
 		}
 
 		# self.exportHandlers = {
@@ -2286,10 +2285,13 @@ class Prism_Fusion_Functions(object):
 		
 		
 
-	@err_catcher(name=__name__)
-	def importBlenderCam(self, origin, importPath, UUID, nodeName, version, update=False):
-		# return Fus3d.importFBX(self, origin, importPath, UUID, nodeName, version, update=False)
-		pass
+	def importAbc(self, Filepath, origin):
+		result = Fus3d.importAlembic(Filepath, self.fusion, origin)
+		return result
+
+	def importFbx(self, Filepath, origin):
+		result = Fus3d.importAlembic(Filepath, self.fusion, origin)
+		return result
 
 	@err_catcher(name=__name__)
 	def importLegacy3D(self, origin:Legacy3D_ImportClass, UUID, nodeData, update=False):
@@ -2340,17 +2342,29 @@ class Prism_Fusion_Functions(object):
 				return {"result": False, "doImport": False}
 			else:
 				pass
-
+			
+			#	Get Extension
+			ext = fileName[1].lower()
 			# Do the importing
-			if format == ".fbx":
-				result = Fus3d.importFBX(nodeData["Filepath"], self.fusion, origin)
+			#	Check if Image Format is supported
+			if ext not in self.importHandlers:
+				self.core.popup(f"Import format '{ext}' is not supported")
+				logger.warning(f"Import format '{ext}' is not supported")
+				return {"result": False, "doImport": doImport}
 
-			elif format == ".abc":
-				result = Fus3d.importAlembic(nodeData["Filepath"], self.fusion, origin)
-				print("importAlembic result: ", result)
 			else:
-				self.core.popup(f"Import format '{format}' is not supported")
-				logger.warning(f"ERROR:  Format not supported: {format}")
+				# Do the importing
+				result = self.importHandlers[ext]["importFunction"](nodeData["Filepath"], origin)
+
+			# if format == ".fbx":
+			# 	result = Fus3d.importFBX(nodeData["Filepath"], self.fusion, origin)
+
+			# elif format == ".abc":
+			# 	result = Fus3d.importAlembic(nodeData["Filepath"], self.fusion, origin)
+			# 	print("importAlembic result: ", result)
+			# else:
+				# self.core.popup(f"Import format '{format}' is not supported")
+				# logger.warning(f"ERROR:  Format not supported: {format}")
 				
 				
 				#the statemanager was minimized on the import.

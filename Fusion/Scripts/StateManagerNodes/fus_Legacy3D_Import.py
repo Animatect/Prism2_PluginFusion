@@ -92,7 +92,7 @@ class Legacy3D_ImportClass(object):
         self.fuseFuncts = self.core.appPlugin
         self.stateUID = None
 
-        self.supportedFormats = [".abc", ".fbx"]
+        self.supportedFormats = [".abc", ".fbx", ".bcam"]
 
         self.taskName = ""
         self.setName = ""
