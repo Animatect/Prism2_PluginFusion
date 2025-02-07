@@ -1,17 +1,17 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <ui version="4.0">
- <class>wg_Object3d_Import</class>
- <widget class="QWidget" name="wg_Object3d_Import">
+ <class>wg_Legacy3D_Import</class>
+ <widget class="QWidget" name="wg_Legacy3D_Import">
   <property name="geometry">
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>340</width>
-    <height>600</height>
+    <width>423</width>
+    <height>668</height>
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Object3d Import</string>
+   <string>ImportFile</string>
   </property>
   <layout class="QVBoxLayout" name="verticalLayout">
    <property name="leftMargin">
@@ -72,7 +72,7 @@
          </font>
         </property>
         <property name="text">
-         <string>Import 3D</string>
+         <string>Legacy3D_Import</string>
         </property>
        </widget>
       </item>
@@ -91,12 +91,21 @@
       <property name="topMargin">
        <number>0</number>
       </property>
+      <property name="bottomMargin">
+       <number>9</number>
+      </property>
       <item>
        <widget class="QGroupBox" name="gb_version">
         <property name="title">
          <string>Version</string>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_3">
+         <property name="topMargin">
+          <number>6</number>
+         </property>
+         <property name="bottomMargin">
+          <number>9</number>
+         </property>
          <item>
           <widget class="QWidget" name="w_currentVersion" native="true">
            <layout class="QHBoxLayout" name="horizontalLayout_5">
@@ -298,7 +307,7 @@
              <number>0</number>
             </property>
             <item>
-             <spacer name="horizontalSpacer_5">
+             <spacer name="horizontalSpacer_6">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
               </property>
@@ -324,7 +333,7 @@
              </widget>
             </item>
             <item>
-             <spacer name="horizontalSpacer_6">
+             <spacer name="horizontalSpacer_5">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
               </property>
@@ -342,6 +351,16 @@
            </layout>
           </widget>
          </item>
+         <item>
+          <widget class="QLabel" name="label">
+           <property name="text">
+            <string>&lt;html&gt;&lt;head/&gt;&lt;body&gt;&lt;p align=&quot;center&quot;&gt;Be mindful of the re-connect limitations:  Merge3D nodes that are not the Root node cannot be processed so avoid connecting anything new to them.  Use for this purpose the Root node or use the create Render Node button to create a Merge Node.&lt;/p&gt;&lt;/body&gt;&lt;/html&gt;</string>
+           </property>
+           <property name="wordWrap">
+            <bool>true</bool>
+           </property>
+          </widget>
+         </item>
         </layout>
        </widget>
       </item>
@@ -350,10 +369,10 @@
         <property name="title">
          <string>Options</string>
         </property>
-        <layout class="QVBoxLayout" name="verticalLayout_6">
+        <layout class="QVBoxLayout" name="verticalLayout_4">
          <item>
-          <widget class="QWidget" name="f_focusView" native="true">
-           <layout class="QHBoxLayout" name="horizontalLayout_12">
+          <widget class="QWidget" name="f_viewFocus" native="true">
+           <layout class="QHBoxLayout" name="horizontalLayout_11">
             <property name="leftMargin">
              <number>9</number>
             </property>
@@ -367,7 +386,7 @@
              <number>0</number>
             </property>
             <item>
-             <spacer name="horizontalSpacer_9">
+             <spacer name="horizontalSpacer_7">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
               </property>
@@ -390,7 +409,7 @@
              </widget>
             </item>
             <item>
-             <spacer name="horizontalSpacer_11">
+             <spacer name="horizontalSpacer_8">
               <property name="orientation">
                <enum>Qt::Horizontal</enum>
               </property>
@@ -409,7 +428,7 @@
           </widget>
          </item>
          <item>
-          <widget class="QWidget" name="f_3dScene" native="true">
+          <widget class="QWidget" name="f_3DScene" native="true">
            <layout class="QHBoxLayout" name="horizontalLayout_10">
             <property name="leftMargin">
              <number>9</number>
@@ -440,7 +459,7 @@
              </spacer>
             </item>
             <item>
-             <widget class="QPushButton" name="b_create3dScene">
+             <widget class="QPushButton" name="b_createRenderNode">
               <property name="text">
                <string>Create Render Node</string>
               </property>

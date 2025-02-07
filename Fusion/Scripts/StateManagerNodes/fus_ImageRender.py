@@ -869,6 +869,7 @@ class ImageRenderClass(object):
 					"version": "",
 					"filepath": "",
 					"format": "",
+                    "listType": "render2d",
 					}
 
 				try:

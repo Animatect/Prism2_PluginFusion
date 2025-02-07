@@ -59,6 +59,7 @@ from PrismUtils.Decorators import err_catcher
 logger = logging.getLogger(__name__)
 
 
+
 class Object3d_ImportClass(object):
     className = "Object3d_Import"
     listType = "Import"
@@ -99,13 +100,19 @@ class Object3d_ImportClass(object):
         self.l_name.setVisible(False)
         self.e_name.setVisible(False)
 
-        self.nodes = []
-        self.nodeNames = []
-
         self.oldPalette = self.b_importLatest.palette()
         self.updatePalette = QPalette()
         self.updatePalette.setColor(QPalette.Button, QColor(200, 100, 0))
         self.updatePalette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
+
+        self.cb_taskColor.setFixedWidth(125)
+        #	Gets task color settings from the DCC settings
+        self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
+        if self.taskColorMode == "Disabled":
+            self.cb_taskColor.hide()
+        else:
+            self.cb_taskColor.show()
+            self.populateTaskColorCombo()
 
         createEmptyState = (
             QApplication.keyboardModifiers() == Qt.ControlModifier
@@ -200,15 +207,17 @@ class Object3d_ImportClass(object):
             self.stateUID = data["stateUID"]
         if "statemode" in data:
             self.setStateMode(data["statemode"])
-        if "3dFilepath" in data:
-            data["3dFilepath"] = getattr(
+        if "taskColor" in data:
+            idx = self.cb_taskColor.findText(data["taskColor"])
+            if idx != -1:
+                self.cb_taskColor.setCurrentIndex(idx)
+        if "object3dFilepath" in data:
+            data["object3dFilepath"] = getattr(
                 self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
-            )(data["3dFilepath"])
-            self.setImportPath(data["3dFilepath"])
+            )(data["object3dFilepath"])
+            self.setImportPath(data["object3dFilepath"])
         if "taskname" in data:
             self.taskName = data["taskname"]
-        if "nodenames" in data:
-            self.nodeNames = eval(data["nodenames"])
         if "setname" in data:
             self.setName = data["setname"]
         if "autoUpdate" in data:
@@ -229,6 +238,37 @@ class Object3d_ImportClass(object):
         self.b_importLatest.clicked.connect(self.importLatest)
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
         self.b_create3dScene.clicked.connect(self.create3dScene)
+        self.b_focusView.clicked.connect(self.focusView)
+        self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
+
+
+    @err_catcher(name=__name__)
+    def populateTaskColorCombo(self):
+        #   Clear existing items
+        self.cb_taskColor.clear()
+
+        # Loop through color dictionary and add items with icons
+        for key in self.fuseFuncts.fusionToolsColorsDict.keys():
+            name = key
+            color = self.fuseFuncts.fusionToolsColorsDict[key]
+
+            # Create a QColor from the RGB values
+            qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
+
+            # Create icon with the color
+            icon = self.fuseFuncts.create_color_icon(qcolor)
+            self.cb_taskColor.addItem(QIcon(icon), name)
+
+
+    @err_catcher(name=__name__)
+    def setTaskColor(self, color):
+        #   Get rgb color from dict
+        colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
+        #   Color tool
+        self.fuseFuncts.colorTaskNodes(self.stateUID, "import3d", colorRGB, category="import3d")
+
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
 
 
     @err_catcher(name=__name__)
@@ -268,6 +308,9 @@ class Object3d_ImportClass(object):
             name = text
 
         self.state.setText(0, name)
+
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
 
 
     @err_catcher(name=__name__)
@@ -337,6 +380,7 @@ class Object3d_ImportClass(object):
                 if curVersion.get("version") and latestVersion.get("version") and curVersion["version"] != latestVersion["version"]:
                     self.importLatest()
 
+        self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
 
 
@@ -415,10 +459,6 @@ class Object3d_ImportClass(object):
             self.core.popup("Invalid importpath:\n\n%s" % impFileName)
             return
 
-        # if not hasattr(self.core.appPlugin, "sm_import_importToApp"):
-        #     self.core.popup("Import into %s is not supported." % self.core.appPlugin.pluginName)
-        #     return
-
         result = self.runSanityChecks(impFileName)
         if not result:
             return
@@ -441,10 +481,11 @@ class Object3d_ImportClass(object):
         nodeData = {"nodeName": nodeName,
                     "nodeUID": self.stateUID,
                     "version": productVersion,
-                    "3dFilepath": impFileName,
+                    "object3dFilepath": impFileName,
                     "product": productName,
+                    "listType": "import3d",
                     "format": extension.lower()}
-
+        
         #   Call import function
         importResult = self.fuseFuncts.import3dObject(self,
                                                       UUID=self.stateUID,
@@ -464,16 +505,6 @@ class Object3d_ImportClass(object):
             if result == "canceled":
                 return
 
-            self.nodeNames = [
-                self.core.appPlugin.getNodeName(self, x) for x in self.nodes
-            ]
-            illegalNodes = self.core.checkIllegalCharacters(self.nodeNames)
-            if len(illegalNodes) > 0:
-                msgStr = "Objects with non-ascii characters were imported. Prism supports only the first 128 characters in the ascii table. Please rename the following objects as they will cause errors with Prism:\n\n"
-                for i in illegalNodes:
-                    msgStr += i + "\n"
-                self.core.popup(msgStr)
-
             if not result:
                 msgStr = "Import failed: %s" % impFileName
                 self.core.popup(msgStr, title="ImportFile")
@@ -482,7 +513,6 @@ class Object3d_ImportClass(object):
             "state": self,
             "scenefile": fileName,
             "importfile": impFileName,
-            "importedObjects": self.nodeNames,
         }
         self.core.callback("postImport", **kwargs)
         self.setImportPath(impFileName)
@@ -537,8 +567,14 @@ class Object3d_ImportClass(object):
         return curVersionData, latestVersionData
 
 
+    #   Centers Flow View on Tool
+    @err_catcher(name=__name__)
+    def focusView(self):
+        self.fuseFuncts.sm_view_FocusStateTool(self.stateUID)
+
+
     #   Creates simple 3d Scene with Merge3d and Renderer3d
-    @err_catcher(name=__name__)                                         #   TODO - Handle errors
+    @err_catcher(name=__name__)
     def create3dScene(self):
         if self.stateManager.standalone:
             return
@@ -611,8 +647,6 @@ class Object3d_ImportClass(object):
             else:
                 if curVersionName and latestVersionName:
                     status = "ok"
-                elif self.nodes:
-                    status = "ok"
 
                 #   Color green if is latest version
                 if useSS:
@@ -661,9 +695,9 @@ class Object3d_ImportClass(object):
             "statename": self.e_name.text(),
             "stateUID": self.stateUID,
             "statemode": self.stateMode,
-            "3dFilepath": self.getImportPath(),
+            "taskColor": self.cb_taskColor.currentText(),
+            "object3dFilepath": self.getImportPath(),
             "autoUpdate": str(self.chb_autoUpdate.isChecked()),
             "taskname": self.taskName,
-            "nodenames": str(self.nodeNames),
             "setname": self.setName,
         }

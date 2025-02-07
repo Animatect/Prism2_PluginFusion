@@ -45,6 +45,11 @@ class Ui_wg_Object3d_Import(object):
 
         self.horizontalLayout_2.addWidget(self.l_class)
 
+        self.cb_taskColor = QComboBox(self.f_name)
+        self.cb_taskColor.setObjectName(u"cb_taskColor")
+
+        self.horizontalLayout_2.addWidget(self.cb_taskColor)
+
 
         self.verticalLayout.addWidget(self.f_name)
 
@@ -52,11 +57,12 @@ class Ui_wg_Object3d_Import(object):
         self.gb_import.setObjectName(u"gb_import")
         self.verticalLayout_2 = QVBoxLayout(self.gb_import)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
-        self.groupBox = QGroupBox(self.gb_import)
-        self.groupBox.setObjectName(u"groupBox")
-        self.verticalLayout_3 = QVBoxLayout(self.groupBox)
+        self.verticalLayout_2.setContentsMargins(-1, 0, -1, -1)
+        self.gb_version = QGroupBox(self.gb_import)
+        self.gb_version.setObjectName(u"gb_version")
+        self.verticalLayout_3 = QVBoxLayout(self.gb_version)
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
-        self.w_currentVersion = QWidget(self.groupBox)
+        self.w_currentVersion = QWidget(self.gb_version)
         self.w_currentVersion.setObjectName(u"w_currentVersion")
         self.horizontalLayout_5 = QHBoxLayout(self.w_currentVersion)
         self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
@@ -78,7 +84,7 @@ class Ui_wg_Object3d_Import(object):
 
         self.verticalLayout_3.addWidget(self.w_currentVersion)
 
-        self.w_latestVersion = QWidget(self.groupBox)
+        self.w_latestVersion = QWidget(self.gb_version)
         self.w_latestVersion.setObjectName(u"w_latestVersion")
         self.horizontalLayout_6 = QHBoxLayout(self.w_latestVersion)
         self.horizontalLayout_6.setObjectName(u"horizontalLayout_6")
@@ -100,7 +106,7 @@ class Ui_wg_Object3d_Import(object):
 
         self.verticalLayout_3.addWidget(self.w_latestVersion)
 
-        self.w_autoUpdate = QWidget(self.groupBox)
+        self.w_autoUpdate = QWidget(self.gb_version)
         self.w_autoUpdate.setObjectName(u"w_autoUpdate")
         self.horizontalLayout_14 = QHBoxLayout(self.w_autoUpdate)
         self.horizontalLayout_14.setObjectName(u"horizontalLayout_14")
@@ -123,18 +129,11 @@ class Ui_wg_Object3d_Import(object):
 
         self.verticalLayout_3.addWidget(self.w_autoUpdate)
 
-        self.w_importLatest = QWidget(self.groupBox)
+        self.w_importLatest = QWidget(self.gb_version)
         self.w_importLatest.setObjectName(u"w_importLatest")
         self.horizontalLayout_7 = QHBoxLayout(self.w_importLatest)
         self.horizontalLayout_7.setObjectName(u"horizontalLayout_7")
         self.horizontalLayout_7.setContentsMargins(9, 0, 9, 0)
-        self.b_browse = QPushButton(self.w_importLatest)
-        self.b_browse.setObjectName(u"b_browse")
-        self.b_browse.setFocusPolicy(Qt.NoFocus)
-        self.b_browse.setContextMenuPolicy(Qt.NoContextMenu)
-
-        self.horizontalLayout_7.addWidget(self.b_browse)
-
         self.b_importLatest = QPushButton(self.w_importLatest)
         self.b_importLatest.setObjectName(u"b_importLatest")
         self.b_importLatest.setMinimumSize(QSize(0, 0))
@@ -143,40 +142,76 @@ class Ui_wg_Object3d_Import(object):
 
         self.horizontalLayout_7.addWidget(self.b_importLatest)
 
+        self.b_browse = QPushButton(self.w_importLatest)
+        self.b_browse.setObjectName(u"b_browse")
+        self.b_browse.setFocusPolicy(Qt.NoFocus)
+        self.b_browse.setContextMenuPolicy(Qt.NoContextMenu)
+
+        self.horizontalLayout_7.addWidget(self.b_browse)
+
 
         self.verticalLayout_3.addWidget(self.w_importLatest)
 
-        self.widget = QWidget(self.groupBox)
+        self.widget = QWidget(self.gb_version)
         self.widget.setObjectName(u"widget")
         self.horizontalLayout = QHBoxLayout(self.widget)
         self.horizontalLayout.setObjectName(u"horizontalLayout")
         self.horizontalLayout.setContentsMargins(-1, 0, -1, 0)
+        self.horizontalSpacer_5 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.horizontalLayout.addItem(self.horizontalSpacer_5)
+
         self.b_import = QPushButton(self.widget)
         self.b_import.setObjectName(u"b_import")
         self.b_import.setFocusPolicy(Qt.NoFocus)
 
         self.horizontalLayout.addWidget(self.b_import)
 
+        self.horizontalSpacer_6 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.horizontalLayout.addItem(self.horizontalSpacer_6)
+
 
         self.verticalLayout_3.addWidget(self.widget)
 
 
-        self.verticalLayout_2.addWidget(self.groupBox)
+        self.verticalLayout_2.addWidget(self.gb_version)
 
         self.gb_options = QGroupBox(self.gb_import)
         self.gb_options.setObjectName(u"gb_options")
         self.verticalLayout_6 = QVBoxLayout(self.gb_options)
         self.verticalLayout_6.setObjectName(u"verticalLayout_6")
-        self.f_keepRefEdits = QWidget(self.gb_options)
-        self.f_keepRefEdits.setObjectName(u"f_keepRefEdits")
-        self.horizontalLayout_10 = QHBoxLayout(self.f_keepRefEdits)
+        self.f_focusView = QWidget(self.gb_options)
+        self.f_focusView.setObjectName(u"f_focusView")
+        self.horizontalLayout_12 = QHBoxLayout(self.f_focusView)
+        self.horizontalLayout_12.setObjectName(u"horizontalLayout_12")
+        self.horizontalLayout_12.setContentsMargins(9, 0, 9, 0)
+        self.horizontalSpacer_9 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.horizontalLayout_12.addItem(self.horizontalSpacer_9)
+
+        self.b_focusView = QPushButton(self.f_focusView)
+        self.b_focusView.setObjectName(u"b_focusView")
+
+        self.horizontalLayout_12.addWidget(self.b_focusView)
+
+        self.horizontalSpacer_11 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+
+        self.horizontalLayout_12.addItem(self.horizontalSpacer_11)
+
+
+        self.verticalLayout_6.addWidget(self.f_focusView)
+
+        self.f_3dScene = QWidget(self.gb_options)
+        self.f_3dScene.setObjectName(u"f_3dScene")
+        self.horizontalLayout_10 = QHBoxLayout(self.f_3dScene)
         self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
         self.horizontalLayout_10.setContentsMargins(9, 0, 9, 0)
         self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 
         self.horizontalLayout_10.addItem(self.horizontalSpacer_3)
 
-        self.b_create3dScene = QPushButton(self.f_keepRefEdits)
+        self.b_create3dScene = QPushButton(self.f_3dScene)
         self.b_create3dScene.setObjectName(u"b_create3dScene")
 
         self.horizontalLayout_10.addWidget(self.b_create3dScene)
@@ -186,7 +221,7 @@ class Ui_wg_Object3d_Import(object):
         self.horizontalLayout_10.addItem(self.horizontalSpacer_4)
 
 
-        self.verticalLayout_6.addWidget(self.f_keepRefEdits)
+        self.verticalLayout_6.addWidget(self.f_3dScene)
 
 
         self.verticalLayout_2.addWidget(self.gb_options)
@@ -206,21 +241,22 @@ class Ui_wg_Object3d_Import(object):
     # setupUi
 
     def retranslateUi(self, wg_Object3d_Import):
-        wg_Object3d_Import.setWindowTitle(QCoreApplication.translate("wg_Object3d_Import", u"ImportFile", None))
+        wg_Object3d_Import.setWindowTitle(QCoreApplication.translate("wg_Object3d_Import", u"Object3d Import", None))
         self.l_name.setText(QCoreApplication.translate("wg_Object3d_Import", u"State name:", None))
-        self.l_class.setText(QCoreApplication.translate("wg_Object3d_Import", u"ImportFile", None))
-        self.gb_import.setTitle(QCoreApplication.translate("wg_Object3d_Import", u"Import", None))
-        self.groupBox.setTitle(QCoreApplication.translate("wg_Object3d_Import", u"Version", None))
+        self.l_class.setText(QCoreApplication.translate("wg_Object3d_Import", u"Import 3D", None))
+        self.gb_import.setTitle("")
+        self.gb_version.setTitle(QCoreApplication.translate("wg_Object3d_Import", u"Version", None))
         self.label_3.setText(QCoreApplication.translate("wg_Object3d_Import", u"Current Version:", None))
         self.l_curVersion.setText(QCoreApplication.translate("wg_Object3d_Import", u"-", None))
         self.label_6.setText(QCoreApplication.translate("wg_Object3d_Import", u"Latest Version:", None))
         self.l_latestVersion.setText(QCoreApplication.translate("wg_Object3d_Import", u"-", None))
         self.l_autoUpdate.setText(QCoreApplication.translate("wg_Object3d_Import", u"Auto load latest version:", None))
         self.chb_autoUpdate.setText("")
-        self.b_browse.setText(QCoreApplication.translate("wg_Object3d_Import", u"Browse", None))
         self.b_importLatest.setText(QCoreApplication.translate("wg_Object3d_Import", u"Import latest Version", None))
+        self.b_browse.setText(QCoreApplication.translate("wg_Object3d_Import", u"Browse Version", None))
         self.b_import.setText(QCoreApplication.translate("wg_Object3d_Import", u"Re-Import", None))
         self.gb_options.setTitle(QCoreApplication.translate("wg_Object3d_Import", u"Options", None))
-        self.b_create3dScene.setText(QCoreApplication.translate("wg_Object3d_Import", u"Create Scene", None))
+        self.b_focusView.setText(QCoreApplication.translate("wg_Object3d_Import", u"Focus View", None))
+        self.b_create3dScene.setText(QCoreApplication.translate("wg_Object3d_Import", u"Create Render Node", None))
     # retranslateUi
 
