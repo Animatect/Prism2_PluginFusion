@@ -1715,7 +1715,7 @@ class Prism_Fusion_Functions(object):
 					if (
 						abs(Fus.getToolPosition(comp, l)[0] - leftmostpos) <= flowThresh
 						and l.GetData("Prism_UUID")
-						and l.GetData('Prism_MediaID')
+						and l.GetData('Prism_ToolData')
 						)
 						]
 			
@@ -1730,7 +1730,9 @@ class Prism_Fusion_Functions(object):
 
 		sortedloaders = []
 		for mediaId in mediaIDs:
-			lyloaders = [l for l in loaders if l.GetData('Prism_MediaID') == mediaId]
+
+			lyloaders = [l for l in loaders if l.GetData("Prism_ToolData") and l.GetData("Prism_ToolData").get("mediaId") == mediaId]
+
 			sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
 			sortedloaders += sorted_loader_names
 			
@@ -1742,7 +1744,7 @@ class Prism_Fusion_Functions(object):
 		
 		# To check if a node is in a layer or if we've switched layers, we first store a refernce layer
 		# update it and compare it in each iteration.
-		lastLoaderLyr = sortedloaders[0].GetData('Prism_MediaID')
+		lastLoaderLyr = sortedloaders[0].GetData("Prism_ToolData").get("mediaId")
 
 		try:
 			new_X = leftmostpos
@@ -1754,8 +1756,8 @@ class Prism_Fusion_Functions(object):
 			for ldr in sortedloaders:
 				#   Get Loader data
 				ldrData = Fus.getToolData(ldr)
-				connectedTools = ldrData["Prism_ConnectedNodes"]
-				lyrNm = ldrData['Prism_MediaID']
+				connectedTools = ldrData["connectedNodes"]
+				lyrNm = ldrData['mediaId']
 
 				# We reconnect to solve an issue that creates "Ghost" connections until comp is reopened.
 				inNode =  CompDb.getNodeByUID(comp, connectedTools["wireless_IN"])

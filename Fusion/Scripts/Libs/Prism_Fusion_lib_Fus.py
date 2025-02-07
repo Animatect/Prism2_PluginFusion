@@ -802,34 +802,41 @@ def makeWirelessName(importData:dict) -> str:
         return None
     
 
+##  THIS COMMENTS OUT A DUPLICATE METHOD    ##
+##  vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv    ##
+
 #   The name of this function comes for its initial use to position
 #   the "state manager node" that what used before using SetData.
 
-def setToolPosition(comp, node, find_min=True, x_offset=-2, y_offset=0, ignore_node_type:str=None, refNode:Tool=None):
-    # Get the active composition
-    flow = comp.CurrentFrame.FlowView
+# def setToolPosition(comp, node, find_min=True, x_offset=-2, y_offset=0, ignore_node_type:str=None, refNode:Tool=None):
+#     # Get the active composition
+#     flow = comp.CurrentFrame.FlowView
 
-    if not comp:
-        # No active composition
-        return
+#     if not comp:
+#         # No active composition
+#         return
 
-    # Get all nodes in the composition
-    all_nodes = comp.GetToolList(False).values()
+#     # Get all nodes in the composition
+#     all_nodes = comp.GetToolList(False).values()
 
-    if not all_nodes:
-        flow.SetPos(node, 0, 0)
-        return
+#     if not all_nodes:
+#         flow.SetPos(node, 0, 0)
+#         return
 
-    # xmost_node, thresh_x_position, thresh_y_position = self.find_extreme_position(node, ignore_node_type, find_min)
+#     # xmost_node, thresh_x_position, thresh_y_position = self.find_extreme_position(node, ignore_node_type, find_min)
 
-    # if xmost_node:
-    if refNode:
-        thresh_x_position, thresh_y_position = postable = flow.GetPosTable(refNode).values()
-        setToolPosition(flow, node, thresh_x_position + x_offset, thresh_y_position + y_offset)
-    else:
-        flow.Select()
-        x,y = findLastClickPosition(comp)
-        flow.SetPos(node, x, y)
+#     # if xmost_node:
+#     if refNode:
+#         thresh_x_position, thresh_y_position = postable = flow.GetPosTable(refNode).values()
+#         setToolPosition(flow, node, thresh_x_position + x_offset, thresh_y_position + y_offset)
+#     else:
+#         flow.Select()
+#         x,y = findLastClickPosition(comp)
+#         flow.SetPos(node, x, y)
+
+##  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^   ##
+##  REMOVE IF NO ERRORS                         ##
+
 
 
 #   Returns Position of Tool
@@ -845,9 +852,10 @@ def getToolPosition(comp, tool:Tool) -> Tuple[float, float]:
 
 #   Set Tool Position in Comp
 # 
-def setToolPosition(flow, tool:Tool, x:float, y:float):
+def setToolPosition(flow, tool:Tool, xPos:float, yPos:float):
     try:
-        flow.SetPos(tool, x, y)
+        flow.SetPos(tool, xPos, yPos)
+
     except:
         logger.warning(f"ERROR: Unable to set position of {tool}")
 
@@ -881,7 +889,9 @@ def setToolToLeft(comp, tool, refNode=None, x_offset:float=0, y_offset:float=1):
                 setToolPosRelative(comp, tool, refNode, x_offset = -8, y_offset = 0)
         else:
             #   Just put in position
-            setToolPosition(comp, tool, x_offset = 0, y_offset = 0)
+            flow = comp.CurrentFrame.FlowView
+            setToolPosition(flow, tool, 0, 0)
+
     except:
         logger.warning(f"ERROR: Unable to set {tool} to the left")
 
@@ -1059,7 +1069,6 @@ def stackToolsByType(comp, nodetostack:Tool, yoffset:float=3, tooltype:str="Save
         flow.SetPos(nodetostack, origx, thresh_y_position + yoffset)
 
 
-
 def findLeftmostLowerTool(comp, threshold:float=0.5) -> Tool:
     flow = comp.CurrentFrame.FlowView
 
@@ -1078,7 +1087,6 @@ def findLeftmostLowerTool(comp, threshold:float=0.5) -> Tool:
     except:
         logger.warning("ERROR: Failed to find leftmost lower node")
         return None
-
 
 
 def getRefPosition(comp:Composition_, flow:FlowView_) -> tuple[float,float]:
