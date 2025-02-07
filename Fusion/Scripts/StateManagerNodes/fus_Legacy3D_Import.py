@@ -50,6 +50,7 @@
 import os
 import logging
 import sys
+import time
 
 # Add parent directories to Python path
 current_dir = os.path.dirname(os.path.abspath(__file__))
@@ -525,8 +526,15 @@ class Legacy3D_ImportClass(object):
         self.updateUi()
         self.stateManager.saveStatesToScene()
 
-        self.stateManager.showNormal()
+        #   Show feedback on Import Result - also solves the SM not un-minimizing
+        if result:
+            self.core.popup("Import Complete")
+        else:
+            self.core.popup("There were errors during the Import")
 
+        #   Un-minimize the StateManager
+        self.stateManager.showNormal()
+        
         return result
 
 
