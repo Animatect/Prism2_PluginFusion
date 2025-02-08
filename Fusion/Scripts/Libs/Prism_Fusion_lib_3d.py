@@ -272,25 +272,25 @@ def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str
     return imported
 
 
-def importAlembic(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
+def importLegacyAbc(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
     return importFormatByUI(
-        fusion=fusion, 
-        origin=origin, 
-        formatCall="AbcImport", 
-        filepath=importPath, 
-        global_scale=100, 
-        options=abc_options
-    )
+                            fusion=fusion, 
+                            origin=origin, 
+                            formatCall="AbcImport", 
+                            filepath=importPath, 
+                            global_scale=100, 
+                            options=abc_options
+                        )
 
 
-def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
+def importLegacyFbx(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
     return importFormatByUI(
-        fusion=fusion, 
-        origin=origin,  
-        formatCall="FBXImport", 
-        filepath=importPath,
-        global_scale=100
-    )
+                            fusion=fusion, 
+                            origin=origin,  
+                            formatCall="FBXImport", 
+                            filepath=importPath,
+                            global_scale=100
+                        )
 
 
 def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict, stateUUID:str, initcoords:tuple=tuple((0,0)))->bool:
