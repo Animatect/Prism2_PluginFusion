@@ -7,7 +7,7 @@
     <x>0</x>
     <y>0</y>
     <width>340</width>
-    <height>600</height>
+    <height>730</height>
    </rect>
   </property>
   <property name="windowTitle">
@@ -72,9 +72,12 @@
          </font>
         </property>
         <property name="text">
-         <string>ImportFile</string>
+         <string>Import Image</string>
         </property>
        </widget>
+      </item>
+      <item>
+       <widget class="QComboBox" name="cb_taskColor"/>
       </item>
      </layout>
     </widget>
@@ -86,7 +89,7 @@
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
       <item>
-       <widget class="QGroupBox" name="groupBox">
+       <widget class="QGroupBox" name="gb_version">
         <property name="title">
          <string>Version</string>
         </property>
@@ -253,7 +256,7 @@
                <enum>Qt::CustomContextMenu</enum>
               </property>
               <property name="text">
-               <string>Browse</string>
+               <string>Select Version</string>
               </property>
              </widget>
             </item>
@@ -314,93 +317,22 @@
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_6">
          <item>
-          <widget class="QWidget" name="f_keepRefEdits" native="true">
-           <layout class="QHBoxLayout" name="horizontalLayout_10">
-            <property name="leftMargin">
-             <number>9</number>
-            </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>9</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
-            </property>
-            <item>
-             <widget class="QCheckBox" name="chb_keepRefEdits">
-              <property name="text">
-               <string/>
-              </property>
-              <property name="checked">
-               <bool>true</bool>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QWidget" name="f_nameSpaces" native="true">
-           <layout class="QHBoxLayout" name="horizontalLayout_12">
-            <property name="leftMargin">
-             <number>9</number>
-            </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>9</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
-            </property>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QWidget" name="f_abcPath" native="true">
-           <layout class="QHBoxLayout" name="horizontalLayout_11">
-            <property name="leftMargin">
-             <number>9</number>
-            </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>9</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
-            </property>
-            <item>
-             <widget class="QCheckBox" name="chb_abcPath">
-              <property name="text">
-               <string/>
-              </property>
-             </widget>
-            </item>
-           </layout>
-          </widget>
-         </item>
-         <item>
-          <widget class="QWidget" name="w_trackObjects" native="true">
-           <layout class="QHBoxLayout" name="horizontalLayout_9">
-            <property name="leftMargin">
-             <number>9</number>
-            </property>
-            <property name="topMargin">
-             <number>0</number>
-            </property>
-            <property name="rightMargin">
-             <number>9</number>
-            </property>
-            <property name="bottomMargin">
-             <number>0</number>
-            </property>
-           </layout>
-          </widget>
+          <layout class="QHBoxLayout" name="lo_importButtons">
+           <item>
+            <widget class="QPushButton" name="b_importAll">
+             <property name="text">
+              <string>Import All</string>
+             </property>
+            </widget>
+           </item>
+           <item>
+            <widget class="QPushButton" name="b_importSel">
+             <property name="text">
+              <string>Import Selected</string>
+             </property>
+            </widget>
+           </item>
+          </layout>
          </item>
         </layout>
        </widget>
@@ -408,7 +340,7 @@
       <item>
        <widget class="QGroupBox" name="gb_channels">
         <property name="title">
-         <string>Channels</string>
+         <string>Image AOV / Channels</string>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_4">
          <property name="leftMargin">
@@ -424,7 +356,7 @@
           <number>9</number>
          </property>
          <item>
-          <widget class="QListWidget" name="lw_objects">
+          <widget class="QTreeWidget" name="lw_objects">
            <property name="selectionMode">
             <enum>QAbstractItemView::ExtendedSelection</enum>
            </property>
@@ -434,6 +366,11 @@
            <property name="horizontalScrollMode">
             <enum>QAbstractItemView::ScrollPerPixel</enum>
            </property>
+           <column>
+            <property name="text">
+             <string notr="true">1</string>
+            </property>
+           </column>
           </widget>
          </item>
          <item>
@@ -454,8 +391,6 @@
  <tabstops>
   <tabstop>e_name</tabstop>
   <tabstop>chb_autoUpdate</tabstop>
-  <tabstop>chb_keepRefEdits</tabstop>
-  <tabstop>chb_abcPath</tabstop>
   <tabstop>lw_objects</tabstop>
   <tabstop>b_selectAll</tabstop>
  </tabstops>

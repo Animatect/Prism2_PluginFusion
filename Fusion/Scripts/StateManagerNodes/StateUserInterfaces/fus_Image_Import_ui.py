@@ -16,7 +16,7 @@ class Ui_wg_Image_Import(object):
     def setupUi(self, wg_Image_Import):
         if not wg_Image_Import.objectName():
             wg_Image_Import.setObjectName(u"wg_Image_Import")
-        wg_Image_Import.resize(340, 600)
+        wg_Image_Import.resize(340, 730)
         self.verticalLayout = QVBoxLayout(wg_Image_Import)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
@@ -52,6 +52,24 @@ class Ui_wg_Image_Import(object):
         self.gb_import.setObjectName(u"gb_import")
         self.verticalLayout_2 = QVBoxLayout(self.gb_import)
         self.verticalLayout_2.setObjectName(u"verticalLayout_2")
+        self.f_taskColor = QWidget(self.gb_import)
+        self.f_taskColor.setObjectName(u"f_taskColor")
+        self.horizontalLayout_10 = QHBoxLayout(self.f_taskColor)
+        self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
+        self.horizontalLayout_10.setContentsMargins(9, 0, 9, 0)
+        self.l_taskColor = QLabel(self.f_taskColor)
+        self.l_taskColor.setObjectName(u"l_taskColor")
+
+        self.horizontalLayout_10.addWidget(self.l_taskColor)
+
+        self.cb_taskColor = QComboBox(self.f_taskColor)
+        self.cb_taskColor.setObjectName(u"cb_taskColor")
+
+        self.horizontalLayout_10.addWidget(self.cb_taskColor)
+
+
+        self.verticalLayout_2.addWidget(self.f_taskColor)
+
         self.groupBox = QGroupBox(self.gb_import)
         self.groupBox.setObjectName(u"groupBox")
         self.verticalLayout_3 = QVBoxLayout(self.groupBox)
@@ -167,48 +185,20 @@ class Ui_wg_Image_Import(object):
         self.gb_options.setObjectName(u"gb_options")
         self.verticalLayout_6 = QVBoxLayout(self.gb_options)
         self.verticalLayout_6.setObjectName(u"verticalLayout_6")
-        self.f_keepRefEdits = QWidget(self.gb_options)
-        self.f_keepRefEdits.setObjectName(u"f_keepRefEdits")
-        self.horizontalLayout_10 = QHBoxLayout(self.f_keepRefEdits)
-        self.horizontalLayout_10.setObjectName(u"horizontalLayout_10")
-        self.horizontalLayout_10.setContentsMargins(9, 0, 9, 0)
-        self.chb_keepRefEdits = QCheckBox(self.f_keepRefEdits)
-        self.chb_keepRefEdits.setObjectName(u"chb_keepRefEdits")
-        self.chb_keepRefEdits.setChecked(True)
+        self.lo_importButtons = QHBoxLayout()
+        self.lo_importButtons.setObjectName(u"lo_importButtons")
+        self.b_importAll = QPushButton(self.gb_options)
+        self.b_importAll.setObjectName(u"b_importAll")
 
-        self.horizontalLayout_10.addWidget(self.chb_keepRefEdits)
+        self.lo_importButtons.addWidget(self.b_importAll)
 
+        self.b_importSel = QPushButton(self.gb_options)
+        self.b_importSel.setObjectName(u"b_importSel")
 
-        self.verticalLayout_6.addWidget(self.f_keepRefEdits)
-
-        self.f_nameSpaces = QWidget(self.gb_options)
-        self.f_nameSpaces.setObjectName(u"f_nameSpaces")
-        self.horizontalLayout_12 = QHBoxLayout(self.f_nameSpaces)
-        self.horizontalLayout_12.setObjectName(u"horizontalLayout_12")
-        self.horizontalLayout_12.setContentsMargins(9, 0, 9, 0)
-
-        self.verticalLayout_6.addWidget(self.f_nameSpaces)
-
-        self.f_abcPath = QWidget(self.gb_options)
-        self.f_abcPath.setObjectName(u"f_abcPath")
-        self.horizontalLayout_11 = QHBoxLayout(self.f_abcPath)
-        self.horizontalLayout_11.setObjectName(u"horizontalLayout_11")
-        self.horizontalLayout_11.setContentsMargins(9, 0, 9, 0)
-        self.chb_abcPath = QCheckBox(self.f_abcPath)
-        self.chb_abcPath.setObjectName(u"chb_abcPath")
-
-        self.horizontalLayout_11.addWidget(self.chb_abcPath)
+        self.lo_importButtons.addWidget(self.b_importSel)
 
 
-        self.verticalLayout_6.addWidget(self.f_abcPath)
-
-        self.w_trackObjects = QWidget(self.gb_options)
-        self.w_trackObjects.setObjectName(u"w_trackObjects")
-        self.horizontalLayout_9 = QHBoxLayout(self.w_trackObjects)
-        self.horizontalLayout_9.setObjectName(u"horizontalLayout_9")
-        self.horizontalLayout_9.setContentsMargins(9, 0, 9, 0)
-
-        self.verticalLayout_6.addWidget(self.w_trackObjects)
+        self.verticalLayout_6.addLayout(self.lo_importButtons)
 
 
         self.verticalLayout_2.addWidget(self.gb_options)
@@ -218,7 +208,10 @@ class Ui_wg_Image_Import(object):
         self.verticalLayout_4 = QVBoxLayout(self.gb_channels)
         self.verticalLayout_4.setObjectName(u"verticalLayout_4")
         self.verticalLayout_4.setContentsMargins(9, 9, 9, 9)
-        self.lw_objects = QListWidget(self.gb_channels)
+        self.lw_objects = QTreeWidget(self.gb_channels)
+        __qtreewidgetitem = QTreeWidgetItem()
+        __qtreewidgetitem.setText(0, u"1");
+        self.lw_objects.setHeaderItem(__qtreewidgetitem)
         self.lw_objects.setObjectName(u"lw_objects")
         self.lw_objects.setSelectionMode(QAbstractItemView.ExtendedSelection)
         self.lw_objects.setVerticalScrollMode(QAbstractItemView.ScrollPerPixel)
@@ -238,9 +231,7 @@ class Ui_wg_Image_Import(object):
         self.verticalLayout.addWidget(self.gb_import)
 
         QWidget.setTabOrder(self.e_name, self.chb_autoUpdate)
-        QWidget.setTabOrder(self.chb_autoUpdate, self.chb_keepRefEdits)
-        QWidget.setTabOrder(self.chb_keepRefEdits, self.chb_abcPath)
-        QWidget.setTabOrder(self.chb_abcPath, self.lw_objects)
+        QWidget.setTabOrder(self.chb_autoUpdate, self.lw_objects)
         QWidget.setTabOrder(self.lw_objects, self.b_selectAll)
 
         self.retranslateUi(wg_Image_Import)
@@ -251,8 +242,9 @@ class Ui_wg_Image_Import(object):
     def retranslateUi(self, wg_Image_Import):
         wg_Image_Import.setWindowTitle(QCoreApplication.translate("wg_Image_Import", u"ImportFile", None))
         self.l_name.setText(QCoreApplication.translate("wg_Image_Import", u"State name:", None))
-        self.l_class.setText(QCoreApplication.translate("wg_Image_Import", u"ImportFile", None))
+        self.l_class.setText(QCoreApplication.translate("wg_Image_Import", u"Import Image", None))
         self.gb_import.setTitle(QCoreApplication.translate("wg_Image_Import", u"Import", None))
+        self.l_taskColor.setText(QCoreApplication.translate("wg_Image_Import", u"Task Color", None))
         self.groupBox.setTitle(QCoreApplication.translate("wg_Image_Import", u"Version", None))
         self.label_3.setText(QCoreApplication.translate("wg_Image_Import", u"Current Version:", None))
         self.l_curVersion.setText(QCoreApplication.translate("wg_Image_Import", u"-", None))
@@ -260,13 +252,13 @@ class Ui_wg_Image_Import(object):
         self.l_latestVersion.setText(QCoreApplication.translate("wg_Image_Import", u"-", None))
         self.l_autoUpdate.setText(QCoreApplication.translate("wg_Image_Import", u"Auto load latest version:", None))
         self.chb_autoUpdate.setText("")
-        self.b_browse.setText(QCoreApplication.translate("wg_Image_Import", u"Browse", None))
+        self.b_browse.setText(QCoreApplication.translate("wg_Image_Import", u"Select Version", None))
         self.b_importLatest.setText(QCoreApplication.translate("wg_Image_Import", u"Import latest Version", None))
         self.b_import.setText(QCoreApplication.translate("wg_Image_Import", u"Re-Import", None))
         self.gb_options.setTitle(QCoreApplication.translate("wg_Image_Import", u"Options", None))
-        self.chb_keepRefEdits.setText("")
-        self.chb_abcPath.setText("")
-        self.gb_channels.setTitle(QCoreApplication.translate("wg_Image_Import", u"Channels", None))
+        self.b_importAll.setText(QCoreApplication.translate("wg_Image_Import", u"Import All", None))
+        self.b_importSel.setText(QCoreApplication.translate("wg_Image_Import", u"Import Selected", None))
+        self.gb_channels.setTitle(QCoreApplication.translate("wg_Image_Import", u"Image AOV / Channels", None))
         self.b_selectAll.setText(QCoreApplication.translate("wg_Image_Import", u"Select all", None))
     # retranslateUi
 
