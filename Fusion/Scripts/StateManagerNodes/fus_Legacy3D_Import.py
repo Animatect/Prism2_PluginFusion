@@ -528,7 +528,7 @@ class Legacy3D_ImportClass(object):
 
         #   Show feedback on Import Result - also solves the SM not un-minimizing
         if result:
-            self.core.popup("Import Complete")
+            self.core.popup("Import Complete", title="Import Complete", severity="info")
         else:
             self.core.popup("There were errors during the Import")
 
