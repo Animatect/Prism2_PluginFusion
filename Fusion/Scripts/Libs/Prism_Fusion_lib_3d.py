@@ -635,11 +635,17 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                         logger.warning(e)
                     comp.UpdateViews()
 
+    #   Gets to output tool and connection
     outConnections = oldSceneTool.GetOutputList()[1].GetConnectedInputs()
+
     for input in outConnections.values():
         inputName:str = input.Name
-        connectedtool = input.GetTool()
-        connectedtool.ConnectInput(inputName, sceneTool)
+        connectedTool = input.GetTool()
+
+        #   Connect if the tool exists
+        if connectedTool:
+            connectedTool.ConnectInput(inputName, sceneTool)
+        ##  If the Root tool was being viewed in the viewer, it will not re-display it there.
 
     # Match positions.
     Fus.matchToolPos(comp, sceneTool, oldSceneTool)
