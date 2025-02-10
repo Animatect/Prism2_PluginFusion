@@ -395,7 +395,10 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     
     # Re-center view on the creation coordinates.
     flow.GoToBookmark('3dImportBM')
-    flow.DeleteBookmark('3dImportBM')
+    # flow.DeleteBookmark('3dImportBM')
+    bookmarks = flow.GetBookmarkList()
+    last_item = bookmarks.popitem()
+    flow.SetBookmarkList(bookmarks)
 
     #   Deselect All
     flow.Select()
