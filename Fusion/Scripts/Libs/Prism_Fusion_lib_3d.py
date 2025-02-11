@@ -272,25 +272,25 @@ def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str
     return imported
 
 
-def importAlembic(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
+def importLegacyAbc(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
     return importFormatByUI(
-        fusion=fusion, 
-        origin=origin, 
-        formatCall="AbcImport", 
-        filepath=importPath, 
-        global_scale=100, 
-        options=abc_options
-    )
+                            fusion=fusion, 
+                            origin=origin, 
+                            formatCall="AbcImport", 
+                            filepath=importPath, 
+                            global_scale=100, 
+                            options=abc_options
+                        )
 
 
-def importFBX(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
+def importLegacyFbx(importPath:str, fusion:Fusion_, origin:Legacy3D_ImportClass)->bool:
     return importFormatByUI(
-        fusion=fusion, 
-        origin=origin,  
-        formatCall="FBXImport", 
-        filepath=importPath,
-        global_scale=100
-    )
+                            fusion=fusion, 
+                            origin=origin,  
+                            formatCall="FBXImport", 
+                            filepath=importPath,
+                            global_scale=100
+                        )
 
 
 def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:FlowView_, filename:str, toolData:dict, stateUUID:str, initcoords:tuple=tuple((0,0)))->bool:
@@ -395,7 +395,10 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     
     # Re-center view on the creation coordinates.
     flow.GoToBookmark('3dImportBM')
-    flow.DeleteBookmark('3dImportBM')
+    # flow.DeleteBookmark('3dImportBM')
+    bookmarks = flow.GetBookmarkList()
+    last_item = bookmarks.popitem()
+    flow.SetBookmarkList(bookmarks)
 
     #   Deselect All
     flow.Select()
@@ -632,11 +635,17 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                         logger.warning(e)
                     comp.UpdateViews()
 
+    #   Gets to output tool and connection
     outConnections = oldSceneTool.GetOutputList()[1].GetConnectedInputs()
+
     for input in outConnections.values():
         inputName:str = input.Name
-        connectedtool = input.GetTool()
-        connectedtool.ConnectInput(inputName, sceneTool)
+        connectedTool = input.GetTool()
+
+        #   Connect if the tool exists
+        if connectedTool:
+            connectedTool.ConnectInput(inputName, sceneTool)
+        ##  If the Root tool was being viewed in the viewer, it will not re-display it there.
 
     # Match positions.
     Fus.matchToolPos(comp, sceneTool, oldSceneTool)

@@ -80,6 +80,7 @@ class Prism_Fusion_Integration(object):
 				"ManagePrismPaths.py",
 				"startupDialog.py",
 				"emptydialog.py",
+				"FocusActiveTool.py",
 			]
 		self.devscripts = [
 				"pdmExecuteCode.py",

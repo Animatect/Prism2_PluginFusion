@@ -156,6 +156,27 @@
     },
     Action
     {
+        ID = "FocusActiveTool",
+        Category = "Prism",
+        Name = "Focus Active Tool",
+
+        Targets =
+        {
+            Composition =
+            {
+                Execute = _Lua [=[
+                    local scriptPath = app:MapPath("Scripts:Prism/FocusActiveTool.py")
+                    if bmd.fileexists(scriptPath) == false then
+                        print("[Prism Error] Can't run file: " .. scriptPath)
+                    else
+                        target:RunScript(scriptPath)
+                    end
+                ]=],
+            },
+        },
+    },
+    Action
+    {
         ID = "Start_Prism",
         Category = "Prism",
         Name = "* RESET PRISM *",
@@ -189,6 +210,8 @@
                 "OpenProjectBrowser{}",
                 "OpenStateManager{}",
                 "OpenSettings{}",
+                "_",
+                "FocusActiveTool{}",
                 "_",
                 "_",
                 "Start_Prism{}",

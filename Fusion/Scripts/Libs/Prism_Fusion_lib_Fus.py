@@ -1179,16 +1179,23 @@ def focusOnTool(comp:Composition_, tool:Tool_, scalefactor = 0.5):
                     'Scale': scalefactor}
     
     bookmarks = flow.GetBookmarkList()
+    if bookmarks:
+        next_key = max(bookmarks.keys()) + 1.0
+        bookmarks[next_key] = new_bookmark
+    else:
+        bookmarks = {}        
+        bookmarks[1] = new_bookmark
 
-    next_key = max(bookmarks.keys()) + 1.0
-    bookmarks[next_key] = new_bookmark
     flow.SetBookmarkList(bookmarks)
     # for b in flow.GetBookmarkList().values():
     #     print(b.get("Name"))
     # bm = flow.GetBookmark("prismRefocus")
     # print(bm, " --> ",flow.GetPosTable(tool).values())
     flow.GoToBookmark('prismRefocus')
-    flow.DeleteBookmark('prismRefocus')
+
+    last_item = bookmarks.popitem()
+    flow.SetBookmarkList(bookmarks)
+    # flow.DeleteBookmark('prismRefocus')
 
 ########################
     

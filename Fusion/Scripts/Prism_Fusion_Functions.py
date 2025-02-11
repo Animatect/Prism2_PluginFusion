@@ -143,29 +143,9 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to register callbacks:\n{e}")
 		
-		#	Dict for State Type for image import formats (for future-proofing)
-		self.imageImportHandlers = {
-			".exr": "Image_Import",
-			".dpx": "Image_Import",
-			".png": "Image_Import",
-			".tif": "Image_Import",
-			".jpg": "Image_Import",
-			".jpeg": "Image_Import",
-			".mov": "Image_Import",
-			".mp4": "Image_Import",
-			".mxf": "Image_Import",
-			".avi": "Image_Import",
-			".exr": "Image_Import",
-		}
-
-		#	Dict for 3d import methods
-		self.importHandlers = {
-			".abc": {"importFunction": self.import3dObject},
-			".fbx": {"importFunction": self.import3dObject},
-			".bcam":{"importFunction": self.importBlenderCam},
-			".usd":{"importFunction": self.importUSD},
-			".usda":{"importFunction": self.importUSD},
-			".usdc":{"importFunction": self.importUSD}
+		self.legacyImportHandlers = {
+			".abc": {"importFunction": self.importLegacyAbc},
+			".fbx": {"importFunction": self.importLegacyFbx}
 		}
 
 		# self.exportHandlers = {
@@ -1888,6 +1868,11 @@ class Prism_Fusion_Functions(object):
 			flow.InsertBookmark("USD_Import")
 			result = self.wrapped_importUSD(origin, UUID, nodeData, update)
 
+			
+			bookmarks = flow.GetBookmarkList()
+			last_item = bookmarks.popitem()
+			flow.SetBookmarkList(bookmarks)
+			
 			comp.EndUndo()
 			comp.Unlock()
 		else:
@@ -2329,13 +2314,8 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR: Unable to create 3d scene:\n{e}")
 		
-		
 
-	@err_catcher(name=__name__)
-	def importBlenderCam(self, origin, importPath, UUID, nodeName, version, update=False):
-		# return Fus3d.importFBX(self, origin, importPath, UUID, nodeName, version, update=False)
-		pass
-
+	#	Uses Fusion UI Menu to import FBX or ABC scene
 	@err_catcher(name=__name__)
 	def importLegacy3D(self, origin:Legacy3D_ImportClass, UUID, nodeData, update=False):
 		comp:Composition_ = self.getCurrentComp()
@@ -2357,14 +2337,13 @@ class Prism_Fusion_Functions(object):
 
 		return result
 
+
 	@err_catcher(name=__name__)
 	def wrapped_importLegacy3D(self, origin:Legacy3D_ImportClass, UUID, nodeData, update=False, doImport=True):
 		comp:Composition_ = self.getCurrentComp()
 		flow:FlowView_ = comp.CurrentFrame.FlowView
-		importRes = False
 
 		#	Add new 3D Scene
-		# if not update:
 		try:
 			#	Import file
 			fileName:tuple[str, str] = os.path.splitext(os.path.basename(nodeData["Filepath"]))
@@ -2385,63 +2364,44 @@ class Prism_Fusion_Functions(object):
 				return {"result": False, "doImport": False}
 			else:
 				pass
-
-			# Do the importing
-			if format == ".fbx":
-				result = Fus3d.importFBX(nodeData["Filepath"], self.fusion, origin)
-
-			elif format == ".abc":
-				result = Fus3d.importAlembic(nodeData["Filepath"], self.fusion, origin)
-				print("importAlembic result: ", result)
-			else:
-				self.core.popup(f"Import format '{format}' is not supported")
-				logger.warning(f"ERROR:  Format not supported: {format}")
-				
-				
-				#the statemanager was minimized on the import.
-				return {"result": False, "doImport": False}
 			
+			#	Get Extension
+			ext = fileName[1].lower()
+			#	Check if Image Format is supported
+			if ext not in self.legacyImportHandlers:
+				self.core.popup(f"Import format '{ext}' is not supported")
+				logger.warning(f"Import format '{ext}' is not supported")
+				return {"result": False, "doImport": doImport}
+
+			else:
+				# Do the importing
+				result = self.legacyImportHandlers[ext]["importFunction"](nodeData["Filepath"], origin)
+
 			# After import update the stateManager interface
 			if result:
 				initcoords:tuple = (atx, aty)
 				result = Fus3d.createLegacy3DScene(origin, comp, flow, fileName, nodeData, UUID, initcoords)
-
 				
 				logger.debug(f"Imported Legacy3D Scene: {nodeData['product']}")
 
+			return {"result": result, "doImport": doImport}
+		
 		except Exception as e:
-			
-			#the statemanager was minimized on the import.
 			logger.warning(f"ERROR: Unable to import Legacy3D Scene:\n{e}")
 			return {"result": False, "doImport": False}
-			
-			# if uLdr:
-			# 	#	Add to Comp Database
-			# 	addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
-			# 	importRes = True
-		
-		#	Update uLoader
-		# else:
-		# 	try:
-		# 		#	Get tool
-		# 		tool = CompDb.getNodeByUID(comp, UUID)
-		# 		#	 Update tool data
-		# 		uLdr = Fus.configureTool(tool, nodeData)
 
-		# 		logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
-		# 		importRes = True
 
-		# 	except Exception as e:
-		# 		logger.warning(f"ERROR: Failed to update uLoader:\n{e}")
+	@err_catcher(name=__name__)
+	def importLegacyAbc(self, Filepath, origin):
+		result = Fus3d.importLegacyAbc(Filepath, self.fusion, origin)
+		return result
 
-		# 	if uLdr:
-		# 		#	Update Comp DB record
-		# 		CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
-		# 		importRes = True
 
-		
-		#the statemanager was minimized on the import.
-		return {"result": result, "doImport": doImport}
+	@err_catcher(name=__name__)
+	def importLegacyFbx(self, Filepath, origin):
+		result = Fus3d.importLegacyFbx(Filepath, self.fusion, origin)
+		return result
+
 
 
 	################################################
