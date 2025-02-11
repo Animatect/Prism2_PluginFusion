@@ -101,8 +101,8 @@ class Prism_Fusion_Functions(object):
 
 		
 		self.MP_stateManager:StateManager = None # Reference to the stateManager to be used on the monkeypatched functions.
-		self.MP_mediaBrowser:MediaBrowser = None # Reference to the mediaBrowser to be used on the monkeypatched functions.
-		self.MP_mediaPlayer:MediaPlayer = None # Reference to the mediaPlayer to be used on the monkeypatched functions.
+		# self.MP_mediaBrowser:MediaBrowser = None # Reference to the mediaBrowser to be used on the monkeypatched functions.
+		# self.MP_mediaPlayer:MediaPlayer = None # Reference to the mediaPlayer to be used on the monkeypatched functions.
 		# self.MP_importState = None # Reference to the importState to be used on the monkeypatched functions.
 
 		self.popup = None # Reference of popUp dialog that shows before opening a window when it takes some time.
@@ -131,7 +131,7 @@ class Prism_Fusion_Functions(object):
 						("onStateCreated", self.onStateCreated),
 						("getIconPathForFileType", self.getIconPathForFileType),
 						("openPBListContextMenu", self.openPBListContextMenu),
-						("onMediaBrowserOpen", self.onMediaBrowserOpen),
+						# ("onMediaBrowserOpen", self.onMediaBrowserOpen),
 				]
 
 			# Iterate through the list to register callbacks
@@ -3845,10 +3845,10 @@ path = r\"%s\"
 
 
 	#	This is to be able to call task coloring
-	@err_catcher(name=__name__)
-	def onMediaBrowserOpen(self, origin):
-		self.MP_mediaBrowser = origin
-		self.core.plugins.monkeyPatch(origin.updateTasks, self.updateTasks, self, force=True)
+	# @err_catcher(name=__name__)
+	# def onMediaBrowserOpen(self, origin):
+	# 	self.MP_mediaBrowser = origin
+	# 	self.core.plugins.monkeyPatch(origin.updateTasks, self.updateTasks, self, force=True)
 
 
 	@err_catcher(name=__name__)
@@ -4481,14 +4481,14 @@ path = r\"%s\"
 
 
 	#	This intercepts the mediaBrowser object and adds a custom internal callback
-	@err_catcher(name=__name__)
-	def updateTasks(self, *args, **kwargs):
-		logger.debug("Loading patched function: 'mediaBrowser.updateTasks'")
+	# @err_catcher(name=__name__)
+	# def updateTasks(self, *args, **kwargs):
+	# 	logger.debug("Loading patched function: 'mediaBrowser.updateTasks'")
 
-		mediabrowser = self.MP_mediaBrowser
+	# 	mediabrowser = self.MP_mediaBrowser
 
-		self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
-		self.onMediaBrowserTaskUpdate(mediabrowser)
+	# 	self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
+	# 	self.onMediaBrowserTaskUpdate(mediabrowser)
 
 
 	#	This imports shotcams as a legacy

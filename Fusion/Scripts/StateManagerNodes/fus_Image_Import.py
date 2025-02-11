@@ -80,7 +80,8 @@ class Image_ImportClass(object):
 
         self.core = core
         self.stateManager = stateManager
-        self.mediaPopup = None
+
+        # self.mediaChooser = None
 
         self.taskName = ""
         self.setName = ""
@@ -139,13 +140,9 @@ class Image_ImportClass(object):
             and not createEmptyState
             and not self.stateManager.standalone
             ):
-            requestResult = self.requestImportPaths()
+            requestResult = self.callMediaWindow()
+            # requestResult = self.requestImportPaths()
             
-            # if importPaths:
-            #     importPath = importPaths[-1]
-            #     if len(importPaths) > 1:                                          #   TESTING
-            #         for importPath in importPaths[:-1]:
-            #             stateManager.importFile(importPath)
 
             if not requestResult:
                 logger.warning("Unable to Import Image from MediaBrowser.")                         #   TODO
@@ -169,7 +166,6 @@ class Image_ImportClass(object):
         self.updateUi()
 
 
-
     @err_catcher(name=__name__)
     def setStateMode(self, stateMode):
         self.stateMode = stateMode
@@ -178,20 +174,41 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def callMediaWindow(self):
-        if hasattr(self, "dlg_media"):
-            self.mediaPopup.close()
-
         self.selectedMedia = None
+        
+        if hasattr(self, "mediaChooser"):
+            self.mediaChooser.close()
+            
+        self.mediaChooser = ReadMediaDialog(self, self.core)
+        self.mediaChooser.mediaSelected.connect(lambda data: self.setSelectedMedia(data))
 
-        self.mediaPopup = ReadMediaDialog(self)
-
-        self.mediaBrowser = self.mediaPopup.w_browser
+        self.mediaBrowser = self.mediaChooser.w_browser
         self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
 
-        self.mediaPopup.mediaSelected.connect(lambda data: self.setSelectedMedia(data))
-        self.mediaPopup.exec_()
+        self.mediaChooser.exec_()
 
-        return self.selectedMedia
+        # self.core.projectBrowser()
+        # #	Switch to Media Tab
+        # if self.core.pb:
+        #     self.core.pb.showTab("Media")
+
+        #     self.mediaBrowser = self.core.pb.mediaBrowser
+        #     self.mediaBrowser.lw_version.itemDoubleClicked.disconnect()
+        #     self.mediaBrowser.lw_version.itemDoubleClicked.connect(self.itemDoubleClicked)
+
+        #     self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
+
+        if not self.selectedMedia:
+            self.core.popup("NOTHING SELECTED")                                      #    TESTING
+            return False
+
+
+        self.makeImportData()
+
+
+        return True
+    
+
 
 
     @err_catcher(name=__name__)                         #   TODO Simplify
@@ -199,38 +216,38 @@ class Image_ImportClass(object):
         self.selectedMedia = data  # Save the selected media
 
 
+
     @err_catcher(name=__name__)
-    def requestImportPaths(self):
+    def makeImportData(self):
+
+        context = self.selectedMedia
 
 
-        versionData = self.callMediaWindow()
+        print("\n\n*** CONTEXT  ****\n")
+        for key in sorted(context.keys()):
+            print(f"{key}: {context[key]}")
 
-        # print(f"*** versionData:\n{versionData}")                                              #    TESTING
-        self.core.popup(f"versionData:  {versionData}")                                      #    TESTING
+        self.core.popup(f"context:  {context}")                                      #    TESTING
 
-        if not versionData:
-            return
+        mediaType = context["mediaType"]
 
-
-        # self.core.popup(f"self.mediaPopup:  {dir(self.mediaPopup)}")                                      #    TESTING
-
-        # self.core.popup(f"self.mediaBrowser: {dir(self.mediaBrowser)}")                                      #    TESTING
-        # self.core.popup(f"self.mediaPlayer: {dir(self.mediaPlayer)}")                                      #    TESTING
-
-        #	Get Identifier Context Data
-        contextRaw = self.mediaPlayer.getSelectedContexts()
-
-        #	Seems sometimes context comes as a list
-        if isinstance(contextRaw, list):
-            context = contextRaw[0] if len(contextRaw) > 0 else None
-        else:
-            context = contextRaw
-
-        #	Get AOV Contexts - empty list if 2drender
-        # version = self.core.pb.mediaBrowser.getCurrentVersion()
         version = self.mediaBrowser.getCurrentVersion()
 
+        print("\n\n*** VERSION  ****\n")
+        for key in sorted(version.keys()):
+            print(f"{key}: {version[key]}")
+
+        self.core.popup(f"version:  {version}")                                      #    TESTING
+
         aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
+
+        print("\n\n*** AOV DICT  ****\n")
+        for item in aovDict:
+            print("\n*******  AOV *****")
+            for key in sorted(item.keys()):
+                print(f"{key}: {item[key]}")
+
+        self.core.popup(f"aovDict:  {aovDict}")                                      #    TESTING
 
         #	Get sourceData based on mediaType - used to get framerange
         if "aov" in context:
@@ -238,9 +255,176 @@ class Image_ImportClass(object):
         else:
             sourceData = self.mediaPlayer.compGetImportSource()
 
-        importData = self.fuseFuncts.makeImportData(context, aovDict, sourceData)
 
-        self.core.popup(f"importData:  {importData}")                                      #    TESTING
+        try:
+            #   Make base dict
+            importData = {"identifier": context["identifier"],
+                        "displayName": context["displayName"],
+                        "mediaType": mediaType,
+                        "itemType": context["itemType"],
+                        "locations": context["locations"],
+                        "path": context["path"],
+                        "extension": "",
+                        "version": context["version"],
+                        "aov": "",
+                        "aovs": [],
+                        "channel": "",
+                        "channels": []
+                        }
+            
+        except Exception as e:
+            logger.warning(f"ERROR: Unable to make base importData dict: {e}")
+            return {}
+        
+        #   Add AOV if it exists
+        if "aov" in context:
+            importData["aov"] = context["aov"]
+
+        files = []
+
+        #   For "3drenders" and "external media"
+        if mediaType in ["3drenders", "externalMedia"]:
+            try:
+                #   Iterate through both dicts to extract needed data
+                for aovItem, sourceItem in zip(aovDict, sourceData):
+                    #   Add mediaType to each aovItem
+                    aovItem["mediaType"] = mediaType
+                    #   Get file list for each aov, and get first file
+                    filesList = self.fuseFuncts.core.mediaProducts.getFilesFromContext(aovItem)
+                    basefile = filesList[0]
+
+                    #   Get file extension
+                    if "extension" in context:
+                        extension = context["extension"]
+                    else:
+                        _, extension = os.path.splitext(basefile)
+
+                    #   Use framerange from sourceData if it exists (sequences)
+                    if type(sourceItem[1]) == int:
+                        frame_start = sourceItem[1]
+                        frame_end = sourceItem[2]
+
+                    #   Use video duration for video formats
+                    elif extension in self.fuseFuncts.core.media.videoFormats:
+                            duration = self.fuseFuncts.core.media.getVideoDuration(basefile)
+                            frame_start = 1
+                            frame_end = duration
+
+                    #   For Stills Images
+                    else:
+                        frame_start = 1
+                        frame_end = 1
+
+                    #   Make dict for each AOV
+                    fileDict = {
+                        "basefile": basefile,
+                        "identifier": context["identifier"],
+                        "aov": aovItem["aov"],
+                        "version": context["version"],
+                        "frame_start": frame_start,
+                        "frame_end": frame_end,
+                    }
+
+                    #   Add dict to files list
+                    files.append(fileDict)
+
+            except Exception as e:
+                logger.warning(f"ERROR: Unable to generate file list for {mediaType}:\n{e}")
+                return None
+
+        #   For "2drenders:
+        else:
+            try:
+                sourceData = sourceData[0]
+                
+                #   Get file list and get first file
+                filesList = self.fuseFuncts.core.mediaProducts.getFilesFromContext(context)
+                basefile = filesList[0]
+
+                #   Get file extension
+                if "extension" in context:
+                    extension = context["extension"]
+                else:
+                    _, extension = os.path.splitext(basefile)
+
+                #   Use framerange from sourceData if it exists (sequences)
+                if type(sourceData[1]) == int:
+                    frame_start = sourceData[1]
+                    frame_end = sourceData[2]
+
+                #   Use video duration for video formats
+                elif extension in self.fuseFuncts.core.media.videoFormats:
+                        duration = self.fuseFuncts.core.media.getVideoDuration(basefile)
+                        frame_start = 1
+                        frame_end = duration
+
+                #   For Stills Images
+                else:
+                    frame_start = 1
+                    frame_end = 1
+
+                #   Make dict for each AOV
+                fileDict = {
+                    "basefile": basefile,
+                    "identifier": context["identifier"],
+                    "version": context["version"],
+                    "frame_start": frame_start,
+                    "frame_end": frame_end,
+                }
+
+                files.append(fileDict)
+
+            except Exception as e:
+                logger.warning(f"ERROR: Unable to generate file list for {mediaType}:\n{e}")
+                return None
+
+        # Add the files to the importData
+        importData["files"] = files
+
+        #   Add additional data if exist
+        importData["extension"] = extension
+
+        try:
+            if "channel" in context:
+                importData["channel"] = context["channel"]
+
+            channels = self.fuseFuncts.core.media.getLayersFromFile(basefile)
+            importData["channels"] = channels
+
+        except Exception as e:
+            logger.warning(f"ERROR: Unable to add channel data to importData: {e}")
+
+        if "versionPaths" in context:
+            importData["versionPaths"] = context["versionPaths"]
+
+        if "redirect" in context:
+            importData["redirect"] = context["redirect"]
+
+        if importData["mediaType"] in ["3drenders", "external"]:
+            try:
+                importData["aovs"] = self.getAovNamesFromAovDict(aovDict)
+            except Exception as e:
+                logger.warning(f"ERROR: Unable to get AOV names list: {e}")
+
+
+        # print("\n\n*** IMPORT DATA\n\n")
+        # for key, value in importData.items():
+            # print(f"{key}:  {value}")
+        # print("**********************\n\n")
+
+        files = importData["files"]
+        # print("*** FILES\n\n")
+        # print(files)
+        # # print("****************")
+        # for file in files:
+        #     print("*** FILE")
+        #     # print(file)
+        #     # print("*******")
+        #     for key, value in file.items():
+        #         print(f"{key}:  {value}")
+        # print("**********")
+
+        self.importData = importData                                        #   TESTING
 
         self.identifier = importData.get("identifier", None)
         self.mediaType = importData.get("mediaType", None)
@@ -253,72 +437,21 @@ class Image_ImportClass(object):
         self.channels = importData.get("channels", "")
         self.files = importData.get("files", None)
 
-        self.core.popup(f"self.files:  {self.files}")                                      #    TESTING
-
         self.setImportPath(self.files[0]["basefile"])
 
         return True
 
 
-        # try:
+    def getAovNamesFromAovDict(self, aovDict:list) -> list:
+        try:
+            aovNames = []
+            for aovItem in aovDict:
+                aovNames.append(aovItem["aov"])
+            return aovNames
+        except:
+            logger.warning(f"ERROR:  Unable to get AOV names from : {aovDict}")
+            return None
 
-            #   TEMP BYPASS OF STATE MANAGER    #
-        #     fString = ("Please use the Project Browser to Import Images.\n\n"
-        #             "Open Project Browser?")
-
-        #     result = self.core.popupQuestion(
-        #         fString,
-        #         title="Import Images",
-        #         buttons=["Open", "Cancel"],
-        #         icon=QMessageBox.Warning,
-        #         )
-
-        #     #   Cancels Adding the State
-        #     if result == "Cancel":
-        #         return False
-
-
-        #     #	Opens Project Browser
-        #     logger.debug("Opening Project Browser")
-
-        #     self.core.projectBrowser()
-        #     #	Switch to Media Tab
-        #     if self.core.pb:
-        #         self.core.pb.showTab("Media")
-        # except:
-        #     logger.warning("ERROR: Unable to Open Project Browser.")
-
-
-
-
-
-        #	Opens Project Browser
-        # logger.debug("Opening Project Browser")
-
-        # self.core.projectBrowser()
-        # #	Switch to Media Tab
-        # if self.core.pb:
-        #     self.core.pb.showTab("Media")
-
-
-        # result = self.core.callback("requestImportPath", self)
-        # for res in result:
-        #     if isinstance(res, dict) and res.get("importPaths") is not None:
-
-        #         # self.core.popup(f"res:  {res}")                             #   TESTING
-
-        #         return res["importPaths"]
-
-        # import MediaBrowser
-        # ts = MediaBrowser.MediaBrowser(core=self.core, importState=self)
-        # self.core.parentWindow(ts)
-        # ts.exec_()
-        # importPath = [ts.mediaPath]
-
-        # self.core.popup(f"importPath:  {importPath}")                             #   TESTING
-
-
-        # return importPath
 
 
     @err_catcher(name=__name__)
@@ -372,12 +505,15 @@ class Image_ImportClass(object):
     def connectEvents(self):
         self.e_name.textChanged.connect(self.nameChanged)
         self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
-        self.b_browse.clicked.connect(self.browse)
-        self.b_browse.customContextMenuRequested.connect(self.openFolder)
-        self.b_import.clicked.connect(self.importImage)
-        self.b_importLatest.clicked.connect(self.importLatest)
-        self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
         self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
+        self.b_browse.clicked.connect(self.browse)  #   Select Version Button
+        self.b_browse.customContextMenuRequested.connect(self.openFolder)   #   RCL Select Version Button
+        self.b_importLatest.clicked.connect(self.importLatest)  #   Import Latest Button
+        self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)    #   Latest Checkbox
+        self.b_importAll.clicked.connect(self.importAll)
+        self.b_importSel.clicked.connect(self.importSelected)
+        self.b_import.clicked.connect(self.importImage)     #   Re-Import Button
+        self.b_selectAll.clicked.connect(self.selectAllAovs)
 
 
     @err_catcher(name=__name__)
@@ -398,33 +534,15 @@ class Image_ImportClass(object):
 
         self.state.setText(0, name)
 
-
-    @err_catcher(name=__name__)
-    def getSortKey(self):
-        cacheData = self.core.paths.getCachePathData(self.getImportPath())
-        return cacheData.get("product")
     
 
     @err_catcher(name=__name__)
     def browse(self):
-        # import ProductBrowser
-
-        # ts = ProductBrowser.ProductBrowser(core=self.core, importState=self)
-        # self.core.parentWindow(ts)
-        # ts.exec_()
-        # importPath = ts.productPath
-
-        # if importPath:
-        #     result = self.importImage(update=True, path=importPath)
-        #     if result:
-        #         self.setImportPath(importPath)
-        #     self.updateUi()
 
         self.core.projectBrowser()
         #	Switch to Media Tab
         if self.core.pb:
             self.core.pb.showTab("Media")
-
 
 
     @err_catcher(name=__name__)
@@ -435,6 +553,7 @@ class Image_ImportClass(object):
 
         self.core.openFolder(path)
 
+
     @err_catcher(name=__name__)
     def getImportPath(self):
         path = getattr(self, "importPath", "")
@@ -442,6 +561,7 @@ class Image_ImportClass(object):
             path = os.path.normpath(path)
 
         return path
+
 
     @err_catcher(name=__name__)
     def setImportPath(self, path):
@@ -451,11 +571,6 @@ class Image_ImportClass(object):
         self.updateUi()
         self.stateManager.saveStatesToScene()
 
-    @err_catcher(name=__name__)
-    def isShotCam(self, path=None):
-        if not path:
-            path = self.getImportPath()
-        return path.endswith(".abc") and "/_ShotCam/" in path
 
     @err_catcher(name=__name__)
     def autoUpdateChanged(self, checked):
@@ -482,6 +597,7 @@ class Image_ImportClass(object):
             return False
 
         return True
+
 
     @err_catcher(name=__name__)
     def checkFrameRange(self, cachePath):
@@ -510,6 +626,7 @@ class Image_ImportClass(object):
             return False
 
         return True
+    
 
     @err_catcher(name=__name__)
     def importImage(self, update=False, path=None, settings=None):                              #   TODO
@@ -600,6 +717,7 @@ class Image_ImportClass(object):
 
         return result
 
+
     @err_catcher(name=__name__)
     def importLatest(self, refreshUi=True, selectedStates=True):
         if refreshUi:
@@ -608,13 +726,7 @@ class Image_ImportClass(object):
         path = self.getImportPath()
 
         latestVerDict = self.core.mediaProducts.getLatestVersionFromFilepath(path, includeMaster=True)
-
-        # self.core.popup(f"latestVerDict:  {latestVerDict}")               #   TESTING
-
         files = self.core.mediaProducts.getFilesFromContext(latestVerDict)
-
-        # self.core.popup(f"files:  {files}")               #   TESTING
-
 
         lastestVerPath = files[0]
 
@@ -650,10 +762,10 @@ class Image_ImportClass(object):
         curVerData = {"version": curVerName, "path": path}
 
         latestVerDict = self.core.mediaProducts.getLatestVersionFromFilepath(path, includeMaster=True)
-        # latestVerDict = self.core.mediaProducts.getLatestVersionFromIdentifier(self.importData, includeMaster=True)
-
-        # latestVerDict = self.core.mediaProducts.getVersionsFromContext(self.importData)
-
+        if not latestVerDict:
+            latestVerDict = self.core.mediaProducts.getLatestVersionFromIdentifier(self.importData, includeMaster=True)
+            if not latestVerDict:
+                latestVerDict = self.core.mediaProducts.getVersionsFromContext(self.importData)
 
         lastestVerName = latestVerDict["version"]
         lastestVerPath = latestVerDict["path"]
@@ -665,6 +777,16 @@ class Image_ImportClass(object):
 
         return curVerData, latestVersionData
     
+
+    @err_catcher(name=__name__)
+    def importAll(self):
+        self.core.popup("IMPORT ALL BUTTON")                                      #    TESTING
+
+
+    @err_catcher(name=__name__)
+    def importSelected(self):
+        self.core.popup("IMPORT SELECTED BUTTON")                                      #    TESTING
+
 
     @err_catcher(name=__name__)
     def setStateColor(self, status):
@@ -679,6 +801,7 @@ class Image_ImportClass(object):
 
         self.statusColor = statusColor
         self.stateManager.tw_import.repaint()
+
 
     @err_catcher(name=__name__)
     def updateUi(self):
@@ -728,8 +851,6 @@ class Image_ImportClass(object):
             else:
                 if curVersionName and latestVersionName:
                     status = "ok"
-                elif self.nodes:
-                    status = "ok"
 
                 if useSS:
                     self.b_importLatest.setStyleSheet("")
@@ -770,31 +891,25 @@ class Image_ImportClass(object):
 
         self.lw_objects.setHeaderHidden(True)
         self.lw_objects.setMinimumHeight(350)  # Set the minimum height to 300 pixels
-
         self.lw_objects.clear()
 
         # Create a root item for the identifier
         root_item = QTreeWidgetItem(self.lw_objects)
-
-
         root_item.setText(0, f"{self.identifier}_{self.version}")
-
-
         root_item.setExpanded(True)  # Optional: expand the root item by default
 
         # Dictionary to store AOV nodes for grouping channels
         aov_items = {}
 
         # Iterate through the files and organize AOVs and channels
-        for file_data in self.files:
-            aov = file_data["aov"]
-
-            # self.core.popup(f"aov:  {aov}")                                      #    TESTING
+        for file_data in self.importData["files"]:
+            aov = file_data.get("aov", None)
+            if aov:
+                aov = file_data["aov"]
 
             # Get the channels from the file using the provided method
             try:
                 channels = self.core.media.getLayersFromFile(file_data["basefile"])
-                # self.core.popup(f"channels:  {channels}")                                      #    TESTING
 
                 if len(channels) < 1:
                     raise Exception
@@ -804,20 +919,23 @@ class Image_ImportClass(object):
                 channels = ["Unknown Channel"]
                 print(f"Error getting channels for file {file_data['basefile']}: {e}")
 
-            # Check if this AOV already exists in the tree
-            if aov not in aov_items:
-                # Create a new item for the AOV
-                aov_item = QTreeWidgetItem(root_item)
-                aov_item.setText(0, aov)
-                aov_items[aov] = aov_item
-            else:
-                # Reuse the existing AOV item
-                aov_item = aov_items[aov]
+            if aov:
+                # Check if this AOV already exists in the tree
+                if aov not in aov_items:
+                    # Create a new item for the AOV
+                    aov_item = QTreeWidgetItem(root_item)
+                    aovText = f"{aov}    (aov)"
+                    aov_item.setText(0, aovText)
+                    aov_items[aov] = aov_item
+                else:
+                    # Reuse the existing AOV item
+                    aov_item = aov_items[aov]
 
             # Add channels as children of the AOV
             for channel in channels:
                 channel_item = QTreeWidgetItem(aov_item)
-                channel_item.setText(0, channel)
+                channelText = f"{channel}    (channel)"
+                channel_item.setText(0, channelText)
 
                 # Optionally style the channel item, e.g., based on frame range
                 frame_start = file_data["frame_start"]
@@ -860,11 +978,15 @@ class Image_ImportClass(object):
         self.cb_taskColor.setIconSize(QSize(24, 24))
 
 
-    # @err_catcher(name=__name__)
+    @err_catcher(name=__name__)
     def setTaskColor(self, color):                                              #   TODO
 
         self.core.popup(f"color:  {color}")                                      #    TESTING
 
+
+    @err_catcher(name=__name__)
+    def selectAllAovs(self):
+        self.lw_objects.selectAll()
 
 
     # @err_catcher(name=__name__)
@@ -893,40 +1015,27 @@ class Image_ImportClass(object):
     #     self.updateUi()
     #     self.stateManager.saveStatesToScene()
 
+
     @err_catcher(name=__name__)
     def preDelete(
         self,
         item=None,
         baseText="Do you also want to delete the connected objects?\n\n",
     ):
-        if len(self.nodes) > 0 and self.stateMode != "ApplyCache":
-            message = baseText
-            validNodes = [
-                x for x in self.nodes if self.core.appPlugin.isNodeValid(self, x)
-            ]
-            if len(validNodes) > 0:
-                for idx, val in enumerate(validNodes):
-                    if idx > 5:
-                        message += "..."
-                        break
-                    else:
-                        message += self.core.appPlugin.getNodeName(self, val) + "\n"
+        if not self.core.uiAvailable:
+            action = "Yes"
+            print("delete objects:\n\n%s" % baseText)
+        else:
+            action = self.core.popupQuestion(baseText, title="Delete State", parent=self.stateManager)
 
-                if not self.core.uiAvailable:
-                    action = "Yes"
-                    print("delete objects:\n\n%s" % message)
-                else:
-                    action = self.core.popupQuestion(message, title="Delete State", parent=self.stateManager)
-
-                if action == "Yes":
-                    self.core.appPlugin.deleteNodes(self, validNodes)
+        if action == "Yes":
+            self.core.appPlugin.deleteNodes(self)
 
         getattr(self.core.appPlugin, "sm_import_preDelete", lambda x: None)(self)
 
+
     @err_catcher(name=__name__)
     def getStateProps(self):
-
-
         return {
             "statename": self.e_name.text(),
             "statemode": self.stateMode,
@@ -953,10 +1062,11 @@ class ReadMediaDialog(QDialog):
 
     mediaSelected = Signal(object)
 
-    def __init__(self, parent):
+    def __init__(self, state, core):
         super(ReadMediaDialog, self).__init__()
-        self.plugin = parent
-        self.core = self.plugin.core
+        self.state = state
+        self.core = core
+
         self.isValid = False
         self.setupUi()
 
@@ -965,6 +1075,7 @@ class ReadMediaDialog(QDialog):
     def setupUi(self):
         filepath = self.core.getCurrentFileName()
         entity = self.core.getScenefileData(filepath)
+        
         title = "Select Media"
         self.setWindowTitle(title)
         self.core.parentWindow(self)
@@ -972,8 +1083,15 @@ class ReadMediaDialog(QDialog):
         import MediaBrowser
         self.w_browser = MediaBrowser.MediaBrowser(core=self.core)
         self.w_browser.headerHeightSet = True
+
+        ##   Disconnect native function of showing versionInfo, and connect to import the version
+        
+        #   This is disabled unless the main code gets something connected to the ID table widget
+        # self.w_browser.tw_identifier.itemDoubleClicked.disconnect()
+
+        self.w_browser.tw_identifier.itemDoubleClicked.connect(self.idDoubleClicked)
         self.w_browser.lw_version.itemDoubleClicked.disconnect()
-        self.w_browser.lw_version.itemDoubleClicked.connect(self.itemDoubleClicked)
+        self.w_browser.lw_version.itemDoubleClicked.connect(self.verDoubleClicked)
 
         self.lo_main = QVBoxLayout()
         self.setLayout(self.lo_main)
@@ -993,8 +1111,35 @@ class ReadMediaDialog(QDialog):
 
 
     @err_catcher(name=__name__)
-    def itemDoubleClicked(self, item):
+    def idDoubleClicked(self):
+
+        
         self.buttonClicked("select")
+
+
+    @err_catcher(name=__name__)
+    def verDoubleClicked(self, item):
+        self.getVerData()
+
+
+    @err_catcher(name=__name__)
+    def getVerData(self):
+        data = self.w_browser.getCurrentSource()
+
+        if not data:
+            data = self.w_browser.getCurrentAOV()
+            if not data:
+                data = self.w_browser.getCurrentVersion()
+                if not data:
+                    data = self.w_browser.getCurrentIdentifier()
+
+        if not data:
+            msg = "Invalid version selected."
+            self.core.popup(msg, parent=self)
+            return
+
+        self.mediaSelected.emit(data)
+        self.accept()  
 
 
     @err_catcher(name=__name__)
@@ -1019,7 +1164,7 @@ class ReadMediaDialog(QDialog):
         elif button.text() == "Import Custom":
             self.core.popup("Not Yet Implemented")                                      #    TESTING
     
-        elif button.text() == "Open Project Browser":
+        elif button.text() == "Open Project Browser":                                   #   TODO
             self.reject()
             self.openProjectBrowser()
 
@@ -1030,9 +1175,8 @@ class ReadMediaDialog(QDialog):
             self.reject()  # Close the dialog with no selection
 
 
-
     @err_catcher(name=__name__)
     def openProjectBrowser(self):
         self.core.projectBrowser()
         if self.core.pb:
-            self.core.pb.showTab("Librairies")
+            self.core.pb.showTab("Libraries")

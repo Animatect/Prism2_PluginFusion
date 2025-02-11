@@ -72,7 +72,7 @@
          </font>
         </property>
         <property name="text">
-         <string>Import Image</string>
+         <string>Import Images</string>
         </property>
        </widget>
       </item>
@@ -85,7 +85,7 @@
    <item>
     <widget class="QGroupBox" name="gb_import">
      <property name="title">
-      <string>Import</string>
+      <string/>
      </property>
      <layout class="QVBoxLayout" name="verticalLayout_2">
       <item>
@@ -294,16 +294,6 @@
             <property name="bottomMargin">
              <number>0</number>
             </property>
-            <item>
-             <widget class="QPushButton" name="b_import">
-              <property name="focusPolicy">
-               <enum>Qt::NoFocus</enum>
-              </property>
-              <property name="text">
-               <string>Re-Import</string>
-              </property>
-             </widget>
-            </item>
            </layout>
           </widget>
          </item>
@@ -313,7 +303,7 @@
       <item>
        <widget class="QGroupBox" name="gb_options">
         <property name="title">
-         <string>Options</string>
+         <string>Import</string>
         </property>
         <layout class="QVBoxLayout" name="verticalLayout_6">
          <item>
@@ -333,6 +323,16 @@
             </widget>
            </item>
           </layout>
+         </item>
+         <item>
+          <widget class="QPushButton" name="b_import">
+           <property name="focusPolicy">
+            <enum>Qt::NoFocus</enum>
+           </property>
+           <property name="text">
+            <string>Re-Import</string>
+           </property>
+          </widget>
          </item>
         </layout>
        </widget>
