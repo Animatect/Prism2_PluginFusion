@@ -66,7 +66,8 @@ def prismInit():
 
 	import PrismCore
 
-	pcore = PrismCore.PrismCore(app="Fusion")#, prismArgs=["noProjectBrowser"])
+	# pcore = PrismCore.PrismCore(app="Fusion")#, prismArgs=["noProjectBrowser"])
+	pcore = PrismCore.PrismCore(app="Fusion", prismArgs=["noProjectBrowser"])
 
 	# pcore.setActiveStyleSheet("Fusion")
 
