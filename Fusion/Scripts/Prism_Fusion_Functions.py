@@ -1839,6 +1839,11 @@ class Prism_Fusion_Functions(object):
 			flow.InsertBookmark("USD_Import")
 			result = self.wrapped_importUSD(origin, UUID, nodeData, update)
 
+			
+			bookmarks = flow.GetBookmarkList()
+			last_item = bookmarks.popitem()
+			flow.SetBookmarkList(bookmarks)
+			
 			comp.EndUndo()
 			comp.Unlock()
 		else:
