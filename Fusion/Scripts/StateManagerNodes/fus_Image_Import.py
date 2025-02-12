@@ -188,29 +188,14 @@ class Image_ImportClass(object):
 
         self.mediaChooser.exec_()
 
-        # self.core.projectBrowser()
-        # #	Switch to Media Tab
-        # if self.core.pb:
-        #     self.core.pb.showTab("Media")
-
-        #     self.mediaBrowser = self.core.pb.mediaBrowser
-        #     self.mediaBrowser.lw_version.itemDoubleClicked.disconnect()
-        #     self.mediaBrowser.lw_version.itemDoubleClicked.connect(self.itemDoubleClicked)
-
-        #     self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
-
         if not self.selectedMedia:
             self.core.popup("NOTHING SELECTED")                                      #    TESTING
             return False
 
-
         self.makeImportData()
-
 
         return True
     
-
-
 
     @err_catcher(name=__name__)                         #   TODO Simplify
     def setSelectedMedia(self, data):
@@ -507,13 +492,13 @@ class Image_ImportClass(object):
         self.e_name.textChanged.connect(self.nameChanged)
         self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
         self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
-        self.b_browse.clicked.connect(self.browse)  #   Select Version Button
+        self.b_browse.clicked.connect(self.browse)                          #   Select Version Button
         self.b_browse.customContextMenuRequested.connect(self.openFolder)   #   RCL Select Version Button
-        self.b_importLatest.clicked.connect(self.importLatest)  #   Import Latest Button
+        self.b_importLatest.clicked.connect(self.importLatest)              #   Import Latest Button
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)    #   Latest Checkbox
         self.b_importAll.clicked.connect(self.importAll)
         self.b_importSel.clicked.connect(self.importSelected)
-        self.b_import.clicked.connect(self.importImage)     #   Re-Import Button
+        self.b_import.clicked.connect(self.importImage)                     #   Re-Import Button
         self.b_selectAll.clicked.connect(self.selectAllAovs)
 
 
@@ -1132,7 +1117,7 @@ class ReadMediaDialog(QDialog):
 
         ##   Disconnect native function of showing versionInfo, and connect to import the version
         
-        #   This is disabled unless the main code gets something connected to the ID table widget
+        #   This is disabled unless the main code gets something connected to the ID table list widget
         # self.w_browser.tw_identifier.itemDoubleClicked.disconnect()
 
         self.w_browser.tw_identifier.itemDoubleClicked.connect(self.idDoubleClicked)
