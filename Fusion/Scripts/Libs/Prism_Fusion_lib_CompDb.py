@@ -248,7 +248,7 @@ def savePrismFileDb(comp, cpData_orig:dict):
         cpData = cpData_orig
 
     try:
-        cpData_str =  json.dumps(cpData, indent=4)
+        cpData_str =  json.dumps(cpData)#, indent=4)
         comp.SetData("PrismDB", cpData_str)
         logger.debug("Saved Prism Comp Database to Comp")
 
@@ -359,8 +359,10 @@ def sortingEnabled(comp, save:bool=False, checked:bool=None) -> bool:
 
 #   Adds new Node to the DB
 
-def addNodeToDB(comp, listType:str, UUID:str, nodeData:dict) -> bool:
+def addNodeToDB(comp, listType:str, UUID:str, nodeData:dict, saveDB:bool=True, aggregateData:dict=None) -> bool:
     cpData = loadPrismFileDb(comp)
+    if not saveDB and aggregateData:
+        cpData = aggregateData.copy()
 
     #   Remove the UID from the data since it is the main key
     for key in ["nodeUID", "toolUID"]:
@@ -377,7 +379,10 @@ def addNodeToDB(comp, listType:str, UUID:str, nodeData:dict) -> bool:
 
         #   Adds the record to the Database
         cpData["nodes"][listType][UUID] = nodeData
-        savePrismFileDb(comp, cpData)
+        if saveDB:
+            savePrismFileDb(comp, cpData)
+        else:
+            aggregateData = cpData
 
         if "nodeName" in nodeData:                                                  #   TODO Deal with toolName vs nodeName
             logger.debug(f"Added {nodeData['nodeName']} to the Comp Database")
@@ -442,14 +447,19 @@ def checkRecordInDb(comp, listType:str, UUID:str, nodeData:dict) -> Union[UUID |
 
 #   Removes a Node from the DB
 
-def removeNodeFromDB(comp, listType:str, UUID:str):
+def removeNodeFromDB(comp, listType:str, UUID:str, saveDB:bool=True, aggregateData:dict=None):
     cpData = loadPrismFileDb(comp)
+    if not saveDB and aggregateData:
+        cpData = aggregateData.copy()
 
     try:
         if UUID in cpData["nodes"][listType]:
             del cpData["nodes"][listType][UUID]
             logger.debug(f"Removed {UUID} from the Comp Database")
-            savePrismFileDb(comp, cpData)
+            if saveDB:
+                savePrismFileDb(comp, cpData)
+            else:
+                aggregateData = cpData
         else:
             logger.debug(f"{UUID} does not exist in the Comp Database")
             

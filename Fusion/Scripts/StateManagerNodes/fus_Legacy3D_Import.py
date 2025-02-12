@@ -687,6 +687,7 @@ class Legacy3D_ImportClass(object):
 
             if action == "Yes":
                 self.core.appPlugin.deleteNodes(self.stateUID)
+                self.core.popup("Deletion Complete", title="Deletion Complete", severity="info")
 
             getattr(self.core.appPlugin, "sm_import_preDelete", lambda x: None)(self)
         except:

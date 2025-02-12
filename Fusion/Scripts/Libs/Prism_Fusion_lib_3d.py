@@ -299,6 +299,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     isUpdate:bool = False
     positionedNodes:list[str] = []
     unsuccesfulConnections:list[str] = []
+    aggregateData = CompDb.loadPrismFileDb(comp)
 
     product = toolData["product"]
     version = toolData["version"]
@@ -369,7 +370,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 
                 thisToolData["connectedNodes"] = connectedNodesDict
             Fus.addToolData(tool, thisToolData)
-            CompDb.addNodeToDB(comp, "import3d", toolUID, thisToolData)
+            CompDb.addNodeToDB(comp, "import3d", toolUID, thisToolData, saveDB=False, aggregateData=aggregateData)
             if not tool.Name in positionedNodes:
                 x,y  = flow.GetPosTable(tool).values()
                 newx = x+(atx-fstnx)
@@ -386,6 +387,9 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     #     importedNodes.append(getNode(newName))
     
     # add a suffix the name to make sure we don't deduplicate a name on the update by modifying its name making finding matching tools impossible.
+
+    CompDb.savePrismFileDb(comp, aggregateData)
+    
     for t in importedTools:
         newName:str =  f"{t.GetAttrs('TOOLS_Name')}_{toolData.get('product')}_{version}"
         t.SetAttrs({'TOOLS_Name' : newName})
@@ -405,7 +409,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
 
     # Reselect based on the database.
     objs:list[Tool_] = []
-    cpData = CompDb.loadPrismFileDb(comp)
+    cpData = aggregateData#CompDb.loadPrismFileDb(comp)
     for nodeuid in cpData["nodes"]["import3d"]:
         nodeData:dict = cpData["nodes"]["import3d"][nodeuid]
         nodeStateUID:str|None = nodeData.get('stateUID')
@@ -479,15 +483,18 @@ def cleanbeforeImport(origin:Legacy3D_ImportClass, stateUID:str):
 
 
 def deleteTools(comp:Composition_, stateUID:str):
+    aggregateData = CompDb.loadPrismFileDb(comp)
     stateTools:list[Tool_] = getToolsFromNodeList(comp, getStateNodesList(comp, stateUID))
     for tool in stateTools:
         try:
             tool.Delete()
             if tool.GetData("Prism_UUID"):
-                CompDb.removeNodeFromDB(comp, "import3d", tool.GetData("Prism_UUID"))
+                CompDb.removeNodeFromDB(comp, "import3d", tool.GetData("Prism_UUID"), saveDB=False, aggregateData=aggregateData)
 
         except:
             logger.debug("Could not delete the tool.")
+    
+    CompDb.savePrismFileDb(comp, aggregateData)
 
 
 def getNodeStateTypes(comp:Composition_) -> list:
