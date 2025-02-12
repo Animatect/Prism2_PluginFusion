@@ -77,6 +77,13 @@
        </widget>
       </item>
       <item>
+       <widget class="QLabel" name="l_thumb">
+        <property name="text">
+         <string>Thumbnail</string>
+        </property>
+       </widget>
+      </item>
+      <item>
        <widget class="QComboBox" name="cb_taskColor"/>
       </item>
      </layout>

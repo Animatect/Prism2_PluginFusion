@@ -97,6 +97,7 @@ class Image_ImportClass(object):
         self.e_name.setText(self.stateNameTemplate)
         self.l_name.setVisible(False)
         self.e_name.setVisible(False)
+        self.l_class.setVisible(False)
 
         self.oldPalette = self.b_importLatest.palette()
         self.updatePalette = QPalette()
@@ -871,6 +872,8 @@ class Image_ImportClass(object):
 
         self.updateAovChnlTree()
 
+        self.createStateThumb()
+
         getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
 
@@ -947,6 +950,49 @@ class Image_ImportClass(object):
         for aov_item in aov_items.values():
             aov_item.setExpanded(True)
 
+            
+    @err_catcher(name=__name__)
+    def createStateThumb(self):
+        if not hasattr(self, 'l_thumb'):
+            logger.warning("ERROR: QLabel 'l_thumb' not found in UI")
+            return
+
+        fallbackPmap = self.core.media.getFallbackPixmap()
+
+        fileData = self.importData["files"][0]
+        basefile = fileData["basefile"]
+
+        try:
+            if os.path.exists(basefile):
+                pixMap = self.core.media.getPixmapFromPath(basefile)
+
+            else:
+                raise Exception
+            
+        except:
+            pixMap = fallbackPmap
+
+        # Get the QLabel's current width (stretched)
+        label_width = self.l_thumb.width()
+
+        # Maintain aspect ratio: Calculate new height
+        aspectRatio = pixMap.height() / pixMap.width()
+        new_height = int(label_width * aspectRatio)
+
+        # Scale the pixmap to fill the QLabel's width while maintaining aspect ratio
+        scaledPixmap = pixMap.scaled(label_width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+        # Apply the scaled pixmap
+        self.l_thumb.setPixmap(scaledPixmap)
+
+        # Update QLabel height dynamically
+        self.l_thumb.setFixedHeight(new_height)
+
+        # Ensure QLabel stretches horizontally but keeps a fixed height
+        self.l_thumb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+
+        # Optional: Add a border for visibility
+        self.l_thumb.setStyleSheet("border: 1px solid gray;")
 
 
     @err_catcher(name=__name__)

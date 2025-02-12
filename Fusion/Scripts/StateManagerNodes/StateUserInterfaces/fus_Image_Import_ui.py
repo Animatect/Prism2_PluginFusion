@@ -45,6 +45,11 @@ class Ui_wg_Image_Import(object):
 
         self.horizontalLayout_2.addWidget(self.l_class)
 
+        self.l_thumb = QLabel(self.f_name)
+        self.l_thumb.setObjectName(u"l_thumb")
+
+        self.horizontalLayout_2.addWidget(self.l_thumb)
+
         self.cb_taskColor = QComboBox(self.f_name)
         self.cb_taskColor.setObjectName(u"cb_taskColor")
 
@@ -230,6 +235,7 @@ class Ui_wg_Image_Import(object):
         wg_Image_Import.setWindowTitle(QCoreApplication.translate("wg_Image_Import", u"ImportFile", None))
         self.l_name.setText(QCoreApplication.translate("wg_Image_Import", u"State name:", None))
         self.l_class.setText(QCoreApplication.translate("wg_Image_Import", u"Import Images", None))
+        self.l_thumb.setText(QCoreApplication.translate("wg_Image_Import", u"Thumbnail", None))
         self.gb_import.setTitle("")
         self.gb_version.setTitle(QCoreApplication.translate("wg_Image_Import", u"Version", None))
         self.label_3.setText(QCoreApplication.translate("wg_Image_Import", u"Current Version:", None))
