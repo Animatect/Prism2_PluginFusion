@@ -194,6 +194,9 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
                     "frame_end": frame_end,
                 }
 
+                if "channel" in context:
+                    fileDict["channel"] = context["channel"]
+
                 #   Add dict to files list
                 files.append(fileDict)
 
@@ -241,6 +244,9 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
                 "frame_end": frame_end,
             }
 
+            if "channel" in context:
+                fileDict["channel"] = context["channel"]
+
             files.append(fileDict)
 
         except Exception as e:
@@ -254,9 +260,6 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
     importData["extension"] = extension
 
     try:
-        if "channel" in context:
-            importData["channel"] = context["channel"]
-
         channels = plugin.core.media.getLayersFromFile(basefile)
         importData["channels"] = channels
 

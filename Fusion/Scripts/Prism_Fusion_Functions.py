@@ -1208,7 +1208,7 @@ class Prism_Fusion_Functions(object):
 
 			#	Import the image(s)
 			else:
-				self.configureImport(comp, importData, importType, sortnodes=not checkbox_checked)
+				self.configureImport(comp, importData, importType, hasAovs, sortnodes=not checkbox_checked)
 
 		#	Update Option
 		elif importType in ["Update Selected", "Update Version"]:
@@ -1266,7 +1266,7 @@ class Prism_Fusion_Functions(object):
 		
 		
 	@err_catcher(name=__name__)
-	def configureImport(self, comp, importData, importType, sortnodes=True):
+	def configureImport(self, comp, importData, importType, hasAovs, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
 		refNode = None
@@ -1328,8 +1328,8 @@ class Prism_Fusion_Functions(object):
 					logger.warning("ERROR:  Unable to resolve image file channels")
 					return
 
-				#	If no channels or single channel call addSingle
-				if len(channels) <= 1:
+				#	If No channels, Single channel, or if there are multiple AOVs
+				if len(channels) <= 1 or (hasAovs and importType == "All AOVs"):
 					leftmostNode = self.addSingleChannel(comp, toolUID, toolData, refNode, sortnodes)
 
 				#	If multiple channels exists display popup to split
@@ -1344,7 +1344,8 @@ class Prism_Fusion_Functions(object):
 
 					if result == "No":
 						#	Get current viewed channel
-						currChannel = importData["channel"]
+						currChannel = importItem["channel"]
+
 						#	Call Multi-channel function for current channel
 						leftmostNode = self.addMultiChannel(comp, toolData, refNode, channels, currChannel, sortnodes=sortnodes)
 
@@ -1440,6 +1441,7 @@ class Prism_Fusion_Functions(object):
 				#	Get available channels from Loader
 				loaderChannels = Fus.getLoaderChannels(ldr)
 				channelData = Fus.getChannelData(loaderChannels)
+
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to get channels from Loader:\n{e}")
 				return None
