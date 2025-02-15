@@ -260,7 +260,9 @@ class Prism_Fusion_Functions(object):
 		
 		#	Gets task color settings from the DCC settings
 		self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
-		self.colorBrightness = self.core.getConfig("Fusion", "colorBrightness")
+		# self.colorBrightness = self.core.getConfig("Fusion", "colorBrightness")
+		self.useAovThumbs = self.core.getConfig("Fusion", "useAovThumbs")
+
 		
 		self.core.setActiveStyleSheet("Fusion")
 		appIcon = QIcon(

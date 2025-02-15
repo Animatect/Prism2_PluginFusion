@@ -942,7 +942,15 @@ class Image_ImportClass(object):
                         )
 
                         if correct_file_data:
-                            channel_item.setData(0, Qt.UserRole, correct_file_data)  # Store correct file_data dictionary
+                            #   Store file_data in tree item
+                            channel_item.setData(0, Qt.UserRole, correct_file_data)
+
+                            #   If AOV Thumbs are Enabled in Settings
+                            if self.fuseFuncts.useAovThumbs == "Enabled":
+                                #   Get Thumb PixMap HTML object
+                                thumbTip = self.getThumbToolTip(correct_file_data["basefile"])
+                                #   Set Tool Tip
+                                channel_item.setToolTip(0, thumbTip)  # Set HTML tooltip
 
             # If no AOVs, list channels directly under the root
             for channel in data["channels"]:
@@ -958,10 +966,17 @@ class Image_ImportClass(object):
                 )
 
                 if correct_file_data:
-                    channel_item.setData(0, Qt.UserRole, correct_file_data)  # Store correct file_data dictionary
+                    #   Store file_data in tree item
+                    channel_item.setData(0, Qt.UserRole, correct_file_data)
+
+                    #   If AOV Thumbs are Enabled in Settings
+                    if self.fuseFuncts.useAovThumbs == "Enabled":
+                        #   Get Thumb PixMap HTML object
+                        thumbTip = self.getThumbToolTip(correct_file_data["basefile"])
+                        #   Set Tool Tip
+                        channel_item.setToolTip(0, thumbTip)  # Set HTML tooltip
 
         self.lw_objects.itemSelectionChanged.connect(self.selectChildren)
-
 
 
     #   Ensure all children of a selected item are also selected.
@@ -980,26 +995,33 @@ class Image_ImportClass(object):
             self._selectAllChildren(child)
 
 
+    #   Get PixMap from Filepath or Fallback image
+    @err_catcher(name=__name__)
+    def getPixMap(self, filePath):
+        fallbackPmap = self.core.media.getFallbackPixmap()
+
+        try:
+            if os.path.exists(filePath):
+                pixMap = self.core.media.getPixmapFromPath(filePath)
+            else:
+                raise Exception
+        except:
+            pixMap = fallbackPmap
+
+        return pixMap
+    
+
     @err_catcher(name=__name__)
     def createStateThumb(self):
         if not hasattr(self, 'l_thumb'):
             logger.warning("ERROR: QLabel 'l_thumb' not found in UI")
             return
 
-        fallbackPmap = self.core.media.getFallbackPixmap()
-
         fileData = self.importData["files"][0]
         basefile = fileData["basefile"]
 
-        try:
-            if os.path.exists(basefile):
-                pixMap = self.core.media.getPixmapFromPath(basefile)
-
-            else:
-                raise Exception
-            
-        except:
-            pixMap = fallbackPmap
+        #   Get PixMap
+        pixMap = self.getPixMap(basefile)
 
         # Get the QLabel's current width (stretched)
         label_width = self.l_thumb.width()
@@ -1022,6 +1044,30 @@ class Image_ImportClass(object):
 
         # Optional: Add a border for visibility
         self.l_thumb.setStyleSheet("border: 1px solid gray;")
+
+
+    @err_catcher(name=__name__)
+    def getThumbToolTip(self, filePath):
+        try:
+            if self.core.media.getUseThumbnailForFile(filePath):
+                path = self.core.media.getThumbnailPath(filePath)
+            else:
+                raise Exception
+        except:
+            path = filePath
+
+        pixMap = self.getPixMap(path)
+
+        # Convert QPixmap to Base64
+        byte_array = QByteArray()
+        buffer = QBuffer(byte_array)
+        buffer.open(QIODevice.WriteOnly)
+        pixMap.save(buffer, "PNG")
+
+        base64_data = byte_array.toBase64().data().decode()
+        thumbTip = f'<img src="data:image/png;base64,{base64_data}" width="600"/>'
+
+        return thumbTip
 
 
     @err_catcher(name=__name__)

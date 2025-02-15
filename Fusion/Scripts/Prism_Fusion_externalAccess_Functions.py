@@ -147,18 +147,19 @@ class Prism_Fusion_externalAccess_Functions(object):
 		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 		lo_taskColoring.addItem(spacer)
 
-		# Color Brightness
-		origin.l_colorBrightness = QLabel("Color Brightness:       ")
-		origin.cb_colorBrightness = QComboBox()
-
+		##	Old Coloring Brightness code
 		# Add options to the Color Brightness combo box (10% to 100% in 10% increments)
-		brightness_levels = [f"{i}%" for i in range(10, 110, 10)]
-		origin.cb_colorBrightness.addItems(brightness_levels)
-		origin.cb_colorBrightness.setCurrentIndex(4)  # Default to "50%"
-		lo_taskColoring.addWidget(origin.l_colorBrightness)
-		lo_taskColoring.addWidget(origin.cb_colorBrightness)
+		# brightness_levels = [f"{i}%" for i in range(10, 110, 10)]
+		# origin.cb_colorBrightness.addItems(brightness_levels)
 
-		lo_taskColoring.addWidget(origin.cb_colorBrightness)
+		# AOV Thumbnails
+		origin.l_useAovThumbs = QLabel("AOV/Channel Thumbnails:       ")
+		origin.cb_useAovThumbs = QComboBox()
+		origin.cb_useAovThumbs.addItems(["Enabled", "Disabled"])
+
+		origin.cb_useAovThumbs.setCurrentIndex(0)  # Default to Enabled
+		lo_taskColoring.addWidget(origin.l_useAovThumbs)
+		lo_taskColoring.addWidget(origin.cb_useAovThumbs)
 
 		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 		lo_taskColoring.addItem(spacer)
@@ -205,9 +206,11 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.l_taskColoring.setToolTip(tip)
 		origin.cb_taskColoring.setToolTip(tip)
 
-		tip = "Controls the brightness of the Task color in the Media Tab."
-		origin.l_colorBrightness.setToolTip(tip)
-		origin.cb_colorBrightness.setToolTip(tip)
+		tip = ("Enables image thumbnail display when hovering over AOV/Channels in the list.\n\n"
+		 	   "Having this enabled could slow down performance of creating and loading states\n"
+			   "with large image of video files.")
+		origin.l_useAovThumbs.setToolTip(tip)
+		origin.cb_useAovThumbs.setToolTip(tip)
 
 		tip = "Install Prism Development menu to Fusion when adding the integration."
 		origin.l_installDevTools.setToolTip(tip)
@@ -239,7 +242,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 			self.setStartmodeConfig(origin.cb_prismStartMode.currentText())
 
 			settings["Fusion"]["taskColorMode"] = origin.cb_taskColoring.currentText()
-			settings["Fusion"]["colorBrightness"] = origin.cb_colorBrightness.currentText()
+			settings["Fusion"]["useAovThumbs"] = origin.cb_useAovThumbs.currentText()
 
 		except Exception as e:
 			logger.warning(f"ERROR: Could not save user settings:\n{e}")
@@ -287,15 +290,15 @@ class Prism_Fusion_externalAccess_Functions(object):
 					origin.cb_taskColoring.setCurrentIndex(1)
 
 				#	Loads Task Coloring brightness if exists
-				if "colorBrightness" in settings["Fusion"]:
-					idx = origin.cb_colorBrightness.findText(settings["Fusion"]["colorBrightness"])
+				if "useAovThumbs" in settings["Fusion"]:
+					idx = origin.cb_useAovThumbs.findText(settings["Fusion"]["useAovThumbs"])
 					if idx != -1:
-						origin.cb_colorBrightness.setCurrentIndex(idx)
+						origin.cb_useAovThumbs.setCurrentIndex(idx)
 				#	Defaults to Prompt mode
-				else:
-					origin.cb_colorBrightness.setCurrentIndex(4)
+				# else:
+					# origin.cb_colorBrightness.setCurrentIndex(4)
 
-				self.configureBrightnessUi(origin)
+				# self.configureBrightnessUi(origin)
 
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to load user settings:\n{e}")
