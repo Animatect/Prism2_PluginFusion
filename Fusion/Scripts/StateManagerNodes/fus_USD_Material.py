@@ -210,7 +210,7 @@ class USD_MaterialClass(object):
         self.b_createShader.clicked.connect(self.createUsdMaterial)
         self.tw_textureFiles.customContextMenuRequested.connect(self.showContextMenu)
         self.b_focusView.clicked.connect(self.focusView)
-        self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
+        self.cb_taskColor.currentIndexChanged.connect(lambda: self.setToolColor(self.cb_taskColor.currentText()))
 
 
     @err_catcher(name=__name__)
@@ -341,11 +341,19 @@ class USD_MaterialClass(object):
 
 
     @err_catcher(name=__name__)
-    def setTaskColor(self, color):
+    def setToolColor(self, color):
         #   Get rgb color from dict
         colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
-        #   Color tool
-        self.fuseFuncts.colorTaskNodes(self.stateUID, "import3d", colorRGB, category="import3d")
+
+        #   Add main tool to list
+        toolsToColor = []
+        toolsToColor.append(self.stateUID)
+        #   Get connected tools and add to list
+        uids = self.fuseFuncts.getConnectedNodes("import3d", self.stateUID)
+        toolsToColor.extend(uids)
+
+        #   Color tools
+        self.fuseFuncts.colorTools(toolsToColor, "import3d", colorRGB, category="import3d")
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()

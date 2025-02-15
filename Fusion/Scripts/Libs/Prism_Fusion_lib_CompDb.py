@@ -252,7 +252,7 @@ def savePrismFileDb(comp, cpData_orig:dict):
         comp.SetData("PrismDB", cpData_str)
         logger.debug("Saved Prism Comp Database to Comp")
 
-        # print(f"\n***  Prism Database:\n{print(comp.GetData('PrismDB'))}\n")                            #   TESTING
+        print(f"\n***  Prism Database:\n{print(comp.GetData('PrismDB'))}\n")                            #   TESTING
 
     except:
         logger.warning("ERROR: Failed to save Prism Comp Database to Comp")
@@ -565,7 +565,25 @@ def updateNodeInfo(comp, listType:str, UUID:str, nodeData:dict) -> bool:
     except Exception as e:
         logger.warning(f"ERROR: Failed to update Node Data for {UUID}\n{e}")
         return False
-        
+
+
+#   Return list of Tool UIDs for a given State UID
+def getUIDsFromStateUIDs(comp, listType:str, stateUID:str, includeConn:bool=True) -> list:
+    cpData = loadPrismFileDb(comp)
+
+    uids = []
+
+    for uuid, nodeData in cpData["nodes"].get(listType, {}).items():
+        if nodeData.get("stateUID") == stateUID:
+            uids.append(uuid)
+
+            if includeConn:
+                connected = nodeData.get("connectedNodes")
+                for name, connUID in connected.items():
+                    uids.append(connUID)
+
+    return uids
+
 
 #   Return a list of MediaIds for a given type
 

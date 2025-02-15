@@ -130,7 +130,7 @@ class Prism_Fusion_Functions(object):
 						("onStateManagerShow", self.onStateManagerShow),
 						("onStateCreated", self.onStateCreated),
 						("getIconPathForFileType", self.getIconPathForFileType),
-						("openPBListContextMenu", self.openPBListContextMenu),
+						# ("openPBListContextMenu", self.openPBListContextMenu),
 						# ("onMediaBrowserOpen", self.onMediaBrowserOpen),
 				]
 
@@ -387,6 +387,17 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		return CompDb.getNodeInfo(comp, type, nodeUID)
 	
+
+	@err_catcher(name=__name__)
+	def getUIDsFromStateUIDs(self, listType, stateUID):
+		comp = self.getCurrentComp()
+		return CompDb.getUIDsFromStateUIDs(comp, listType, stateUID)
+
+
+	@err_catcher(name=__name__)
+	def getConnectedNodes(self, listType:str, UUID:str):
+		comp = self.getCurrentComp()
+		return CompDb.getConnectedNodes(comp, listType, UUID)
 
 	@err_catcher(name=__name__)
 	def isPassThrough(self, nodeUID):
@@ -952,10 +963,10 @@ class Prism_Fusion_Functions(object):
 	################################################
 
 
-	#	Gets called from StateManager to get Import State type
-	@err_catcher(name=__name__)
-	def sm_getImportHandlerType(self, extension):
-		return self.imageImportHandlers.get(extension.lower())
+	#	Gets called from StateManager to get Import State type							#	NEEDED???
+	# @err_catcher(name=__name__)		
+	# def sm_getImportHandlerType(self, extension):
+	# 	return self.imageImportHandlers.get(extension.lower())
 
 
 	@err_catcher(name=__name__)
@@ -1106,137 +1117,94 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def importImages(self, mediaBrowser, importPath=None):
+	def imageImport(self, state, importData):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Import Media")
 
-		self.wrapped_ImportImages(mediaBrowser, comp, importPath)
+		self.wrapped_ImageImport(comp, state, importData)
 
 		comp.EndUndo()
 		comp.Unlock()
 
 
+	#	Receives importData and adds the Loaders to the Comp
 	@err_catcher(name=__name__)
-	def wrapped_ImportImages(self, mediaBrowser, comp, importPath):
-		try:
-			#	This is to cover that Prism's MediaBrowser.py call to this importImages passes
-			# 	the mediaPlayer object under the name mediaBrowser 
-			self.MP_mediaPlayer = mediaPlayer = mediaBrowser
-
-			#	Add Patched functions
-			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportSource, self.compGetImportSource, self, force=True)
-			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportPasses, self.compGetImportPasses, self, force=True)
-			logger.debug("Patched functions in 'importImages()'")
-
-		except Exception as e:
-			logger.warning(f"ERROR: Unable to load patched functions:\n{e}")
+	def wrapped_ImageImport(self, comp, state, importData):
+		"""
+		Example importData:
+			{
+			'stateUID': '0b67a0f6',
+			'identifier': 'SingleLyr-MultiAOV',
+			'displayName': 'SingleLyr-MultiAOV',
+			'mediaType': '3drenders',
+			'itemType': 'shot',
+			'locations': {
+						'global': 'N:\\...\\3dRender\\SingleLyr-MultiAOV\\v002'
+						}, 
+			'path': 'N:\\...\\3dRender\\SingleLyr-MultiAOV\\v002\\AO',
+			'extension': '.exr',
+			'version': 'v002',
+			'aovs': ['AO', 'Beauty', 'DiffCol'],
+			'channels': ['RGBA],
+			'files': [
+						{
+							'basefile': 'N:\\...\\3dRender\\SingleLyr-MultiAOV\\v002\\AO\\010_MEDIA-010_MEDIA_SingleLyr-MultiAOV_v002_AO.0001.exr',
+							'identifier': 'SingleLyr-MultiAOV',
+							'aov': 'AO',
+							'channel': 'RGBA',
+							'version': 'v002',
+							'frame_start': 1,
+							'frame_end': 20
+						},
+						{
+							'basefile': 'N:\\...\\3dRender\\SingleLyr-MultiAOV\\v002\\Beauty\\010_MEDIA-010_MEDIA_SingleLyr-MultiAOV_v002_Beauty.0001.exr',
+							'identifier': 'SingleLyr-MultiAOV',
+							'aov': 'Beauty',
+							'channel': 'RGBA',
+							'version': 'v002',
+							'frame_start': 1,
+							'frame_end': 20
+						},
+						{
+							'basefile': 'N:\\...\\3dRender\\SingleLyr-MultiAOV\\v002\\DiffCol\\010_MEDIA-010_MEDIA_SingleLyr-MultiAOV_v002_DiffCol.0001.exr',
+							'identifier': 'SingleLyr-MultiAOV',
+							'aov': 'DiffCol',
+							'channel': 'RGBA',
+							'version': 'v002',
+							'frame_start': 1,
+							'frame_end': 20
+						}
+					]
+			}
 		
-		if not comp:
-			comp = self.getCurrentComp()
-		
-		try:
-			#	Get Identifier Context Data
-			contextRaw = mediaPlayer.getSelectedContexts()
-
-			#	Seems sometimes context comes as a list
-			if isinstance(contextRaw, list):
-				context = contextRaw[0] if len(contextRaw) > 0 else None
-			else:
-				context = contextRaw
-
-			#	Get AOV Contexts - empty list if 2drender
-			version = self.core.pb.mediaBrowser.getCurrentVersion()
-
-			print(f"*** version:\n{version}")                                              #    TESTING
-			self.core.popup(f"version:  {version}")                                      #    TESTING
-
-			aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
-
-		except Exception as e:
-			self.core.popup(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
-			logger.warning(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
-			return
-
-		try:
-			#	Get sourceData based on mediaType - used to get framerange
-			if "aov" in context:
-				sourceData = mediaPlayer.compGetImportPasses()
-			else:
-				sourceData = mediaPlayer.compGetImportSource()
-
-
-		###		TODO	Framerange in sourceData does not seem to update until Prism instance restarts		TODO
-						#	This means the framerange will not update using Update Images
-						#	Needs furter investigation
-
-
-		except Exception as e:
-			self.core.popup(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
-			logger.warning(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
-			return
-
-		#	Function to aggregate data into importData
-		importData = Helper.makeImportData(self, context, aovDict, sourceData)
-
-		if not importData:
-			self.core.popup(f"ERROR:  Import Failed - Unable to make import data.")
-			logger.warning(f"ERROR:  Import Failed - Unable to make import data.")
-			return
+		"""
 
 		#	Get "Sorting" checkbox state	
 		sorting = CompDb.sortingEnabled(comp)
 
-		# Setup Dialog
-		fString = "Please select an import option:"	
+		sorting = True														#	TESTING - HARDCODED
 
-		#	Checks for AOVs or Channels
-		hasAovs = bool(importData.get("aov") and len(importData.get("aovs", [])) > 1)
-		hasChannels = bool(importData.get("channel") and len(importData.get("channels", [])) > 1)
+		#	Get any UIDs for the Identifier
+		uids = CompDb.getUIDsFromImportData(comp, "import2d", importData)
 
-		#	Adds buttons
-		if hasAovs:
-			buttons = ["Current AOV", "All AOVs"]
-		else:
-			buttons = ["Import Media"]
+		#	If there are already UIDs in the comp
+		# if uids and len(uids) > 0:
+		# 	self.importExisting(comp, uids, importData, importType, checkbox_checked)
 
-		if hasAovs or hasChannels:
-			buttons.append("Update Selected")
-		else:
-			buttons.append("Update Version")
+		#	Import the image(s)
+		# else:
+		self.configureImport(comp, importData, sortnodes=sorting)
 
-		buttons.append("Cancel")
-			
-		#	Execute question popup
-		importType, checkbox_checked = self.importPopup(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=sorting)
-
-		#	Save "Sorting" checkbox state
-		if checkbox_checked is not None:
-			CompDb.sortingEnabled(comp, save=True, checked=checkbox_checked)
-
-		#	Call the import with options and passing the data
-		if importType in ["Import Media", "Current AOV", "All AOVs"]:
-
-			#	Get any UIDs for the Identifier
-			uids = CompDb.getUIDsFromImportData(comp, "import2d", importData)
-
-			#	If there are already UIDs in the comp
-			if uids and len(uids) > 0:
-				self.importExisting(comp, uids, importData, importType, checkbox_checked)
-
-			#	Import the image(s)
-			else:
-				self.configureImport(comp, importData, importType, sortnodes=not checkbox_checked)
-
-		#	Update Option
-		elif importType in ["Update Selected", "Update Version"]:
-			#	Call the update
-			self.updateImport(comp, importType, importData)
+		# #	Update Option
+		# elif importType in ["Update Selected", "Update Version"]:
+		# 	#	Call the update
+		# 	self.updateImport(comp, importType, importData)
 
 		#	Cancel Option
-		else:
-			logger.debug("Import Canceled")
-			return
+		# else:
+		# 	logger.debug("Import Canceled")
+		# 	return
 		
 
 	@err_catcher(name=__name__)
@@ -1284,7 +1252,10 @@ class Prism_Fusion_Functions(object):
 		
 		
 	@err_catcher(name=__name__)
-	def configureImport(self, comp, importData, importType, sortnodes=True):
+	def configureImport(self, comp, importData, sortnodes=True):
+
+		# self.core.popup(f"importData from Functs:  {importData}")                                      #    TESTING
+
 		flow = comp.CurrentFrame.FlowView
 
 		refNode = None
@@ -1295,23 +1266,23 @@ class Prism_Fusion_Functions(object):
 
 		importList = []
 
-		try:
+		# try:
 			#	For Current AOV
-			if importType == "Current AOV":
-				for importItem in importData["files"]:
-					if importItem["aov"] == importData["aov"]:
-						importList.append(importItem)
-						break
+			# if importType == "Current AOV":
+			# 	for importItem in importData["files"]:
+			# 		if importItem["aov"] == importData["aov"]:
+			# 			importList.append(importItem)
+			# 			break
 
 			#	For all AOVs or single item
-			else:
-				for importItem in importData["files"]:
-					importList.append(importItem)
+			# else:
+		for importItem in importData["files"]:
+			importList.append(importItem)
 
-		except Exception as e:
-			self.core.popup(f"ERROR: Unable to generate import item list:\n{e}")
-			logger.warning(f"ERROR: Unable to generate import item list:\n{e}")
-			return
+		# except Exception as e:
+		# 	self.core.popup(f"ERROR: Unable to generate import item list:\n{e}")
+		# 	logger.warning(f"ERROR: Unable to generate import item list:\n{e}")
+		# 	return
 
 		try:
 			#	For each import item
@@ -1321,12 +1292,12 @@ class Prism_Fusion_Functions(object):
 				flow.Select()
 
 				#	Make UUID
-				toolUID = CompDb.createUUID()
+				# toolUID = CompDb.createUUID()
 
 				#	Make dict
 				toolData = {"nodeName": Fus.makeLdrName(importItem),
 							"version": importData["version"],
-							"toolUID": toolUID,
+							"stateUID": importData["stateUID"],
 							"mediaId": importData["identifier"],
 							"displayName": importData["displayName"],
 							"mediaType": importData["mediaType"],
@@ -1339,33 +1310,10 @@ class Prism_Fusion_Functions(object):
 							"listType": "import2d",
 							}
 
-				try:
-					#	Get channels from image file
-					channels = self.core.media.getLayersFromFile(importItem["basefile"])
-				except:
-					logger.warning("ERROR:  Unable to resolve image file channels")
-					return
 
-				#	If no channels or single channel call addSingle
-				if len(channels) <= 1:
 
-					leftmostNode = self.addSingleChannel(comp, toolUID, toolData, refNode, sortnodes)
+				leftmostNode = self.addImage(comp, toolData, refNode, sortnodes)
 
-				#	If multiple channels exists display popup to split
-				else:
-					fString = "This EXR seems to have multiple channels:\n" + "Do you want to split the EXR channels into individual nodes?"
-					buttons = ["Yes", "No"]
-					result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
-
-					if result == "Yes":
-						#	Call Multi-channel function for all channels
-						leftmostNode = self.addMultiChannel(comp, toolData, refNode, channels, sortnodes=sortnodes)
-
-					if result == "No":
-						#	Get current viewed channel
-						currChannel = importData["channel"]
-						#	Call Multi-channel function for current channel
-						leftmostNode = self.addMultiChannel(comp, toolData, refNode, channels, currChannel, sortnodes=sortnodes)
 
 			#	Return if failed
 			if not leftmostNode:
@@ -1383,12 +1331,6 @@ class Prism_Fusion_Functions(object):
 
 			logger.debug(f"Imported  and sorted {importData['identifier']}")
 
-
-			self.core.popup(f"importData:  {importData}")					#	TESTING
-
-			sm = self.core.getStateManager()
-			sm.importFile(path=importData["files"][0]["basefile"], settings=importData)
-
 			logger.debug(f"Added Import_Image State for {importData['identifier']}")
 
 
@@ -1396,16 +1338,19 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 			self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
-			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 
 
 	@err_catcher(name=__name__)
-	def addSingleChannel(self, comp, toolUID, toolData, refNode, sortnodes=True):
+	def addImage(self, comp, toolData, refNode, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
 		try:
 			#	Get Position of Ref Tool
 			refX, refY = Fus.getToolPosition(comp, refNode)
+
+			toolUID = self.createUUID()
+
+			toolData["toolUID"] = toolUID
 
 			#	Add and configure Loader to the left so it will not mess up Flow
 			ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
@@ -1416,6 +1361,7 @@ class Prism_Fusion_Functions(object):
 
 			#	Add mode to Comp Database
 			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
+
 		except:
 			logger.warning(f"ERROR: Unable to Import Single Channel")
 			return None
@@ -3684,85 +3630,92 @@ path = r\"%s\"
 
 	#	Colors tools in Comp based on Color mode in DCC settings
 	@err_catcher(name=__name__)
-	def colorTaskNodes(self, nodeUIDs, type, color, item=None, category=None):
+	def colorTools(self, toolUIDs, type, color, item=None, category=None):
 		comp = self.getCurrentComp()
 
-		#	Colors the Loaders and wireless nodes
-		if self.taskColorMode == "All Nodes":
-			toolsToColorUID = CompDb.getAllConnectedNodes(comp, type, nodeUIDs)
+		# #	Colors the Loaders and wireless nodes
+		# if self.taskColorMode == "All Nodes":
+		# 	toolsToColorUID = CompDb.getAllConnectedNodes(comp, type, nodeUIDs)
 
-		#	Only colors the Loader nodes
-		elif self.taskColorMode == "Loader Nodes":
-        #   Handle single or multiple nodeUIDs
-			toolsToColorUID = nodeUIDs if isinstance(nodeUIDs, list) else [nodeUIDs]
+		# #	Only colors the Loader nodes
+		# elif self.taskColorMode == "Loader Nodes":
+        # #   Handle single or multiple nodeUIDs
+		# 	toolsToColorUID = nodeUIDs if isinstance(nodeUIDs, list) else [nodeUIDs]
 
-		#	Coloring is disabled
-		else:
-			return
+		# #	Coloring is disabled
+		# else:
+		# 	return
 		
 		#	Color the Project Browser Task
-		if item:
-			self.colorItem(item, color)
-			CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
+		# if item:
+		# 	self.colorItem(item, color)
+		# 	CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
 			
 		
-		if not toolsToColorUID:
-			logger.debug("There are not Loaders associated with this task.")
-			self.core.popup("There are no loaders for this task.", severity="info")
-			return
+		# if not toolsToColorUID:
+		# 	logger.debug("There are not Loaders associated with this task.")
+		# 	self.core.popup("There are no loaders for this task.", severity="info")
+		# 	return
 				
 		#	If the RGB is the Clear Color code
-		if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
-			for toolUID in toolsToColorUID:
-				try:
-					tool = CompDb.getNodeByUID(comp, toolUID)
-					if tool:
+
+		if not isinstance(toolUIDs, list):
+			toolUIDs = [toolUIDs]
+
+		for toolUID in toolUIDs:
+			tool = CompDb.getNodeByUID(comp, toolUID)
+			if tool:
+				if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
+					try:
 						tool.TileColor = None
-				except:
-					logger.warning(f"ERROR: Unable to clear the color of the Loader: {toolUID}.")
+					except:
+						logger.warning(f"ERROR: Unable to clear the color of the Loader: {toolUID}.")
+				else:
+					try:
+						tool.TileColor = color
+						logger.debug(f"Set color of tool: {CompDb.getNodeNameByUID(comp, toolUID)}")
+					except:
+						logger.warning(f"ERROR: Cannot set color of tool: {toolUID}")
+
 
 		#	Set the color for each tool
-		else:
-			for toolUID in toolsToColorUID:
-				try:
-					if CompDb.nodeExists(comp, toolUID):
-						tool = CompDb.getNodeByUID(comp, toolUID)
-						if tool:
-							tool.TileColor = color
-							logger.debug(f"Set color of tool: {CompDb.getNodeNameByUID(comp, toolUID)}")
-				except:
-					logger.warning(f"ERROR: Cannot set color of tool: {toolUID}")
+		# else:
+		# 	for toolUID in toolUIDs:
+		# 		try:
+		# 			if CompDb.nodeExists(comp, toolUID):
+		# 				tool = CompDb.getNodeByUID(comp, toolUID)
+		# 				if tool:
 
 
 
-	#	Colors Media Task based on Color mode in DCC settings
-	@err_catcher(name=__name__)
-	def colorItem(self, item, color):
-		#	Check if R, G, and B are all 0.000011 to clear the color
-		if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
-			item.setBackground(0, QBrush())
-			item.setForeground(0, QBrush())
-			return
+	# #	Colors Media Task based on Color mode in DCC settings
+	# @err_catcher(name=__name__)
+	# def colorItem(self, item, color):
+	# 	#	Check if R, G, and B are all 0.000011 to clear the color
+	# 	if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
+	# 		item.setBackground(0, QBrush())
+	# 		item.setForeground(0, QBrush())
+	# 		return
 		
-		#	Convert brightness percent (e.g., "75%") to an integer alpha value (0–255)
-		try:
-			percentage = int(self.colorBrightness.strip('%'))
-			alpha = int((percentage / 100) * 255)
-		except ValueError:
-			alpha = 75  # Default alpha if conversion fails
+	# 	#	Convert brightness percent (e.g., "75%") to an integer alpha value (0–255)
+	# 	try:
+	# 		percentage = int(self.colorBrightness.strip('%'))
+	# 		alpha = int((percentage / 100) * 255)
+	# 	except ValueError:
+	# 		alpha = 75  # Default alpha if conversion fails
 
-		qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
+	# 	qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
 
-		#	Adding Alpha to mute task coloring
-		qcolor.setAlpha(alpha)
+	# 	#	Adding Alpha to mute task coloring
+	# 	qcolor.setAlpha(alpha)
 
-		item.setBackground(0, qcolor)
-		item.setForeground(0, QColor(230, 230, 230))
+	# 	item.setBackground(0, qcolor)
+	# 	item.setForeground(0, QColor(230, 230, 230))
 
-		#	If brightness is high, use luminance checker
-		if alpha > 124:
-			if Helper.isBgBright(color):
-				item.setForeground(0, QColor(30, 30, 30))
+	# 	#	If brightness is high, use luminance checker
+	# 	if alpha > 124:
+	# 		if Helper.isBgBright(color):
+	# 			item.setForeground(0, QColor(30, 30, 30))
 
 
 
@@ -3773,75 +3726,75 @@ path = r\"%s\"
 	################################################
 	
 
-	@err_catcher(name=__name__)
-	def onMediaBrowserTaskUpdate(self, origin):
-		#	If DCC 'Task Node Coloring' is disabled
-		if self.taskColorMode == "Disabled":
-			return
+	# @err_catcher(name=__name__)
+	# def onMediaBrowserTaskUpdate(self, origin):
+	# 	#	If DCC 'Task Node Coloring' is disabled
+	# 	if self.taskColorMode == "Disabled":
+	# 		return
 		
-		comp = self.getCurrentComp()
-		lw = origin.tw_identifier #listwidget
-		entity = origin.getCurrentEntity()
-		if lw == origin.tw_identifier:
-			category = entity.get("type")
-			if category in ["asset", "shot"]:
-				for i in range(lw.topLevelItemCount()):
-					item = lw.topLevelItem(i)
-					color = CompDb.getPrismDbIdentifierColor(comp, category, item.text(0))
-					if color:
-						self.colorItem(item, color)
+	# 	comp = self.getCurrentComp()
+	# 	lw = origin.tw_identifier #listwidget
+	# 	entity = origin.getCurrentEntity()
+	# 	if lw == origin.tw_identifier:
+	# 		category = entity.get("type")
+	# 		if category in ["asset", "shot"]:
+	# 			for i in range(lw.topLevelItemCount()):
+	# 				item = lw.topLevelItem(i)
+	# 				color = CompDb.getPrismDbIdentifierColor(comp, category, item.text(0))
+	# 				if color:
+	# 					self.colorItem(item, color)
 
 
 
-	@err_catcher(name=__name__)
-	def openPBListContextMenu(self, origin, rcmenu, lw, item, path):
-		#	If DCC 'Task Node Coloring' is disabled
-		if self.taskColorMode == "Disabled":
-			return
+	# @err_catcher(name=__name__)
+	# def openPBListContextMenu(self, origin, rcmenu, lw, item, path):
+	# 	#	If DCC 'Task Node Coloring' is disabled
+	# 	if self.taskColorMode == "Disabled":
+	# 		return
 		
-		entity = origin.getCurrentEntity()
-		if lw == origin.tw_identifier:
-			category = entity.get("type")
-			if category in ["asset", "shot"]:
-				comp = self.getCurrentComp()
+	# 	entity = origin.getCurrentEntity()
+	# 	if lw == origin.tw_identifier:
+	# 		category = entity.get("type")
+	# 		if category in ["asset", "shot"]:
+	# 			comp = self.getCurrentComp()
 
-				#	Get Display Name from Item
-				displayName = item.text(0)
+	# 			#	Get Display Name from Item
+	# 			displayName = item.text(0)
 
-				#	Get NodeUID based on Media Identifier
-				mediaNodeUIDs = CompDb.getNodeUidFromMediaDisplayname(comp, "import2d", displayName)
+	# 			#	Get NodeUID based on Media Identifier
+	# 			mediaNodeUIDs = CompDb.getNodeUidFromMediaDisplayname(comp, "import2d", displayName)
 				
-				#	Setup rcl "Select Nodes" items
-				depAct = QAction("Select Task Nodes....", origin)
-				depAct.triggered.connect(lambda: self.selecttasknodes(mediaNodeUIDs))
-				rcmenu.addAction(depAct)
+	# 			#	Setup rcl "Select Nodes" items
+	# 			depAct = QAction("Select Task Nodes....", origin)
+	# 			depAct.triggered.connect(lambda: self.selecttasknodes(mediaNodeUIDs))
+	# 			rcmenu.addAction(depAct)
 
-				#	Setup rcl "Color Nodes" items
-				menuSelTaskC = QMenu("Select Task Color", origin)
-				menuSelTaskC.setStyleSheet("""
-					QMenu::item {
-						padding-left: 5px;  /* Reduce left padding of item text */
-						padding-right: 5px; /* Optional, adjust to control space around icon */
-					}
-					QMenu::icon {
-						margin-right: -5px; /* Bring icon closer to text */
-					}
-				""")
-				for key in self.fusionToolsColorsDict.keys():
-					name = key
-					color = self.fusionToolsColorsDict[key]
+	# 			#	Setup rcl "Color Nodes" items
+	# 			menuSelTaskC = QMenu("Select Task Color", origin)
+	# 			menuSelTaskC.setStyleSheet("""
+	# 				QMenu::item {
+	# 					padding-left: 5px;  /* Reduce left padding of item text */
+	# 					padding-right: 5px; /* Optional, adjust to control space around icon */
+	# 				}
+	# 				QMenu::icon {
+	# 					margin-right: -5px; /* Bring icon closer to text */
+	# 				}
+	# 			""")
+	# 			for key in self.fusionToolsColorsDict.keys():
+	# 				name = key
+	# 				color = self.fusionToolsColorsDict[key]
 
-					qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
-					depAct = QAction(name, origin)
+	# 				qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
+	# 				depAct = QAction(name, origin)
 
-					# we can pass name as a default argument in the lambda to "freeze" its value for each iteration
-					# even if the action isn't checkable, the triggered signal passes checked as an argument by default.
-					depAct.triggered.connect(lambda checked=False, color=color: self.colorTaskNodes(mediaNodeUIDs, "import2d", color, item, category))
-					icon = self.create_color_icon(qcolor)
-					depAct.setIcon(icon)
-					menuSelTaskC.addAction(depAct)
+	# 				# we can pass name as a default argument in the lambda to "freeze" its value for each iteration
+	# 				# even if the action isn't checkable, the triggered signal passes checked as an argument by default.
+	# 				depAct.triggered.connect(lambda checked=False, color=color: self.colorTaskNodes(mediaNodeUIDs, "import2d", color, item, category))
+	# 				icon = self.create_color_icon(qcolor)
+	# 				depAct.setIcon(icon)
+	# 				menuSelTaskC.addAction(depAct)
 
-				rcmenu.addMenu(menuSelTaskC)
+	# 			rcmenu.addMenu(menuSelTaskC)
 
 
 	#	This is to be able to call task coloring
