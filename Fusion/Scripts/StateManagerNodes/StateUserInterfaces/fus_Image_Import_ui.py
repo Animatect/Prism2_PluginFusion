@@ -16,7 +16,7 @@ class Ui_wg_Image_Import(object):
     def setupUi(self, wg_Image_Import):
         if not wg_Image_Import.objectName():
             wg_Image_Import.setObjectName(u"wg_Image_Import")
-        wg_Image_Import.resize(340, 730)
+        wg_Image_Import.resize(383, 730)
         self.verticalLayout = QVBoxLayout(wg_Image_Import)
         self.verticalLayout.setObjectName(u"verticalLayout")
         self.verticalLayout.setContentsMargins(0, 0, 0, 0)
@@ -50,10 +50,25 @@ class Ui_wg_Image_Import(object):
 
         self.horizontalLayout_2.addWidget(self.l_thumb)
 
+        self.lo_options = QVBoxLayout()
+        self.lo_options.setObjectName(u"lo_options")
         self.cb_taskColor = QComboBox(self.f_name)
         self.cb_taskColor.setObjectName(u"cb_taskColor")
 
-        self.horizontalLayout_2.addWidget(self.cb_taskColor)
+        self.lo_options.addWidget(self.cb_taskColor)
+
+        self.b_focusView = QPushButton(self.f_name)
+        self.b_focusView.setObjectName(u"b_focusView")
+
+        self.lo_options.addWidget(self.b_focusView)
+
+        self.b_selectTools = QPushButton(self.f_name)
+        self.b_selectTools.setObjectName(u"b_selectTools")
+
+        self.lo_options.addWidget(self.b_selectTools)
+
+
+        self.horizontalLayout_2.addLayout(self.lo_options)
 
 
         self.verticalLayout.addWidget(self.f_name)
@@ -236,6 +251,8 @@ class Ui_wg_Image_Import(object):
         self.l_name.setText(QCoreApplication.translate("wg_Image_Import", u"State name:", None))
         self.l_class.setText(QCoreApplication.translate("wg_Image_Import", u"Import Images", None))
         self.l_thumb.setText(QCoreApplication.translate("wg_Image_Import", u"Thumbnail", None))
+        self.b_focusView.setText(QCoreApplication.translate("wg_Image_Import", u"Focus View", None))
+        self.b_selectTools.setText(QCoreApplication.translate("wg_Image_Import", u"Select Tools", None))
         self.gb_import.setTitle("")
         self.gb_version.setTitle(QCoreApplication.translate("wg_Image_Import", u"Version", None))
         self.label_3.setText(QCoreApplication.translate("wg_Image_Import", u"Current Version:", None))

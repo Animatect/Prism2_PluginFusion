@@ -499,6 +499,9 @@ class Image_ImportClass(object):
         self.e_name.textChanged.connect(self.nameChanged)
         self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
         self.cb_taskColor.currentIndexChanged.connect(lambda: self.setToolColor(self.cb_taskColor.currentText()))
+        self.b_focusView.clicked.connect(self.focusView)
+        self.b_selectTools.clicked.connect(self.selectTools)
+
         self.b_browse.clicked.connect(self.browse)                          #   Select Version Button
         self.b_browse.customContextMenuRequested.connect(self.openFolder)   #   RCL Select Version Button
         self.b_importLatest.clicked.connect(self.importLatest)              #   Import Latest Button
@@ -1066,6 +1069,34 @@ class Image_ImportClass(object):
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
+
+
+    #   Centers Flow View on Tool
+    @err_catcher(name=__name__)
+    def focusView(self):
+        #   Get all Tool UIDs for the State
+        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
+        for uid in uids:
+            #   Focus on the main Tool
+            nData = self.fuseFuncts.getNodeInfo("import2d", uid)
+            if nData["version"]:
+                self.fuseFuncts.sm_view_FocusStateTool(uid)
+                return
+
+
+    #   Selects all Tools of the State
+    @err_catcher(name=__name__)
+    def selectTools(self):
+        #   Get Fusion objects
+        comp = self.fuseFuncts.getCurrentComp()
+        flow = comp.CurrentFrame.FlowView
+        #   All State Tool UIDS
+        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
+
+        #   Select each Tool
+        for uid in uids:
+            tool = self.fuseFuncts.getNodeByUID(uid)
+            flow.Select(tool)
 
 
     @err_catcher(name=__name__)

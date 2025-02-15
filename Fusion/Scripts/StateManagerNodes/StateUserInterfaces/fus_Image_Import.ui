@@ -6,7 +6,7 @@
    <rect>
     <x>0</x>
     <y>0</y>
-    <width>340</width>
+    <width>383</width>
     <height>730</height>
    </rect>
   </property>
@@ -84,7 +84,25 @@
        </widget>
       </item>
       <item>
-       <widget class="QComboBox" name="cb_taskColor"/>
+       <layout class="QVBoxLayout" name="lo_options">
+        <item>
+         <widget class="QComboBox" name="cb_taskColor"/>
+        </item>
+        <item>
+         <widget class="QPushButton" name="b_focusView">
+          <property name="text">
+           <string>Focus View</string>
+          </property>
+         </widget>
+        </item>
+        <item>
+         <widget class="QPushButton" name="b_selectTools">
+          <property name="text">
+           <string>Select Tools</string>
+          </property>
+         </widget>
+        </item>
+       </layout>
       </item>
      </layout>
     </widget>

@@ -389,9 +389,9 @@ class Prism_Fusion_Functions(object):
 	
 
 	@err_catcher(name=__name__)
-	def getUIDsFromStateUIDs(self, listType, stateUID):
+	def getUIDsFromStateUIDs(self, listType, stateUID, includeConn=True):
 		comp = self.getCurrentComp()
-		return CompDb.getUIDsFromStateUIDs(comp, listType, stateUID)
+		return CompDb.getUIDsFromStateUIDs(comp, listType, stateUID, includeConn)
 
 
 	@err_catcher(name=__name__)
