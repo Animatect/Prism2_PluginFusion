@@ -179,15 +179,18 @@ class Image_ImportClass(object):
                 logger.debug("Medi Import cancelled")
                 return False
             
+            if requestResult == "Empty":
+                return False
+            
             if not requestResult:
-                logger.warning("Unable to Import Image from MediaBrowser.")             #   TODO
-                self.core.popup("Unable to Import Image from MediaBrowser.")            #    TESTING
+                logger.warning("ERROR: Unable to Import Image from MediaBrowser.")
+                self.core.popup("Unable to Import Image from MediaBrowser.")
                 return False
         
         #   4. If error
         else:
-            logger.warning("Unable to Import Image.")                               #   TODO
-            self.core.popup("Unable to Import Image.")                                      #    TESTING
+            logger.warning("ERROR: Unable to Import Image.")
+            self.core.popup("Unable to Import Image.")
             return False
 
         getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
@@ -226,12 +229,18 @@ class Image_ImportClass(object):
         self.selMediaContext = self.selResult[1]
 
         if clicked == "version":
-            self.makeImportData(self.selMediaContext)
+            result = self.makeImportData(self.selMediaContext)
 
         if clicked == "identifier":
-            self.importLatest(selectedStates=False)
+            result = self.importLatest(selectedStates=False)
+        
 
-        return True
+        if not result:
+            return False
+        if result == "Empty":
+            return result
+        else:
+            return True
     
 
     @err_catcher(name=__name__)                         #   TODO Simplify
@@ -248,7 +257,7 @@ class Image_ImportClass(object):
         if not version:
             logger.warning(f"ERROR: There are no Versions for this Media Identifier")
             self.core.popup("There are no Versions for this Media Identifier")
-            return False
+            return "Empty"
 
         #   Get data from various sources
         aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
@@ -733,6 +742,9 @@ class Image_ImportClass(object):
 
         if not result:
             return False
+        
+        if result == "Empty":
+            return result
         
         if not selectedStates:
             self.importAll()
