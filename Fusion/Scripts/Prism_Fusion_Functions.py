@@ -258,12 +258,21 @@ class Prism_Fusion_Functions(object):
 			logger.warning("ERROR: Linux is not supported at this time")
 			return False
 		
-		#	Gets task color settings from the DCC settings
+		#	Gets config settings from the DCC settings
 		self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
 		# self.colorBrightness = self.core.getConfig("Fusion", "colorBrightness")
 		self.useAovThumbs = self.core.getConfig("Fusion", "useAovThumbs")
 
-		
+		match self.core.getConfig("Fusion", "thumbsSize"):
+			case "Small (300 px)":
+				self.aovThumbWidth = 300
+			case "Medium (600 px)":
+				self.aovThumbWidth = 600
+			case "Large (900 px)":
+				self.aovThumbWidth = 900
+			case _:
+				self.aovThumbWidth = 500
+
 		self.core.setActiveStyleSheet("Fusion")
 		appIcon = QIcon(
 			os.path.join(self.core.prismRoot, "Scripts", "UserInterfacesPrism", "p_tray.png")
@@ -1184,11 +1193,10 @@ class Prism_Fusion_Functions(object):
 
 		#	Get "Sorting" checkbox state	
 		sorting = CompDb.sortingEnabled(comp)
-
 		sorting = True														#	TESTING - HARDCODED
 
-		#	Get any UIDs for the Identifier
-		uids = CompDb.getUIDsFromImportData(comp, "import2d", importData)
+		# #	Get any UIDs for the Identifier
+		# uids = CompDb.getUIDsFromImportData(comp, "import2d", importData)
 
 		#	If there are already UIDs in the comp
 		# if uids and len(uids) > 0:
@@ -1209,48 +1217,48 @@ class Prism_Fusion_Functions(object):
 		# 	return
 		
 
-	@err_catcher(name=__name__)
-	def importExisting(self, comp, uids, importData, importType, checkbox_checked):
-		#	Get node info
-		versions = []
-		for uid in uids:
-			tData = CompDb. getNodeInfo(comp, "import2d", uid)
-			identifier = tData["mediaId"]
-			versions.append(tData["version"])
+	# @err_catcher(name=__name__)
+	# def importExisting(self, comp, uids, importData, importType, checkbox_checked):
+	# 	#	Get node info
+	# 	versions = []
+	# 	for uid in uids:
+	# 		tData = CompDb. getNodeInfo(comp, "import2d", uid)
+	# 		identifier = tData["mediaId"]
+	# 		versions.append(tData["version"])
 		
-		#	Takes the brackets out if there is only one item
-		if len(versions) == 1:
-			versions = versions[0]
+	# 	#	Takes the brackets out if there is only one item
+	# 	if len(versions) == 1:
+	# 		versions = versions[0]
 
-		#	Popup question
-		fString = (f"There is already ({versions}) of ({identifier}) the Comp:\n\n"
-					"Would you like to:\n" 
-					"       Update the version\n"
-					"           or\n"
-					"       Import this version?")
-		buttons = ["Update", "Import", "Cancel"]
+	# 	#	Popup question
+	# 	fString = (f"There is already ({versions}) of ({identifier}) the Comp:\n\n"
+	# 				"Would you like to:\n" 
+	# 				"       Update the version\n"
+	# 				"           or\n"
+	# 				"       Import this version?")
+	# 	buttons = ["Update", "Import", "Cancel"]
 
-		result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+	# 	result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 
-		#	Re-configure import type for update
-		if result == "Update":
-			if importType == "Import Media":
-				importType = "Update Version"
-			elif importType == "Current AOV":
-				importType = "Update Current"
-			elif importType == "All AOVs":
-				importType = "Update All"
+	# 	#	Re-configure import type for update
+	# 	if result == "Update":
+	# 		if importType == "Import Media":
+	# 			importType = "Update Version"
+	# 		elif importType == "Current AOV":
+	# 			importType = "Update Current"
+	# 		elif importType == "All AOVs":
+	# 			importType = "Update All"
 				
-			#	Call update function
-			self.updateImport(comp, importType, importData)
+	# 		#	Call update function
+	# 		self.updateImport(comp, importType, importData)
 
-		#	Import as normal
-		elif result == "Import":
-			self.configureImport(comp, importData, importType, sortnodes=not checkbox_checked)
+	# 	#	Import as normal
+	# 	elif result == "Import":
+	# 		self.configureImport(comp, importData, importType, sortnodes=not checkbox_checked)
 
-		else:
-			logger.debug("Import Canceled")
-			return
+	# 	else:
+	# 		logger.debug("Import Canceled")
+	# 		return
 		
 		
 	@err_catcher(name=__name__)
@@ -1278,165 +1286,127 @@ class Prism_Fusion_Functions(object):
 
 			#	For all AOVs or single item
 			# else:
-		for importItem in importData["files"]:
-			importList.append(importItem)
+		# for importItem in importData["files"]:
+		# 	importList.append(importItem)
 
 		# except Exception as e:
 		# 	self.core.popup(f"ERROR: Unable to generate import item list:\n{e}")
 		# 	logger.warning(f"ERROR: Unable to generate import item list:\n{e}")
 		# 	return
 
-		try:
+		# try:
 			#	For each import item
-			for importItem in importList:
+		for importItem in importData["files"]:
 
-				# Deselect all nodes
-				flow.Select()
+			# Deselect all nodes
+			flow.Select()
 
-				#	Make UUID
-				# toolUID = CompDb.createUUID()
+			#	Make UUID
+			# toolUID = CompDb.createUUID()
 
-				#	Make dict
-				toolData = {"nodeName": Fus.makeLdrName(importItem),
-							"version": importData["version"],
-							"stateUID": importData["stateUID"],
-							"mediaId": importData["identifier"],
-							"displayName": importData["displayName"],
-							"mediaType": importData["mediaType"],
-							"aov": importItem.get("aov", ""),
-							"filepath": importItem["basefile"],
-							"extension": importData["extension"],
-							"fuseFormat": self.getFuseFormat(importData["extension"]),
-							"frame_start": importItem["frame_start"],
-							"frame_end": importItem["frame_end"],
-							"listType": "import2d",
-							}
-
-
-
-				leftmostNode = self.addImage(comp, toolData, refNode, sortnodes)
-
-
-			#	Return if failed
-			if not leftmostNode:
-				logger.warning(f"ERROR:  Unable to import Images:\n{e}")
-				self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
-				return False
-			
-			#	Return if Not Sorting
-			if not sortnodes:
-				logger.debug(f"Imported  {importData['identifier']} without sorting")
-				return
-
-			#	Sort and Arrange Loaders and Wireless tools
-			self.sortLoaders(comp, leftmostNode)
-
-			logger.debug(f"Imported  and sorted {importData['identifier']}")
-
-			logger.debug(f"Added Import_Image State for {importData['identifier']}")
+			#	Make dict
+			toolData = {"nodeName": Fus.makeLdrName(importItem),
+						"version": importData["version"],
+						"stateUID": importData["stateUID"],
+						"mediaId": importData["identifier"],
+						"displayName": importData["displayName"],
+						"mediaType": importData["mediaType"],
+						"aov": importItem.get("aov", ""),
+						"channel": importItem.get("channel", ""),
+						"filepath": importItem["basefile"],
+						"extension": importData["extension"],
+						"fuseFormat": self.getFuseFormat(importData["extension"]),
+						"frame_start": importItem["frame_start"],
+						"frame_end": importItem["frame_end"],
+						"listType": "import2d",
+						}
 
 
 
-		except Exception as e:
+			leftmostNode = self.addImage(comp, toolData, refNode, sortnodes)
+
+
+		#	Return if failed
+		if not leftmostNode:
 			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 			self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
+			return False
+		
+		#	Return if Not Sorting
+		if not sortnodes:
+			logger.debug(f"Imported  {importData['identifier']} without sorting")
+			return
+
+		#	Sort and Arrange Loaders and Wireless tools
+		self.sortLoaders(comp, leftmostNode)
+
+		logger.debug(f"Imported  and sorted {importData['identifier']}")
+
+		logger.debug(f"Added Import_Image State for {importData['identifier']}")
+
+
+
+		# except Exception as e:
+		# 	logger.warning(f"ERROR:  Unable to import Images:\n{e}")
+		# 	self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
 
 
 	@err_catcher(name=__name__)
-	def addImage(self, comp, toolData, refNode, sortnodes=True):
+	def addImage(self, comp, toolData, refNode, sortnodes=True):				#	TODO - reinstate Try/Excepts
 		flow = comp.CurrentFrame.FlowView
 
-		try:
-			#	Get Position of Ref Tool
-			refX, refY = Fus.getToolPosition(comp, refNode)
+		# try:
+		#	Get Position of Ref Tool
+		refX, refY = Fus.getToolPosition(comp, refNode)
 
-			toolUID = self.createUUID()
+		toolUID = self.createUUID()
 
-			toolData["toolUID"] = toolUID
+		toolData["toolUID"] = toolUID
 
-			#	Add and configure Loader to the left so it will not mess up Flow
-			ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
-		
-			if not ldr:
-				self.core.popup(f"ERROR: Unable to add Loader to Comp")
-				return False
+		#	Add and configure Loader to the left so it will not mess up Flow
+		ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
+	
+		if not ldr:
+			self.core.popup(f"ERROR: Unable to add Loader to Comp")
+			return False
 
-			#	Add mode to Comp Database
-			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
+		#	Add mode to Comp Database
+		CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
 
-		except:
-			logger.warning(f"ERROR: Unable to Import Single Channel")
-			return None
+		# except:
+		# 	logger.warning(f"ERROR: Unable to Import Single Channel")
+		# 	return None
 
 		#	Deselect all
 		flow.Select()
 
-		#	If sorting is enabled
-		if sortnodes:
-			Fus.setToolToLeft(comp, ldr, refNode)
-			self.createWireless(toolUID)
-			
-		return ldr
-
-
-	@err_catcher(name=__name__)
-	def addMultiChannel(self, comp, toolData, refNode, channels, currChannel=None, sortnodes=True):
-		flow = comp.CurrentFrame.FlowView
-
-		#	Get Position of Ref Tool
-		refX, refY = Fus.getToolPosition(comp, refNode)
-
-		if currChannel:
-			#	If not splitting, use currently viewed channel
-			channelList = [currChannel]
-		else:
-			#	Use all channels
-			channelList = channels
-
-		for channel in channelList:
-			#	Deselect all
-			flow.Select()
-
-			#	Make copy to edit for each channel
-			toolData_copy = toolData.copy()
-
-			toolUID = CompDb.createUUID()
-
-			#	Edit dict copy
-			toolData_copy["toolUID"] = toolUID
-			toolData_copy["channel"] = channel
-			toolData_copy["nodeName"] = Fus.makeLdrName(toolData_copy)
-			
-			#	Add Loader with config data
-			ldr = Fus.addTool(comp, "Loader", toolData_copy, refX-10, refY-10)
-
-			#	Add node to Comp Database
-			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData_copy)
-
-			try:
+		if toolData["extension"] == ".exr":
+			# try:
 				#	Get available channels from Loader
-				loaderChannels = Fus.getLoaderChannels(ldr)
-				channelData = Fus.getChannelData(loaderChannels)
-			except Exception as e:
-				logger.warning(f"ERROR: Unable to get channels from Loader:\n{e}")
-				return None
+			loaderChannels = Fus.getLoaderChannels(ldr)
+			channelData = Fus.getChannelData(loaderChannels)
+				# except Exception as e:
+				# 	logger.warning(f"ERROR: Unable to get channels from Loader:\n{e}")
+				# 	return None
 
-			#	Get the channel list for the channel being processed
-			channelDict = channelData[channel]
+				#	Get the channel list for the channel being processed
+			
+			if len(channelData) > 0:
+				channelDict = channelData[toolData["channel"]]
 
-			# Dictionary to map channel types to attribute names
-			channel_attributes = {
-				'r': 'RedName', 'red': 'RedName',
-				'g': 'GreenName', 'green': 'GreenName',
-				'b': 'BlueName', 'blue': 'BlueName',
-				'a': 'AlphaName', 'alpha': 'AlphaName',
-				'x': 'RedName',
-				'y': 'GreenName',
-				'z': 'BlueName',
-				}
+				# Dictionary to map channel types to attribute names
+				channel_attributes = {
+					'r': 'RedName', 'red': 'RedName',
+					'g': 'GreenName', 'green': 'GreenName',
+					'b': 'BlueName', 'blue': 'BlueName',
+					'a': 'AlphaName', 'alpha': 'AlphaName',
+					'x': 'RedName',
+					'y': 'GreenName',
+					'z': 'BlueName',
+					}
 
-			# Check if contains only a Z-channel (for Depth, Mist, etc)
-			try:
+					# Check if contains only a Z-channel (for Depth, Mist, etc)
+					# try:
 				z_channel = None
 				for channel_str in channelDict:
 					if re.search(r'\.z$', channel_str.lower()):
@@ -1448,13 +1418,13 @@ class Prism_Fusion_Functions(object):
 					ldr.Clip1.OpenEXRFormat.GreenName = z_channel
 					ldr.Clip1.OpenEXRFormat.BlueName = z_channel
 					ldr.Clip1.OpenEXRFormat.ZName = z_channel
-			except:
-				logger.warning("ERROR: Unable to assign image Z-channel to Loader")
-				return None
+				# except:
+				# 	logger.warning("ERROR: Unable to assign image Z-channel to Loader")
+				# 	return None
 
-			else:
-				try:
-					#	Match the attrs based on the dict			#	TODO make sure this works for all DCC channel types
+				else:
+					# try:
+						#	Match the attrs based on the dict			#	TODO make sure this works for all DCC channel types
 					for channel_str in channelDict:
 						match = re.search(r'\.([a-z])$', channel_str.lower())
 
@@ -1465,19 +1435,118 @@ class Prism_Fusion_Functions(object):
 							#	Configure Loader channels based on dict
 							if attribute:
 								setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
-				except:
-					logger.warning("ERROR: Unable to assign image channels to Loader")
-					return None
+						# except:
+						# 	logger.warning("ERROR: Unable to assign image channels to Loader")
+						# 	return None
 
-			#	Deselect all
-			flow.Select()
 
-			#	If sorting is enabled
-			if sortnodes:
-				Fus.setToolToLeft(comp, ldr, refNode)
-				self.createWireless(toolUID)
-
+		#	If sorting is enabled
+		if sortnodes:
+			Fus.setToolToLeft(comp, ldr, refNode)
+			self.createWireless(toolUID)
+			
 		return ldr
+
+
+	# @err_catcher(name=__name__)
+	# def addMultiChannel(self, comp, toolData, refNode, channels, currChannel=None, sortnodes=True):
+	# 	flow = comp.CurrentFrame.FlowView
+
+	# 	#	Get Position of Ref Tool
+	# 	refX, refY = Fus.getToolPosition(comp, refNode)
+
+	# 	if currChannel:
+	# 		#	If not splitting, use currently viewed channel
+	# 		channelList = [currChannel]
+	# 	else:
+	# 		#	Use all channels
+	# 		channelList = channels
+
+	# 	for channel in channelList:
+	# 		#	Deselect all
+	# 		flow.Select()
+
+	# 		#	Make copy to edit for each channel
+	# 		toolData_copy = toolData.copy()
+
+	# 		toolUID = CompDb.createUUID()
+
+	# 		#	Edit dict copy
+	# 		toolData_copy["toolUID"] = toolUID
+	# 		toolData_copy["channel"] = channel
+	# 		toolData_copy["nodeName"] = Fus.makeLdrName(toolData_copy)
+			
+	# 		#	Add Loader with config data
+	# 		ldr = Fus.addTool(comp, "Loader", toolData_copy, refX-10, refY-10)
+
+	# 		#	Add node to Comp Database
+	# 		CompDb.addNodeToDB(comp, "import2d", toolUID, toolData_copy)
+
+	# 		try:
+	# 			#	Get available channels from Loader
+	# 			loaderChannels = Fus.getLoaderChannels(ldr)
+	# 			channelData = Fus.getChannelData(loaderChannels)
+	# 		except Exception as e:
+	# 			logger.warning(f"ERROR: Unable to get channels from Loader:\n{e}")
+	# 			return None
+
+	# 		#	Get the channel list for the channel being processed
+	# 		channelDict = channelData[channel]
+
+	# 		# Dictionary to map channel types to attribute names
+	# 		channel_attributes = {
+	# 			'r': 'RedName', 'red': 'RedName',
+	# 			'g': 'GreenName', 'green': 'GreenName',
+	# 			'b': 'BlueName', 'blue': 'BlueName',
+	# 			'a': 'AlphaName', 'alpha': 'AlphaName',
+	# 			'x': 'RedName',
+	# 			'y': 'GreenName',
+	# 			'z': 'BlueName',
+	# 			}
+
+	# 		# Check if contains only a Z-channel (for Depth, Mist, etc)
+	# 		try:
+	# 			z_channel = None
+	# 			for channel_str in channelDict:
+	# 				if re.search(r'\.z$', channel_str.lower()):
+	# 					z_channel = channel_str
+
+	# 			#	Assign the Z-channel to the R, G, B, and Z
+	# 			if z_channel and len(channelDict) == 1:
+	# 				ldr.Clip1.OpenEXRFormat.RedName = z_channel
+	# 				ldr.Clip1.OpenEXRFormat.GreenName = z_channel
+	# 				ldr.Clip1.OpenEXRFormat.BlueName = z_channel
+	# 				ldr.Clip1.OpenEXRFormat.ZName = z_channel
+	# 		except:
+	# 			logger.warning("ERROR: Unable to assign image Z-channel to Loader")
+	# 			return None
+
+	# 		else:
+	# 			try:
+	# 				#	Match the attrs based on the dict			#	TODO make sure this works for all DCC channel types
+	# 				for channel_str in channelDict:
+	# 					match = re.search(r'\.([a-z])$', channel_str.lower())
+
+	# 					if match:
+	# 						suffix = match.group(1)
+	# 						attribute = channel_attributes.get(suffix)
+
+	# 						#	Configure Loader channels based on dict
+	# 						if attribute:
+	# 							setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
+	# 			except:
+	# 				logger.warning("ERROR: Unable to assign image channels to Loader")
+	# 				return None
+
+	# 		#	Deselect all
+	# 		flow.Select()
+
+	# 		#	If sorting is enabled
+	# 		if sortnodes:
+	# 			Fus.setToolToLeft(comp, ldr, refNode)
+	# 			self.createWireless(toolUID)
+
+	# 	return ldr
 			
 
 	@err_catcher(name=__name__)
@@ -3948,7 +4017,8 @@ path = r\"%s\"
 		# 	Check if SM has a resize method and resize it
 		if hasattr(self.smUI, 'resize'):
 			try:
-				self.smUI.resize(800, self.smUI.size().height())
+				self.smUI.resize(900, self.smUI.size().height())
+				self.smUI.resize(800, self.smUI.size().width())
 			except:
 				pass
 

@@ -156,10 +156,22 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.l_useAovThumbs = QLabel("AOV/Channel Thumbnails:       ")
 		origin.cb_useAovThumbs = QComboBox()
 		origin.cb_useAovThumbs.addItems(["Enabled", "Disabled"])
-
 		origin.cb_useAovThumbs.setCurrentIndex(0)  # Default to Enabled
-		lo_taskColoring.addWidget(origin.l_useAovThumbs)
-		lo_taskColoring.addWidget(origin.cb_useAovThumbs)
+
+		lo_prismStartMode.addWidget(origin.l_useAovThumbs)
+		lo_prismStartMode.addWidget(origin.cb_useAovThumbs)
+
+		# Spacer
+		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		lo_prismStartMode.addItem(spacer)
+
+		origin.l_thumbSize = QLabel("Thumbnails size:       ")
+		origin.cb_thumbSize = QComboBox()
+		origin.cb_thumbSize.addItems(["Small (300 px)", "Medium (600 px)", "Large (900 px)"])
+		origin.cb_useAovThumbs.setCurrentIndex(1)  # Default to Medium
+
+		lo_taskColoring.addWidget(origin.l_thumbSize)
+		lo_taskColoring.addWidget(origin.cb_thumbSize)
 
 		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 		lo_taskColoring.addItem(spacer)
@@ -212,6 +224,11 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.l_useAovThumbs.setToolTip(tip)
 		origin.cb_useAovThumbs.setToolTip(tip)
 
+		tip = ("Selects the size of the thumbnail tooltip for the AOV images.\n\n"
+		 	   "This will be the thumbnail width in pixels.")
+		origin.l_thumbSize.setToolTip(tip)
+		origin.cb_thumbSize.setToolTip(tip)
+
 		tip = "Install Prism Development menu to Fusion when adding the integration."
 		origin.l_installDevTools.setToolTip(tip)
 		origin.chk_installDevTools.setToolTip(tip)
@@ -243,6 +260,8 @@ class Prism_Fusion_externalAccess_Functions(object):
 
 			settings["Fusion"]["taskColorMode"] = origin.cb_taskColoring.currentText()
 			settings["Fusion"]["useAovThumbs"] = origin.cb_useAovThumbs.currentText()
+			settings["Fusion"]["thumbsSize"] = origin.cb_thumbSize.currentText()
+			
 
 		except Exception as e:
 			logger.warning(f"ERROR: Could not save user settings:\n{e}")
@@ -276,27 +295,34 @@ class Prism_Fusion_externalAccess_Functions(object):
 					idx = origin.cb_prismStartMode.findText(settings["Fusion"]["prismStartMode"])
 					if idx != -1:
 						origin.cb_prismStartMode.setCurrentIndex(idx)
-				#	Defaults to Prompt mode
 				else:
-					origin.cb_prismStartMode.setCurrentIndex(1)
+					origin.cb_prismStartMode.setCurrentIndex(1)	#	Defaults to Prompt mode
 
-				#	Loads Task Coloring if exists
+
+				#	Loads Task Coloring enabled
 				if "taskColorMode" in settings["Fusion"]:
 					idx = origin.cb_taskColoring.findText(settings["Fusion"]["taskColorMode"])
 					if idx != -1:
 						origin.cb_taskColoring.setCurrentIndex(idx)
-				#	Defaults to Prompt mode
 				else:
-					origin.cb_taskColoring.setCurrentIndex(1)
+					origin.cb_taskColoring.setCurrentIndex(1)	#	Defaults to All tools
 
-				#	Loads Task Coloring brightness if exists
+				#	Enables/Disables AOV Thumbnails
 				if "useAovThumbs" in settings["Fusion"]:
 					idx = origin.cb_useAovThumbs.findText(settings["Fusion"]["useAovThumbs"])
 					if idx != -1:
 						origin.cb_useAovThumbs.setCurrentIndex(idx)
-				#	Defaults to Prompt mode
-				# else:
-					# origin.cb_colorBrightness.setCurrentIndex(4)
+					else:
+						origin.cb_useAovThumbs.setCurrentIndex(0)	#	Defaults to Enabled
+
+				#	Sets AOV Thumbnail size
+				if "thumbsSize" in settings["Fusion"]:
+					idx = origin.cb_thumbSize.findText(settings["Fusion"]["thumbsSize"])
+					if idx != -1:
+						origin.cb_thumbSize.setCurrentIndex(idx)
+				else:
+					origin.cb_thumbSize.setCurrentIndex(4)		#	Defaults to Medium
+
 
 				# self.configureBrightnessUi(origin)
 

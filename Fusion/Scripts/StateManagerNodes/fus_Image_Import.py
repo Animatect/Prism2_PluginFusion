@@ -64,6 +64,15 @@ COLOR_ORANGE = QColor(200, 100, 0)
 COLOR_RED = QColor(130, 0, 0)
 COLOR_BLACK = QColor(0, 0, 0, 0)
 
+COLORNAMES = ["rgb",
+              "rgba",
+              "color", 
+              "beauty",
+              "combined",
+              "diffuse",
+              "diffcolor",
+              "diffusecolor"]
+
 
 
 class Image_ImportClass(object):
@@ -102,13 +111,20 @@ class Image_ImportClass(object):
             self.cb_taskColor.setVisible(True)
             self.populateTaskColorCombo()
 
+        self.aovThumbWidth = self.fuseFuncts.aovThumbWidth
+
+        self.selMediaContext = None
+
         stateNameTemplate = "{entity}_{version}"
         self.stateNameTemplate = self.core.getConfig(
             "globals",
             "defaultImportStateName",
             configPath=self.core.prismIni,
         ) or stateNameTemplate
+
         self.e_name.setText(self.stateNameTemplate)
+        
+        #   Hide unused UI elements
         self.l_name.setVisible(False)
         self.e_name.setVisible(False)
         self.l_class.setVisible(False)
@@ -154,7 +170,9 @@ class Image_ImportClass(object):
             and not createEmptyState
             and not self.stateManager.standalone
             ):
+            #   Make new UID for State
             self.stateUID = self.fuseFuncts.createUUID()
+            #   Open MediaChooser to get import
             requestResult = self.callMediaWindow()
             
             if requestResult == "Cancelled":
@@ -165,7 +183,8 @@ class Image_ImportClass(object):
                 logger.warning("Unable to Import Image from MediaBrowser.")             #   TODO
                 self.core.popup("Unable to Import Image from MediaBrowser.")            #    TESTING
                 return False
-            
+        
+        #   4. If error
         else:
             logger.warning("Unable to Import Image.")                               #   TODO
             self.core.popup("Unable to Import Image.")                                      #    TESTING
@@ -188,42 +207,45 @@ class Image_ImportClass(object):
     def callMediaWindow(self):
         self.selMediaContext = None
         
-        # if hasattr(self, "mediaChooser"):
+        # if hasattr(self, "mediaChooser"):                     #   NEEDED ???
         #     self.mediaChooser.close()
             
-        # self.mediaChooser = ReadMediaDialog(self, self.core)
-        self.mediaChooser.mediaSelected.connect(lambda data: self.setSelectedMedia(data))
-
         self.mediaBrowser = self.mediaChooser.w_browser
         self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
+        self.mediaChooser.mediaSelected.connect(lambda selResult: self.setSelectedMedia(selResult))
 
-        result = self.mediaChooser.exec_()  # Capture the dialog result
+        result = self.mediaChooser.exec_()
 
-        if result == QDialog.Rejected:  # User clicked "Cancel" or closed the window
+        if result == QDialog.Rejected:
             return "Cancelled"
         
-        if not self.selMediaContext:
+        if not self.selResult:
             return False
 
-        self.makeImportData()
+        clicked = self.selResult[0]
+        self.selMediaContext = self.selResult[1]
+
+        if clicked == "version":
+            self.makeImportData(self.selMediaContext)
+
+        if clicked == "identifier":
+            self.importLatest(selectedStates=False)
 
         return True
     
 
     @err_catcher(name=__name__)                         #   TODO Simplify
-    def setSelectedMedia(self, data):
-        self.selMediaContext = data  # Save the selected media
+    def setSelectedMedia(self, selResult):
+        self.selResult = selResult  # Save the selected media
 
 
 
     @err_catcher(name=__name__)
-    def makeImportData(self):
+    def makeImportData(self, context):
         #   Get data from various sources
-        context = self.selMediaContext            #   TODO make passed arg
+        # context = self.selMediaContext            #   TODO make passed arg
 
         self.context = context
-
-        # self.core.popup(f"context:  {context}")                                      #    TESTING
 
         version = self.mediaBrowser.getCurrentVersion()
 
@@ -240,28 +262,26 @@ class Image_ImportClass(object):
         else:
             sourceData = self.mediaPlayer.compGetImportSource() #   no AOV's
 
-        # self.core.popup(f"sourceData:  {sourceData}")                                      #    TESTING
-
         mediaType = context["mediaType"]
 
-        try:
-            #   Make base dict
-            importData = {"stateUID": self.stateUID,
-                        "identifier": context["identifier"],
-                        "displayName": context["displayName"],
-                        "mediaType": mediaType,
-                        "itemType": context["itemType"],
-                        "locations": context["locations"],
-                        "path": context["path"],
-                        "extension": "",
-                        "version": context["version"],
-                        "aovs": [],
-                        "channels": []
-                        }
+        # try:
+        #   Make base dict
+        importData = {"stateUID": self.stateUID,
+                    "identifier": context["identifier"],
+                    "displayName": context["displayName"],
+                    "mediaType": mediaType,
+                    "itemType": context["itemType"],
+                    "locations": context["locations"],
+                    "path": context["path"],
+                    "extension": "",
+                    "version": context["version"],
+                    "aovs": [],
+                    "channels": []
+                    }
             
-        except Exception as e:
-            logger.warning(f"ERROR: Unable to make base importData dict: {e}")
-            return {}
+        # except Exception as e:
+        #     logger.warning(f"ERROR: Unable to make base importData dict: {e}")
+        #     return {}
 
         files = []
 
@@ -333,7 +353,7 @@ class Image_ImportClass(object):
 
         #   For no AOV's (for example 2drenders)
         else:
-            # try:                          #   TOD
+            # try:                          #   TODO
 
             sourceData = sourceData[0]
             
@@ -418,7 +438,7 @@ class Image_ImportClass(object):
 
         files = importData["files"]
 
-        self.importData = importData                                        #   TESTING
+        self.importData = importData
 
         self.identifier = importData.get("identifier", None)
         self.mediaType = importData.get("mediaType", None)
@@ -508,8 +528,7 @@ class Image_ImportClass(object):
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)    #   Latest Checkbox
         self.b_importAll.clicked.connect(self.importAll)
         self.b_importSel.clicked.connect(self.importSelected)
-        self.b_import.clicked.connect(self.imageImport)                     #   Re-Import Button
-        self.b_selectAll.clicked.connect(self.selectAllAovs)
+        self.b_import.clicked.connect(self.imageImport)                     #   Re-Import Button        TODO
 
 
     @err_catcher(name=__name__)
@@ -626,61 +645,45 @@ class Image_ImportClass(object):
     
 
     @err_catcher(name=__name__)
-    def imageImport(self, all=True, update=False, path=None, settings=None):                              #   TODO
+    def imageImport(self, importData, update=False, path=None, settings=None):                              #   TODO
         result = True
         if self.stateManager.standalone:
             return result
 
-        fileName = self.core.getCurrentFileName()
-        impFileName = path or self.getImportPath()
-        impFileName = os.path.normpath(impFileName)
+        # fileName = self.core.getCurrentFileName()
+        # impFileName = path or self.getImportPath()
+        # impFileName = os.path.normpath(impFileName)
 
-        kwargs = {
-            "state": self,
-            "scenefile": fileName,
-            "importfile": impFileName,
-        }
-        result = self.core.callback("preImport", **kwargs)
-        for res in result:
-            if isinstance(res, dict) and res.get("cancel", False):
-                return
+        # kwargs = {
+        #     "state": self,
+        #     "scenefile": fileName,
+        #     "importfile": impFileName,
+        # }
+        # result = self.core.callback("preImport", **kwargs)
+        # for res in result:
+        #     if isinstance(res, dict) and res.get("cancel", False):
+        #         return
 
-            if res and "importfile" in res:
-                impFileName = res["importfile"]
-                if not impFileName:
-                    return
+        #     if res and "importfile" in res:
+        #         impFileName = res["importfile"]
+        #         if not impFileName:
+        #             return
 
-        if not impFileName:
-            self.core.popup("Invalid importpath:\n\n%s" % impFileName)
-            return
+        # if not impFileName:
+        #     self.core.popup("Invalid importpath:\n\n%s" % impFileName)
+        #     return
 
-        result = self.runSanityChecks(impFileName)
-        if not result:
-            return
+        # result = self.runSanityChecks(impFileName)
+        # if not result:
+        #     return
 
         doImport = True
 
-        importData = self.importData
+        # resStr = ""
+        # for item in importData["files"]:
+        #     resStr += f"{item}\n\n"
 
-        #   Reconfigure importData with selected items
-        if not all:
-            #   Get slected items
-            selItems = self.lw_objects.selectedItems()
-
-            if selItems:
-                selected_info = []
-                for item in selItems:
-                    #   Only get children
-                    if item.childCount() == 0:
-                        #   Get stored item data
-                        file_data = item.data(0, Qt.UserRole)
-                        selected_info.append(file_data)
-
-                if selected_info:
-                    importData["files"] = selected_info
-
-            else:
-                self.core.popup("No items selected.")
+        # self.core.popup(f"resStr:  {resStr}")                   #   TESTING
 
 
         #   Execute import
@@ -699,12 +702,12 @@ class Image_ImportClass(object):
             if result == "canceled":
                 return
 
-        kwargs = {
-            "state": self,
-            "scenefile": fileName,
-            "importfile": impFileName,
-        }
-        self.core.callback("postImport", **kwargs)
+        # kwargs = {
+        #     "state": self,
+        #     "scenefile": fileName,
+        #     "importfile": impFileName,
+        # }
+        # self.core.callback("postImport", **kwargs)
 
         # self.setImportPath(impFileName)
         self.stateManager.saveImports()
@@ -717,25 +720,36 @@ class Image_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def importLatest(self, item=None, refreshUi=True, selectedStates=True):
-
-        itemData = item.data(0, Qt.UserRole)
+    def importLatest(self, refreshUi=True, selectedStates=True):
         mediaProducts = self.fuseFuncts.core.mediaProducts
+        # itemData = item.data(0, Qt.UserRole)
+        # currIdent = itemData["identifier"]
 
-        currIdent = itemData["identifier"]
-        # highestVer = mediaProducts.getHighestMediaVersion(itemData, getExisting=True, ignoreEmpty=False, ignoreFolder=False)
-        highestVer = mediaProducts.getLatestVersionFromIdentifier(itemData, includeMaster=True)
+        # currIdent = self.importData["identifier"]
 
-        # self.core.popup(f"highestVer:  {highestVer}")                                      #    TESTING
+        highestVer = mediaProducts.getLatestVersionFromIdentifier(self.selMediaContext, includeMaster=True)
 
-        self.selMediaContext = highestVer
+        # self.selMediaContext = highestVer
 
-        result = self.makeImportData()
+        result = self.makeImportData(highestVer)
+
+        # self.updateUi()
 
         if not result:
             return False
+        
+        if not selectedStates:
+            self.importAll()
 
-        self.imageImport()
+        return True
+            
+
+        # highestVer = mediaProducts.getHighestMediaVersion(itemData, getExisting=True, ignoreEmpty=False, ignoreFolder=False)
+
+
+
+
+
 
 
         # if refreshUi:
@@ -789,12 +803,37 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def importAll(self):
-        self.imageImport(all=True)
+
+        # self.makeImportData()
+
+        self.imageImport(self.importData)
 
 
     @err_catcher(name=__name__)
     def importSelected(self):
-        self.imageImport(all=False)
+
+        importData = self.importData.copy()
+
+        #   Get slected items
+        selItems = self.lw_objects.selectedItems()
+
+        if selItems:
+            selected_info = []
+            for item in selItems:
+                #   Only get children
+                if item.childCount() == 0:
+                    #   Get stored item data
+                    file_data = item.data(0, Qt.UserRole)
+                    selected_info.append(file_data)
+
+            if selected_info:
+                importData["files"] = selected_info
+
+        else:
+            self.core.popup("No items selected.")
+            return False
+
+        self.imageImport(importData)
 
 
     @err_catcher(name=__name__)
@@ -877,12 +916,11 @@ class Image_ImportClass(object):
 
         self.nameChanged()
         self.setStateColor(status)
-
         self.updateAovChnlTree()
-
         self.createStateThumb()
 
-        getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
+
+        # getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
 
     #   Populates the AOV tree and adds file data to each item
@@ -891,6 +929,9 @@ class Image_ImportClass(object):
         #   Setup UI
         self.lw_objects.setHeaderHidden(True)
         self.lw_objects.setMinimumHeight(350)
+        self.lw_objects.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        self.lw_objects.setSelectionBehavior(QAbstractItemView.SelectRows)
+
         #   Clear the list
         self.lw_objects.clear()
         #   Initialize the status icon
@@ -948,7 +989,7 @@ class Image_ImportClass(object):
                             #   If AOV Thumbs are Enabled in Settings
                             if self.fuseFuncts.useAovThumbs == "Enabled":
                                 #   Get Thumb PixMap HTML object
-                                thumbTip = self.getThumbToolTip(correct_file_data["basefile"])
+                                thumbTip = self.getThumbToolTip(correct_file_data["basefile"], channel=channel)
                                 #   Set Tool Tip
                                 channel_item.setToolTip(0, thumbTip)  # Set HTML tooltip
 
@@ -972,7 +1013,7 @@ class Image_ImportClass(object):
                     #   If AOV Thumbs are Enabled in Settings
                     if self.fuseFuncts.useAovThumbs == "Enabled":
                         #   Get Thumb PixMap HTML object
-                        thumbTip = self.getThumbToolTip(correct_file_data["basefile"])
+                        thumbTip = self.getThumbToolTip(correct_file_data["basefile"], channel=channel)
                         #   Set Tool Tip
                         channel_item.setToolTip(0, thumbTip)  # Set HTML tooltip
 
@@ -997,12 +1038,16 @@ class Image_ImportClass(object):
 
     #   Get PixMap from Filepath or Fallback image
     @err_catcher(name=__name__)
-    def getPixMap(self, filePath):
+    def getPixMap(self, filePath, width=None, height=None, channel=None):
         fallbackPmap = self.core.media.getFallbackPixmap()
 
         try:
             if os.path.exists(filePath):
-                pixMap = self.core.media.getPixmapFromPath(filePath)
+                ext = os.path.splitext(filePath)[1]
+                if ext.lower() == ".exr":
+                    pixMap = self.core.media.getPixmapFromExrPath(filePath, width=width, height=height, channel=channel)
+                else:
+                    pixMap = self.core.media.getPixmapFromPath(filePath, width=width, height=height)
             else:
                 raise Exception
         except:
@@ -1017,14 +1062,23 @@ class Image_ImportClass(object):
             logger.warning("ERROR: QLabel 'l_thumb' not found in UI")
             return
 
-        fileData = self.importData["files"][0]
-        basefile = fileData["basefile"]
+        #   Get file to use for thumb
+        for fileData in self.importData["files"]:
+            #   Try and find Color Pass
+            if "aov" in fileData and fileData["aov"].lower() in COLORNAMES:
+                basefile = fileData["basefile"]
+                break
+
+            #   Use first Pass
+            else:
+                fileData = self.importData["files"][0]
+                basefile = fileData["basefile"]
 
         #   Get PixMap
         pixMap = self.getPixMap(basefile)
+        self.l_thumb.setPixmap(pixMap)
 
-        # Get the QLabel's current width (stretched)
-        label_width = self.l_thumb.width()
+        label_width = 270               #   TODO HARDCODED with width for initil size issue.
 
         # Maintain aspect ratio: Calculate new height
         aspectRatio = pixMap.height() / pixMap.width()
@@ -1035,19 +1089,16 @@ class Image_ImportClass(object):
 
         # Apply the scaled pixmap
         self.l_thumb.setPixmap(scaledPixmap)
+        self.l_thumb.adjustSize()
 
-        # Update QLabel height dynamically
         self.l_thumb.setFixedHeight(new_height)
-
-        # Ensure QLabel stretches horizontally but keeps a fixed height
         self.l_thumb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-
-        # Optional: Add a border for visibility
+        # Add a border
         self.l_thumb.setStyleSheet("border: 1px solid gray;")
 
 
     @err_catcher(name=__name__)
-    def getThumbToolTip(self, filePath):
+    def getThumbToolTip(self, filePath, channel):
         try:
             if self.core.media.getUseThumbnailForFile(filePath):
                 path = self.core.media.getThumbnailPath(filePath)
@@ -1056,7 +1107,20 @@ class Image_ImportClass(object):
         except:
             path = filePath
 
-        pixMap = self.getPixMap(path)
+        width = self.aovThumbWidth
+
+        # Load the original image to get its size
+        orig_pixmap = QPixmap(path)
+        if orig_pixmap.isNull():
+            return ""
+
+        orig_width = orig_pixmap.width()
+        orig_height = orig_pixmap.height()
+
+        # Calculate height while maintaining aspect ratio
+        height = int((width / orig_width) * orig_height) if orig_width else width
+
+        pixMap = self.getPixMap(path, width, height, channel)
 
         # Convert QPixmap to Base64
         byte_array = QByteArray()
@@ -1065,7 +1129,7 @@ class Image_ImportClass(object):
         pixMap.save(buffer, "PNG")
 
         base64_data = byte_array.toBase64().data().decode()
-        thumbTip = f'<img src="data:image/png;base64,{base64_data}" width="600"/>'
+        thumbTip = f'<img src="data:image/png;base64,{base64_data}" width="{width}"/>'
 
         return thumbTip
 
@@ -1146,11 +1210,6 @@ class Image_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def selectAllAovs(self):
-        self.lw_objects.selectAll()
-
-
-    @err_catcher(name=__name__)
     def preDelete(self, item):
         if not self.core.uiAvailable:
             action = "Yes"
@@ -1225,9 +1284,9 @@ class ReadMediaDialog(QDialog):
         ##   Disconnect native function of showing versionInfo, and connect to import the version
         #   This is disabled unless the main code gets something connected to the ID table list widget
         # self.w_browser.tw_identifier.itemDoubleClicked.disconnect()
-        self.w_browser.tw_identifier.itemDoubleClicked.connect(self.itemDblClicked)
+        self.w_browser.tw_identifier.itemDoubleClicked.connect(self.identDblClicked)
         self.w_browser.lw_version.itemDoubleClicked.disconnect()
-        self.w_browser.lw_version.itemDoubleClicked.connect(lambda: self.getVerData())
+        self.w_browser.lw_version.itemDoubleClicked.connect(self.verDblClicked)
 
         self.lo_main = QVBoxLayout()
         self.setLayout(self.lo_main)
@@ -1247,13 +1306,17 @@ class ReadMediaDialog(QDialog):
 
 
     @err_catcher(name=__name__)
-    def itemDblClicked(self, item, column):
-        self.state.importLatest(item, refreshUi=True, selectedStates=True)
+    def identDblClicked(self, item, column):
+
+        selResult = ["identifier", item.data(0, Qt.UserRole)]
+
+        self.mediaSelected.emit(selResult)
+        # self.state.importLatest(item, refreshUi=True, selectedStates=False)
         self.accept() 
 
 
     @err_catcher(name=__name__)
-    def getVerData(self):
+    def verDblClicked(self, item):
         data = self.w_browser.getCurrentSource()
 
         if not data:
@@ -1267,8 +1330,10 @@ class ReadMediaDialog(QDialog):
             msg = "Invalid version selected."
             self.core.popup(msg, parent=self)
             return
+        
+        selResult = ["version", data]
 
-        self.mediaSelected.emit(data)
+        self.mediaSelected.emit(selResult)
         self.accept()  
 
 
