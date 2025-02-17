@@ -316,11 +316,12 @@ class Image_ImportClass(object):
                     frame_start = sourceItem[1]
                     frame_end = sourceItem[2]
 
+
                 #   Use video duration for video formats
-                elif extension in self.fuseFuncts.core.media.videoFormats:
-                        duration = self.fuseFuncts.core.media.getVideoDuration(basefile)
-                        frame_start = 1
-                        frame_end = duration
+                elif extension.lower() in self.fuseFuncts.core.media.videoFormats:
+                    duration = self.fuseFuncts.core.media.getVideoDuration(basefile)
+                    frame_start = 1
+                    frame_end = duration
 
                 #   For Stills Images
                 else:
@@ -379,10 +380,10 @@ class Image_ImportClass(object):
                 frame_end = sourceData[2]
 
             #   Use video duration for video formats
-            elif extension in self.fuseFuncts.core.media.videoFormats:
-                    duration = self.fuseFuncts.core.media.getVideoDuration(basefile)
-                    frame_start = 1
-                    frame_end = duration
+            elif extension.lower() in self.fuseFuncts.core.media.videoFormats:
+                duration = self.fuseFuncts.core.media.getVideoDuration(basefile)
+                frame_start = 1
+                frame_end = duration
 
             #   For Stills Images
             else:
@@ -943,14 +944,18 @@ class Image_ImportClass(object):
         # Dictionary to store file data
         basefile_dict = {}
 
+        #   To capture if there are AOVs
+        hasAOVs = False
+
         # Organize files by basefile
         for file_data in self.importData["files"]:
             basefile = file_data["basefile"]
             aov = file_data.get("aov", None)
             channel = file_data["channel"]
+            frameRange = f"{file_data['frame_start']} - {file_data['frame_end']}"
 
             if basefile not in basefile_dict:
-                basefile_dict[basefile] = {"aov_items": {}, "channels": []}
+                basefile_dict[basefile] = {"aov_items": {}, "channels": [], "frameRange": frameRange}
             
             if aov:
                 if aov not in basefile_dict[basefile]["aov_items"]:
@@ -963,9 +968,12 @@ class Image_ImportClass(object):
         for basefile, data in basefile_dict.items():
             # Add AOVs if they exist
             if data["aov_items"]:
+                #   Set if has AOVs
+                hasAOVs = True
+                #   Itterate through each AOV
                 for aov, channels in data["aov_items"].items():
                     aov_item = QTreeWidgetItem(root_item)
-                    aov_item.setText(0, f"{aov}    (aov)")
+                    aov_item.setText(0, f"{aov}    (aov)    ({data['frameRange']})")
                     aov_item.setExpanded(True)  # Expand AOV item
 
                     for channel in channels:
@@ -1014,6 +1022,10 @@ class Image_ImportClass(object):
                         thumbTip = self.getThumbToolTip(correct_file_data["basefile"], channel=channel)
                         #   Set Tool Tip
                         channel_item.setToolTip(0, thumbTip)  # Set HTML tooltip
+
+        #   If there are no AOVs, add framerange under the MediaID
+        if not hasAOVs:
+            root_item.setText(0, f"{self.identifier}_{self.version}    ({data['frameRange']})")
 
         self.lw_objects.itemSelectionChanged.connect(self.selectChildren)
 
