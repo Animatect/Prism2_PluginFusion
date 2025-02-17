@@ -242,11 +242,7 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def makeImportData(self, context):
-        #   Get data from various sources
-        # context = self.selMediaContext            #   TODO make passed arg
-
         self.context = context
-
         version = self.mediaBrowser.getCurrentVersion()
 
         if not version:
@@ -254,10 +250,11 @@ class Image_ImportClass(object):
             self.core.popup("There are no Versions for this Media Identifier")
             return False
 
+        #   Get data from various sources
         aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
 
-        #	Get sourceData based on mediaType - used to get framerange
-        if "aov" in context:
+        #	Get sourceData based on passes - used to get framerange
+        if len(aovDict) > 1:
             sourceData = self.mediaPlayer.compGetImportPasses() #   has AOV's
         else:
             sourceData = self.mediaPlayer.compGetImportSource() #   no AOV's
@@ -382,7 +379,6 @@ class Image_ImportClass(object):
             else:
                 frame_start = 1
                 frame_end = 1
-
 
             channels = self.fuseFuncts.core.media.getLayersFromFile(basefile)
 
@@ -552,7 +548,7 @@ class Image_ImportClass(object):
     
 
     @err_catcher(name=__name__)
-    def browse(self):
+    def browse(self):                               #   TODO
         # self.core.projectBrowser()
         # #	Switch to Media Tab
         # if self.core.pb:
@@ -561,7 +557,7 @@ class Image_ImportClass(object):
         self.callMediaWindow()
 
 
-    @err_catcher(name=__name__)
+    @err_catcher(name=__name__)                     #   TODO
     def openFolder(self, pos):
         path = self.getImportPath()
         if os.path.isfile(path):
@@ -570,7 +566,7 @@ class Image_ImportClass(object):
         self.core.openFolder(path)
 
 
-    @err_catcher(name=__name__)
+    @err_catcher(name=__name__)                     #   Look at this
     def getImportPath(self):
         path = getattr(self, "importPath", "")
         if path:
@@ -580,7 +576,7 @@ class Image_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def setImportPath(self, path):
+    def setImportPath(self, path):                  #   Look at this
         self.importPath = path
         self.w_currentVersion.setToolTip(path)
         self.stateManager.saveImports()
@@ -650,32 +646,32 @@ class Image_ImportClass(object):
         if self.stateManager.standalone:
             return result
 
-        # fileName = self.core.getCurrentFileName()
-        # impFileName = path or self.getImportPath()
-        # impFileName = os.path.normpath(impFileName)
+        fileName = self.core.getCurrentFileName()
+        impFileName = path or self.getImportPath()
+        impFileName = os.path.normpath(impFileName)
 
-        # kwargs = {
-        #     "state": self,
-        #     "scenefile": fileName,
-        #     "importfile": impFileName,
-        # }
-        # result = self.core.callback("preImport", **kwargs)
-        # for res in result:
-        #     if isinstance(res, dict) and res.get("cancel", False):
-        #         return
+        kwargs = {
+            "state": self,
+            "scenefile": fileName,
+            "importfile": impFileName,
+        }
+        result = self.core.callback("preImport", **kwargs)
+        for res in result:
+            if isinstance(res, dict) and res.get("cancel", False):
+                return
 
-        #     if res and "importfile" in res:
-        #         impFileName = res["importfile"]
-        #         if not impFileName:
-        #             return
+            if res and "importfile" in res:
+                impFileName = res["importfile"]
+                if not impFileName:
+                    return
 
-        # if not impFileName:
-        #     self.core.popup("Invalid importpath:\n\n%s" % impFileName)
-        #     return
+        if not impFileName:
+            self.core.popup("Invalid importpath:\n\n%s" % impFileName)
+            return
 
-        # result = self.runSanityChecks(impFileName)
-        # if not result:
-        #     return
+        result = self.runSanityChecks(impFileName)
+        if not result:
+            return
 
         doImport = True
 
@@ -702,12 +698,12 @@ class Image_ImportClass(object):
             if result == "canceled":
                 return
 
-        # kwargs = {
-        #     "state": self,
-        #     "scenefile": fileName,
-        #     "importfile": impFileName,
-        # }
-        # self.core.callback("postImport", **kwargs)
+        kwargs = {
+            "state": self,
+            "scenefile": fileName,
+            "importfile": impFileName,
+        }
+        self.core.callback("postImport", **kwargs)
 
         # self.setImportPath(impFileName)
         self.stateManager.saveImports()
@@ -745,10 +741,6 @@ class Image_ImportClass(object):
             
 
         # highestVer = mediaProducts.getHighestMediaVersion(itemData, getExisting=True, ignoreEmpty=False, ignoreFolder=False)
-
-
-
-
 
 
 
@@ -803,15 +795,11 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def importAll(self):
-
-        # self.makeImportData()
-
         self.imageImport(self.importData)
 
 
     @err_catcher(name=__name__)
     def importSelected(self):
-
         importData = self.importData.copy()
 
         #   Get slected items
@@ -911,8 +899,6 @@ class Image_ImportClass(object):
                         "QPushButton { background-color: rgb(0,100,0); }"
                         )
 
-        # isCache = self.stateMode == "ApplyCache"
-        # self.f_nameSpaces.setVisible(not isCache)
 
         self.nameChanged()
         self.setStateColor(status)
@@ -920,7 +906,7 @@ class Image_ImportClass(object):
         self.createStateThumb()
 
 
-        # getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
+        getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
 
     #   Populates the AOV tree and adds file data to each item
@@ -1307,11 +1293,9 @@ class ReadMediaDialog(QDialog):
 
     @err_catcher(name=__name__)
     def identDblClicked(self, item, column):
-
         selResult = ["identifier", item.data(0, Qt.UserRole)]
 
         self.mediaSelected.emit(selResult)
-        # self.state.importLatest(item, refreshUi=True, selectedStates=False)
         self.accept() 
 
 

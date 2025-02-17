@@ -263,6 +263,7 @@ class Prism_Fusion_Functions(object):
 		# self.colorBrightness = self.core.getConfig("Fusion", "colorBrightness")
 		self.useAovThumbs = self.core.getConfig("Fusion", "useAovThumbs")
 
+		#	Sets the AOV thumb size based off user settings
 		match self.core.getConfig("Fusion", "thumbsSize"):
 			case "Small (300 px)":
 				self.aovThumbWidth = 300
