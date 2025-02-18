@@ -140,9 +140,6 @@ class Prism_Fusion_externalAccess_Functions(object):
 		lo_taskColoring.addWidget(origin.l_taskColoring)
 		lo_taskColoring.addWidget(origin.cb_taskColoring)
 
-		#	Connect to configure UI funct
-		origin.cb_taskColoring.activated.connect(lambda: self.configureBrightnessUi(origin))
-
 		# Spacer
 		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 		lo_taskColoring.addItem(spacer)
@@ -157,6 +154,9 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.cb_useAovThumbs = QComboBox()
 		origin.cb_useAovThumbs.addItems(["Enabled", "Disabled"])
 		origin.cb_useAovThumbs.setCurrentIndex(0)  # Default to Enabled
+
+		#	Connect to configure UI funct
+		origin.cb_useAovThumbs.activated.connect(lambda: self.configAovThumbUi(origin))
 
 		lo_prismStartMode.addWidget(origin.l_useAovThumbs)
 		lo_prismStartMode.addWidget(origin.cb_useAovThumbs)
@@ -298,7 +298,6 @@ class Prism_Fusion_externalAccess_Functions(object):
 				else:
 					origin.cb_prismStartMode.setCurrentIndex(1)	#	Defaults to Prompt mode
 
-
 				#	Loads Task Coloring enabled
 				if "taskColorMode" in settings["Fusion"]:
 					idx = origin.cb_taskColoring.findText(settings["Fusion"]["taskColorMode"])
@@ -321,13 +320,24 @@ class Prism_Fusion_externalAccess_Functions(object):
 					if idx != -1:
 						origin.cb_thumbSize.setCurrentIndex(idx)
 				else:
-					origin.cb_thumbSize.setCurrentIndex(4)		#	Defaults to Medium
+					origin.cb_thumbSize.setCurrentIndex(1)		#	Defaults to Medium
 
-
-				# self.configureBrightnessUi(origin)
+				self.configAovThumbUi(origin)
 
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to load user settings:\n{e}")
+
+
+	#	Sets up Coloring UI
+	@err_catcher(name=__name__)
+	def configAovThumbUi(self, origin):
+		isEnabled = False
+
+		if origin.cb_useAovThumbs.currentText() == "Enabled":
+			isEnabled = True
+		
+		origin.l_thumbSize.setEnabled(isEnabled)
+		origin.cb_thumbSize.setEnabled(isEnabled)
 
 
 	@err_catcher(name=__name__)
@@ -374,18 +384,6 @@ class Prism_Fusion_externalAccess_Functions(object):
 	@err_catcher(name=__name__)
 	def copySceneFile(self, origin, origFile, targetPath, mode="copy"):
 		pass
-
-
-	#	Sets up Coloring UI
-	@err_catcher(name=__name__)
-	def configureBrightnessUi(self, origin):
-		isEnabled = False
-
-		if origin.cb_taskColoring.currentText() in ["All Nodes", "Loader Nodes"]:
-			isEnabled = True
-		
-		origin.l_colorBrightness.setEnabled(isEnabled)
-		origin.cb_colorBrightness.setEnabled(isEnabled)
 
 
 	# Saves the Start mode to the Scripts config file
