@@ -16,6 +16,7 @@ https://prism-pipeline.com/
 - Loader and Saver version management.
 - Rendering through Prism's State Manager.
 - Image loading into Fusion through Prism's Project Browser.
+- Multi-layer and Multi-part EXR splitting and sorting.
 - Farm Render submission through Deadline.
 - USD, FBX, and ABC object and scene importing
 - USD and MaterialX material importing
