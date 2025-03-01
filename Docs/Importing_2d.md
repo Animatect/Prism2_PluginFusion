@@ -38,7 +38,7 @@ Depending on the type of image file and file structure, the user will be prompte
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;![Import-AOVs](DocsImages/Import-AOVs.png)
 
-- **Multi-Channel EXR's:** If the .exr has multiple channels (layers), a popup asking to split the channels into separate Loaders.  This will automatically configure the Loaders channels in Fusion.
+- **Multi-Channel EXR's:** If the .exr has multiple layers (OpenEXR 1.0) or parts (OpenEXR 2.0), a popup asking to split the channels into separate Loaders.  If yes, the image will imported with separate Loaders for each layer and will automatically configure the Loader's channels in Fusion.  If no, then one Loader will be imported and configured with the currently viewed Channel.
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;![Import-ExrSplit](DocsImages/Import-ExrSplit.png)
 
