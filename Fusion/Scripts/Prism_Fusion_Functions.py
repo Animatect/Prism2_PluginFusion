@@ -1334,7 +1334,7 @@ class Prism_Fusion_Functions(object):
 
 				#	If multiple channels exists display popup to split
 				else:
-					fString = "This EXR seems to have multiple channels:\n" + "Do you want to split the EXR channels into individual nodes?"
+					fString = "This EXR seems to have multiple channels or parts:\n\n" + "Do you want to split the EXR into individual nodes?"
 					buttons = ["Yes", "No"]
 					result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
 
@@ -1410,9 +1410,6 @@ class Prism_Fusion_Functions(object):
 		#	Get Position of Ref Tool
 		refX, refY = Fus.getToolPosition(comp, refNode)
 
-		self.core.popup(f"channels:  {channels}")                                      #    TESTING
-		self.core.popup(f"currChannel:  {currChannel}")                                      #    TESTING
-
 		if currChannel:
 			#	If not splitting, use currently viewed channel
 			channelList = [currChannel]
@@ -1420,13 +1417,7 @@ class Prism_Fusion_Functions(object):
 			#	Use all channels
 			channelList = channels
 
-		self.core.popup(f"channelList:  {channelList}")                                      #    TESTING
-
-
 		for channel in channelList:
-
-			self.core.popup(f"for channel: {channel}")                                      #    TESTING
-
 			#	Deselect all
 			flow.Select()
 
@@ -1446,26 +1437,18 @@ class Prism_Fusion_Functions(object):
 			#	Add node to Comp Database
 			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData_copy)
 
-			#	Handle Multi-Part .EXRs
-			input_list = ldr.GetInputList()
-			part_input = input_list[100]
-			part_control = part_input.GetAttrs("INPIDT_ComboControl_ID")
-
-			if part_control:
-				parts = list(part_control.values())
-
-				self.core.popup(f"parts:  {parts}")                                      #    TESTING
-
-				if channel in parts:
-					part_id = [key for key, value in part_control.items() if value == channel]
-
-					if part_id:
-
-							part_input.SetAttrs({"INPIDT_ComboControl_ID": part_id[0]})
-							
-					else:
-						self.core.popup(f"Part '{channel}' not found in the available parts.")
-			
+			#	Handle Multi-part .exrs
+			try:
+				#	Check if the file has parts
+				if ldr.Clip1.OpenEXRFormat.Part:
+					#	Get list of parts in file
+					parts = ldr.Clip1.OpenEXRFormat.Part.GetAttrs('INPIDT_ComboControl_ID')
+					#	Match and assign part
+					if channel in parts.values():
+						ldr.Clip1.OpenEXRFormat.Part = channel
+			except:
+				logger.warning(f"ERROR: Unable to assign multi-part .exr for ({channel})")
+				continue
 
 			try:
 				#	Get available channels from Loader
@@ -1476,9 +1459,6 @@ class Prism_Fusion_Functions(object):
 				logger.warning(f"ERROR: Unable to get channels from Loader:\n{e}")
 				return None
 			
-			self.core.popup(f"loaderChannels:  {loaderChannels}")                                      #    TESTING
-			self.core.popup(f"channelData:  {channelData}")                                      #    TESTING
-
 			#	Get the channel list for the channel being processed
 			channelDict = channelData[channel]
 
