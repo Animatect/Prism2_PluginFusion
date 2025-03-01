@@ -144,8 +144,13 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
         logger.warning(f"ERROR: Unable to make base importData dict: {e}")
         return {}
     
+    #   Combines the two different keys from Assets (type) or Shots (itemType)
+    for key in ["itemType", "type"]:
+        if key in context:
+            importData["itemType"] = context[key]
+
     #   Add additiona items if they exist
-    for key in ["aov", "sequence", "shot", "asset", "itemType", "type"]:
+    for key in ["aov", "sequence", "shot", "asset"]:
         if key in context:
             importData[key] = context[key]
 

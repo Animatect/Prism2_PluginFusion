@@ -248,11 +248,11 @@ def savePrismFileDb(comp, cpData_orig:dict):
         cpData = cpData_orig
 
     try:
-        cpData_str =  json.dumps(cpData)#, indent=4)
+        cpData_str =  json.dumps(cpData, indent=4)
         comp.SetData("PrismDB", cpData_str)
         logger.debug("Saved Prism Comp Database to Comp")
 
-        # print(f"\n***  Prism Database:\n{print(comp.GetData('PrismDB'))}\n")                            #   TESTING
+        print(f"\n***  Prism Database:\n{cpData_str}\n")                            #   TESTING
 
     except:
         logger.warning("ERROR: Failed to save Prism Comp Database to Comp")

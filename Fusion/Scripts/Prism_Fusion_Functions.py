@@ -1305,12 +1305,13 @@ class Prism_Fusion_Functions(object):
 				#	Make UUID
 				toolUID = CompDb.createUUID()
 
-				#	Make dict
+				#	Make base dict
 				toolData = {"nodeName": Fus.makeLdrName(importItem),
 							"version": importData["version"],
 							"toolUID": toolUID,
 							"mediaId": importData["identifier"],
 							"displayName": importData["displayName"],
+							"itemType": importData["itemType"],
 							"mediaType": importData["mediaType"],
 							"aov": importItem.get("aov", ""),
 							"filepath": importItem["basefile"],
@@ -1320,6 +1321,10 @@ class Prism_Fusion_Functions(object):
 							"frame_end": importItem["frame_end"],
 							"listType": "import2d",
 							}
+				#	Add additional items if they exist
+				for key in ["asset", "sequence", "shot"]:
+					if key in importData:
+						toolData[key] = importData[key]
 
 				try:
 					#	Get channels from image file
