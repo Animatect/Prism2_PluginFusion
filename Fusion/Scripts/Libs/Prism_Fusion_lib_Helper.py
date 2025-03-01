@@ -130,7 +130,6 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
         importData = {"identifier": context["identifier"],
                     "displayName": context["displayName"],
                     "mediaType": mediaType,
-                    "itemType": context["itemType"],
                     "locations": context["locations"],
                     "path": context["path"],
                     "extension": "",
@@ -145,9 +144,10 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
         logger.warning(f"ERROR: Unable to make base importData dict: {e}")
         return {}
     
-    #   Add AOV if it exists
-    if "aov" in context:
-        importData["aov"] = context["aov"]
+    #   Add additiona items if they exist
+    for key in ["aov", "sequence", "shot", "asset", "itemType", "type"]:
+        if key in context:
+            importData[key] = context[key]
 
     files = []
 
