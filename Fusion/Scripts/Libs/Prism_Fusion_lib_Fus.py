@@ -758,17 +758,31 @@ def getToolBefore(tool) -> Tool:
 
 #	Sets up the name based on avail data
 
-def makeLdrName(importData:dict) -> str:
+def makeLdrName(importItem:dict, importData:dict) -> str:
     try:
-        ldrName = importData.get('identifier') or importData.get("mediaId")
+        #   Use Asset name or Seq/Shot Name as prefix
+        if importData["itemType"] == "asset":
+            ldrName = importData["asset"]
+        elif importData["itemType"] == "shot":
+            ldrName = f"{importData['sequence']}_{importData['shot']}"
+        else:
+            ldrName = ""
 
-        if "aov" in importData:
-            ldrName = ldrName + f"_{importData['aov']}"
+        #   Deal with Fusion not allowing the first charactor bring a digit - add an underscore
+        if ldrName[0].isdigit():
+            ldrName = f"_{ldrName}"
 
-        if "channel" in importData:
-            ldrName = ldrName + f"_{importData['channel']}"
-   
-        ldrName = ldrName + f"_{importData['version']}"
+        #   Append MediaID
+        ldrName = ldrName + "_" + (importItem.get('identifier') or importItem.get("mediaId"))
+
+        #   Append AOV/Channel if they exist
+        if "aov" in importItem:
+            ldrName = ldrName + f"_{importItem['aov']}"
+        if "channel" in importItem:
+            ldrName = ldrName + f"_{importItem['channel']}"
+
+        #   Append version number
+        ldrName = ldrName + f"_{importItem['version']}"
         
         return ldrName
     

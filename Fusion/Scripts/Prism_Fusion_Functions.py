@@ -1202,6 +1202,8 @@ class Prism_Fusion_Functions(object):
 			#	Get any UIDs for the Identifier
 			uids = CompDb.getUIDsFromImportData(comp, "import2d", importData)
 
+			self.core.popup(f"uids:  {uids}")                                      #    TESTING
+
 			#	If there are already UIDs in the comp
 			if uids and len(uids) > 0:
 				self.importExisting(comp, uids, importData, importType, checkbox_checked)
@@ -1306,7 +1308,7 @@ class Prism_Fusion_Functions(object):
 				toolUID = CompDb.createUUID()
 
 				#	Make base dict
-				toolData = {"nodeName": Fus.makeLdrName(importItem),
+				toolData = {"nodeName": Fus.makeLdrName(importItem, importData),
 							"version": importData["version"],
 							"toolUID": toolUID,
 							"mediaId": importData["identifier"],
@@ -1321,6 +1323,7 @@ class Prism_Fusion_Functions(object):
 							"frame_end": importItem["frame_end"],
 							"listType": "import2d",
 							}
+				
 				#	Add additional items if they exist
 				for key in ["asset", "sequence", "shot"]:
 					if key in importData:
@@ -1345,14 +1348,14 @@ class Prism_Fusion_Functions(object):
 
 					if result == "Yes":
 						#	Call Multi-channel function for all channels
-						leftmostNode = self.addMultiChannel(comp, toolData, refNode, channels, sortnodes=sortnodes)
+						leftmostNode = self.addMultiChannel(comp, toolData, importData, refNode, channels, sortnodes=sortnodes)
 
 					if result == "No":
 						#	Get current viewed channel
 						currChannel = importItem["channel"]
 
 						#	Call Multi-channel function for current channel
-						leftmostNode = self.addMultiChannel(comp, toolData, refNode, channels, currChannel, sortnodes=sortnodes)
+						leftmostNode = self.addMultiChannel(comp, toolData, importData, refNode, channels, currChannel, sortnodes=sortnodes)
 
 			#	Return if failed
 			if not leftmostNode:
@@ -1409,7 +1412,7 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def addMultiChannel(self, comp, toolData, refNode, channels, currChannel=None, sortnodes=True):
+	def addMultiChannel(self, comp, toolData, importData, refNode, channels, currChannel=None, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
 		#	Get Position of Ref Tool
@@ -1434,7 +1437,7 @@ class Prism_Fusion_Functions(object):
 			#	Edit dict copy
 			toolData_copy["toolUID"] = toolUID
 			toolData_copy["channel"] = channel
-			toolData_copy["nodeName"] = Fus.makeLdrName(toolData_copy)
+			toolData_copy["nodeName"] = Fus.makeLdrName(toolData_copy, importData)
 			
 			#	Add Loader with config data
 			ldr = Fus.addTool(comp, "Loader", toolData_copy, refX-10, refY-10)
@@ -1608,7 +1611,7 @@ class Prism_Fusion_Functions(object):
 				#	If there was a match to the database
 				if compareRes:
 					#	Make dict
-					toolData = {"nodeName": Fus.makeLdrName(updateData),
+					toolData = {"nodeName": Fus.makeLdrName(updateData, importData),
 								"version": updateData["version"],
 								"filepath": updateData["filepath"],
 								"frame_start": updateData["frame_start"],
@@ -3645,7 +3648,7 @@ path = r\"%s\"
 			self.core.popup("There are no loaders for this task.", severity="info")
 			return
 				
-		#	Set the color for each tool
+		#	Select all tools
 		for toolUID in toolsToSelectUID:
 			try:
 				if CompDb.nodeExists(comp, toolUID):
@@ -3790,6 +3793,9 @@ path = r\"%s\"
 			return
 		
 		entity = origin.getCurrentEntity()
+
+		self.core.popup(f"entity:  {entity}")                                      #    TESTING
+		
 		if lw == origin.tw_identifier:
 			category = entity.get("type")
 			if category in ["asset", "shot"]:

@@ -486,37 +486,30 @@ def getUIDsFromImportData(comp, listType:str, importData:dict) -> dict:
             else:
                 logger.warning(f"ERROR: Node type '{listType}' not found in the database.")
             return []
-        
-        #   Extract fields from importData
-        import_mediaId = importData.get("identifier")
-        import_mediaType = importData.get("mediaType")
-        import_aov = importData.get("aov")
-        import_channel = importData.get("channel")
+
+        compareKeys = ["mediaId", "mediaType", "aov", "itemType", "asset", "sequence", "shot"]
 
         # Search for a record matching all the available items
         for uuid, node_data in nodes.items():
-            match = True
+            match = True  # Assume match unless proven otherwise
 
-            if node_data.get("mediaId") != import_mediaId:
-                match = False
-            
-            if node_data.get("mediaType") != import_mediaType:
-                match = False
+            for key in compareKeys:
+                import_value = importData.get(key, None)
+                node_value = node_data.get(key, None)
 
-            # Check aov if it exists in both the database and importData
-            if "aov" in node_data and import_aov is not None and import_aov != "":
-                if node_data.get("aov") != import_aov:
-                    match = False
+                # Only compare if the value exists in importData
+                if import_value is not None and import_value != "":
+                    if node_value != import_value:
+                        match = False
+                        break  # No need to check further
 
-            if match:
-                # If all checks pass, return the match
-                if nodeExists(comp, uuid):
-                    uids.append(uuid)
+            if match and nodeExists(comp, uuid):  # Ensure the node actually exists
+                uids.append(uuid)
 
         return uids
     
     except:
-        logger.warning(f"No nodes found with mediaId '{import_mediaId}' in type '{listType}'.")
+        logger.warning(f"No nodes found with mediaId '{importData['identifier']}' in type '{listType}'.")
         return []
 
 
