@@ -55,23 +55,25 @@ import re
 import math
 import glob
 import shutil
-import time
+# import time
 import logging
-from datetime import datetime
+# from datetime import datetime
 
 import BlackmagicFusion as bmd
-import inspect
-print(inspect.getmodule('fusionscript'))
+
+# import inspect
+# print(inspect.getmodule('fusionscript'))
+
 package_path = os.path.join(os.path.dirname(__file__), 'thirdparty')
 sys.path.append(package_path)
 
-import pygetwindow as gw
+# import pygetwindow as gw
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
-import pyautogui
+# import pyautogui
 import pyperclip
 
 from PrismUtils.Decorators import err_catcher as err_catcher
@@ -99,7 +101,6 @@ class Prism_Fusion_Functions(object):
 		self.plugin = plugin
 		self.fusion:Fusion_ = bmd.scriptapp("Fusion")
 		self.comp:Composition_ = None # This comp is used by the stateManager to avoid overriding the state data on wrong comps
-
 		
 		self.MP_stateManager:StateManager = None # Reference to the stateManager to be used on the monkeypatched functions.
 		self.MP_mediaBrowser:MediaBrowser = None # Reference to the mediaBrowser to be used on the monkeypatched functions.
@@ -234,7 +235,6 @@ class Prism_Fusion_Functions(object):
 								}
 
 
-
 	@err_catcher(name=__name__)
 	def startup(self, origin):
 		# 	for obj in QApplication.topLevelWidgets():
@@ -355,6 +355,7 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		return CompDb.nodeExists(comp, nodeUID)
 	
+
 	##############TODELETE############
 	@err_catcher(name=__name__)
 	def getNodeName(self, origin:Legacy3D_ImportClass, node:str):
@@ -369,6 +370,7 @@ class Prism_Fusion_Functions(object):
 		else:
 			return "invalid"
 	##############TODELETE############
+
 
 	@err_catcher(name=__name__)
 	def getNodeByUID(self, nodeUID):
@@ -411,7 +413,7 @@ class Prism_Fusion_Functions(object):
 	def sm_saveStates(self, origin, buf):
 		comp = self.getCurrentComp()
 		# The comp check for the imports should be done also in the  states operations.
-		# here we just do a check,  by doing that we can check again in another function  whare we can actually interrupt the process
+		# here we just do a check,  by doing that we can check again in another function where we can actually interrupt the process
 		# in the other functions if there is a problem but avoid corrupting the comp's states.
 		if self.sm_checkCorrectComp(comp, displaypopup=False, deleteSM=False):
 			CompDb.sm_saveStates(comp, buf)
@@ -488,8 +490,6 @@ class Prism_Fusion_Functions(object):
 	def sceneOpen(self, origin):
 		# if self.core.shouldAutosaveTimerRun():
 		# 	origin.startAutosaveTimer()
-
-
 		pass
 
 
@@ -504,17 +504,14 @@ class Prism_Fusion_Functions(object):
 			logger.warning(f"ERROR: Failed to resolve the current Fusion comp:\n{e}")
 			return None
 
+
 	@err_catcher(name=__name__)
 	def sm_import_startup(self, origin):
 		pass
 
+
 	@err_catcher(name=__name__)
 	def sm_checkCorrectComp(self, comp, displaypopup:bool=True, deleteSM:bool=True):
-		
-		# import traceback
-		# print("Function called from:")
-		# print("".join(traceback.format_stack(limit=5)))
-		# print(f"Comps are: {comp} vs {self.comp}")
 		if self.comp:
 			try:
 				if self.comp.GetAttrs("COMPS_Name") == comp.GetAttrs("COMPS_Name"):
@@ -539,7 +536,6 @@ class Prism_Fusion_Functions(object):
 	def sm_getExternalFiles(self, origin):
 		extFiles = []
 		return [extFiles, []]
-
 	
 
 	@err_catcher(name=__name__)
@@ -1201,8 +1197,6 @@ class Prism_Fusion_Functions(object):
 
 			#	Get any UIDs for the Identifier
 			uids = CompDb.getUIDsFromImportData(comp, "import2d", importData)
-
-			self.core.popup(f"uids:  {uids}")                                      #    TESTING
 
 			#	If there are already UIDs in the comp
 			if uids and len(uids) > 0:
@@ -3785,7 +3779,6 @@ path = r\"%s\"
 						self.colorItem(item, color)
 
 
-
 	@err_catcher(name=__name__)
 	def openPBListContextMenu(self, origin, rcmenu, lw, item, path):
 		#	If DCC 'Task Node Coloring' is disabled
@@ -3793,8 +3786,6 @@ path = r\"%s\"
 			return
 		
 		entity = origin.getCurrentEntity()
-
-		self.core.popup(f"entity:  {entity}")                                      #    TESTING
 		
 		if lw == origin.tw_identifier:
 			category = entity.get("type")

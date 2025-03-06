@@ -252,7 +252,7 @@ def savePrismFileDb(comp, cpData_orig:dict):
         comp.SetData("PrismDB", cpData_str)
         logger.debug("Saved Prism Comp Database to Comp")
 
-        print(f"\n***  Prism Database:\n{cpData_str}\n")                            #   TESTING
+        # print(f"\n***  Prism Database:\n{cpData_str}\n")                            #   TESTING
 
     except:
         logger.warning("ERROR: Failed to save Prism Comp Database to Comp")
@@ -471,9 +471,12 @@ def removeNodeFromDB(comp, listType:str, UUID:str, saveDB:bool=True, aggregateDa
 
 def getUIDsFromImportData(comp, listType:str, importData:dict) -> dict:
     cpData = loadPrismFileDb(comp)
-
     if not cpData:
         return None
+
+    #   Make copy and re-assign MediaID
+    importData_copy = importData
+    importData_copy["mediaId"] = importData_copy.get("identifier", None)
     
     uids = []
     
@@ -487,23 +490,25 @@ def getUIDsFromImportData(comp, listType:str, importData:dict) -> dict:
                 logger.warning(f"ERROR: Node type '{listType}' not found in the database.")
             return []
 
+        #   List of items to compare
         compareKeys = ["mediaId", "mediaType", "aov", "itemType", "asset", "sequence", "shot"]
 
         # Search for a record matching all the available items
         for uuid, node_data in nodes.items():
             match = True  # Assume match unless proven otherwise
 
+            #   Itterate through keys and compare if exist in both dicts
             for key in compareKeys:
-                import_value = importData.get(key, None)
-                node_value = node_data.get(key, None)
-
-                # Only compare if the value exists in importData
-                if import_value is not None and import_value != "":
-                    if node_value != import_value:
+                if key in importData_copy and key in node_data:
+                    import_value = importData_copy.get(key, None)
+                    node_value = node_data.get(key, None)
+                    #   Check for match
+                    if import_value != node_value:
                         match = False
                         break  # No need to check further
 
-            if match and nodeExists(comp, uuid):  # Ensure the node actually exists
+            # Add to UID list if exists
+            if match and nodeExists(comp, uuid):
                 uids.append(uuid)
 
         return uids
