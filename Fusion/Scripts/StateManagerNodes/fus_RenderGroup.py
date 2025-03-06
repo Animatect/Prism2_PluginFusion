@@ -30,6 +30,21 @@
 #
 # You should have received a copy of the GNU Lesser General Public License
 # along with Prism.  If not, see <https://www.gnu.org/licenses/>.
+###########################################################################
+#
+#                BMD Fusion Studio Integration for Prism2
+#
+#             https://github.com/Animatect/Prism2_PluginFusion
+#
+#                           Esteban Covo
+#                     e.covo@magichammer.com.mx
+#                     https://magichammer.com.mx
+#
+#                           Joshua Breckeen
+#                              Alta Arts
+#                          josh@alta-arts.com
+#
+###########################################################################
 
 
 import os
@@ -605,11 +620,11 @@ class RenderGroupClass(object):
 		result = self.nameWin.exec_()
 
 		if result == 1:
-			#	Checks if entered name is Fusion legal
-			isLegal, errorStr = self.getFusLegalName(self.nameWin.e_item.text(), check=True)
-			if not isLegal:
-				self.core.popup(errorStr)
-				return
+			# #	Checks if entered name is Fusion legal
+			# isLegal, errorStr = self.getFusLegalName(self.nameWin.e_item.text(), check=True)
+			# if not isLegal:
+			# 	self.core.popup(errorStr)
+			# 	return
 
 			self.setTaskname(self.nameWin.e_item.text())
 			self.nameChanged(self.e_name.text())
@@ -889,7 +904,7 @@ class RenderGroupClass(object):
 	def stateStatusColor(self, stateUID):
 		try:
 			#	Checks if Saver exists
-			if self.fusionFuncs.rendernodeExists(stateUID):
+			if self.fusionFuncs.nodeExists(stateUID):
 				return {"background": "#54754c", "foreground": "#FFFFFF"}
 			else:
 				raise Exception
@@ -1246,7 +1261,7 @@ class RenderGroupClass(object):
 				#	Gets the State names in group
 				renderStatesNames.append(self.getStateNameFromUID(nodeUID))
 				#	If the associated Saver does not exist
-				if not self.fusionFuncs.rendernodeExists(nodeUID):
+				if not self.fusionFuncs.nodeExists(nodeUID):
 					missingSaverList.append(self.getStateNameFromUID(nodeUID))
 
 			#	Makes the warning string for Group states

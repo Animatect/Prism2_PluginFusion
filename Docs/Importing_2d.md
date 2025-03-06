@@ -1,7 +1,9 @@
-# **Importing**
+# **Importing 2d Images**
 Importing images into Fusion can be done utilizing the native method by drag/dropping of course.  But the Prism integration provides a better process utilizing the Project Browser.
 
 To import into Fusion first launch the Project Browser from the Prism menu in Fusion, and right click on the image in the viewer.
+
+    Note:  importing images through the State Manager is planned in the near future.
 
 ![PB Rightclick](DocsImages/PB-Rightclick.png)
 
@@ -24,6 +26,8 @@ In addition to the positioning being disabled, the auto Wireless nodes will not 
 
 <br/>
 
+---
+
 ### **Import Options:**
 ![Import-Single](DocsImages/Import-Single.png)
 
@@ -34,7 +38,7 @@ Depending on the type of image file and file structure, the user will be prompte
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;![Import-AOVs](DocsImages/Import-AOVs.png)
 
-- **Multi-Channel EXR's:** If the .exr has multiple channels (layers), a popup asking to split the channels into separate Loaders.  This will automatically configure the Loaders channels in Fusion.
+- **Multi-Channel EXR's:** If the .exr has multiple layers (OpenEXR 1.0) or parts (OpenEXR 2.0), a popup asking to split the channels into separate Loaders.  If yes, the image will imported with separate Loaders for each layer and will automatically configure the Loader's channels in Fusion.  If no, then one Loader will be imported and configured with the currently viewed Channel.
 
 &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;![Import-ExrSplit](DocsImages/Import-ExrSplit.png)
 
@@ -44,9 +48,38 @@ Depending on the type of image file and file structure, the user will be prompte
 
 <br/>
 
+## **Task Coloring / Selecting:**
 
+The Fusion plugin adds additional UI functions to the Media Tab in Prism's Project Browser.  After importing images into Fusion, a user may select a color to be associated with the Media Identifier.
+
+
+![Task Color Overview](DocsImages/TaskColor_overview.png)
+
+Task coloring and selecting can be accessed by right-clicking the Media Identifier which brings up the context menu.  There are two new items in the menu:
+
+**Select Task Color:**
+
+![Task Color Menu](DocsImages/TaskColor_menu.png)
+
+Selecting a color from the dropdown menu will apply the color to the Task Identifier, and the Fusion Tools in the Comp based on the user preferences in the Prism Settings (see [**Interface**](Interface.md)).  This allows the user to visually associate the Tools in the Comp with the Media ID and aids in organization.  The color can be cleared and reset to the default color by selecting "Clear Color" from the list.
+
+    Note: the colors themselves are from Fusion's coloring and cannot be edited.
+
+<br/>
+
+**Select Task Nodes:**
+
+![Task Selecting](DocsImages/TaskColor_selecting.png)
+
+This allows the user to quickly select all the Tools that are associated with the Media Identifier.  This can be helpful in finding the Loader in a large comp, or to quickly see the flow.
+
+<br/>
+
+___
 jump to:
 
-[**Interface Docs**](Interface.md)
+[**Interface**](Interface.md)
 
-[**Rendering Docs**](Rendering.md)
+[**Rendering**](Rendering.md)
+
+[**Importing 3D**](Importing_3d.md)

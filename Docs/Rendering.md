@@ -23,9 +23,10 @@ When an ImageRender is initially added to the State Manager, the button is red w
 
 If the state's name does not match the Saver's name (and thus the correct filepath), the button will display Orange. For example, after changing the Identifier name, this will then not match the linked Saver and it will turn Orange.  Clicking the button will then reconfigure the Saver with the new name and the button will display Green.
 
-RED:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Saver does not exist<br/>
-ORANGE:&nbsp;&nbsp;&nbsp;Saver name does not match the State Identifier<br/>
-GREEN:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Saver is linked correctly.
+  - RED:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Saver does not exist<br/>
+  - ORANGE:&nbsp;&nbsp;&nbsp;Saver name does not match the State Identifier<br/>
+  - GREEN:&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;Saver is linked correctly.
+
 
 ![SM Empty](DocsImages/SM-ImageRender-Green.png)![SM Empty](DocsImages/SM-ImageRender-Orange.png)
 
@@ -37,11 +38,11 @@ To remove a state from the State Manager, a user may right-click the state in th
 ### **Fusion Naming:**
 BlackMagic Fusion has a strict naming scheme for all nodes/tools that affects the naming of the state's Identifier.  If the user-entered Identifier has any "illegal" characters, the name will automatically be made to be "Fusion Legal".
 
-You can only use:
-- Alphanumeric characters:  a-z, A-Z, 0-9,
-- Do not use any spaces,
-- Do not use special characters,
-- Name cannot start with a number.
+    You can only use:
+    - Alphanumeric characters:  a-z, A-Z, 0-9,
+    - Do not use any spaces,
+    - Do not use special characters,
+    - Name cannot start with a number.
 
 ### **Scaling:**
 A scale override is provided to allow the user to quickly change the rendered resolution for each state.  This can be useful for quick preview renders.  Scaling is handled automatically using a combination of Fusion's Proxy system (for speed) or a Scale node.
@@ -111,9 +112,11 @@ Anybody who has used Fusion Studio with Deadline will probably have experienced 
 
 <br/>
 
-
+___
 jump to:
 
-[**Interface Docs**](Interface.md)
+[**Interface**](Interface.md)
 
-[**Importing Docs**](Importing.md)
+[**Importing Images**](Importing_2d.md)
+
+[**Importing 3D**](Importing_3d.md)

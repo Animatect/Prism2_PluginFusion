@@ -795,7 +795,7 @@ class Ui_wg_ImageRender(object):
         self.label_6.setText(QCoreApplication.translate("wg_ImageRender", u"Format:", None))
         self.label_10.setText(QCoreApplication.translate("wg_ImageRender", u"RenderNode:", None))
 #if QT_CONFIG(tooltip)
-        self.b_setRendernode.setToolTip(QCoreApplication.translate("wg_ImageRender", u"Set RenderNode by name or create a new one", None))
+        self.b_setRendernode.setToolTip(QCoreApplication.translate("wg_ImageRender", u"Create a New Saver or Set RenderNode Name", None))
 #endif // QT_CONFIG(tooltip)
         self.b_setRendernode.setText(QCoreApplication.translate("wg_ImageRender", u"SetRenderNode", None))
 #if QT_CONFIG(tooltip)
