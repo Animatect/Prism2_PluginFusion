@@ -245,7 +245,6 @@ def getResolution(comp) -> Tuple[int, int]:
     except Exception as e:
         logger.warning(f"ERROR: Failed to get the current resolution from the comp:\n{e}")
         return [None, None]
-    
 
 
 def setResolution(comp, width:int=None, height:int=None):
@@ -258,7 +257,6 @@ def setResolution(comp, width:int=None, height:int=None):
         )
     except Exception as e:
         logger.warning(f"ERROR: Failed to set the resolution to the comp:\n{e}")
-
 
 
 def getCurrentFrame(comp) -> int:
@@ -316,11 +314,13 @@ def configureTool(tool:Tool_, toolData:dict={}) -> None:
         tool["OutputFormat"] = toolData['fuseFormat']
 
     if "frame_start" in toolData:
-        tool.GlobalIn[0] = toolData["frame_start"]
         tool.GlobalOut[0] = toolData["frame_end"]
+        tool.GlobalIn[0] = toolData["frame_start"]
 
         tool.ClipTimeStart = 0
         tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
+
+        tool.HoldFirstFrame = 0
         tool.HoldLastFrame = 0
 
     #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
@@ -332,92 +332,8 @@ def configureTool(tool:Tool_, toolData:dict={}) -> None:
 
 
 def addToolData(tool:Tool_, toolData:dict={}) -> None:
-
     #   add the DB data to be able to reconstruct it
     tool.SetData('Prism_ToolData', toolData)
-
-    
-
-#   Updates tool config for given data
-
-# def updateToolData(tool:Tool, toolData:dict, xPos:int=-32768, yPos:int=-32768, autoConnect=1) -> Tool:
-
-#     print(f"\n\ntoolData:\n\n{toolData}")                                        #   TESTING
-
-#     try:
-#         if "toolName" in toolData:
-#             tool.SetAttrs({'TOOLS_Name' : toolData['toolName']})
-#         if "nodeName" in toolData:
-#             tool.SetAttrs({'TOOLS_Name' : toolData['nodeName']})
-
-#         if "groupName" in toolData:
-#             tool.SetData('Prism_Group', toolData['groupName'])
-
-#         if "version" in toolData:
-#             tool.SetData('Prism_Version', toolData['version'])
-
-#         if "connectedNodes" in toolData:
-#             tool.SetData('Prism_ConnectedNodes', toolData['connectedNodes'])
-
-#         if "filepath" in toolData:
-#             tool.Clip = toolData['filepath']
-
-#         if "usdFilepath" in toolData:
-#             tool["Filename"] = toolData['usdFilepath']
-
-#         if "matXfilePath" in toolData:
-#             tool["MaterialFile"] = toolData["matXfilePath"]
-
-#         if "3dFilepath" in toolData:
-#             if toolData["format"] == ".fbx":
-#                 tool["ImportFile"] = toolData['3dFilepath']
-#             elif toolData["format"] == ".abc":
-#                 tool["Filename"] = toolData['3dFilepath']
-
-#         if "frame_start" in toolData:
-#             tool.GlobalIn[0] = toolData["frame_start"]
-#             tool.GlobalOut[0] = toolData["frame_end"]
-
-#             tool.ClipTimeStart = 0
-#             tool.ClipTimeEnd = toolData["frame_end"] - toolData["frame_start"]
-#             tool.HoldLastFrame = 0
-
-
-
-
-        # #   add the DB data to be able to reconstruct it
-        # if tool.GetData('Prism_ToolData'):
-
-        #     data:dict = tool.GetData('Prism_ToolData')
-
-        #     print(f"*** data: {data}")                                              #    TESTING
-
-        #     updatedKeys = toolData.keys()
-
-        #     print(f"*** updatedKeys:  {updatedKeys}")                               #    TESTING
-
-        #     for key in updatedKeys:
-        #         print(f"*** key:  {key}")                                           #    TESTING
-
-        #         if data[key]:
-        #             data[key] = toolData[key]
-                    
-        #     tool.SetData('Prism_ToolData', data)
-        # else:
-        #     tool.SetData('Prism_ToolData', toolData)
-
-
-
-
-        #   TODO    TRYING TO HAVE TOOL SHOW NAME NOT CLIP PATH
-        # tool.SetAttrs({'TOOLS_NameSet': True})
-
-    #     return tool
-    
-    # except Exception as e:
-    #     logger.warning(f"ERROR: Failed to update {tool} in Comp")
-    #     logger.warning(e)
-    #     return None
 
 
 #   Returns Prism Data contained in Tool
