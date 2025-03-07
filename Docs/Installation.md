@@ -29,6 +29,13 @@ To add the integration, go to the "DCC Apps" -> "Fusion" tab.  Then click the "a
 
 <br/>
 
+## **Python**
+
+
+In order to use the plugin it is required to have Python 3.7, 3,9, 3.10 or 3.11 installed on the computer and added to the PATH environment variable (this can be done using a checkbox in the Python installer). The installer can be downloaded from https://www.python.org/downloads/release/python-3119/.
+
+To check if Resolve can find the Python installation you can open the console from “Workspace” -> “Console” and click the “Py3” button at the top. If you can enter print("test") and execute it without error, Python is installed correctly.
+
 ___
 jump to:
 
