@@ -140,25 +140,38 @@ class Prism_Fusion_externalAccess_Functions(object):
 		lo_taskColoring.addWidget(origin.l_taskColoring)
 		lo_taskColoring.addWidget(origin.cb_taskColoring)
 
-		#	Connect to configure UI funct
-		origin.cb_taskColoring.activated.connect(lambda: self.configureBrightnessUi(origin))
-
 		# Spacer
 		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 		lo_taskColoring.addItem(spacer)
 
-		# Color Brightness
-		origin.l_colorBrightness = QLabel("Color Brightness:       ")
-		origin.cb_colorBrightness = QComboBox()
-
+		##	Old Coloring Brightness code
 		# Add options to the Color Brightness combo box (10% to 100% in 10% increments)
-		brightness_levels = [f"{i}%" for i in range(10, 110, 10)]
-		origin.cb_colorBrightness.addItems(brightness_levels)
-		origin.cb_colorBrightness.setCurrentIndex(4)  # Default to "50%"
-		lo_taskColoring.addWidget(origin.l_colorBrightness)
-		lo_taskColoring.addWidget(origin.cb_colorBrightness)
+		# brightness_levels = [f"{i}%" for i in range(10, 110, 10)]
+		# origin.cb_colorBrightness.addItems(brightness_levels)
 
-		lo_taskColoring.addWidget(origin.cb_colorBrightness)
+		# AOV Thumbnails
+		origin.l_useAovThumbs = QLabel("AOV/Channel Thumbnails:       ")
+		origin.cb_useAovThumbs = QComboBox()
+		origin.cb_useAovThumbs.addItems(["Enabled", "Disabled"])
+		origin.cb_useAovThumbs.setCurrentIndex(0)  # Default to Enabled
+
+		#	Connect to configure UI funct
+		origin.cb_useAovThumbs.activated.connect(lambda: self.configAovThumbUi(origin))
+
+		lo_prismStartMode.addWidget(origin.l_useAovThumbs)
+		lo_prismStartMode.addWidget(origin.cb_useAovThumbs)
+
+		# Spacer
+		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		lo_prismStartMode.addItem(spacer)
+
+		origin.l_thumbSize = QLabel("Thumbnails size:       ")
+		origin.cb_thumbSize = QComboBox()
+		origin.cb_thumbSize.addItems(["Small (300 px)", "Medium (600 px)", "Large (900 px)"])
+		origin.cb_useAovThumbs.setCurrentIndex(1)  # Default to Medium
+
+		lo_taskColoring.addWidget(origin.l_thumbSize)
+		lo_taskColoring.addWidget(origin.cb_thumbSize)
 
 		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 		lo_taskColoring.addItem(spacer)
@@ -205,9 +218,16 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.l_taskColoring.setToolTip(tip)
 		origin.cb_taskColoring.setToolTip(tip)
 
-		tip = "Controls the brightness of the Task color in the Media Tab."
-		origin.l_colorBrightness.setToolTip(tip)
-		origin.cb_colorBrightness.setToolTip(tip)
+		tip = ("Enables image thumbnail display when hovering over AOV/Channels in the list.\n\n"
+		 	   "Having this enabled could slow down performance of creating and loading states\n"
+			   "with large image of video files.")
+		origin.l_useAovThumbs.setToolTip(tip)
+		origin.cb_useAovThumbs.setToolTip(tip)
+
+		tip = ("Selects the size of the thumbnail tooltip for the AOV images.\n\n"
+		 	   "This will be the thumbnail width in pixels.")
+		origin.l_thumbSize.setToolTip(tip)
+		origin.cb_thumbSize.setToolTip(tip)
 
 		tip = "Install Prism Development menu to Fusion when adding the integration."
 		origin.l_installDevTools.setToolTip(tip)
@@ -239,7 +259,9 @@ class Prism_Fusion_externalAccess_Functions(object):
 			self.setStartmodeConfig(origin.cb_prismStartMode.currentText())
 
 			settings["Fusion"]["taskColorMode"] = origin.cb_taskColoring.currentText()
-			settings["Fusion"]["colorBrightness"] = origin.cb_colorBrightness.currentText()
+			settings["Fusion"]["useAovThumbs"] = origin.cb_useAovThumbs.currentText()
+			settings["Fusion"]["thumbsSize"] = origin.cb_thumbSize.currentText()
+			
 
 		except Exception as e:
 			logger.warning(f"ERROR: Could not save user settings:\n{e}")
@@ -273,32 +295,49 @@ class Prism_Fusion_externalAccess_Functions(object):
 					idx = origin.cb_prismStartMode.findText(settings["Fusion"]["prismStartMode"])
 					if idx != -1:
 						origin.cb_prismStartMode.setCurrentIndex(idx)
-				#	Defaults to Prompt mode
 				else:
-					origin.cb_prismStartMode.setCurrentIndex(1)
+					origin.cb_prismStartMode.setCurrentIndex(1)	#	Defaults to Prompt mode
 
-				#	Loads Task Coloring if exists
+				#	Loads Task Coloring enabled
 				if "taskColorMode" in settings["Fusion"]:
 					idx = origin.cb_taskColoring.findText(settings["Fusion"]["taskColorMode"])
 					if idx != -1:
 						origin.cb_taskColoring.setCurrentIndex(idx)
-				#	Defaults to Prompt mode
 				else:
-					origin.cb_taskColoring.setCurrentIndex(1)
+					origin.cb_taskColoring.setCurrentIndex(1)	#	Defaults to All tools
 
-				#	Loads Task Coloring brightness if exists
-				if "colorBrightness" in settings["Fusion"]:
-					idx = origin.cb_colorBrightness.findText(settings["Fusion"]["colorBrightness"])
+				#	Enables/Disables AOV Thumbnails
+				if "useAovThumbs" in settings["Fusion"]:
+					idx = origin.cb_useAovThumbs.findText(settings["Fusion"]["useAovThumbs"])
 					if idx != -1:
-						origin.cb_colorBrightness.setCurrentIndex(idx)
-				#	Defaults to Prompt mode
-				else:
-					origin.cb_colorBrightness.setCurrentIndex(4)
+						origin.cb_useAovThumbs.setCurrentIndex(idx)
+					else:
+						origin.cb_useAovThumbs.setCurrentIndex(0)	#	Defaults to Enabled
 
-				self.configureBrightnessUi(origin)
+				#	Sets AOV Thumbnail size
+				if "thumbsSize" in settings["Fusion"]:
+					idx = origin.cb_thumbSize.findText(settings["Fusion"]["thumbsSize"])
+					if idx != -1:
+						origin.cb_thumbSize.setCurrentIndex(idx)
+				else:
+					origin.cb_thumbSize.setCurrentIndex(1)		#	Defaults to Medium
+
+				self.configAovThumbUi(origin)
 
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to load user settings:\n{e}")
+
+
+	#	Sets up Coloring UI
+	@err_catcher(name=__name__)
+	def configAovThumbUi(self, origin):
+		isEnabled = False
+
+		if origin.cb_useAovThumbs.currentText() == "Enabled":
+			isEnabled = True
+		
+		origin.l_thumbSize.setEnabled(isEnabled)
+		origin.cb_thumbSize.setEnabled(isEnabled)
 
 
 	@err_catcher(name=__name__)
@@ -345,18 +384,6 @@ class Prism_Fusion_externalAccess_Functions(object):
 	@err_catcher(name=__name__)
 	def copySceneFile(self, origin, origFile, targetPath, mode="copy"):
 		pass
-
-
-	#	Sets up Coloring UI
-	@err_catcher(name=__name__)
-	def configureBrightnessUi(self, origin):
-		isEnabled = False
-
-		if origin.cb_taskColoring.currentText() in ["All Nodes", "Loader Nodes"]:
-			isEnabled = True
-		
-		origin.l_colorBrightness.setEnabled(isEnabled)
-		origin.cb_colorBrightness.setEnabled(isEnabled)
 
 
 	# Saves the Start mode to the Scripts config file

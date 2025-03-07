@@ -573,7 +573,25 @@ def updateNodeInfo(comp, listType:str, UUID:str, nodeData:dict) -> bool:
     except Exception as e:
         logger.warning(f"ERROR: Failed to update Node Data for {UUID}\n{e}")
         return False
-        
+
+
+#   Return list of Tool UIDs for a given State UID
+def getUIDsFromStateUIDs(comp, listType:str, stateUID:str, includeConn:bool=True) -> list:
+    cpData = loadPrismFileDb(comp)
+
+    uids = []
+
+    for uuid, nodeData in cpData["nodes"].get(listType, {}).items():
+        if nodeData.get("stateUID") == stateUID:
+            uids.append(uuid)
+
+            if includeConn:
+                connected = nodeData.get("connectedNodes")
+                for name, connUID in connected.items():
+                    uids.append(connUID)
+
+    return uids
+
 
 #   Return a list of MediaIds for a given type
 

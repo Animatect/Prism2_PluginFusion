@@ -239,7 +239,7 @@ class Object3d_ImportClass(object):
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)
         self.b_create3dScene.clicked.connect(self.create3dScene)
         self.b_focusView.clicked.connect(self.focusView)
-        self.cb_taskColor.currentIndexChanged.connect(lambda: self.setTaskColor(self.cb_taskColor.currentText()))
+        self.cb_taskColor.currentIndexChanged.connect(lambda: self.setToolColor(self.cb_taskColor.currentText()))
 
 
     @err_catcher(name=__name__)
@@ -261,11 +261,11 @@ class Object3d_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def setTaskColor(self, color):
+    def setToolColor(self, color):
         #   Get rgb color from dict
         colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
         #   Color tool
-        self.fuseFuncts.colorTaskNodes(self.stateUID, "import3d", colorRGB, category="import3d")
+        self.fuseFuncts.colorTools(self.stateUID, "import3d", colorRGB, category="import3d")
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
