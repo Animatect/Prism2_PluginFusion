@@ -491,7 +491,7 @@ def getUIDsFromImportData(comp, listType:str, importData:dict) -> dict:
             return []
 
         #   List of items to compare
-        compareKeys = ["mediaId", "mediaType", "aov", "itemType", "asset", "sequence", "shot"]
+        compareKeys = ["mediaId", "mediaType", "extension", "aov", "itemType", "asset", "sequence", "shot"]
 
         # Search for a record matching all the available items
         for uuid, node_data in nodes.items():
