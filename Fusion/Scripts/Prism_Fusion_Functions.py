@@ -3512,6 +3512,11 @@ path = r\"%s\"
 
 
 	@err_catcher(name=__name__)
+	def sm_render_managerChanged(self, origin, isPandora):
+		pass
+
+
+	@err_catcher(name=__name__)
 	def getCurrentRenderer(self, origin):
 		return "Renderer"
 	
