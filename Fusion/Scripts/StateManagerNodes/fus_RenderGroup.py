@@ -1210,10 +1210,14 @@ class RenderGroupClass(object):
 
 	@err_catcher(name=__name__)
 	def managerChanged(self, text=None):
+		if getattr(self.cb_manager, "prevManager", None):
+			self.cb_manager.prevManager.unsetManager(self)
+
 		plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
 		if plugin:
 			plugin.sm_render_managerChanged(self)
 
+		self.cb_manager.prevManager = plugin
 		self.stateManager.saveStatesToScene()
 
 

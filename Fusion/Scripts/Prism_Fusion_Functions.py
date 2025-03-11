@@ -1320,10 +1320,10 @@ class Prism_Fusion_Functions(object):
 						"listType": "import2d",
 						}
 				
-				#	Add additional items if they exist
-				for key in ["asset", "sequence", "shot"]:
-					if key in importData:
-						toolData[key] = importData[key]
+			#	Add additional items if they exist
+			for key in ["asset", "sequence", "shot"]:
+				if key in importData:
+					toolData[key] = importData[key]
 
 
 
@@ -3542,6 +3542,11 @@ path = r\"%s\"
 		blurOvr = self.getBlurOverride(self.rSettings)
 		if blurOvr is not None:
 			dlParams["pluginInfos"]["MotionBlur"] = blurOvr
+
+
+	@err_catcher(name=__name__)
+	def sm_render_managerChanged(self, origin, isPandora):
+		pass
 
 
 	@err_catcher(name=__name__)
