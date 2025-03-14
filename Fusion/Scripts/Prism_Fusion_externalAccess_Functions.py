@@ -152,8 +152,8 @@ class Prism_Fusion_externalAccess_Functions(object):
 		# AOV Thumbnails
 		origin.l_useAovThumbs = QLabel("AOV/Channel Thumbnails:       ")
 		origin.cb_useAovThumbs = QComboBox()
-		origin.cb_useAovThumbs.addItems(["Enabled", "Disabled"])
-		origin.cb_useAovThumbs.setCurrentIndex(0)  # Default to Enabled
+		origin.cb_useAovThumbs.addItems(["All", "Simple", "Disabled"])
+		origin.cb_useAovThumbs.setCurrentIndex(0)  # Default to All
 
 		#	Connect to configure UI funct
 		origin.cb_useAovThumbs.activated.connect(lambda: self.configAovThumbUi(origin))
@@ -168,7 +168,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.l_thumbSize = QLabel("Thumbnails size:       ")
 		origin.cb_thumbSize = QComboBox()
 		origin.cb_thumbSize.addItems(["Small (300 px)", "Medium (600 px)", "Large (900 px)"])
-		origin.cb_useAovThumbs.setCurrentIndex(1)  # Default to Medium
+		origin.cb_thumbSize.setCurrentIndex(1)  # Default to Medium
 
 		lo_taskColoring.addWidget(origin.l_thumbSize)
 		lo_taskColoring.addWidget(origin.cb_thumbSize)
@@ -219,8 +219,11 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.cb_taskColoring.setToolTip(tip)
 
 		tip = ("Enables image thumbnail display when hovering over AOV/Channels in the list.\n\n"
-		 	   "Having this enabled could slow down performance of creating and loading states\n"
-			   "with large image of video files.")
+		 	   "All: generates thumbnails for all image types.\n"
+		 	   "            Having this enabled could slow down performance of creating and loading states\n"
+			   "            with large image of video files.\n"
+			   "Simple: does not generate thumbnails for multi layer/part EXRs.\n"
+			   "            This will provide good performance.")
 		origin.l_useAovThumbs.setToolTip(tip)
 		origin.cb_useAovThumbs.setToolTip(tip)
 
@@ -333,7 +336,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 	def configAovThumbUi(self, origin):
 		isEnabled = False
 
-		if origin.cb_useAovThumbs.currentText() == "Enabled":
+		if origin.cb_useAovThumbs.currentText() != "Disabled":
 			isEnabled = True
 		
 		origin.l_thumbSize.setEnabled(isEnabled)

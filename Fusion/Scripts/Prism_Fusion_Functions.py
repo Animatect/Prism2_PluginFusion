@@ -55,24 +55,18 @@ import re
 import math
 import glob
 import shutil
-# import time
 import logging
 
 import BlackmagicFusion as bmd
 
-# import inspect
-# print(inspect.getmodule('fusionscript'))
 
 package_path = os.path.join(os.path.dirname(__file__), 'thirdparty')
 sys.path.append(package_path)
-
-# import pygetwindow as gw
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
-# import pyautogui
 import pyperclip
 
 from PrismUtils.Decorators import err_catcher as err_catcher
@@ -102,20 +96,14 @@ class Prism_Fusion_Functions(object):
 		self.comp:Composition_ = None # This comp is used by the stateManager to avoid overriding the state data on wrong comps
 		
 		self.MP_stateManager:StateManager = None # Reference to the stateManager to be used on the monkeypatched functions.
-		# self.MP_mediaBrowser:MediaBrowser = None # Reference to the mediaBrowser to be used on the monkeypatched functions.
-		# self.MP_mediaPlayer:MediaPlayer = None # Reference to the mediaPlayer to be used on the monkeypatched functions.
-		# self.MP_importState = None # Reference to the importState to be used on the monkeypatched functions.
 
 		self.popup = None # Reference of popUp dialog that shows before opening a window when it takes some time.
-
 		self.listener = None
 		
 		self.saveUI = None
 		self.smUI = None
 		self.pbUI = None
 		self.prefUI = None
-
-		# self.core.sceneOpenChecksEnabled = False		#	TESTING Stops Core automatic Sanity Checks
 
 		#	Register Callbacks
 		try:
@@ -1150,7 +1138,10 @@ class Prism_Fusion_Functions(object):
 			'identifier': 'SingleLyr-MultiAOV',
 			'displayName': 'SingleLyr-MultiAOV',
 			'mediaType': '3drenders',
-			'itemType': 'shot',
+			'itemType': 'shot',			(or 'asset')
+			'asset': 'monkey',			(based on 'itemType')
+			'sequence': '010_seq',		(based on 'itemType')
+			'shot': '010_shot',			(based on 'itemType')
 			'locations': {
 						'global': 'N:\\...\\3dRender\\SingleLyr-MultiAOV\\v002'
 						}, 
@@ -1204,66 +1195,13 @@ class Prism_Fusion_Functions(object):
 		# 	self.importExisting(comp, uids, importData, importType, checkbox_checked)
 
 		#	Import the image(s)
-		# else:
 		self.configureImport(comp, importData, sortnodes=sorting)
 
-		# #	Update Option
-		# elif importType in ["Update Selected", "Update Version"]:
-		# 	#	Call the update
-		# 	self.updateImport(comp, importType, importData)
 
-		#	Cancel Option
-		# else:
-		# 	logger.debug("Import Canceled")
-		# 	return
-		
-
-	# @err_catcher(name=__name__)
-	# def importExisting(self, comp, uids, importData, importType, checkbox_checked):
-	# 	#	Get node info
-	# 	versions = []
-	# 	for uid in uids:
-	# 		tData = CompDb. getNodeInfo(comp, "import2d", uid)
-	# 		identifier = tData["mediaId"]
-	# 		versions.append(tData["version"])
-		
-	# 	#	Takes the brackets out if there is only one item
-	# 	if len(versions) == 1:
-	# 		versions = versions[0]
-
-	# 	#	Popup question
-	# 	fString = (f"There is already ({versions}) of ({identifier}) the Comp:\n\n"
-	# 				"Would you like to:\n" 
-	# 				"       Update the version\n"
-	# 				"           or\n"
-	# 				"       Import this version?")
-	# 	buttons = ["Update", "Import", "Cancel"]
-
-	# 	result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
-
-	# 	#	Re-configure import type for update
-	# 	if result == "Update":
-	# 		if importType == "Import Media":
-	# 			importType = "Update Version"
-	# 		elif importType == "Current AOV":
-	# 			importType = "Update Current"
-	# 		elif importType == "All AOVs":
-	# 			importType = "Update All"
-				
-	# 		#	Call update function
-	# 		self.updateImport(comp, importType, importData)
-
-	# 	#	Import as normal
-	# 	elif result == "Import":
-	# 		self.configureImport(comp, importData, importType, sortnodes=not checkbox_checked)
-
-	# 	else:
-	# 		logger.debug("Import Canceled")
-	# 		return
 		
 		
 	@err_catcher(name=__name__)
-	def configureImport(self, comp, importData, importType, hasAovs, sortnodes=True):
+	def configureImport(self, comp, importData, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
 		refNode = None
@@ -1308,7 +1246,7 @@ class Prism_Fusion_Functions(object):
 						"stateUID": importData["stateUID"],
 						"mediaId": importData["identifier"],
 						"displayName": importData["displayName"],
-							"itemType": importData["itemType"],
+						"itemType": importData["itemType"],
 						"mediaType": importData["mediaType"],
 						"aov": importItem.get("aov", ""),
 						"channel": importItem.get("channel", ""),
@@ -1321,12 +1259,12 @@ class Prism_Fusion_Functions(object):
 						}
 				
 			#	Add additional items if they exist
-			for key in ["asset", "sequence", "shot"]:
+			for key in ["asset", "sequence", "shot", "redirect"]:
 				if key in importData:
 					toolData[key] = importData[key]
 
 
-
+			#	Import the image
 			leftmostNode = self.addImage(comp, toolData, refNode, sortnodes)
 
 
@@ -1385,16 +1323,39 @@ class Prism_Fusion_Functions(object):
 		flow.Select()
 
 		if toolData["extension"] == ".exr":
+
+			#	Handle Multi-part .exrs
+			# try:
+
+			channel = toolData["channel"]
+
+			#	Check if the file has parts
+			if ldr.Clip1.OpenEXRFormat.Part:
+				#	Get list of parts in file
+				parts = ldr.Clip1.OpenEXRFormat.Part.GetAttrs('INPIDT_ComboControl_ID')
+				#	Match and assign part
+				if channel in parts.values():
+					ldr.Clip1.OpenEXRFormat.Part = channel
+
+			# except:
+			# 	logger.warning(f"ERROR: Unable to assign multi-part .exr for ({channel})")
+			# 	continue
+
 			# try:
 				#	Get available channels from Loader
 			loaderChannels = Fus.getLoaderChannels(ldr)
+
+
 			channelData = Fus.getChannelData(loaderChannels)
+
+
 				# except Exception as e:
 				# 	logger.warning(f"ERROR: Unable to get channels from Loader:\n{e}")
 				# 	return None
 
 				#	Get the channel list for the channel being processed
 			
+
 			if len(channelData) > 0:
 				channelDict = channelData[toolData["channel"]]
 

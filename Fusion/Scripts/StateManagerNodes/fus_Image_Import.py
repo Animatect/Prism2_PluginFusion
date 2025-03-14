@@ -209,9 +209,6 @@ class Image_ImportClass(object):
     @err_catcher(name=__name__)
     def callMediaWindow(self):
         self.selMediaContext = None
-        
-        # if hasattr(self, "mediaChooser"):                     #   NEEDED ???
-        #     self.mediaChooser.close()
             
         self.mediaBrowser = self.mediaChooser.w_browser
         self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
@@ -234,7 +231,6 @@ class Image_ImportClass(object):
         if clicked == "identifier":
             result = self.importLatest(selectedStates=False)
         
-
         if not result:
             return False
         if result == "Empty":
@@ -243,7 +239,7 @@ class Image_ImportClass(object):
             return True
     
 
-    @err_catcher(name=__name__)                         #   TODO Simplify
+    @err_catcher(name=__name__)                         #   TODO NEEDED???
     def setSelectedMedia(self, selResult):
         self.selResult = selResult  # Save the selected media
 
@@ -251,7 +247,11 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def makeImportData(self, context):
+        
         self.context = context
+        # self.context = context = self.mediaPlayer.getSelectedContexts()
+        # self.core.popup(f"context:  {context}")                                      #    TESTING
+
         version = self.mediaBrowser.getCurrentVersion()
 
         if not version:
@@ -270,133 +270,63 @@ class Image_ImportClass(object):
 
         mediaType = context["mediaType"]
 
-        # try:
-        #   Make base dict
-        importData = {"stateUID": self.stateUID,
-                    "identifier": context["identifier"],
-                    "displayName": context["displayName"],
-                    "mediaType": mediaType,
-                    "itemType": context["itemType"],
-                    "locations": context["locations"],
-                    "path": context["path"],
-                    "extension": "",
-                    "version": context["version"],
-                    "aovs": [],
-                    "channels": []
-                    }
+        try:
+            #   Make base dict
+            importData = {"stateUID": self.stateUID,
+                        "identifier": context["identifier"],
+                        "displayName": context["displayName"],
+                        "mediaType": mediaType,
+                        "itemType": context["itemType"],
+                        "locations": context["locations"],
+                        "path": context["path"],
+                        "extension": "",
+                        "version": context["version"],
+                        "aovs": [],
+                        "channels": []
+                        }
             
-        # except Exception as e:
-        #     logger.warning(f"ERROR: Unable to make base importData dict: {e}")
-        #     return {}
+            #	Add additional items if they exist
+            for key in ["asset", "sequence", "shot"]:
+                if key in context:
+                    importData[key] = context[key]
+            
+        except Exception as e:
+            logger.warning(f"ERROR: Unable to make base importData dict: {e}")
+            return {}
 
         files = []
 
         #   If there are Prism AOV's (for example not for 2d Renders)
-        if len(aovDict) > 0:
+        hasAOVs = bool(aovDict)
 
-            # try:                                  #   TODO
+        # If AOVs exist, use aovDict and sourceData, otherwise use Context
+        dataPairs = zip(aovDict, sourceData) if hasAOVs else [(context, sourceData[0])]
 
-            #   Iterate through both dicts to extract needed data
-            for aovItem, sourceItem in zip(aovDict, sourceData):
-                #   Add mediaType to each aovItem
+        for aovItem, sourceItem in dataPairs:
+            if hasAOVs:
                 aovItem["mediaType"] = mediaType
-                # aov = aovItem["aov"]
-                #   Get file list for each aov, and get first file
                 filesList = self.fuseFuncts.core.mediaProducts.getFilesFromContext(aovItem)
-                basefile = filesList[0]
+                aov = aovItem["aov"]
+            else:
+                filesList = self.fuseFuncts.core.mediaProducts.getFilesFromContext(context)
+                aov = None
 
-                #   Get file extension
-                if "extension" in context:
-                    extension = context["extension"]
-                else:
-                    _, extension = os.path.splitext(basefile)
-
-                #   Use framerange from sourceData if it exists (sequences)
-                if type(sourceItem[1]) == int:
-                    frame_start = sourceItem[1]
-                    frame_end = sourceItem[2]
-
-
-                #   Use video duration for video formats
-                elif extension.lower() in self.fuseFuncts.core.media.videoFormats:
-                    duration = self.fuseFuncts.core.media.getVideoDuration(basefile)
-                    frame_start = 1
-                    frame_end = duration
-
-                #   For Stills Images
-                else:
-                    frame_start = 1
-                    frame_end = 1
-
-                channels = self.fuseFuncts.core.media.getLayersFromFile(basefile)
-
-                if len(channels) == 0:
-                    channels = ["Color"]
-
-                for channel in channels:
-
-                    #   Make dict for each Channel
-                    fileDict = {
-                        "stateUID": self.stateUID,
-                        "basefile": basefile,
-                        "identifier": context["identifier"],
-                        "aov": aovItem["aov"],
-                        "channel": channel,
-                        "version": context["version"],
-                        "frame_start": frame_start,
-                        "frame_end": frame_end,
-                    }
-
-                    #   Add dict to files list
-                    files.append(fileDict)
-
-
-
-            # except Exception as e:
-            #     logger.warning(f"ERROR: Unable to generate file list for {mediaType}:\n{e}")
-            #     return None
-
-
-
-        #   For no AOV's (for example 2drenders)
-        else:
-            # try:                          #   TODO
-
-            sourceData = sourceData[0]
-            
-            #   Get file list and get first file
-            filesList = self.fuseFuncts.core.mediaProducts.getFilesFromContext(context)
             basefile = filesList[0]
 
-            #   Get file extension
-            if "extension" in context:
-                extension = context["extension"]
-            else:
-                _, extension = os.path.splitext(basefile)
+            # Get file extension
+            extension = self.getImageExtension(context, basefile)
 
-            #   Use framerange from sourceData if it exists (sequences)
-            if type(sourceData[1]) == int:
-                frame_start = sourceData[1]
-                frame_end = sourceData[2]
+            # Get frame start and end
+            frame_start, frame_end = self.getFramesFromSourceData(extension, sourceItem, basefile)
 
-            #   Use video duration for video formats
-            elif extension.lower() in self.fuseFuncts.core.media.videoFormats:
-                duration = self.fuseFuncts.core.media.getVideoDuration(basefile)
-                frame_start = 1
-                frame_end = duration
-
-            #   For Stills Images
-            else:
-                frame_start = 1
-                frame_end = 1
-
+            # Get channels list
             channels = self.fuseFuncts.core.media.getLayersFromFile(basefile)
 
             if len(channels) == 0:
                 channels = ["Color"]
 
             for channel in channels:
-                #   Make dict for each Channel
+                # Create file dictionary
                 fileDict = {
                     "basefile": basefile,
                     "identifier": context["identifier"],
@@ -404,21 +334,27 @@ class Image_ImportClass(object):
                     "version": context["version"],
                     "frame_start": frame_start,
                     "frame_end": frame_end,
+                    "stateUID": self.stateUID
                 }
 
-                #   Add dict to files list
+                # Add additional AOV-specific fields if applicable
+                if hasAOVs:
+                    fileDict.update({"aov": aov})
+
+                # Append to files list
                 files.append(fileDict)
-
-
-            # except Exception as e:
-            #     logger.warning(f"ERROR: Unable to generate file list for {mediaType}:\n{e}")
-            #     return None
 
         # Add the files to the importData
         importData["files"] = files
 
         #   Add additional data if exist
         importData["extension"] = extension
+
+        if importData["mediaType"] in ["3drenders", "external"]:
+            try:
+                importData["aovs"] = self.getAovNamesFromAovDict(aovDict)
+            except Exception as e:
+                logger.warning(f"ERROR: Unable to get AOV names list: {e}")
 
         try:
             if "channel" in context:
@@ -436,11 +372,6 @@ class Image_ImportClass(object):
         if "redirect" in context:
             importData["redirect"] = context["redirect"]
 
-        if importData["mediaType"] in ["3drenders", "external"]:
-            try:
-                importData["aovs"] = self.getAovNamesFromAovDict(aovDict)
-            except Exception as e:
-                logger.warning(f"ERROR: Unable to get AOV names list: {e}")
 
         files = importData["files"]
 
@@ -460,8 +391,9 @@ class Image_ImportClass(object):
         self.setImportPath(self.files[0]["basefile"])
 
         return True
+    
 
-
+    @err_catcher(name=__name__)
     def getAovNamesFromAovDict(self, aovDict:list) -> list:
         try:
             aovNames = []
@@ -472,6 +404,37 @@ class Image_ImportClass(object):
             logger.warning(f"ERROR:  Unable to get AOV names from : {aovDict}")
             return None
 
+
+    @err_catcher(name=__name__)
+    def getImageExtension(self, context, basefile):
+        #   Get file extension
+        if "extension" in context:
+            extension = context["extension"]
+        else:
+            _, extension = os.path.splitext(basefile)
+
+        return extension
+    
+
+    @err_catcher(name=__name__)
+    def getFramesFromSourceData(self, extension, sourceItem, basefile):
+        #   Use framerange from sourceData if it exists (sequences)
+        if type(sourceItem[1]) == int:
+            frame_start = sourceItem[1]
+            frame_end = sourceItem[2]
+
+        #   Use video duration for video formats
+        elif extension.lower() in self.fuseFuncts.core.media.videoFormats:
+            duration = self.fuseFuncts.core.media.getVideoDuration(basefile)
+            frame_start = 1
+            frame_end = duration
+
+        #   For Stills Images
+        else:
+            frame_start = 1
+            frame_end = 1
+
+        return frame_start, frame_end
 
 
     @err_catcher(name=__name__)
@@ -590,7 +553,7 @@ class Image_ImportClass(object):
         self.importPath = path
         self.w_currentVersion.setToolTip(path)
         self.stateManager.saveImports()
-        self.updateUi()
+        # self.updateUi()
         self.stateManager.saveStatesToScene()
 
 
@@ -685,13 +648,6 @@ class Image_ImportClass(object):
 
         doImport = True
 
-        # resStr = ""
-        # for item in importData["files"]:
-        #     resStr += f"{item}\n\n"
-
-        # self.core.popup(f"resStr:  {resStr}")                   #   TESTING
-
-
         #   Execute import
         importResult = self.fuseFuncts.imageImport(self, importData)
 
@@ -753,42 +709,6 @@ class Image_ImportClass(object):
         return True
             
 
-        # highestVer = mediaProducts.getHighestMediaVersion(itemData, getExisting=True, ignoreEmpty=False, ignoreFolder=False)
-
-
-
-        # if refreshUi:
-        #     self.updateUi()
-
-        # path = self.getImportPath()
-
-        # latestVerDict = self.core.mediaProducts.getLatestVersionFromFilepath(path, includeMaster=True)
-        # files = self.core.mediaProducts.getFilesFromContext(latestVerDict)
-
-        # lastestVerPath = files[0]
-
-        # if not lastestVerPath:
-        #     if not self.chb_autoUpdate.isChecked():
-        #         self.core.popup("Couldn't get latest version.")
-        #     return
-
-        # prevState = self.stateManager.applyChangesToSelection
-        # self.stateManager.applyChangesToSelection = False
-
-        # self.setImportPath(lastestVerPath)
-        # # self.imageImport(update=True)
-        # if selectedStates:
-        #     selStates = self.stateManager.getSelectedStates()
-        #     for state in selStates:
-        #         if state.__hash__() == self.state.__hash__():
-        #             continue
-
-        #         if hasattr(state.ui, "importLatest"):
-        #             state.ui.importLatest(refreshUi=refreshUi, selectedStates=False)
-
-        # self.stateManager.applyChangesToSelection = prevState
-
-
     @err_catcher(name=__name__)
     def checkLatestVersion(self):
         path = self.getImportPath()
@@ -815,7 +735,7 @@ class Image_ImportClass(object):
     def importSelected(self):
         importData = self.importData.copy()
 
-        #   Get slected items
+        #   Get selected items
         selItems = self.lw_objects.selectedItems()
 
         if selItems:
@@ -912,12 +832,10 @@ class Image_ImportClass(object):
                         "QPushButton { background-color: rgb(0,100,0); }"
                         )
 
-
         self.nameChanged()
         self.setStateColor(status)
         self.updateAovChnlTree()
         self.createStateThumb()
-
 
         getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
@@ -993,7 +911,7 @@ class Image_ImportClass(object):
                             channel_item.setData(0, Qt.UserRole, correct_file_data)
 
                             #   If AOV Thumbs are Enabled in Settings
-                            if self.fuseFuncts.useAovThumbs == "Enabled":
+                            if self.fuseFuncts.useAovThumbs != "Disabled":
                                 #   Get Thumb PixMap HTML object
                                 thumbTip = self.getThumbToolTip(correct_file_data["basefile"], channel=channel)
                                 #   Set Tool Tip
@@ -1017,7 +935,7 @@ class Image_ImportClass(object):
                     channel_item.setData(0, Qt.UserRole, correct_file_data)
 
                     #   If AOV Thumbs are Enabled in Settings
-                    if self.fuseFuncts.useAovThumbs == "Enabled":
+                    if self.fuseFuncts.useAovThumbs != "Disabled":
                         #   Get Thumb PixMap HTML object
                         thumbTip = self.getThumbToolTip(correct_file_data["basefile"], channel=channel)
                         #   Set Tool Tip
@@ -1048,20 +966,31 @@ class Image_ImportClass(object):
 
     #   Get PixMap from Filepath or Fallback image
     @err_catcher(name=__name__)
-    def getPixMap(self, filePath, width=None, height=None, channel=None):
+    def getPixMap(self, filePath, width=None, height=None, channel=None, allowThumb=True):
         fallbackPmap = self.core.media.getFallbackPixmap()
 
-        try:
-            if os.path.exists(filePath):
-                ext = os.path.splitext(filePath)[1]
-                if ext.lower() == ".exr":
-                    pixMap = self.core.media.getPixmapFromExrPath(filePath, width=width, height=height, channel=channel)
-                else:
-                    pixMap = self.core.media.getPixmapFromPath(filePath, width=width, height=height)
+        # self.core.popup(f"state filePath:  {filePath}")                     #   TESTING
+
+        # try:
+
+        if os.path.exists(filePath):
+            ext = os.path.splitext(filePath)[1]
+
+            if ext.lower() == ".exr":
+                # self.core.popup("IN EXR")                       #   TESTING
+                # self.core.popup(f"channel:  {channel}")                       #   TESTING
+
+
+                pixMap = self.core.media.getPixmapFromExrPath(filePath, width=width, height=height, channel=channel, allowThumb=allowThumb)
             else:
-                raise Exception
-        except:
-            pixMap = fallbackPmap
+                # self.core.popup("IN ELSE")                      #   TESTING
+
+                pixMap = self.core.media.getPixmapFromPath(filePath, width=width, height=height)
+
+        #     else:
+        #         raise Exception
+        # except:
+        #     pixMap = fallbackPmap
 
         return pixMap
     
@@ -1111,16 +1040,17 @@ class Image_ImportClass(object):
     def getThumbToolTip(self, filePath, channel):
         try:
             if self.core.media.getUseThumbnailForFile(filePath):
-                path = self.core.media.getThumbnailPath(filePath)
+                thumbPath = self.core.media.getThumbnailPath(filePath)
             else:
                 raise Exception
         except:
-            path = filePath
+            thumbPath = filePath
 
         width = self.aovThumbWidth
 
         # Load the original image to get its size
-        orig_pixmap = QPixmap(path)
+        orig_pixmap = QPixmap(thumbPath)
+
         if orig_pixmap.isNull():
             return ""
 
@@ -1130,7 +1060,15 @@ class Image_ImportClass(object):
         # Calculate height while maintaining aspect ratio
         height = int((width / orig_width) * orig_height) if orig_width else width
 
-        pixMap = self.getPixMap(path, width, height, channel)
+        path = thumbPath
+        allowThumb = True
+
+        if self.fuseFuncts.useAovThumbs == "All":
+            if channel and channel.lower() not in COLORNAMES:
+                path = filePath
+                allowThumb = False
+
+        pixMap = self.getPixMap(path, width, height, channel, allowThumb)
 
         # Convert QPixmap to Base64
         byte_array = QByteArray()
