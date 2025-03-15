@@ -219,11 +219,12 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.cb_taskColoring.setToolTip(tip)
 
 		tip = ("Enables image thumbnail display when hovering over AOV/Channels in the list.\n\n"
-		 	   "All: generates thumbnails for all image types.\n"
-		 	   "            Having this enabled could slow down performance of creating and loading states\n"
-			   "            with large image of video files.\n"
-			   "Simple: does not generate thumbnails for multi layer/part EXRs.\n"
-			   "            This will provide good performance.")
+		 	   "All:           generates thumbnails for all image types.\n"
+		 	   "                        Having this enabled could slow down performance of creating and\n"
+			   "                        and loading states with large image of video files.\n\n"
+			   "Simple:      does not generate separate thumbnails for multi layer/part EXRs.\n"
+			   "                        This will provide good performance.\n\n"
+			   "Disabled:    will only generate thumbnail for the State.")
 		origin.l_useAovThumbs.setToolTip(tip)
 		origin.cb_useAovThumbs.setToolTip(tip)
 

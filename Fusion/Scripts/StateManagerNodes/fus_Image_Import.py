@@ -49,6 +49,7 @@
 
 import os
 import logging
+import time
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -72,6 +73,9 @@ COLORNAMES = ["rgb",
               "diffuse",
               "diffcolor",
               "diffusecolor"]
+
+STATE_THUMB_WIDTH = 270               #   TODO HARDCODED with width for initil size issue.
+
 
 
 
@@ -198,6 +202,10 @@ class Image_ImportClass(object):
         self.connectEvents()
         self.nameChanged()
         self.updateUi()
+
+        self.createStateThumbnail()
+        self.updateAovChnlTree()
+        self.createAovThumbs()
 
 
     @err_catcher(name=__name__)
@@ -519,7 +527,6 @@ class Image_ImportClass(object):
         self.state.setText(0, name)
 
     
-
     @err_catcher(name=__name__)
     def browse(self):                               #   TODO
         # self.core.projectBrowser()
@@ -834,8 +841,6 @@ class Image_ImportClass(object):
 
         self.nameChanged()
         self.setStateColor(status)
-        self.updateAovChnlTree()
-        self.createStateThumb()
 
         getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
@@ -910,13 +915,6 @@ class Image_ImportClass(object):
                             #   Store file_data in tree item
                             channel_item.setData(0, Qt.UserRole, correct_file_data)
 
-                            #   If AOV Thumbs are Enabled in Settings
-                            if self.fuseFuncts.useAovThumbs != "Disabled":
-                                #   Get Thumb PixMap HTML object
-                                thumbTip = self.getThumbToolTip(correct_file_data["basefile"], channel=channel)
-                                #   Set Tool Tip
-                                channel_item.setToolTip(0, thumbTip)  # Set HTML tooltip
-
             # If no AOVs, list channels directly under the root
             for channel in data["channels"]:
                 channel_item = QTreeWidgetItem(root_item)
@@ -933,13 +931,6 @@ class Image_ImportClass(object):
                 if correct_file_data:
                     #   Store file_data in tree item
                     channel_item.setData(0, Qt.UserRole, correct_file_data)
-
-                    #   If AOV Thumbs are Enabled in Settings
-                    if self.fuseFuncts.useAovThumbs != "Disabled":
-                        #   Get Thumb PixMap HTML object
-                        thumbTip = self.getThumbToolTip(correct_file_data["basefile"], channel=channel)
-                        #   Set Tool Tip
-                        channel_item.setToolTip(0, thumbTip)  # Set HTML tooltip
 
         #   If there are no AOVs, add framerange under the MediaID
         if not hasAOVs:
@@ -969,119 +960,219 @@ class Image_ImportClass(object):
     def getPixMap(self, filePath, width=None, height=None, channel=None, allowThumb=True):
         fallbackPmap = self.core.media.getFallbackPixmap()
 
-        # self.core.popup(f"state filePath:  {filePath}")                     #   TESTING
+        try:
+            if os.path.exists(filePath):
+                ext = os.path.splitext(filePath)[1]
 
-        # try:
+                if ext.lower() == ".exr":
+                    pixMap = self.core.media.getPixmapFromExrPath(filePath, width=width, height=height, channel=channel, allowThumb=allowThumb)
+                else:
+                    pixMap = self.core.media.getPixmapFromPath(filePath, width=width, height=height)
 
-        if os.path.exists(filePath):
-            ext = os.path.splitext(filePath)[1]
-
-            if ext.lower() == ".exr":
-                # self.core.popup("IN EXR")                       #   TESTING
-                # self.core.popup(f"channel:  {channel}")                       #   TESTING
-
-
-                pixMap = self.core.media.getPixmapFromExrPath(filePath, width=width, height=height, channel=channel, allowThumb=allowThumb)
             else:
-                # self.core.popup("IN ELSE")                      #   TESTING
-
-                pixMap = self.core.media.getPixmapFromPath(filePath, width=width, height=height)
-
-        #     else:
-        #         raise Exception
-        # except:
-        #     pixMap = fallbackPmap
+                logger.warning("ERROR:  Unable to create pixmap - filepath does not exist")
+                raise Exception
+        except:
+            logger.warning("ERROR:  Unable to create thumbnail from filepath.  Using fallback.")
+            pixMap = fallbackPmap
 
         return pixMap
     
 
+    #   Gets Prism fallback image and scales pixmap
     @err_catcher(name=__name__)
-    def createStateThumb(self):
+    def getFallbackThumb(self, width):
+        try:
+            fallbackPixMap = self.core.media.getFallbackPixmap()
+        except:
+            logger.warning("ERROR:  Unable to get Prism Fallback Thumbnail")
+            return ""
+
+        try:
+            # Maintain aspect ratio: Calculate new height
+            aspectRatio = fallbackPixMap.height() / fallbackPixMap.width()
+            new_height = int(width * aspectRatio)
+
+            # Scale the pixmap to fill the QLabel's width while maintaining aspect ratio
+            scaledPixmap = fallbackPixMap.scaled(STATE_THUMB_WIDTH, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+            logger.debug("Created scaled fallback thumbnail")
+            return scaledPixmap, width, new_height
+        
+        except:
+            logger.warning("ERROR:  Unable to create Fallback Thumbnail")
+            return fallbackPixMap, width, width
+
+    
+    #   Creates State Thumbnail using threading
+    @err_catcher(name=__name__)
+    def createStateThumbnail(self):
         if not hasattr(self, 'l_thumb'):
             logger.warning("ERROR: QLabel 'l_thumb' not found in UI")
             return
+        
+        #   Get temp fallback thumbnail pixmap
+        temp_pixmap, temp_width, temp_height = self.getFallbackThumb(STATE_THUMB_WIDTH)
 
-        #   Get file to use for thumb
-        for fileData in self.importData["files"]:
-            #   Try and find Color Pass
-            if "aov" in fileData and fileData["aov"].lower() in COLORNAMES:
-                basefile = fileData["basefile"]
-                break
-
-            #   Use first Pass
-            else:
-                fileData = self.importData["files"][0]
-                basefile = fileData["basefile"]
-
-        #   Get PixMap
-        pixMap = self.getPixMap(basefile)
-        self.l_thumb.setPixmap(pixMap)
-
-        label_width = 270               #   TODO HARDCODED with width for initil size issue.
-
-        # Maintain aspect ratio: Calculate new height
-        aspectRatio = pixMap.height() / pixMap.width()
-        new_height = int(label_width * aspectRatio)
-
-        # Scale the pixmap to fill the QLabel's width while maintaining aspect ratio
-        scaledPixmap = pixMap.scaled(label_width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-
-        # Apply the scaled pixmap
-        self.l_thumb.setPixmap(scaledPixmap)
-        self.l_thumb.adjustSize()
-
-        self.l_thumb.setFixedHeight(new_height)
-        self.l_thumb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-        # Add a border
-        self.l_thumb.setStyleSheet("border: 1px solid gray;")
-
-
-    @err_catcher(name=__name__)
-    def getThumbToolTip(self, filePath, channel):
         try:
-            if self.core.media.getUseThumbnailForFile(filePath):
-                thumbPath = self.core.media.getThumbnailPath(filePath)
-            else:
-                raise Exception
+            # Apply the scaled pixmap
+            self.l_thumb.setPixmap(temp_pixmap)
+            self.l_thumb.adjustSize()
+
+            self.l_thumb.setFixedHeight(temp_height)
+            self.l_thumb.setFixedWidth(temp_width)
+            self.l_thumb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            # Add a border
+            self.l_thumb.setStyleSheet("border: 1px solid gray;")
         except:
-            thumbPath = filePath
+            logger.warning("ERROR:  Unable to set State Thumbnail")
+            return
 
-        width = self.aovThumbWidth
+        thumb_width = STATE_THUMB_WIDTH
 
-        # Load the original image to get its size
-        orig_pixmap = QPixmap(thumbPath)
+        # Get the file to use for the thumbnail
+        for fileData in self.importData["files"]:
+            # Try and find Color Pass
+            if "aov" in fileData and fileData["aov"].lower() in COLORNAMES:
+                filepath = fileData["basefile"]
+                break
+        else:
+            # Use the first Pass
+            fileData = self.importData["files"][0]
+            filepath = fileData["basefile"]
 
-        if orig_pixmap.isNull():
-            return ""
-
-        orig_width = orig_pixmap.width()
-        orig_height = orig_pixmap.height()
-
-        # Calculate height while maintaining aspect ratio
-        height = int((width / orig_width) * orig_height) if orig_width else width
-
-        path = thumbPath
+        channel = None
         allowThumb = True
 
-        if self.fuseFuncts.useAovThumbs == "All":
-            if channel and channel.lower() not in COLORNAMES:
-                path = filePath
-                allowThumb = False
-
-        pixMap = self.getPixMap(path, width, height, channel, allowThumb)
-
-        # Convert QPixmap to Base64
-        byte_array = QByteArray()
-        buffer = QBuffer(byte_array)
-        buffer.open(QIODevice.WriteOnly)
-        pixMap.save(buffer, "PNG")
-
-        base64_data = byte_array.toBase64().data().decode()
-        thumbTip = f'<img src="data:image/png;base64,{base64_data}" width="{width}"/>'
-
-        return thumbTip
+        # Create thumb thread
+        self.createThumb_thread = ThumbnailThread(self.l_thumb, filepath, thumb_width, temp_height, channel, allowThumb, self.getPixMap)
+        # Connect the signal to update the QLabel when the thumbnail is ready
+        self.createThumb_thread.thumbnail_ready.connect(self.updateThumbnail)
+        # Start the thread
+        self.createThumb_thread.start()
 
 
+    #   Generates pixmap for each AOV item with threading
+    @err_catcher(name=__name__)
+    def createAovThumbs(self):
+        if self.fuseFuncts.useAovThumbs == "Disabled":
+            return
+
+        #   Get all child items form AOV list
+        imageItems = self.getAovItems(self.lw_objects)
+        #   Store list of active threads
+        self.thumb_threads = []
+
+        for item in imageItems:
+            #   Get data from item
+            itemData = item.data(0, Qt.UserRole)
+            #   Skip item if no data
+            if not itemData:
+                continue
+
+            #   Get data items
+            origFilePath = itemData.get("basefile")
+            channel = itemData.get("channel")
+
+            #   Get source file for thumb generation
+            try:
+                #   Use Prism thumbnail
+                if self.core.media.getUseThumbnailForFile(origFilePath):
+                    thumbPath = self.core.media.getThumbnailPath(origFilePath)
+                else:
+                    raise FileNotFoundError("Thumbnail not available")
+            except FileNotFoundError:
+                #   Use original thumbnail
+                thumbPath = origFilePath
+
+            #   Get width based on DCC settings
+            width = self.aovThumbWidth
+
+            # Load the original image to get its size
+            orig_pixmap = QPixmap(thumbPath)
+            if orig_pixmap.isNull():
+                continue
+
+            #   Get sizes
+            orig_width = orig_pixmap.width()
+            orig_height = orig_pixmap.height()
+            height = int((width / orig_width) * orig_height) if orig_width else width
+
+            #   Default to using Prism thumbnail
+            path = thumbPath
+            allowThumb = True
+
+            #   If user selects All in DCC settings, use original image
+            if self.fuseFuncts.useAovThumbs == "All":
+                if channel and channel.lower() not in COLORNAMES:
+                    path = origFilePath
+                    allowThumb = False
+
+            # Create thumbnail thread
+            thumb_thread = ThumbnailThread(item, path, width, height, channel, allowThumb, self.getPixMap)
+            #   Store thread
+            self.thumb_threads.append(thumb_thread)
+            #   Connect thread finish
+            thumb_thread.thumbnail_ready.connect(self.setThumbToolTip)
+            #   Launch thread
+            thumb_thread.start()
+
+
+    #   Get list of child items
+    @err_catcher(name=__name__)
+    def getAovItems(self, treeWidget):
+        imageItems = []
+
+        def traverse(item):
+            if item.childCount() == 0:
+                imageItems.append(item)
+            else:
+                for i in range(item.childCount()):
+                    traverse(item.child(i))
+
+        # Iterate over top-level items
+        for i in range(treeWidget.topLevelItemCount()):
+            traverse(treeWidget.topLevelItem(i))
+
+        return imageItems
+    
+
+    #   Create html pixmap for AOV items
+    @err_catcher(name=__name__)
+    def setThumbToolTip(self, item, pixMap, new_height, new_width):
+        try:
+            # Convert QPixmap to Base64
+            byte_array = QByteArray()
+            buffer = QBuffer(byte_array)
+            buffer.open(QIODevice.WriteOnly)
+            pixMap.save(buffer, "PNG")
+
+            base64_data = byte_array.toBase64().data().decode()
+            thumbTip = f'<img src="data:image/png;base64,{base64_data}" width="{new_width}"/>'
+
+            #   Set Tool Tip
+            item.setToolTip(0, thumbTip)  # Set HTML tooltip
+        except:
+            logger.warning("ERROR:  Unable to set AOV thumb tooltip")
+
+
+    #   Replace placeholder thumb with generated pixmap
+    @err_catcher(name=__name__)
+    def updateThumbnail(self, item, pixMap, new_height, new_width):
+        # This will be called when the thumbnail is ready in the thread
+        try:
+            # Update QLabel with new pixmap and size
+            item.setPixmap(pixMap)
+            item.setFixedHeight(new_height)
+            item.setFixedWidth(new_width)
+
+            # Adjust the size to the pixmap
+            item.adjustSize()
+        except:
+            logger.warning("ERROR:  Unable to set State thumbnail")
+
+
+    #   Add color items to the combobox
     @err_catcher(name=__name__)
     def populateTaskColorCombo(self):
         #   Clear existing items
@@ -1100,6 +1191,7 @@ class Image_ImportClass(object):
             self.cb_taskColor.addItem(QIcon(icon), name)
 
 
+    #   Colors State Tools in the Comp
     @err_catcher(name=__name__)
     def setToolColor(self, color):
         #   Get all Tool UIDs for the State
@@ -1203,6 +1295,7 @@ class Image_ImportClass(object):
         }
 
 
+
 class ReadMediaDialog(QDialog):
 
     mediaSelected = Signal(object)
@@ -1232,9 +1325,9 @@ class ReadMediaDialog(QDialog):
         ##   Disconnect native function of showing versionInfo, and connect to import the version
         #   This is disabled unless the main code gets something connected to the ID table list widget
         # self.w_browser.tw_identifier.itemDoubleClicked.disconnect()
-        self.w_browser.tw_identifier.itemDoubleClicked.connect(self.identDblClicked)
+        self.w_browser.tw_identifier.itemDoubleClicked.connect(self.ident_dblClk)
         self.w_browser.lw_version.itemDoubleClicked.disconnect()
-        self.w_browser.lw_version.itemDoubleClicked.connect(self.verDblClicked)
+        self.w_browser.lw_version.itemDoubleClicked.connect(self.ver_dblClk)
 
         self.lo_main = QVBoxLayout()
         self.setLayout(self.lo_main)
@@ -1254,7 +1347,7 @@ class ReadMediaDialog(QDialog):
 
 
     @err_catcher(name=__name__)
-    def identDblClicked(self, item, column):
+    def ident_dblClk(self, item, column):
         selResult = ["identifier", item.data(0, Qt.UserRole)]
 
         self.mediaSelected.emit(selResult)
@@ -1262,7 +1355,7 @@ class ReadMediaDialog(QDialog):
 
 
     @err_catcher(name=__name__)
-    def verDblClicked(self, item):
+    def ver_dblClk(self, item):
         data = self.w_browser.getCurrentSource()
 
         if not data:
@@ -1323,6 +1416,7 @@ class ReadMediaDialog(QDialog):
             self.core.pb.showTab("Libraries")
 
 
+
 #   For the AOV list colored icons
 class statusColorDelegate(QStyledItemDelegate):
     def paint(self, painter, option, index):
@@ -1340,3 +1434,32 @@ class statusColorDelegate(QStyledItemDelegate):
             rect.setWidth(10)
 
             painter.fillRect(rect, QBrush(QColor(color)))
+
+
+
+class ThumbnailThread(QThread):
+    thumbnail_ready = Signal(QWidget, QPixmap, int, int)
+
+    def __init__(self, item, filepath, width, height, channel, allowThumb, funct_getPixMap):
+        super().__init__()
+        self.item = item
+        self.filepath = filepath
+        self.width = width
+        self.height = height
+        self.channel = channel
+        self.allowThumb = allowThumb
+        self.getPixMap = funct_getPixMap
+
+    def run(self):
+        # Get PixMap
+        pixMap = self.getPixMap(self.filepath, self.width, self.height, self.channel, self.allowThumb)
+
+        # Maintain aspect ratio: Calculate new height
+        aspectRatio = pixMap.height() / pixMap.width()
+        new_height = int(self.width * aspectRatio)
+
+        # Scale the pixmap to fill the QLabel's width while maintaining aspect ratio
+        scaledPixmap = pixMap.scaled(self.width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+        # Emit signal to update the UI with the pixmap
+        self.thumbnail_ready.emit(self.item, scaledPixmap, new_height, self.width)
