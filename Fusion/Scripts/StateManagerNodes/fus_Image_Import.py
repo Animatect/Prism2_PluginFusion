@@ -65,9 +65,7 @@ COLOR_ORANGE = QColor(200, 100, 0)
 COLOR_RED = QColor(130, 0, 0)
 COLOR_BLACK = QColor(0, 0, 0, 0)
 
-COLORNAMES = ["rgb",
-              "rgba",
-              "color", 
+COLORNAMES = ["color", 
               "beauty",
               "combined",
               "diffuse",
@@ -75,7 +73,6 @@ COLORNAMES = ["rgb",
               "diffusecolor"]
 
 STATE_THUMB_WIDTH = 270               #   TODO HARDCODED with width for initil size issue.
-
 
 
 
@@ -203,8 +200,8 @@ class Image_ImportClass(object):
         self.nameChanged()
         self.updateUi()
 
-        self.createStateThumbnail()
         self.updateAovChnlTree()
+        self.createStateThumbnail()
         self.createAovThumbs()
 
 
@@ -1028,24 +1025,56 @@ class Image_ImportClass(object):
             logger.warning("ERROR:  Unable to set State Thumbnail")
             return
 
+        #   Get state thumb width constant
         thumb_width = STATE_THUMB_WIDTH
 
-        # Get the file to use for the thumbnail
-        for fileData in self.importData["files"]:
-            # Try and find Color Pass
-            if "aov" in fileData and fileData["aov"].lower() in COLORNAMES:
-                filepath = fileData["basefile"]
-                break
-        else:
-            # Use the first Pass
-            fileData = self.importData["files"][0]
-            filepath = fileData["basefile"]
+        try:
+            #   Get child AOV items
+            aovItems = self.getAovItems(self.lw_objects)
 
-        channel = None
-        allowThumb = True
+            #   Default to use Prism thumbnails
+            beautyFilepath = None
+            channel = None
+            allowThumb = True
+
+            #   Try and find beauty/color AOV
+            for item in aovItems:
+                itemData = item.data(0, Qt.UserRole)
+                
+                if itemData.get("aov") and itemData["aov"].lower() in COLORNAMES:
+                    beautyFilepath = itemData["basefile"]
+
+                    #   If user selected "All" in DCC settings use original image
+                    if self.fuseFuncts.useAovThumbs == "All":
+                        channel = itemData["channel"]
+                        allowThumb = False
+
+                    break
+
+            if not beautyFilepath:
+            # If no AOV match, try and find beauty/color channel
+                for item in aovItems:
+                    itemData = item.data(0, Qt.UserRole)
+                    if any(color in itemData.get("channel", "").lower() for color in COLORNAMES):
+                        beautyFilepath = itemData["basefile"]
+                        
+                        #   If user selected "All" in DCC settings use original image
+                        if self.fuseFuncts.useAovThumbs == "All":
+                            channel = itemData["channel"]
+                            allowThumb = False
+
+                        break
+
+            # If still no match, use the first available file
+            if not beautyFilepath:
+                beautyFilepath = self.importData["files"][0]["basefile"]
+
+        except:
+            logger.warning("ERROR:  Unable to set State Thumbnail")
+            return
 
         # Create thumb thread
-        self.createThumb_thread = ThumbnailThread(self.l_thumb, filepath, thumb_width, temp_height, channel, allowThumb, self.getPixMap)
+        self.createThumb_thread = ThumbnailThread(self.l_thumb, beautyFilepath, thumb_width, temp_height, channel, allowThumb, self.getPixMap)
         # Connect the signal to update the QLabel when the thumbnail is ready
         self.createThumb_thread.thumbnail_ready.connect(self.updateThumbnail)
         # Start the thread
