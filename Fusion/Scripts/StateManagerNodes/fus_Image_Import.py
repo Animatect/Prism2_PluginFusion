@@ -74,6 +74,8 @@ COLORNAMES = ["color",
 
 STATE_THUMB_WIDTH = 270               #   TODO HARDCODED with width for initil size issue.
 
+scriptDir = os.path.dirname(os.path.dirname(__file__))
+STATE_ICON = os.path.join(scriptDir, "Icons", "Image.png")
 
 
 class Image_ImportClass(object):
@@ -506,7 +508,7 @@ class Image_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def nameChanged(self, text=None):
+    def nameChanged(self, text=None):                                   #   TODO -- Cleanup
         name = self.e_name.text()
 
         if text:
@@ -521,9 +523,12 @@ class Image_ImportClass(object):
             except Exception as e:                                          #   TODO
                 name = text
 
+        #   Set the name for the State list
         self.state.setText(0, name)
+        #   Add icon to State name
+        self.state.setIcon(0, QIcon(STATE_ICON))
 
-    
+
     @err_catcher(name=__name__)
     def browse(self):                               #   TODO
         # self.core.projectBrowser()

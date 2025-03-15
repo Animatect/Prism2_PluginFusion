@@ -57,6 +57,9 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 scripts_dir = os.path.dirname(current_dir)  # Scripts directory
 sys.path.append(scripts_dir)
 
+scriptDir = os.path.dirname(os.path.dirname(__file__))
+STATE_ICON = os.path.join(scriptDir, "Icons", "Scene.png")
+
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
@@ -313,7 +316,10 @@ class Legacy3D_ImportClass(object):
         except Exception as e:
             name = text
 
+        #   Set the name for the State list
         self.state.setText(0, name)
+        #   Add icon to State name
+        self.state.setIcon(0, QIcon(STATE_ICON))
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()

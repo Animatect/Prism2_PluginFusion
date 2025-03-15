@@ -58,6 +58,8 @@ from PrismUtils.Decorators import err_catcher
 
 logger = logging.getLogger(__name__)
 
+scriptDir = os.path.dirname(os.path.dirname(__file__))
+STATE_ICON = os.path.join(scriptDir, "Icons", "Geo.png")
 
 
 class Object3d_ImportClass(object):
@@ -307,7 +309,10 @@ class Object3d_ImportClass(object):
         except Exception as e:
             name = text
 
+        #   Set the name for the State list
         self.state.setText(0, name)
+        #   Add icon to State name
+        self.state.setIcon(0, QIcon(STATE_ICON))
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()

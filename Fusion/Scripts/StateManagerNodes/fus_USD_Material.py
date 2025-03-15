@@ -44,6 +44,8 @@ from PrismUtils.Decorators import err_catcher
 
 logger = logging.getLogger(__name__)
 
+scriptDir = os.path.dirname(os.path.dirname(__file__))
+STATE_ICON = os.path.join(scriptDir, "Icons", "Material.png")
 
 SUPPORTEDFORMATS = [".mtlx", ".png", ".jpg", ".jpeg", ".exr", ".tga", ".tif", ".tiff"]
 
@@ -301,7 +303,11 @@ class USD_MaterialClass(object):
 
         self.stateName = name
         self.e_name.setText(name)
+        
+        #   Set the name for the State list
         self.state.setText(0, name)
+        #   Add icon to State name
+        self.state.setIcon(0, QIcon(STATE_ICON))
 
         self.stateManager.saveStatesToScene()
 
