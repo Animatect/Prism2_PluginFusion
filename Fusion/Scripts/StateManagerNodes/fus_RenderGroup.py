@@ -60,6 +60,8 @@ from PrismUtils.Decorators import err_catcher
 
 logger = logging.getLogger(__name__)
 
+scriptDir = os.path.dirname(os.path.dirname(__file__))
+STATE_ICON = os.path.join(scriptDir, "Icons", "Group.png")
 
 
 class RenderGroupClass(object):
@@ -571,7 +573,10 @@ class RenderGroupClass(object):
 		if self.state.text(0).endswith(" - disabled"):
 			name += " - disabled"
 
+		#   Set the name for the State list
 		self.state.setText(0, name)
+		#   Add icon to State name
+		self.state.setIcon(0, QIcon(STATE_ICON))
 
 
 	@err_catcher(name=__name__)

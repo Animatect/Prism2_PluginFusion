@@ -61,6 +61,8 @@ from PrismUtils.Decorators import err_catcher
 
 logger = logging.getLogger(__name__)
 
+scriptDir = os.path.dirname(os.path.dirname(__file__))
+STATE_ICON = os.path.join(scriptDir, "Icons", "Render.png")
 
 
 class ImageRenderClass(object):
@@ -605,7 +607,12 @@ class ImageRenderClass(object):
 		if self.state.text(0).endswith(" - disabled"):
 			name += " - disabled"
 
+		#   Set the name for the State list
 		self.state.setText(0, name)
+
+		#   Add icon to State name								#	TODO -- Look into adding the icon
+		# self.state.setIcon(0, QIcon(STATE_ICON))				#	Uncommenting creates a recursion error - look into it.
+
 
 		self.statusColorNodeButton()
 
