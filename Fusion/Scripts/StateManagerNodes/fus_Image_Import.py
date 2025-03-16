@@ -153,16 +153,7 @@ class Image_ImportClass(object):
 
         #   2. If passed from FusFuncts. Receive importData via "settings" kwarg
         elif settings:
-            self.identifier = settings.get("identifier", None)
-            self.mediaType = settings.get("mediaType", None)
-            self.itemType = settings.get("itemType", None)
-            self.extension = settings.get("extension", None)
-            self.version = settings.get("version", None)
-            self.aov = settings.get("aov", "")
-            self.aovs = settings.get("aovs", "")
-            self.channel = settings.get("channel", "")
-            self.channels = settings.get("channels", "")
-            self.files = settings.get("files", None)
+            self.loadData(settings)
 
             logger.debug("Loaded State from data passed from ProjectBrowser Import")        #   TODO
 
@@ -450,6 +441,8 @@ class Image_ImportClass(object):
             self.e_name.setText(data["statename"])
         if "statemode" in data:
             self.setStateMode(data["statemode"])
+        if "stateUID" in data:
+            self.stateUID = data["stateUID"]
         if "taskname" in data:
             self.taskName = data["taskname"]
         if "setname" in data:
@@ -460,6 +453,8 @@ class Image_ImportClass(object):
             idx = self.cb_taskColor.findText(data["taskColor"])
             if idx != -1:
                 self.cb_taskColor.setCurrentIndex(idx)
+        if "importData" in data:
+            self.importData = data["importData"]
         if "identifier" in data:
             self.identifier = data["identifier"]
         if "mediaType" in data:
@@ -479,7 +474,7 @@ class Image_ImportClass(object):
         if "channels" in data:
             self.channels = data["channels"]
         if "files" in data:
-            self.channels = data["files"]
+            self.files = data["files"]
 
         if "filepath" in data:
             data["filepath"] = getattr(
@@ -721,9 +716,9 @@ class Image_ImportClass(object):
     @err_catcher(name=__name__)
     def checkLatestVersion(self):
         path = self.getImportPath()
-        curVerData = {"version": self.context["version"], "path": path}
+        curVerData = {"version": self.importData["version"], "path": path}
 
-        latestVerDict = self.core.mediaProducts.getLatestVersionFromIdentifier(self.context, includeMaster=True)
+        latestVerDict = self.core.mediaProducts.getLatestVersionFromIdentifier(self.importData, includeMaster=True)
         lastestVerName = latestVerDict["version"]
         lastestVerPath = latestVerDict["path"]
 
@@ -1310,12 +1305,13 @@ class Image_ImportClass(object):
         return {
             "statename": self.e_name.text(),
             "statemode": self.stateMode,
+            "stateUID": self.stateUID,
             "filepath": self.getImportPath(),
             "autoUpdate": str(self.chb_autoUpdate.isChecked()),
             "taskname": self.taskName,
             "setname": self.setName,
             "taskColor": self.cb_taskColor.currentText(),
-
+            "importData": self.importData,
             "identifier": self.identifier,
             "mediaType": self.mediaType,
             "itemType": self.itemType,
