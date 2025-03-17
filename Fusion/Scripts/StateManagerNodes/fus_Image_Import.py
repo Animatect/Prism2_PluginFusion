@@ -49,7 +49,6 @@
 
 import os
 import logging
-import time
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -59,12 +58,13 @@ from PrismUtils.Decorators import err_catcher
 
 logger = logging.getLogger(__name__)
 
-
+#   Global Colors
 COLOR_GREEN = QColor(0, 130, 0)
 COLOR_ORANGE = QColor(200, 100, 0)
 COLOR_RED = QColor(130, 0, 0)
 COLOR_BLACK = QColor(0, 0, 0, 0)
 
+#   Color names for beauty/color pass
 COLORNAMES = ["color", 
               "beauty",
               "combined",
@@ -72,10 +72,17 @@ COLORNAMES = ["color",
               "diffcolor",
               "diffusecolor"]
 
+#   Width of State Thumbnail
 STATE_THUMB_WIDTH = 270               #   TODO HARDCODED with width for initil size issue.
 
+#   Icon to be used for State
 scriptDir = os.path.dirname(os.path.dirname(__file__))
 STATE_ICON = os.path.join(scriptDir, "Icons", "Image.png")
+
+#   Qt Item data naming
+ITEM_ROLE_DATA = Qt.UserRole + 1
+ITEM_ROLE_COLOR = Qt.UserRole + 2
+ITEM_ROLE_CHECKBOX = Qt.UserRole + 3
 
 
 class Image_ImportClass(object):
@@ -199,9 +206,153 @@ class Image_ImportClass(object):
 
 
     @err_catcher(name=__name__)
+    def connectEvents(self):
+        self.e_name.textChanged.connect(self.nameChanged)
+        self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
+        self.cb_taskColor.currentIndexChanged.connect(lambda: self.setToolColor(self.cb_taskColor.currentText()))
+        self.b_focusView.clicked.connect(self.focusView)
+        self.b_selectTools.clicked.connect(self.selectTools)
+        self.lw_objects.itemPressed.connect(self.onAovItemClicked)                              #   When AOV item clicked
+        self.b_browse.clicked.connect(self.browse)                                              #   Select Version Button
+        self.b_browse.customContextMenuRequested.connect(self.openFolder)                       #   RCL Select Version Button
+        self.b_importLatest.clicked.connect(lambda: self.importLatest(selectedStates=False))    #   Import Latest Button
+        self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)                        #   Latest Checkbox
+        self.b_importAll.clicked.connect(lambda: self.importAll(refreshUi=True))
+        self.b_importSel.clicked.connect(self.importSelected)
+        self.b_import.clicked.connect(self.imageImport)                                         #   Re-Import Button        TODO
+
+
+    #########################
+    #                       #
+    #         STATE         #
+    #                       #
+    #########################
+
+
+    @err_catcher(name=__name__)
     def setStateMode(self, stateMode):
         self.stateMode = stateMode
         self.l_class.setText(stateMode)
+
+
+    @err_catcher(name=__name__)
+    def nameChanged(self, text=None):                                   #   TODO -- Cleanup
+        name = self.e_name.text()
+
+        if text:
+            name = text
+
+        else:
+            try:
+                name = f"{self.identifier}__{self.version}"
+
+            except Exception as e:                                          #   TODO
+                name = text
+
+        #   Set the name for the State list
+        self.state.setText(0, name)
+        #   Add icon to State name
+        self.state.setIcon(0, QIcon(STATE_ICON))
+
+
+    @err_catcher(name=__name__)
+    def browse(self, refreshUi=True):                               #   TODO
+        self.callMediaWindow()
+
+        if refreshUi:
+            self.updateUi()
+            self.updateAovChnlTree()
+            self.createAovThumbs()
+
+
+    @err_catcher(name=__name__)                     #   TODO
+    def openFolder(self, pos):
+        path = self.getImportPath()
+        if os.path.isfile(path):
+            path = os.path.dirname(path)
+
+        self.core.openFolder(path)
+
+
+    @err_catcher(name=__name__)                     #   Look at this
+    def getImportPath(self):
+        path = getattr(self, "importPath", "")
+        if path:
+            path = os.path.normpath(path)
+
+        return path
+
+
+    @err_catcher(name=__name__)
+    def setImportPath(self, path):                  #   Look at this
+        self.importPath = path
+        self.w_currentVersion.setToolTip(path)
+        self.stateManager.saveImports()
+        # self.updateUi()
+        self.stateManager.saveStatesToScene()
+
+
+    @err_catcher(name=__name__)
+    def autoUpdateChanged(self, checked):
+        # self.w_latestVersion.setVisible(not checked)
+        self.w_importLatest.setVisible(not checked)
+
+        if checked:
+            curVersion, latestVersion = self.checkLatestVersion()
+            if self.chb_autoUpdate.isChecked():
+                if curVersion.get("version") and latestVersion.get("version") and curVersion["version"] != latestVersion["version"]:
+                    self.importLatest(refreshUi=True, selectedStates=False)
+
+        self.stateManager.saveStatesToScene()
+
+
+    @err_catcher(name=__name__)
+    def runSanityChecks(self, cachePath):
+        result = True
+
+        if getattr(self.core.appPlugin, "hasFrameRange", True):
+            result = self.checkFrameRange(cachePath)
+
+        if not result:
+            return False
+
+        return True
+
+
+    @err_catcher(name=__name__)
+    def checkFrameRange(self, cachePath):
+        versionInfoPath = self.core.getVersioninfoPath(
+            self.core.mediaProducts.getMediaVersionInfoPathFromFilepath(cachePath)
+        )
+
+        impFPS = self.core.getConfig("fps", configPath=versionInfoPath)
+        curFPS = self.core.getFPS()
+        if not impFPS or not curFPS or impFPS == curFPS:
+            return True
+
+        fString = (
+            "The FPS of the import doesn't match the FPS of the current scene:\n\nCurrent scene FPS:\t%s\nImport FPS:\t\t%s"
+            % (curFPS, impFPS)
+        )
+
+        result = self.core.popupQuestion(
+            fString,
+            title="FPS mismatch",
+            buttons=["Continue", "Cancel"],
+            icon=QMessageBox.Warning,
+        )
+
+        if result == "Cancel":
+            return False
+
+        return True
+   
+    
+    #########################
+    #                       #
+    #          UI           #
+    #                       #
+    #########################
 
 
     @err_catcher(name=__name__)
@@ -227,7 +378,7 @@ class Image_ImportClass(object):
             result = self.makeImportData(self.selMediaContext)
 
         if clicked == "identifier":
-            result = self.importLatest(selectedStates=False)
+            result = self.importLatest(refreshUi=False, selectedStates=False)
         
         if not result:
             return False
@@ -235,20 +386,634 @@ class Image_ImportClass(object):
             return result
         else:
             return True
+        
+
+    @err_catcher(name=__name__)
+    def updateUi(self):
+        versions = self.checkLatestVersion()
+        if versions:
+            curVersion, latestVersion = versions
+        else:
+            curVersion = latestVersion = ""
+
+        if curVersion.get("version") == "master":
+            filepath = self.getImportPath()
+            curVersionName = self.core.mediaProducts.getMasterVersionLabel(filepath)
+        else:
+            curVersionName = curVersion.get("version")
+
+        if latestVersion.get("version") == "master":
+            filepath = latestVersion["path"]
+            latestVersionName = self.core.mediaProducts.getMasterVersionLabel(filepath)
+        else:
+            latestVersionName = latestVersion.get("version")
+
+        self.l_curVersion.setText(curVersionName or "-")
+        self.l_latestVersion.setText(latestVersionName or "-")
+
+        status = "error"
+        if self.chb_autoUpdate.isChecked():
+            if curVersionName and latestVersionName and curVersionName != latestVersionName:
+                self.importLatest(refreshUi=False)
+
+            if latestVersionName:
+                status = "ok"
+        else:
+            useSS = getattr(self.core.appPlugin, "colorButtonWithStyleSheet", False)
+            if (
+                curVersionName
+                and latestVersionName
+                and curVersionName != latestVersionName
+                and not curVersionName.startswith("master")
+            ):
+                status = "warning"
+                if useSS:
+                    self.b_importLatest.setStyleSheet(
+                        "QPushButton { background-color: rgb(200,100,0); }"
+                    )
+                else:
+                    self.b_importLatest.setPalette(self.updatePalette)
+            else:
+                if curVersionName and latestVersionName:
+                    status = "ok"
+
+                if useSS:
+                    self.b_importLatest.setStyleSheet("")
+                    self.b_importLatest.setStyleSheet(
+                        "QPushButton { background-color: rgb(0,100,0); }"
+                        )
+                else:
+                    # self.b_importLatest.setPalette(self.oldPalette)
+                    self.b_importLatest.setStyleSheet(
+                        "QPushButton { background-color: rgb(0,100,0); }"
+                        )
+
+        self.nameChanged()
+        self.setStateColor(status)
+
+        getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
+
+
+    @err_catcher(name=__name__)                             #   TODO - Add functionality to color based on AOV status
+    def setStateColor(self, status):
+        if status == "ok":
+            statusColor = COLOR_GREEN
+        elif status == "warning":
+            statusColor = COLOR_ORANGE
+        elif status == "error":
+            statusColor = COLOR_RED
+        else:
+            statusColor = COLOR_BLACK
+
+        self.statusColor = statusColor
+        self.stateManager.tw_import.repaint()
+
+
+    #   Populates the AOV tree and adds file data to each item
+    @err_catcher(name=__name__)
+    def updateAovChnlTree(self):
+        #   Setup UI
+        self.lw_objects.setHeaderHidden(True)
+        self.lw_objects.setMinimumHeight(350)
+        # self.lw_objects.setSelectionMode(QAbstractItemView.ExtendedSelection)
+        # self.lw_objects.setSelectionBehavior(QAbstractItemView.SelectRows)
+
+        #   Clear the list
+        self.lw_objects.clear()
+        #   Initialize the status icon
+        self.lw_objects.setItemDelegate(statusColorDelegate(self.lw_objects))
+        
+        # Create a root item
+        root_item = QTreeWidgetItem(self.lw_objects)
+        root_item.setText(0, f"{self.identifier}_{self.version}")
+        root_item.setExpanded(True)  # Expand the root item
+
+        #   Add checkbox actions to item
+        self.setupAovActions(root_item)
+
+        # Dictionary to store file data
+        basefile_dict = {}
+
+        #   To capture if there are AOVs
+        hasAOVs = False
+
+        # Organize files by basefile
+        for fileData in self.importData["files"]:
+            basefile = fileData["basefile"]
+            aov = fileData.get("aov", None)
+            channel = fileData["channel"]
+            frameRange = f"{fileData['frame_start']} - {fileData['frame_end']}"
+
+            if basefile not in basefile_dict:
+                basefile_dict[basefile] = {"aov_items": {}, "channels": [], "frameRange": frameRange}
+            
+            if aov:
+                if aov not in basefile_dict[basefile]["aov_items"]:
+                    basefile_dict[basefile]["aov_items"][aov] = []
+                basefile_dict[basefile]["aov_items"][aov].append(channel)
+            else:
+                basefile_dict[basefile]["channels"].append(channel)
+
+        # Populate tree with grouped data
+        for basefile, data in basefile_dict.items():
+            # Add AOVs if they exist
+            if data["aov_items"]:
+                #   Set if has AOVs
+                hasAOVs = True
+                #   Itterate through each AOV
+                for aov, channels in data["aov_items"].items():
+                    aov_item = QTreeWidgetItem(root_item)
+                    aov_item.setText(0, f"{aov}    (aov)    ({data['frameRange']})")
+                    aov_item.setExpanded(True)
+
+                    #   Add checkbox actions to item
+                    self.setupAovActions(aov_item)
+
+                    for channel in channels:
+                        channel_item = QTreeWidgetItem(aov_item)
+                        channel_item.setText(0, f"{channel}    (channel)")
+                        channel_item.setExpanded(True)
+
+                        # Find the corresponding fileData for this channel
+                        correct_fileData = next(
+                            (f for f in self.importData["files"]
+                            if f["basefile"] == basefile and f.get("aov") == aov and f["channel"] == channel),
+                            None
+                        )
+
+                        if correct_fileData:
+                            #   Store fileData in tree item
+                            channel_item.setData(0, ITEM_ROLE_DATA, correct_fileData)
+
+                        #   Add checkbox actions to item
+                        self.setupAovActions(channel_item)
+
+            # If no AOVs, list channels directly under the root
+            for channel in data["channels"]:
+                channel_item = QTreeWidgetItem(root_item)
+                channel_item.setText(0, f"{channel}    (channel)")
+                channel_item.setExpanded(True)
+
+                # Find the corresponding fileData for this channel
+                correct_fileData = next(
+                    (f for f in self.importData["files"]
+                    if f["basefile"] == basefile and f["channel"] == channel),
+                    None
+                )
+
+                if correct_fileData:
+                    #   Store fileData in tree item
+                    channel_item.setData(0, ITEM_ROLE_DATA, correct_fileData)
+
+                #   Add checkbox actions to item
+                self.setupAovActions(channel_item)
+
+        #   If there are no AOVs, add framerange under the MediaID
+        if not hasAOVs:
+            root_item.setText(0, f"{self.identifier}_{self.version}    ({data['frameRange']})")
+
+        self.updateAovStatus()
+
+
+    #   Adds checkbox and checkbox selection behaviour
+    @err_catcher(name=__name__)
+    def setupAovActions(self, item):
+        # Make item checkable
+        item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+
+        # Check if there's a saved state for the checkbox
+        if item.data(0, ITEM_ROLE_CHECKBOX) is not None:
+            checkState = item.data(0, ITEM_ROLE_CHECKBOX)
+            item.setCheckState(0, Qt.CheckState(checkState))
+        else:
+            item.setCheckState(0, Qt.Unchecked)
+
+        # Save checkbox state to its data
+        item.setCheckState(0, Qt.Unchecked)
+        item.setData(0, ITEM_ROLE_CHECKBOX, Qt.Unchecked)
+
+
+    #   Adds checkbox selection behaviours
+    @err_catcher(name=__name__)
+    def onAovItemClicked(self, item, column):
+        if item.flags() & Qt.ItemIsUserCheckable:
+            current_state = item.checkState(0)
+            new_state = Qt.Unchecked if current_state == Qt.Checked else Qt.Checked
+            item.setCheckState(0, new_state)
+            item.setData(0, ITEM_ROLE_CHECKBOX, new_state)
+
+            #   Sets tree checkboxes based on selection
+            self.onCheckboxStateChanged(item, column)
+
+        self.updateAovStatus()
+
+
+    #   Handles checkbox selection of the children and parents
+    @err_catcher(name=__name__)
+    def onCheckboxStateChanged(self, item, column):
+        state = item.checkState(0)
+        item.setData(0, ITEM_ROLE_CHECKBOX, state)
+
+        # Temporarily block signals to avoid recursion
+        self.lw_objects.blockSignals(True)
+
+        # Recursively apply the state to all child items
+        self._toggleCheckboxes(item, state)
+
+        # Update the parent check state
+        self._updateParentCheckbox(item)
+
+        # Re-enable signals
+        self.lw_objects.blockSignals(False)
+
+
+    @err_catcher(name=__name__)
+    def _toggleCheckboxes(self, item, state):
+        for row in range(item.childCount()):
+            child_item = item.child(row)
+            child_item.setCheckState(0, state)
+            child_item.setData(0, ITEM_ROLE_CHECKBOX, state)
+
+            # Recurse into the child's children
+            self._toggleCheckboxes(child_item, state)
+
+
+    @err_catcher(name=__name__)
+    def _updateParentCheckbox(self, item):
+        parent = item.parent()
+        #   Stop at the root parent
+        if not parent:
+            return
+
+        #   Find which children items are checked
+        all_checked = all(parent.child(i).checkState(0) == Qt.Checked for i in range(parent.childCount()))
+        any_checked = any(parent.child(i).checkState(0) == Qt.Checked for i in range(parent.childCount()))
+        any_unchecked = any(parent.child(i).checkState(0) == Qt.Unchecked for i in range(parent.childCount()))
+        any_partially_checked = any(parent.child(i).checkState(0) == Qt.PartiallyChecked for i in range(parent.childCount()))
+
+        #   Set parent's checkbox based on its children
+        if all_checked:
+            parent.setCheckState(0, Qt.Checked)
+        elif any_partially_checked:
+            parent.setCheckState(0, Qt.PartiallyChecked)
+        elif any_checked and any_unchecked:
+            parent.setCheckState(0, Qt.PartiallyChecked)
+        else:
+            parent.setCheckState(0, Qt.Unchecked)
+
+        parent.setData(0, ITEM_ROLE_CHECKBOX, parent.checkState(0))
+
+        # Stop at the root parent
+        if parent.parent():
+            self._updateParentCheckbox(parent)
+
+
+    @err_catcher(name=__name__)
+    def updateAovStatus(self):
+        stateUIDs = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID, includeConn=False)
+
+        # Get child AOV items
+        aovItems = self.getAovItems(self.lw_objects)
+
+        for item in aovItems:
+            #   FIX THIS
+            if item.checkState(0) != Qt.Checked:
+                item.setData(0, ITEM_ROLE_COLOR, None)  # Reset the color when unchecked
+                continue
+
+            id_match = False
+            ver_match = False
+
+            itemData = item.data(0, ITEM_ROLE_DATA)
+            if not itemData:
+                continue  
+
+            # Extract necessary values from itemData
+            item_mediaId = itemData.get("identifier")
+            item_aov = itemData.get("aov")
+            item_channel = itemData.get("channel")
+            item_version = itemData.get("version")
+
+            # Check each stateUID
+            for uid in stateUIDs:
+                if not self.fuseFuncts.nodeExists(uid):
+                    continue  # Don't break; keep checking other nodes
+
+                uidData = self.fuseFuncts.getNodeInfo("import2d", uid)
+                if not uidData:  
+                    continue  
+
+                mediaId = uidData.get("mediaId")
+                aov = uidData.get("aov")
+                channel = uidData.get("channel")
+                version = uidData.get("version")
+
+                # Check if all required fields match
+                if (
+                    mediaId == item_mediaId and 
+                    (aov is None or aov == item_aov) and  # Ensure aov matches or doesn't exist
+                    (channel is None or channel == item_channel)  # Ensure channel matches or doesn't exist
+                ):
+                    id_match = True  # Found at least one matching media ID with AOV and channel
+
+                    if version == item_version:
+                        ver_match = True  # Found an exact version match
+                        break  # No need to check further
+
+            # Assign color based on match status
+            if ver_match:
+                color = COLOR_GREEN
+            elif id_match:
+                color = COLOR_ORANGE
+            else:
+                color = COLOR_RED  # Only mark red if no match at all
+
+            item.setData(0, ITEM_ROLE_COLOR, color)
+
+
+    #   Get PixMap from Filepath or Fallback image
+    @err_catcher(name=__name__)
+    def getPixMap(self, filePath, width=None, height=None, channel=None, allowThumb=True):
+        fallbackPmap = self.core.media.getFallbackPixmap()
+
+        try:
+            if os.path.exists(filePath):
+                ext = os.path.splitext(filePath)[1]
+
+                if ext.lower() == ".exr":
+                    pixMap = self.core.media.getPixmapFromExrPath(filePath, width=width, height=height, channel=channel, allowThumb=allowThumb)
+                else:
+                    pixMap = self.core.media.getPixmapFromPath(filePath, width=width, height=height)
+
+            else:
+                logger.warning("ERROR:  Unable to create pixmap - filepath does not exist")
+                raise Exception
+        except:
+            logger.warning("ERROR:  Unable to create thumbnail from filepath.  Using fallback.")
+            pixMap = fallbackPmap
+
+        return pixMap
     
 
-    @err_catcher(name=__name__)                         #   TODO NEEDED???
-    def setSelectedMedia(self, selResult):
-        self.selResult = selResult  # Save the selected media
+    #   Gets Prism fallback image and scales pixmap
+    @err_catcher(name=__name__)
+    def getFallbackThumb(self, width):
+        try:
+            fallbackPixMap = self.core.media.getFallbackPixmap()
+        except:
+            logger.warning("ERROR:  Unable to get Prism Fallback Thumbnail")
+            return ""
 
+        try:
+            # Maintain aspect ratio: Calculate new height
+            aspectRatio = fallbackPixMap.height() / fallbackPixMap.width()
+            new_height = int(width * aspectRatio)
+
+            # Scale the pixmap to fill the QLabel's width while maintaining aspect ratio
+            scaledPixmap = fallbackPixMap.scaled(STATE_THUMB_WIDTH, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+            logger.debug("Created scaled fallback thumbnail")
+            return scaledPixmap, width, new_height
+        
+        except:
+            logger.warning("ERROR:  Unable to create Fallback Thumbnail")
+            return fallbackPixMap, width, width
+
+    
+    #   Creates State Thumbnail using threading
+    @err_catcher(name=__name__)
+    def createStateThumbnail(self):
+        if not hasattr(self, 'l_thumb'):
+            logger.warning("ERROR: QLabel 'l_thumb' not found in UI")
+            return
+        
+        #   Get temp fallback thumbnail pixmap
+        temp_pixmap, temp_width, temp_height = self.getFallbackThumb(STATE_THUMB_WIDTH)
+
+        try:
+            # Apply the scaled pixmap
+            self.l_thumb.setPixmap(temp_pixmap)
+            self.l_thumb.adjustSize()
+
+            self.l_thumb.setFixedHeight(temp_height)
+            self.l_thumb.setFixedWidth(temp_width)
+            self.l_thumb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
+            # Add a border
+            self.l_thumb.setStyleSheet("border: 1px solid gray;")
+        except:
+            logger.warning("ERROR:  Unable to set State Thumbnail")
+            return
+
+        #   Get state thumb width constant
+        thumb_width = STATE_THUMB_WIDTH
+
+        try:
+            #   Get child AOV items
+            aovItems = self.getAovItems(self.lw_objects)
+
+            #   Default to use Prism thumbnails
+            beautyFilepath = None
+            channel = None
+            allowThumb = True
+
+            #   Try and find beauty/color AOV
+            for item in aovItems:
+                itemData = item.data(0, ITEM_ROLE_DATA)
+                
+                if itemData.get("aov") and itemData["aov"].lower() in COLORNAMES:
+                    beautyFilepath = itemData["basefile"]
+
+                    #   If user selected "All" in DCC settings use original image
+                    if self.fuseFuncts.useAovThumbs == "All":
+                        channel = itemData["channel"]
+                        allowThumb = False
+
+                    break
+
+            if not beautyFilepath:
+            # If no AOV match, try and find beauty/color channel
+                for item in aovItems:
+                    itemData = item.data(0, ITEM_ROLE_DATA)
+                    if any(color in itemData.get("channel", "").lower() for color in COLORNAMES):
+                        beautyFilepath = itemData["basefile"]
+                        
+                        #   If user selected "All" in DCC settings use original image
+                        if self.fuseFuncts.useAovThumbs == "All":
+                            channel = itemData["channel"]
+                            allowThumb = False
+
+                        break
+
+            # If still no match, use the first available file
+            if not beautyFilepath:
+                beautyFilepath = self.importData["files"][0]["basefile"]
+
+        except:
+            logger.warning("ERROR:  Unable to set State Thumbnail")
+            return
+
+        # Create thumb thread
+        self.createThumb_thread = ThumbnailThread(self.l_thumb, beautyFilepath, thumb_width, temp_height, channel, allowThumb, self.getPixMap)
+        # Connect the signal to update the QLabel when the thumbnail is ready
+        self.createThumb_thread.thumbnail_ready.connect(self.updateThumbnail)
+        # Start the thread
+        self.createThumb_thread.start()
+
+
+    #   Generates pixmap for each AOV item with threading
+    @err_catcher(name=__name__)
+    def createAovThumbs(self):
+        if self.fuseFuncts.useAovThumbs == "Disabled":
+            return
+
+        #   Get all child items form AOV list
+        imageItems = self.getAovItems(self.lw_objects)
+        #   Store list of active threads
+        self.thumb_threads = []
+
+        for item in imageItems:
+            #   Get data from item
+            itemData = item.data(0, ITEM_ROLE_DATA)
+            #   Skip item if no data
+            if not itemData:
+                continue
+
+            #   Get data items
+            origFilePath = itemData.get("basefile")
+            channel = itemData.get("channel")
+
+            #   Get source file for thumb generation
+            try:
+                #   Use Prism thumbnail
+                if self.core.media.getUseThumbnailForFile(origFilePath):
+                    thumbPath = self.core.media.getThumbnailPath(origFilePath)
+                else:
+                    raise FileNotFoundError("Thumbnail not available")
+            except FileNotFoundError:
+                #   Use original thumbnail
+                thumbPath = origFilePath
+
+            #   Get width based on DCC settings
+            width = self.aovThumbWidth
+
+            # Load the original image to get its size
+            orig_pixmap = QPixmap(thumbPath)
+            if orig_pixmap.isNull():
+                continue
+
+            #   Get sizes
+            orig_width = orig_pixmap.width()
+            orig_height = orig_pixmap.height()
+            height = int((width / orig_width) * orig_height) if orig_width else width
+
+            #   Default to using Prism thumbnail
+            path = thumbPath
+            allowThumb = True
+
+            #   If user selects All in DCC settings, use original image
+            if self.fuseFuncts.useAovThumbs == "All":
+                if channel and channel.lower() not in COLORNAMES:
+                    path = origFilePath
+                    allowThumb = False
+
+            # Create thumbnail thread
+            thumb_thread = ThumbnailThread(item, path, width, height, channel, allowThumb, self.getPixMap)
+            #   Store thread
+            self.thumb_threads.append(thumb_thread)
+            #   Connect thread finish
+            thumb_thread.thumbnail_ready.connect(self.setThumbToolTip)
+            #   Launch thread
+            thumb_thread.start()
+
+
+    #   Get list of child items
+    @err_catcher(name=__name__)
+    def getAovItems(self, treeWidget):
+        imageItems = []
+
+        def traverse(item):
+            if item.childCount() == 0:
+                imageItems.append(item)
+            else:
+                for i in range(item.childCount()):
+                    traverse(item.child(i))
+
+        # Iterate over top-level items
+        for i in range(treeWidget.topLevelItemCount()):
+            traverse(treeWidget.topLevelItem(i))
+
+        return imageItems
+    
+
+    #   Create html pixmap for AOV items
+    @err_catcher(name=__name__)
+    def setThumbToolTip(self, item, pixMap, new_height, new_width):
+        try:
+            # Convert QPixmap to Base64
+            byte_array = QByteArray()
+            buffer = QBuffer(byte_array)
+            buffer.open(QIODevice.WriteOnly)
+            pixMap.save(buffer, "PNG")
+
+            base64_data = byte_array.toBase64().data().decode()
+            thumbTip = f'<img src="data:image/png;base64,{base64_data}" width="{new_width}"/>'
+
+            #   Set Tool Tip
+            item.setToolTip(0, thumbTip)  # Set HTML tooltip
+        except:
+            logger.warning("ERROR:  Unable to set AOV thumb tooltip")
+
+
+    #   Replace placeholder thumb with generated pixmap
+    @err_catcher(name=__name__)
+    def updateThumbnail(self, item, pixMap, new_height, new_width):
+        # This will be called when the thumbnail is ready in the thread
+        try:
+            # Update QLabel with new pixmap and size
+            item.setPixmap(pixMap)
+            item.setFixedHeight(new_height)
+            item.setFixedWidth(new_width)
+
+            # Adjust the size to the pixmap
+            item.adjustSize()
+        except:
+            logger.warning("ERROR:  Unable to set State thumbnail")
+
+
+    #   Add color items to the combobox
+    @err_catcher(name=__name__)
+    def populateTaskColorCombo(self):
+        #   Clear existing items
+        self.cb_taskColor.clear()
+
+        # Loop through color dictionary and add items with icons
+        for key in self.fuseFuncts.fusionToolsColorsDict.keys():
+            name = key
+            color = self.fuseFuncts.fusionToolsColorsDict[key]
+
+            # Create a QColor from the RGB values
+            qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
+
+            # Create icon with the color
+            icon = self.fuseFuncts.create_color_icon(qcolor)
+            self.cb_taskColor.addItem(QIcon(icon), name)
+
+
+
+    #########################
+    #                       #
+    #         DATA          #
+    #                       #
+    #########################
 
 
     @err_catcher(name=__name__)
     def makeImportData(self, context):
         
+        self.mediaBrowser = self.mediaChooser.w_browser
+        self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
+
         self.context = context
-        # self.context = context = self.mediaPlayer.getSelectedContexts()
-        # self.core.popup(f"context:  {context}")                                      #    TESTING
 
         version = self.mediaBrowser.getCurrentVersion()
 
@@ -403,6 +1168,11 @@ class Image_ImportClass(object):
             return None
 
 
+    @err_catcher(name=__name__)                         #   TODO NEEDED???
+    def setSelectedMedia(self, selResult):
+        self.selResult = selResult  # Save the selected media
+
+
     @err_catcher(name=__name__)
     def getImageExtension(self, context, basefile):
         #   Get file extension
@@ -485,137 +1255,78 @@ class Image_ImportClass(object):
         self.core.callback("onStateSettingsLoaded", self, data)
 
 
+    #########################
+    #                       #
+    #       UTILITIES       #
+    #                       #
+    #########################
+
+
+    #   Colors State Tools in the Comp
     @err_catcher(name=__name__)
-    def connectEvents(self):
-        self.e_name.textChanged.connect(self.nameChanged)
-        self.e_name.editingFinished.connect(self.stateManager.saveStatesToScene)
-        self.cb_taskColor.currentIndexChanged.connect(lambda: self.setToolColor(self.cb_taskColor.currentText()))
-        self.b_focusView.clicked.connect(self.focusView)
-        self.b_selectTools.clicked.connect(self.selectTools)
+    def setToolColor(self, color):
+        #   Get all Tool UIDs for the State
+        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
 
-        self.b_browse.clicked.connect(self.browse)                          #   Select Version Button
-        self.b_browse.customContextMenuRequested.connect(self.openFolder)   #   RCL Select Version Button
-        self.b_importLatest.clicked.connect(self.importLatest)              #   Import Latest Button
-        self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)    #   Latest Checkbox
-        self.b_importAll.clicked.connect(self.importAll)
-        self.b_importSel.clicked.connect(self.importSelected)
-        self.b_import.clicked.connect(self.imageImport)                     #   Re-Import Button        TODO
+        # Colors the Loaders and wireless nodes
+        if self.taskColorMode == "All Nodes":
+            toolsToColorUID = uids
 
-
-    @err_catcher(name=__name__)
-    def nameChanged(self, text=None):                                   #   TODO -- Cleanup
-        name = self.e_name.text()
-
-        if text:
-            name = text
-
+		#	Only colors the Loader nodes
+        elif self.taskColorMode == "Loader Nodes":
+            toolsToColorUID = []
+            for uid in uids:
+                tool = self.fuseFuncts.getNodeByUID(uid)
+                if tool.ID == "Loader":
+                    toolsToColorUID.append(uid)
         else:
-            try:
-                # importPath = self.getImportPath()
-                # fileData = self.core.mediaProducts.getDataFromFilepath(importPath)
-                name = f"{self.identifier}__{self.version}"
+            logger.debug("Tool Coloring is Disabled")
+            return
 
-            except Exception as e:                                          #   TODO
-                name = text
+        #   Get rgb color from dict
+        colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
+        #   Color tool
+        self.fuseFuncts.colorTools(toolsToColorUID, "import2d", colorRGB, category="import2d")
 
-        #   Set the name for the State list
-        self.state.setText(0, name)
-        #   Add icon to State name
-        self.state.setIcon(0, QIcon(STATE_ICON))
-
-
-    @err_catcher(name=__name__)
-    def browse(self):                               #   TODO
-        # self.core.projectBrowser()
-        # #	Switch to Media Tab
-        # if self.core.pb:
-        #     self.core.pb.showTab("Media")
-
-        self.callMediaWindow()
-
-
-    @err_catcher(name=__name__)                     #   TODO
-    def openFolder(self, pos):
-        path = self.getImportPath()
-        if os.path.isfile(path):
-            path = os.path.dirname(path)
-
-        self.core.openFolder(path)
-
-
-    @err_catcher(name=__name__)                     #   Look at this
-    def getImportPath(self):
-        path = getattr(self, "importPath", "")
-        if path:
-            path = os.path.normpath(path)
-
-        return path
-
-
-    @err_catcher(name=__name__)
-    def setImportPath(self, path):                  #   Look at this
-        self.importPath = path
-        self.w_currentVersion.setToolTip(path)
         self.stateManager.saveImports()
-        # self.updateUi()
         self.stateManager.saveStatesToScene()
 
 
+    #   Centers Flow View on Tool
     @err_catcher(name=__name__)
-    def autoUpdateChanged(self, checked):
-        self.w_latestVersion.setVisible(not checked)
-        self.w_importLatest.setVisible(not checked)
-
-        if checked:
-            curVersion, latestVersion = self.checkLatestVersion()
-            if self.chb_autoUpdate.isChecked():
-                if curVersion.get("version") and latestVersion.get("version") and curVersion["version"] != latestVersion["version"]:
-                    self.importLatest()
-
-        self.stateManager.saveStatesToScene()
+    def focusView(self):
+        #   Get all Tool UIDs for the State
+        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
+        for uid in uids:
+            #   Focus on the main Tool
+            nData = self.fuseFuncts.getNodeInfo("import2d", uid)
+            if nData["version"]:
+                self.fuseFuncts.sm_view_FocusStateTool(uid)
+                return
 
 
+    #   Selects all Tools of the State
     @err_catcher(name=__name__)
-    def runSanityChecks(self, cachePath):
-        result = True
+    def selectTools(self):
+        #   Get Fusion objects
+        comp = self.fuseFuncts.getCurrentComp()
+        flow = comp.CurrentFrame.FlowView
+        #   All State Tool UIDS
+        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
 
-        if getattr(self.core.appPlugin, "hasFrameRange", True):
-            result = self.checkFrameRange(cachePath)
-
-        if not result:
-            return False
-
-        return True
+        #   Select each Tool
+        for uid in uids:
+            tool = self.fuseFuncts.getNodeByUID(uid)
+            flow.Select(tool)
 
 
-    @err_catcher(name=__name__)
-    def checkFrameRange(self, cachePath):
-        versionInfoPath = self.core.getVersioninfoPath(
-            self.core.mediaProducts.getMediaVersionInfoPathFromFilepath(cachePath)
-        )
 
-        impFPS = self.core.getConfig("fps", configPath=versionInfoPath)
-        curFPS = self.core.getFPS()
-        if not impFPS or not curFPS or impFPS == curFPS:
-            return True
+    #########################
+    #                       #
+    #       IMPORTING       #
+    #                       #
+    #########################
 
-        fString = (
-            "The FPS of the import doesn't match the FPS of the current scene:\n\nCurrent scene FPS:\t%s\nImport FPS:\t\t%s"
-            % (curFPS, impFPS)
-        )
-
-        result = self.core.popupQuestion(
-            fString,
-            title="FPS mismatch",
-            buttons=["Continue", "Cancel"],
-            icon=QMessageBox.Warning,
-        )
-
-        if result == "Cancel":
-            return False
-
-        return True
-    
 
     @err_catcher(name=__name__)
     def imageImport(self, importData, update=False, path=None, settings=None):                              #   TODO
@@ -684,34 +1395,51 @@ class Image_ImportClass(object):
 
         return result
 
+    @err_catcher(name=__name__)
+    def importAll(self, refreshUi=False):
+        self.imageImport(self.importData)
+
+        if refreshUi:
+            self.updateUi()
+            self.updateAovChnlTree()
+            self.createAovThumbs()
+
 
     @err_catcher(name=__name__)
-    def importLatest(self, refreshUi=True, selectedStates=True):
-        mediaProducts = self.fuseFuncts.core.mediaProducts
-        # itemData = item.data(0, Qt.UserRole)
-        # currIdent = itemData["identifier"]
+    def importSelected(self, refreshUi=True):
+        importData = self.importData.copy()
 
-        # currIdent = self.importData["identifier"]
+        selected_info = []
 
-        highestVer = mediaProducts.getLatestVersionFromIdentifier(self.selMediaContext, includeMaster=True)
+        def collectCheckedItems(item):
+            """ Recursively collect checked items that are leaf nodes. """
+            if item.childCount() == 0 and item.checkState(0) == Qt.Checked:
+                file_data = item.data(0, ITEM_ROLE_DATA)
+                if file_data:
+                    selected_info.append(file_data)
 
-        # self.selMediaContext = highestVer
+            for i in range(item.childCount()):
+                collectCheckedItems(item.child(i))
 
-        result = self.makeImportData(highestVer)
+        # Start from the root item
+        root = self.lw_objects.invisibleRootItem()
+        for i in range(root.childCount()):
+            collectCheckedItems(root.child(i))
 
-        # self.updateUi()
-
-        if not result:
+        if selected_info:
+            importData["files"] = selected_info
+        else:
+            self.core.popup("No items selected.")
             return False
-        
-        if result == "Empty":
-            return result
-        
-        if not selectedStates:
-            self.importAll()
 
-        return True
-            
+        self.imageImport(importData)
+
+        if refreshUi:
+            self.updateUi()
+            self.updateAovChnlTree()
+            self.createAovThumbs()
+
+
 
     @err_catcher(name=__name__)
     def checkLatestVersion(self):
@@ -731,551 +1459,36 @@ class Image_ImportClass(object):
     
 
     @err_catcher(name=__name__)
-    def importAll(self):
-        self.imageImport(self.importData)
+    def importLatest(self, refreshUi=True, selectedStates=True):
+        mediaProducts = self.fuseFuncts.core.mediaProducts
+        # itemData = item.data(0, Qt.UserRole)
+        # currIdent = itemData["identifier"]
+
+        # currIdent = self.importData["identifier"]
+
+        highestVer = mediaProducts.getLatestVersionFromIdentifier(self.selMediaContext, includeMaster=True)
+
+        # self.selMediaContext = highestVer
+
+        result = self.makeImportData(highestVer)
 
 
-    @err_catcher(name=__name__)
-    def importSelected(self):
-        importData = self.importData.copy()
-
-        #   Get selected items
-        selItems = self.lw_objects.selectedItems()
-
-        if selItems:
-            selected_info = []
-            for item in selItems:
-                #   Only get children
-                if item.childCount() == 0:
-                    #   Get stored item data
-                    file_data = item.data(0, Qt.UserRole)
-                    selected_info.append(file_data)
-
-            if selected_info:
-                importData["files"] = selected_info
-
-        else:
-            self.core.popup("No items selected.")
+        if not result:
             return False
-
-        self.imageImport(importData)
-
-
-    @err_catcher(name=__name__)
-    def setStateColor(self, status):
-        if status == "ok":
-            statusColor = COLOR_GREEN
-        elif status == "warning":
-            statusColor = COLOR_ORANGE
-        elif status == "error":
-            statusColor = COLOR_RED
-        else:
-            statusColor = COLOR_BLACK
-
-        self.statusColor = statusColor
-        self.stateManager.tw_import.repaint()
-
-
-    @err_catcher(name=__name__)
-    def updateUi(self):
-        versions = self.checkLatestVersion()
-        if versions:
-            curVersion, latestVersion = versions
-        else:
-            curVersion = latestVersion = ""
-
-        if curVersion.get("version") == "master":
-            filepath = self.getImportPath()
-            curVersionName = self.core.mediaProducts.getMasterVersionLabel(filepath)
-        else:
-            curVersionName = curVersion.get("version")
-
-        if latestVersion.get("version") == "master":
-            filepath = latestVersion["path"]
-            latestVersionName = self.core.mediaProducts.getMasterVersionLabel(filepath)
-        else:
-            latestVersionName = latestVersion.get("version")
-
-        self.l_curVersion.setText(curVersionName or "-")
-        self.l_latestVersion.setText(latestVersionName or "-")
-
-        status = "error"
-        if self.chb_autoUpdate.isChecked():
-            if curVersionName and latestVersionName and curVersionName != latestVersionName:
-                self.importLatest(refreshUi=False)
-
-            if latestVersionName:
-                status = "ok"
-        else:
-            useSS = getattr(self.core.appPlugin, "colorButtonWithStyleSheet", False)
-            if (
-                curVersionName
-                and latestVersionName
-                and curVersionName != latestVersionName
-                and not curVersionName.startswith("master")
-            ):
-                status = "warning"
-                if useSS:
-                    self.b_importLatest.setStyleSheet(
-                        "QPushButton { background-color: rgb(200,100,0); }"
-                    )
-                else:
-                    self.b_importLatest.setPalette(self.updatePalette)
-            else:
-                if curVersionName and latestVersionName:
-                    status = "ok"
-
-                if useSS:
-                    self.b_importLatest.setStyleSheet("")
-                    self.b_importLatest.setStyleSheet(
-                        "QPushButton { background-color: rgb(0,100,0); }"
-                        )
-                else:
-                    # self.b_importLatest.setPalette(self.oldPalette)
-                    self.b_importLatest.setStyleSheet(
-                        "QPushButton { background-color: rgb(0,100,0); }"
-                        )
-
-        self.nameChanged()
-        self.setStateColor(status)
-
-        getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
-
-
-    #   Populates the AOV tree and adds file data to each item
-    @err_catcher(name=__name__)
-    def updateAovChnlTree(self):
-        #   Setup UI
-        self.lw_objects.setHeaderHidden(True)
-        self.lw_objects.setMinimumHeight(350)
-        self.lw_objects.setSelectionMode(QAbstractItemView.ExtendedSelection)
-        self.lw_objects.setSelectionBehavior(QAbstractItemView.SelectRows)
-
-        #   Clear the list
-        self.lw_objects.clear()
-        #   Initialize the status icon
-        self.lw_objects.setItemDelegate(statusColorDelegate(self.lw_objects))
         
-        # Create a root item
-        root_item = QTreeWidgetItem(self.lw_objects)
-        root_item.setText(0, f"{self.identifier}_{self.version}")
-        root_item.setExpanded(True)  # Expand the root item
-
-        # Dictionary to store file data
-        basefile_dict = {}
-
-        #   To capture if there are AOVs
-        hasAOVs = False
-
-        # Organize files by basefile
-        for file_data in self.importData["files"]:
-            basefile = file_data["basefile"]
-            aov = file_data.get("aov", None)
-            channel = file_data["channel"]
-            frameRange = f"{file_data['frame_start']} - {file_data['frame_end']}"
-
-            if basefile not in basefile_dict:
-                basefile_dict[basefile] = {"aov_items": {}, "channels": [], "frameRange": frameRange}
-            
-            if aov:
-                if aov not in basefile_dict[basefile]["aov_items"]:
-                    basefile_dict[basefile]["aov_items"][aov] = []
-                basefile_dict[basefile]["aov_items"][aov].append(channel)
-            else:
-                basefile_dict[basefile]["channels"].append(channel)
-
-        # Populate tree with grouped data
-        for basefile, data in basefile_dict.items():
-            # Add AOVs if they exist
-            if data["aov_items"]:
-                #   Set if has AOVs
-                hasAOVs = True
-                #   Itterate through each AOV
-                for aov, channels in data["aov_items"].items():
-                    aov_item = QTreeWidgetItem(root_item)
-                    aov_item.setText(0, f"{aov}    (aov)    ({data['frameRange']})")
-                    aov_item.setExpanded(True)  # Expand AOV item
-
-                    for channel in channels:
-                        channel_item = QTreeWidgetItem(aov_item)
-                        channel_item.setText(0, f"{channel}    (channel)")
-                        channel_item.setExpanded(True)  # Expand channel item
-
-                        # Find the corresponding file_data for this channel
-                        correct_file_data = next(
-                            (f for f in self.importData["files"]
-                            if f["basefile"] == basefile and f.get("aov") == aov and f["channel"] == channel),
-                            None
-                        )
-
-                        if correct_file_data:
-                            #   Store file_data in tree item
-                            channel_item.setData(0, Qt.UserRole, correct_file_data)
-
-            # If no AOVs, list channels directly under the root
-            for channel in data["channels"]:
-                channel_item = QTreeWidgetItem(root_item)
-                channel_item.setText(0, f"{channel}    (channel)")
-                channel_item.setExpanded(True)  # Expand channel item
-
-                # Find the corresponding file_data for this channel
-                correct_file_data = next(
-                    (f for f in self.importData["files"]
-                    if f["basefile"] == basefile and f["channel"] == channel),
-                    None
-                )
-
-                if correct_file_data:
-                    #   Store file_data in tree item
-                    channel_item.setData(0, Qt.UserRole, correct_file_data)
-
-        #   If there are no AOVs, add framerange under the MediaID
-        if not hasAOVs:
-            root_item.setText(0, f"{self.identifier}_{self.version}    ({data['frameRange']})")
-
-        self.lw_objects.itemSelectionChanged.connect(self.selectChildren)
-
-
-    #   Ensure all children of a selected item are also selected.
-    @err_catcher(name=__name__)
-    def selectChildren(self):
-        for item in self.lw_objects.selectedItems():
-            self._selectAllChildren(item)
-
-
-    #   Recursively select all child items.
-    @err_catcher(name=__name__)
-    def _selectAllChildren(self, item):
-        for i in range(item.childCount()):
-            child = item.child(i)
-            child.setSelected(True)
-            self._selectAllChildren(child)
-
-
-    #   Get PixMap from Filepath or Fallback image
-    @err_catcher(name=__name__)
-    def getPixMap(self, filePath, width=None, height=None, channel=None, allowThumb=True):
-        fallbackPmap = self.core.media.getFallbackPixmap()
-
-        try:
-            if os.path.exists(filePath):
-                ext = os.path.splitext(filePath)[1]
-
-                if ext.lower() == ".exr":
-                    pixMap = self.core.media.getPixmapFromExrPath(filePath, width=width, height=height, channel=channel, allowThumb=allowThumb)
-                else:
-                    pixMap = self.core.media.getPixmapFromPath(filePath, width=width, height=height)
-
-            else:
-                logger.warning("ERROR:  Unable to create pixmap - filepath does not exist")
-                raise Exception
-        except:
-            logger.warning("ERROR:  Unable to create thumbnail from filepath.  Using fallback.")
-            pixMap = fallbackPmap
-
-        return pixMap
-    
-
-    #   Gets Prism fallback image and scales pixmap
-    @err_catcher(name=__name__)
-    def getFallbackThumb(self, width):
-        try:
-            fallbackPixMap = self.core.media.getFallbackPixmap()
-        except:
-            logger.warning("ERROR:  Unable to get Prism Fallback Thumbnail")
-            return ""
-
-        try:
-            # Maintain aspect ratio: Calculate new height
-            aspectRatio = fallbackPixMap.height() / fallbackPixMap.width()
-            new_height = int(width * aspectRatio)
-
-            # Scale the pixmap to fill the QLabel's width while maintaining aspect ratio
-            scaledPixmap = fallbackPixMap.scaled(STATE_THUMB_WIDTH, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
-
-            logger.debug("Created scaled fallback thumbnail")
-            return scaledPixmap, width, new_height
+        if result == "Empty":
+            return result
         
-        except:
-            logger.warning("ERROR:  Unable to create Fallback Thumbnail")
-            return fallbackPixMap, width, width
+        if not selectedStates:
+            self.importAll()
 
-    
-    #   Creates State Thumbnail using threading
-    @err_catcher(name=__name__)
-    def createStateThumbnail(self):
-        if not hasattr(self, 'l_thumb'):
-            logger.warning("ERROR: QLabel 'l_thumb' not found in UI")
-            return
-        
-        #   Get temp fallback thumbnail pixmap
-        temp_pixmap, temp_width, temp_height = self.getFallbackThumb(STATE_THUMB_WIDTH)
+        if refreshUi:
+            self.updateUi()
+            self.updateAovChnlTree()
+            self.createAovThumbs()
 
-        try:
-            # Apply the scaled pixmap
-            self.l_thumb.setPixmap(temp_pixmap)
-            self.l_thumb.adjustSize()
+        return True
 
-            self.l_thumb.setFixedHeight(temp_height)
-            self.l_thumb.setFixedWidth(temp_width)
-            self.l_thumb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-            # Add a border
-            self.l_thumb.setStyleSheet("border: 1px solid gray;")
-        except:
-            logger.warning("ERROR:  Unable to set State Thumbnail")
-            return
-
-        #   Get state thumb width constant
-        thumb_width = STATE_THUMB_WIDTH
-
-        try:
-            #   Get child AOV items
-            aovItems = self.getAovItems(self.lw_objects)
-
-            #   Default to use Prism thumbnails
-            beautyFilepath = None
-            channel = None
-            allowThumb = True
-
-            #   Try and find beauty/color AOV
-            for item in aovItems:
-                itemData = item.data(0, Qt.UserRole)
-                
-                if itemData.get("aov") and itemData["aov"].lower() in COLORNAMES:
-                    beautyFilepath = itemData["basefile"]
-
-                    #   If user selected "All" in DCC settings use original image
-                    if self.fuseFuncts.useAovThumbs == "All":
-                        channel = itemData["channel"]
-                        allowThumb = False
-
-                    break
-
-            if not beautyFilepath:
-            # If no AOV match, try and find beauty/color channel
-                for item in aovItems:
-                    itemData = item.data(0, Qt.UserRole)
-                    if any(color in itemData.get("channel", "").lower() for color in COLORNAMES):
-                        beautyFilepath = itemData["basefile"]
-                        
-                        #   If user selected "All" in DCC settings use original image
-                        if self.fuseFuncts.useAovThumbs == "All":
-                            channel = itemData["channel"]
-                            allowThumb = False
-
-                        break
-
-            # If still no match, use the first available file
-            if not beautyFilepath:
-                beautyFilepath = self.importData["files"][0]["basefile"]
-
-        except:
-            logger.warning("ERROR:  Unable to set State Thumbnail")
-            return
-
-        # Create thumb thread
-        self.createThumb_thread = ThumbnailThread(self.l_thumb, beautyFilepath, thumb_width, temp_height, channel, allowThumb, self.getPixMap)
-        # Connect the signal to update the QLabel when the thumbnail is ready
-        self.createThumb_thread.thumbnail_ready.connect(self.updateThumbnail)
-        # Start the thread
-        self.createThumb_thread.start()
-
-
-    #   Generates pixmap for each AOV item with threading
-    @err_catcher(name=__name__)
-    def createAovThumbs(self):
-        if self.fuseFuncts.useAovThumbs == "Disabled":
-            return
-
-        #   Get all child items form AOV list
-        imageItems = self.getAovItems(self.lw_objects)
-        #   Store list of active threads
-        self.thumb_threads = []
-
-        for item in imageItems:
-            #   Get data from item
-            itemData = item.data(0, Qt.UserRole)
-            #   Skip item if no data
-            if not itemData:
-                continue
-
-            #   Get data items
-            origFilePath = itemData.get("basefile")
-            channel = itemData.get("channel")
-
-            #   Get source file for thumb generation
-            try:
-                #   Use Prism thumbnail
-                if self.core.media.getUseThumbnailForFile(origFilePath):
-                    thumbPath = self.core.media.getThumbnailPath(origFilePath)
-                else:
-                    raise FileNotFoundError("Thumbnail not available")
-            except FileNotFoundError:
-                #   Use original thumbnail
-                thumbPath = origFilePath
-
-            #   Get width based on DCC settings
-            width = self.aovThumbWidth
-
-            # Load the original image to get its size
-            orig_pixmap = QPixmap(thumbPath)
-            if orig_pixmap.isNull():
-                continue
-
-            #   Get sizes
-            orig_width = orig_pixmap.width()
-            orig_height = orig_pixmap.height()
-            height = int((width / orig_width) * orig_height) if orig_width else width
-
-            #   Default to using Prism thumbnail
-            path = thumbPath
-            allowThumb = True
-
-            #   If user selects All in DCC settings, use original image
-            if self.fuseFuncts.useAovThumbs == "All":
-                if channel and channel.lower() not in COLORNAMES:
-                    path = origFilePath
-                    allowThumb = False
-
-            # Create thumbnail thread
-            thumb_thread = ThumbnailThread(item, path, width, height, channel, allowThumb, self.getPixMap)
-            #   Store thread
-            self.thumb_threads.append(thumb_thread)
-            #   Connect thread finish
-            thumb_thread.thumbnail_ready.connect(self.setThumbToolTip)
-            #   Launch thread
-            thumb_thread.start()
-
-
-    #   Get list of child items
-    @err_catcher(name=__name__)
-    def getAovItems(self, treeWidget):
-        imageItems = []
-
-        def traverse(item):
-            if item.childCount() == 0:
-                imageItems.append(item)
-            else:
-                for i in range(item.childCount()):
-                    traverse(item.child(i))
-
-        # Iterate over top-level items
-        for i in range(treeWidget.topLevelItemCount()):
-            traverse(treeWidget.topLevelItem(i))
-
-        return imageItems
-    
-
-    #   Create html pixmap for AOV items
-    @err_catcher(name=__name__)
-    def setThumbToolTip(self, item, pixMap, new_height, new_width):
-        try:
-            # Convert QPixmap to Base64
-            byte_array = QByteArray()
-            buffer = QBuffer(byte_array)
-            buffer.open(QIODevice.WriteOnly)
-            pixMap.save(buffer, "PNG")
-
-            base64_data = byte_array.toBase64().data().decode()
-            thumbTip = f'<img src="data:image/png;base64,{base64_data}" width="{new_width}"/>'
-
-            #   Set Tool Tip
-            item.setToolTip(0, thumbTip)  # Set HTML tooltip
-        except:
-            logger.warning("ERROR:  Unable to set AOV thumb tooltip")
-
-
-    #   Replace placeholder thumb with generated pixmap
-    @err_catcher(name=__name__)
-    def updateThumbnail(self, item, pixMap, new_height, new_width):
-        # This will be called when the thumbnail is ready in the thread
-        try:
-            # Update QLabel with new pixmap and size
-            item.setPixmap(pixMap)
-            item.setFixedHeight(new_height)
-            item.setFixedWidth(new_width)
-
-            # Adjust the size to the pixmap
-            item.adjustSize()
-        except:
-            logger.warning("ERROR:  Unable to set State thumbnail")
-
-
-    #   Add color items to the combobox
-    @err_catcher(name=__name__)
-    def populateTaskColorCombo(self):
-        #   Clear existing items
-        self.cb_taskColor.clear()
-
-        # Loop through color dictionary and add items with icons
-        for key in self.fuseFuncts.fusionToolsColorsDict.keys():
-            name = key
-            color = self.fuseFuncts.fusionToolsColorsDict[key]
-
-            # Create a QColor from the RGB values
-            qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
-
-            # Create icon with the color
-            icon = self.fuseFuncts.create_color_icon(qcolor)
-            self.cb_taskColor.addItem(QIcon(icon), name)
-
-
-    #   Colors State Tools in the Comp
-    @err_catcher(name=__name__)
-    def setToolColor(self, color):
-        #   Get all Tool UIDs for the State
-        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
-
-        # Colors the Loaders and wireless nodes
-        if self.taskColorMode == "All Nodes":
-            toolsToColorUID = uids
-
-		#	Only colors the Loader nodes
-        elif self.taskColorMode == "Loader Nodes":
-            toolsToColorUID = []
-            for uid in uids:
-                tool = self.fuseFuncts.getNodeByUID(uid)
-                if tool.ID == "Loader":
-                    toolsToColorUID.append(uid)
-        else:
-            logger.debug("Tool Coloring is Disabled")
-            return
-
-        #   Get rgb color from dict
-        colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
-        #   Color tool
-        self.fuseFuncts.colorTools(toolsToColorUID, "import2d", colorRGB, category="import2d")
-
-        self.stateManager.saveImports()
-        self.stateManager.saveStatesToScene()
-
-
-    #   Centers Flow View on Tool
-    @err_catcher(name=__name__)
-    def focusView(self):
-        #   Get all Tool UIDs for the State
-        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
-        for uid in uids:
-            #   Focus on the main Tool
-            nData = self.fuseFuncts.getNodeInfo("import2d", uid)
-            if nData["version"]:
-                self.fuseFuncts.sm_view_FocusStateTool(uid)
-                return
-
-
-    #   Selects all Tools of the State
-    @err_catcher(name=__name__)
-    def selectTools(self):
-        #   Get Fusion objects
-        comp = self.fuseFuncts.getCurrentComp()
-        flow = comp.CurrentFrame.FlowView
-        #   All State Tool UIDS
-        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
-
-        #   Select each Tool
-        for uid in uids:
-            tool = self.fuseFuncts.getNodeByUID(uid)
-            flow.Select(tool)
 
 
     @err_catcher(name=__name__)
@@ -1324,6 +1537,13 @@ class Image_ImportClass(object):
             "files": self.files
         }
 
+
+
+    #########################
+    #                       #
+    #        CLASSES        #
+    #                       #
+    #########################
 
 
 class ReadMediaDialog(QDialog):
@@ -1421,9 +1641,11 @@ class ReadMediaDialog(QDialog):
                 msg = "Invalid version selected."
                 self.core.popup(msg, parent=self)
                 return
+            
+            selResult = ["version", data]
 
-            self.mediaSelected.emit(data)
-            self.accept()
+            self.mediaSelected.emit(selResult)
+            self.accept()  
 
         elif button.text() == "Import Custom":
             self.core.popup("Not Yet Implemented")                                      #    TESTING
@@ -1454,16 +1676,23 @@ class statusColorDelegate(QStyledItemDelegate):
         super().paint(painter, option, index)
 
         # Get the color from the item’s data
-        color = index.data(32)      #   TODO
+        color = index.data(ITEM_ROLE_COLOR)
 
         if color:
+            # Ensure the color is a QColor object
+            if isinstance(color, QColor):
+                brush_color = color
+            else:
+                brush_color = QColor(color)  # Convert to QColor if not already
+
             rect = QRect(option.rect)
-            #   Position on the right
+            # Position on the right
             rect.setLeft(option.rect.right() - 14)  
-            #   Set width of the color box
+            # Set width of the color box
             rect.setWidth(10)
 
-            painter.fillRect(rect, QBrush(QColor(color)))
+            painter.fillRect(rect, QBrush(brush_color))
+
 
 
 
