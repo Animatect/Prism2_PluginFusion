@@ -204,6 +204,9 @@ class Image_ImportClass(object):
         self.createStateThumbnail()
         self.createAovThumbs()
 
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
+
 
     @err_catcher(name=__name__)
     def connectEvents(self):
@@ -311,7 +314,7 @@ class Image_ImportClass(object):
 
         else:
             try:
-                name = f"{self.identifier}__{self.version}"
+                name = f"{self.importData['identifier']}__{self.importData['version']}"
 
             except Exception as e:                                          #   TODO
                 name = text
@@ -320,6 +323,9 @@ class Image_ImportClass(object):
         self.state.setText(0, name)
         #   Add icon to State name
         self.state.setIcon(0, QIcon(STATE_ICON))
+
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
 
 
     @err_catcher(name=__name__)
@@ -355,7 +361,6 @@ class Image_ImportClass(object):
         self.importPath = path
         self.w_currentVersion.setToolTip(path)
         self.stateManager.saveImports()
-        # self.updateUi()
         self.stateManager.saveStatesToScene()
 
 
@@ -369,6 +374,7 @@ class Image_ImportClass(object):
                 if curVersion.get("version") and latestVersion.get("version") and curVersion["version"] != latestVersion["version"]:
                     self.importLatest(refreshUi=True, selectedStates=False)
 
+        self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
 
 
@@ -517,6 +523,9 @@ class Image_ImportClass(object):
 
         getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
+
 
     @err_catcher(name=__name__)                             #   TODO - Add functionality to color based on AOV status
     def setStateColor(self, status):
@@ -566,7 +575,7 @@ class Image_ImportClass(object):
         
         # Create a root item
         root_item = QTreeWidgetItem(self.lw_objects)
-        root_item.setText(0, f"{self.identifier}_{self.version}")
+        root_item.setText(0, f"{self.importData['identifier']}_{self.importData['version']}")
         root_item.setExpanded(True)  # Expand the root item
 
         #   Add checkbox actions to item
@@ -624,7 +633,7 @@ class Image_ImportClass(object):
 
                         if correct_fileData:
                             #   Store fileData in tree item
-                            channel_item.setData(0, ITEM_ROLE_DATA, correct_fileData)
+                            self.setItemData(channel_item, correct_fileData)
 
                         #   Add checkbox actions to item
                         self.setupAovActions(channel_item)
@@ -644,31 +653,17 @@ class Image_ImportClass(object):
 
                 if correct_fileData:
                     #   Store fileData in tree item
-                    channel_item.setData(0, ITEM_ROLE_DATA, correct_fileData)
+                    self.setItemData(channel_item, correct_fileData)
+
 
                 #   Add checkbox actions to item
                 self.setupAovActions(channel_item)
 
         #   If there are no AOVs, add framerange under the MediaID
         if not hasAOVs:
-            root_item.setText(0, f"{self.identifier}_{self.version}    ({data['frameRange']})")
+            root_item.setText(0, f"{self.importData['identifier']}_{self.importData['version']}    ({data['frameRange']})")
 
         self.updateAovStatus()
-
-
-    #   Sets item checkbox and saves it to the item data                    #   TODO add code to save it to importData
-    @err_catcher(name=__name__)
-    def setCheckbox(self, item, checked):
-        #   If passed a bool, convert to Qt.Checked type
-        if isinstance(checked, bool):
-            if checked:
-                checked = Qt.Checked
-            else:
-                checked = Qt.Unchecked
-        #   Set the checkbox
-        item.setCheckState(0, checked)
-        #   Save to item's data
-        item.setData(0, ITEM_ROLE_CHECKBOX, checked)
 
 
     #   Adds checkbox and checkbox selection behaviour
@@ -677,13 +672,17 @@ class Image_ImportClass(object):
         # Make item checkable
         item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
 
-        # Check if there's a saved state for the checkbox
-        if item.data(0, ITEM_ROLE_CHECKBOX) is not None:
-            checked = item.data(0, ITEM_ROLE_CHECKBOX)
-            self.setCheckbox(item, checked)
+        matchingData = self.getMatchingDataFromItem(item)
+        if matchingData:
+            checked = matchingData.get("stateChecked", None)
+            if checked:
+                self.setItemChecked(item, checked)
+            else:
+                self.setItemChecked(item, "unchecked")
         else:
-            item.setCheckState(0, Qt.Unchecked)
-            self.setCheckbox(item, checked=False)
+            self.setItemChecked(item, "unchecked")
+
+        self._updateParentCheckbox(item)
 
 
     #   Adds checkbox selection behaviours
@@ -691,29 +690,32 @@ class Image_ImportClass(object):
     def onAovItemClicked(self, item, column):
         if item.flags() & Qt.ItemIsUserCheckable:
             #   Get current checked state
-            current_checked = item.checkState(0)
+            current_checked = self.getItemChecked(item)
             #   Reverse the checked state
-            new_checked = Qt.Unchecked if current_checked == Qt.Checked else Qt.Checked
+            new_checked = "unchecked" if current_checked == "checked" else "checked"
             #   Set the checkbox with new state
-            self.setCheckbox(item, new_checked)
+            self.setItemChecked(item, new_checked)
             #   Sets tree checkboxes based on selection
             self.onCheckboxStateChanged(item, column)
 
         #   Call the AOV coloring after toggling
         self.updateAovStatus()
+
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
  
 
     #   Handles checkbox selection of the children and parents
     @err_catcher(name=__name__)
     def onCheckboxStateChanged(self, item, column):
-        checked = item.checkState(0)
+        checked = self.getItemChecked(item)
         item.setData(0, ITEM_ROLE_CHECKBOX, checked)
 
         # Temporarily block signals to avoid recursion
         self.lw_objects.blockSignals(True)
 
         # Recursively apply the state to all child items
-        self._toggleCheckboxes(item, checked)
+        self._toggleCheckbox(item, checked)
 
         # Update the parent check state
         self._updateParentCheckbox(item)
@@ -723,13 +725,13 @@ class Image_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def _toggleCheckboxes(self, item, checked):
+    def _toggleCheckbox(self, item, checked):
         for row in range(item.childCount()):
             child_item = item.child(row)
-            self.setCheckbox(child_item, checked)
+            self.setItemChecked(child_item, checked)
 
             # Recurse into the child's children
-            self._toggleCheckboxes(child_item, checked)
+            self._toggleCheckbox(child_item, checked)
 
 
     @err_catcher(name=__name__)
@@ -743,19 +745,19 @@ class Image_ImportClass(object):
         all_checked = all(parent.child(i).checkState(0) == Qt.Checked for i in range(parent.childCount()))
         any_checked = any(parent.child(i).checkState(0) == Qt.Checked for i in range(parent.childCount()))
         any_unchecked = any(parent.child(i).checkState(0) == Qt.Unchecked for i in range(parent.childCount()))
-        any_partially_checked = any(parent.child(i).checkState(0) == Qt.PartiallyChecked for i in range(parent.childCount()))
+        any_partially = any(parent.child(i).checkState(0) == Qt.PartiallyChecked for i in range(parent.childCount()))
 
         #   Set parent's checkbox based on its children
         if all_checked:
             checked = Qt.Checked
-        elif any_partially_checked:
+        elif any_partially:
             checked = Qt.PartiallyChecked
         elif any_checked and any_unchecked:
             checked = Qt.PartiallyChecked
         else:
             checked = Qt.Unchecked
 
-        self.setCheckbox(parent, checked)
+        self.setItemChecked(parent, checked)
 
         # Stop at the root parent
         if parent.parent():
@@ -763,22 +765,40 @@ class Image_ImportClass(object):
 
 
     @err_catcher(name=__name__)
+    def getAllItems(self, useChecked=False, aovs=False):
+        items = []
+
+        def _recursiveCollect(item):
+            isLeaf = item.childCount() == 0
+            if (not aovs or isLeaf) and (not useChecked or self.getItemChecked(item)=="checked"):
+                items.append(item)
+            for i in range(item.childCount()):
+                _recursiveCollect(item.child(i))
+
+        # Iterate through top-level items
+        for i in range(self.lw_objects.topLevelItemCount()):
+            _recursiveCollect(self.lw_objects.topLevelItem(i))
+
+        return items
+
+
+    @err_catcher(name=__name__)
     def updateAovStatus(self):
         stateUIDs = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID, includeConn=False)
 
         # Get child AOV items
-        aovItems = self.getAovItems(self.lw_objects)
+        aovItems = self.getAllItems(aovs=True)
 
         for item in aovItems:
             #   Removes and then skips unchecked items
-            if item.checkState(0) != Qt.Checked:
-                item.setData(0, ITEM_ROLE_COLOR, None)
+            if self.getItemChecked(item) != "checked":
+                self.setItemStatusColor(item, None)
                 continue
 
             id_match = False
             ver_match = False
 
-            itemData = item.data(0, ITEM_ROLE_DATA)
+            itemData = self.getItemData(item)
             if not itemData:
                 continue  
 
@@ -822,7 +842,7 @@ class Image_ImportClass(object):
             else:
                 color = COLOR_RED
 
-            item.setData(0, ITEM_ROLE_COLOR, color)
+            self.setItemStatusColor(item, color)
 
 
 
@@ -910,7 +930,7 @@ class Image_ImportClass(object):
 
         try:
             #   Get child AOV items
-            aovItems = self.getAovItems(self.lw_objects)
+            aovItems = self.getAllItems(aovs=True)
 
             #   Default to use Prism thumbnails
             beautyFilepath = None
@@ -919,7 +939,7 @@ class Image_ImportClass(object):
 
             #   Try and find beauty/color AOV
             for item in aovItems:
-                itemData = item.data(0, ITEM_ROLE_DATA)
+                itemData = self.getItemData(item)
                 
                 if itemData.get("aov") and itemData["aov"].lower() in COLORNAMES:
                     beautyFilepath = itemData["basefile"]
@@ -934,7 +954,7 @@ class Image_ImportClass(object):
             if not beautyFilepath:
             # If no AOV match, try and find beauty/color channel
                 for item in aovItems:
-                    itemData = item.data(0, ITEM_ROLE_DATA)
+                    itemData = self.getItemData(item)
                     if any(color in itemData.get("channel", "").lower() for color in COLORNAMES):
                         beautyFilepath = itemData["basefile"]
                         
@@ -967,14 +987,15 @@ class Image_ImportClass(object):
         if self.fuseFuncts.useAovThumbs == "Disabled":
             return
 
-        #   Get all child items form AOV list
-        imageItems = self.getAovItems(self.lw_objects)
         #   Store list of active threads
         self.thumb_threads = []
 
+        #   Get all child items from AOV list
+        imageItems = self.getAllItems(aovs=True)
+
         for item in imageItems:
             #   Get data from item
-            itemData = item.data(0, ITEM_ROLE_DATA)
+            itemData = self.getItemData(item)
             #   Skip item if no data
             if not itemData:
                 continue
@@ -1025,25 +1046,6 @@ class Image_ImportClass(object):
             thumb_thread.thumbnail_ready.connect(self.setThumbToolTip)
             #   Launch thread
             thumb_thread.start()
-
-
-    #   Get list of child items
-    @err_catcher(name=__name__)
-    def getAovItems(self, treeWidget):
-        imageItems = []
-
-        def traverse(item):
-            if item.childCount() == 0:
-                imageItems.append(item)
-            else:
-                for i in range(item.childCount()):
-                    traverse(item.child(i))
-
-        # Iterate over top-level items
-        for i in range(treeWidget.topLevelItemCount()):
-            traverse(treeWidget.topLevelItem(i))
-
-        return imageItems
     
 
     #   Create html pixmap for AOV items
@@ -1184,11 +1186,15 @@ class Image_ImportClass(object):
                 if hasAOVs:
                     fileDict.update({"aov": aov})
 
+                #   Create UUID for each basefile
+                fileDict["fileUID"] = self.fuseFuncts.createUUID()
+
                 # Append to files list
                 files.append(fileDict)
 
         # Add the files to the importData
         importData["files"] = files
+        self.setImportPath(files[0]["basefile"])
 
         #   Add additional data if exist
         importData["extension"] = extension
@@ -1215,22 +1221,8 @@ class Image_ImportClass(object):
         if "redirect" in context:
             importData["redirect"] = context["redirect"]
 
-        files = importData["files"]
-
+        #   Set global data object
         self.importData = importData
-
-        self.identifier = importData.get("identifier", None)
-        self.mediaType = importData.get("mediaType", None)
-        self.itemType = importData.get("itemType", None)
-        self.extension = importData.get("extension", None)
-        self.version = importData.get("version", None)
-        self.aov = importData.get("aov", "")
-        self.aovs = importData.get("aovs", "")
-        self.channel = importData.get("channel", "")
-        self.channels = importData.get("channels", "")
-        self.files = importData.get("files", None)
-
-        self.setImportPath(self.files[0]["basefile"])
 
         return True
     
@@ -1250,6 +1242,122 @@ class Image_ImportClass(object):
     @err_catcher(name=__name__)                         #   TODO NEEDED???
     def setSelectedMedia(self, selResult):
         self.selResult = selResult  # Save the selected media
+
+
+    @err_catcher(name=__name__)
+    def setItemData(self, item, data):
+        item.setData(0, ITEM_ROLE_DATA, data)
+
+
+    @err_catcher(name=__name__)
+    def getItemData(self, item):
+        return item.data(0, ITEM_ROLE_DATA)
+    
+
+    #   Sets item checkbox and saves it to the item data
+    @err_catcher(name=__name__)
+    def setItemChecked(self, item, checked):
+        if isinstance(checked, str):
+            checked_str = checked
+            checked_qt = self.strToQtChecked(checked)
+        elif isinstance(checked, Qt.CheckState):
+            checked_str = self.qtCheckedToStr(checked)
+            checked_qt = checked
+        else:
+            checked_str = "unchecked"
+            checked_qt = self.strToQtChecked("unchecked")
+
+        #   Set the checkbox using Qt.checked
+        item.setCheckState(0, checked_qt)
+        #   Save to item's data as str
+        item.setData(0, ITEM_ROLE_CHECKBOX, checked_str)
+
+        #   Save checked to importData
+        matching_fileData = self.getMatchingDataFromItem(item)
+        if matching_fileData:
+            matching_fileData["stateChecked"] = checked_str
+
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
+
+
+
+    @err_catcher(name=__name__)
+    def getItemChecked(self, item):
+        checked_raw = item.data(0, ITEM_ROLE_CHECKBOX)
+        if not checked_raw:
+            return None
+        
+        if isinstance(checked_raw, str):
+            checked_str = checked_raw
+            checked_qt = self.strToQtChecked(checked_raw)
+        elif isinstance(checked_raw, Qt.CheckState):
+            checked_str = self.qtCheckedToStr(checked_raw)
+            checked_qt = checked_raw
+        else:
+            return None
+
+        return checked_str
+    
+
+    @err_catcher(name=__name__)
+    def qtCheckedToStr(self, checked_qt):
+        if isinstance(checked_qt, Qt.CheckState):
+            if checked_qt == Qt.Checked:
+                checked_str = "checked"
+            elif checked_qt == Qt.Unchecked:
+                checked_str = "unchecked"
+            elif checked_qt == Qt.PartiallyChecked:
+                checked_str = "partial"
+
+            return checked_str
+        else:
+            logger.warning("ERROR:  'Checked' is not a Qt check object" )
+            return "Unchecked"
+
+
+    @err_catcher(name=__name__)
+    def strToQtChecked(self, checked_str):
+        if isinstance(checked_str, str):
+            if checked_str == "checked":
+                checked_qt = Qt.Checked
+            elif checked_str == "unchecked":
+                checked_qt = Qt.Unchecked
+            elif checked_str == "partial":
+                checked_qt = Qt.PartiallyChecked
+
+            return checked_qt
+        else:
+            logger.warning("ERROR:  'Checked' is not a string.")
+            return "UnChecked"
+
+
+    @err_catcher(name=__name__)
+    def setItemStatusColor(self, item, color):
+        item.setData(0, ITEM_ROLE_COLOR, color)
+
+
+    @err_catcher(name=__name__)
+    def getItemStatusColor(self, item):
+        return item.data(0, ITEM_ROLE_COLOR)
+    
+
+    @err_catcher(name=__name__)
+    def getMatchingDataFromItem(self, item):
+        itemData = self.getItemData(item)
+        if not itemData:
+            return None
+        
+        itemUID = itemData["fileUID"]
+
+        fData = self.importData["files"]
+
+        for fileData in fData:
+            if fileData["fileUID"] == itemUID:
+                return fileData
+            
+        else:
+            return None
 
 
     @err_catcher(name=__name__)
@@ -1286,6 +1394,8 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def loadData(self, data):
+        self.importData = data
+
         if "statename" in data:
             self.e_name.setText(data["statename"])
         if "statemode" in data:
@@ -1302,29 +1412,6 @@ class Image_ImportClass(object):
             idx = self.cb_taskColor.findText(data["taskColor"])
             if idx != -1:
                 self.cb_taskColor.setCurrentIndex(idx)
-        if "importData" in data:
-            self.importData = data["importData"]
-        if "identifier" in data:
-            self.identifier = data["identifier"]
-        if "mediaType" in data:
-            self.mediaType = data["mediaType"]
-        if "itemType" in data:
-            self.itemType = data["itemType"]
-        if "extension" in data:
-            self.extension = data["extension"]
-        if "version" in data:
-            self.version = data["version"]
-        if "aov" in data:
-            self.aov = data["aov"]
-        if "aovs" in data:
-            self.aovs = data["aovs"]
-        if "channel" in data:
-            self.channel = data["channel"]
-        if "channels" in data:
-            self.channels = data["channels"]
-        if "files" in data:
-            self.files = data["files"]
-
         if "filepath" in data:
             data["filepath"] = getattr(
                 self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
@@ -1408,7 +1495,7 @@ class Image_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def imageImport(self, importData, update=False, path=None, settings=None):                              #   TODO
+    def imageImport(self, importData, update=False, path=None, settings=None):                 #   TODO updating
         result = True
         if self.stateManager.standalone:
             return result
@@ -1470,80 +1557,49 @@ class Image_ImportClass(object):
         self.updateUi()
         self.stateManager.saveStatesToScene()
 
-        result = True
+        result = True                                       #   TODO fix
 
         return result
+    
 
     @err_catcher(name=__name__)
-    def importAll(self, refreshUi=False, setChecked=False):
+    def importAll(self, refreshUi=False):
 
+        #   Import all images
         self.imageImport(self.importData)
-
-        # refreshUi = True                        #   TESTING
 
         if refreshUi:
             self.updateUi()
             self.updateAovChnlTree()
             self.createAovThumbs()
-
-        if setChecked:
-            #   Get all child items form AOV list
-            aovItems = self.getAovItems(self.lw_objects)
-
-            self.core.popup(f"aovItems:  {aovItems}")                                      #    TESTING
-
-            for item in aovItems:
-                self.setCheckbox(item, checked=True)
-
-
-
-
-    @err_catcher(name=__name__)
-    def importAllFromIdent(self, refreshUi=False, setChecked=False):
-
-        self.imageImport(self.importData)
-
-        # refreshUi = True                        #   TESTING
-
-        if refreshUi:
-            self.updateUi()
+        else:
             self.updateAovChnlTree()
-            self.createAovThumbs()
 
-        if setChecked:
-            #   Get all child items form AOV list
-            aovItems = self.getAovItems(self.lw_objects)
+        #   Get all items in the AOV list
+        allItems = self.getAllItems()
 
-            self.core.popup(f"aovItems:  {aovItems}")                                      #    TESTING
+        #   Check all items
+        for item in allItems:
+            self.setItemChecked(item, "checked")
 
-            for item in aovItems:
-                self.setCheckbox(item, checked=True)
-
-
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
 
 
     @err_catcher(name=__name__)
     def importSelected(self, refreshUi=True):
         importData = self.importData.copy()
 
-        selected_info = []
+        selItemData = []
+        selItems = self.getAllItems(useChecked=True, aovs=True)
+        if selItems:
+            for item in selItems:
+                iData = self.getItemData(item)
+                if iData:
+                    selItemData.append(iData)
 
-        def collectCheckedItems(item):
-            if item.childCount() == 0 and item.checkState(0) == Qt.Checked:
-                file_data = item.data(0, ITEM_ROLE_DATA)
-                if file_data:
-                    selected_info.append(file_data)
+            importData["files"] = selItemData
 
-            for i in range(item.childCount()):
-                collectCheckedItems(item.child(i))
-
-        # Start from the root item
-        root = self.lw_objects.invisibleRootItem()
-        for i in range(root.childCount()):
-            collectCheckedItems(root.child(i))
-
-        if selected_info:
-            importData["files"] = selected_info
         else:
             self.core.popup("No items selected.")
             return False
@@ -1554,6 +1610,9 @@ class Image_ImportClass(object):
             self.updateUi()
             self.updateAovChnlTree()
             self.createAovThumbs()
+
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
 
 
     @err_catcher(name=__name__)
@@ -1587,9 +1646,7 @@ class Image_ImportClass(object):
             return result
         
         if not selectedStates:
-            self.importAll(setChecked=setChecked)
-
-            # self.importAll(refreshUi=True)
+            self.importAll(refreshUi=False)
 
         if refreshUi:
             self.updateUi()
@@ -1622,29 +1679,18 @@ class Image_ImportClass(object):
             # self.core.appPlugin.deleteNodes(self)
                 
 
-    @err_catcher(name=__name__)
+    @err_catcher(name=__name__)                                 #   TODO Make sure all info is in here (shot, asset, etc)
     def getStateProps(self):
-        return {
-            "statename": self.e_name.text(),
-            "statemode": self.stateMode,
-            "stateUID": self.stateUID,
-            "filepath": self.getImportPath(),
-            "autoUpdate": str(self.chb_autoUpdate.isChecked()),
-            "taskname": self.taskName,
-            "setname": self.setName,
-            "taskColor": self.cb_taskColor.currentText(),
-            "importData": self.importData,
-            "identifier": self.identifier,
-            "mediaType": self.mediaType,
-            "itemType": self.itemType,
-            "extension": self.extension,
-            "version": self.version,
-            "aov": self.aov,
-            "aovs": self.aovs,
-            "channel": self.channel,
-            "channels": self.channels,
-            "files": self.files
-        }
+
+        self.importData["statename"] = self.e_name.text()
+        self.importData["statemode"] = self.stateMode
+        self.importData["filepath"] = self.getImportPath()
+        self.importData["autoUpdate"] = str(self.chb_autoUpdate.isChecked())
+        self.importData["taskname"] = self.taskName
+        self.importData["taskColor"] = self.cb_taskColor.currentText()
+
+
+        return self.importData
 
 
 
