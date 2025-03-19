@@ -1121,7 +1121,6 @@ class Image_ImportClass(object):
                         "identifier": context["identifier"],
                         "displayName": context["displayName"],
                         "mediaType": mediaType,
-                        "itemType": context["itemType"],
                         "locations": context["locations"],
                         "path": context["path"],
                         "extension": "",
@@ -1131,9 +1130,15 @@ class Image_ImportClass(object):
                         }
             
             #	Add additional items if they exist
-            for key in ["asset", "sequence", "shot"]:
+            for key in ["asset", "sequence", "shot", "itemType"]:
                 if key in context:
                     importData[key] = context[key]
+
+            if "itemType" not in context:
+                if "asset" in context:
+                    importData["itemType"] = "asset"
+                elif "sequence" in context or "shot" in context:
+                    importData["itemType"] = "shot"
             
         except Exception as e:
             logger.warning(f"ERROR: Unable to make base importData dict: {e}")

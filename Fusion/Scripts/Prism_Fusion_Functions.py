@@ -1246,7 +1246,6 @@ class Prism_Fusion_Functions(object):
 						"stateUID": importData["stateUID"],
 						"mediaId": importData["identifier"],
 						"displayName": importData["displayName"],
-						"itemType": importData["itemType"],
 						"mediaType": importData["mediaType"],
 						"aov": importItem.get("aov", ""),
 						"channel": importItem.get("channel", ""),
@@ -1259,7 +1258,7 @@ class Prism_Fusion_Functions(object):
 						}
 				
 			#	Add additional items if they exist
-			for key in ["asset", "sequence", "shot", "redirect"]:
+			for key in ["asset", "sequence", "shot", "itemType", "redirect"]:
 				if key in importData:
 					toolData[key] = importData[key]
 
