@@ -54,6 +54,23 @@ from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
+from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
+if TYPE_CHECKING:
+    pass
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
+
+#   For Python Type Hints
+FusionComp = Dict
+Tool = Any
+ToolOption = Any
+Color = int
+UUID = str
+Toolname = str
+PixMap = Any
+
 from PrismUtils.Decorators import err_catcher
 
 logger = logging.getLogger(__name__)
@@ -232,63 +249,75 @@ class Image_ImportClass(object):
     #                       #
     #########################
 
+    #   Returns the VersionInfo filepath
     @err_catcher(name=__name__)
-    def getVersionInfoPath(self, cachePath):
+    def getVersionInfoPath(self, cachePath:dict) -> str:
         return self.core.getVersioninfoPath(
             self.core.mediaProducts.getMediaVersionInfoPathFromFilepath(cachePath)
             )
     
+    #   Returns the version label name from version filepath
     @err_catcher(name=__name__)
-    def getMasterVersionLabel(self, filepath):
+    def getMasterVersionLabel(self, filepath:str) -> str:
         return self.core.mediaProducts.getMasterVersionLabel(filepath)
     
+    #   Returns highest version context from a given context
     @err_catcher(name=__name__)
-    def getLatestVersion(self, context, includeMaster):
+    def getLatestVersion(self, context:dict, includeMaster:bool) -> dict:
         mediaProducts = self.fuseFuncts.core.mediaProducts
         return mediaProducts.getLatestVersionFromIdentifier(context, includeMaster=includeMaster)
     
+    #   Returns a pixmap from an exr image filepath (can specify channel/aov)
     @err_catcher(name=__name__)
-    def getPixmapFromExrPath(self, filePath, width, height, channel, allowThumb):
+    def getPixmapFromExrPath(self, filePath:str, width:int, height:int, channel:str, allowThumb:bool) -> PixMap:
         pxmap = self.core.media.getPixmapFromExrPath(filePath, width=width, height=height, channel=channel, allowThumb=allowThumb)
         return pxmap
 
+    #   Returns a pixmap from a generic media image filepath
     @err_catcher(name=__name__)
-    def getPixmapFromPath(self, filePath, width, height):
+    def getPixmapFromPath(self, filePath:str, width:int, height:int) -> PixMap:
         pxmap = self.core.media.getPixmapFromPath(filePath, width=width, height=height)
         return pxmap
     
+    #   Returns a context from the currently selected version
     @err_catcher(name=__name__)
-    def getCurrentVersion(self):
+    def getCurrentVersion(self) -> dict:
         self.mediaBrowser = self.mediaChooser.w_browser
         self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
         return self.mediaBrowser.getCurrentVersion()
     
+    #   Returns a list of AOV dicts for a given context
     @err_catcher(name=__name__)
-    def getAOVsFromVersion(self, version):
+    def getAOVsFromVersion(self, version:dict) -> list:
         return self.core.mediaProducts.getAOVsFromVersion(version)
     
+    #   Returns a list containing each pass/aov for the current version with AOVs
     @err_catcher(name=__name__)
-    def compGetImportPasses(self):
+    def compGetImportPasses(self) -> list:
         self.mediaBrowser = self.mediaChooser.w_browser
         self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
         return self.mediaPlayer.compGetImportPasses()
     
+    #   Returns a list containing each pass/aov for the current version without AOVs
     @err_catcher(name=__name__)
-    def compGetImportSource(self):
+    def compGetImportSource(self) -> list:
         self.mediaBrowser = self.mediaChooser.w_browser
         self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
         return self.mediaPlayer.compGetImportSource()
     
+    #   Returns a list of all the image files for a given context
     @err_catcher(name=__name__)
-    def getFilesFromContext(self, aovItem):
+    def getFilesFromContext(self, aovItem:dict) -> list:
         return self.fuseFuncts.core.mediaProducts.getFilesFromContext(aovItem)
     
+    #   Returns a list of channels/AOVs for a given filepth
     @err_catcher(name=__name__)
-    def getLayersFromFile(self, filepath):
+    def getLayersFromFile(self, filepath:str) -> list:
         return self.fuseFuncts.core.media.getLayersFromFile(filepath)
 
+    #   Returns the numver of frames for a given video filepath
     @err_catcher(name=__name__)
-    def getVideoDuration(self, filepath):
+    def getVideoDuration(self, filepath:str) -> int:
         return self.fuseFuncts.core.media.getVideoDuration(filepath)
 
 
@@ -1093,6 +1122,35 @@ class Image_ImportClass(object):
 
 
     @err_catcher(name=__name__)
+    def loadData(self, data):
+        self.importData = data
+
+        if "statename" in data:
+            self.e_name.setText(data["statename"])
+        if "statemode" in data:
+            self.setStateMode(data["statemode"])
+        if "stateUID" in data:
+            self.stateUID = data["stateUID"]
+        if "taskname" in data:
+            self.taskName = data["taskname"]
+        if "setname" in data:
+            self.setName = data["setname"]
+        if "autoUpdate" in data:
+            self.chb_autoUpdate.setChecked(eval(data["autoUpdate"]))
+        if "taskColor" in data:
+            idx = self.cb_taskColor.findText(data["taskColor"])
+            if idx != -1:
+                self.cb_taskColor.setCurrentIndex(idx)
+        if "filepath" in data:
+            data["filepath"] = getattr(
+                self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
+            )(data["filepath"])
+            self.setImportPath(data["filepath"])
+
+        self.core.callback("onStateSettingsLoaded", self, data)
+
+
+    @err_catcher(name=__name__)
     def makeImportData(self, context):
         self.context = context
 
@@ -1396,34 +1454,6 @@ class Image_ImportClass(object):
 
         return frame_start, frame_end
 
-
-    @err_catcher(name=__name__)
-    def loadData(self, data):
-        self.importData = data
-
-        if "statename" in data:
-            self.e_name.setText(data["statename"])
-        if "statemode" in data:
-            self.setStateMode(data["statemode"])
-        if "stateUID" in data:
-            self.stateUID = data["stateUID"]
-        if "taskname" in data:
-            self.taskName = data["taskname"]
-        if "setname" in data:
-            self.setName = data["setname"]
-        if "autoUpdate" in data:
-            self.chb_autoUpdate.setChecked(eval(data["autoUpdate"]))
-        if "taskColor" in data:
-            idx = self.cb_taskColor.findText(data["taskColor"])
-            if idx != -1:
-                self.cb_taskColor.setCurrentIndex(idx)
-        if "filepath" in data:
-            data["filepath"] = getattr(
-                self.core.appPlugin, "sm_import_fixImportPath", lambda x: x
-            )(data["filepath"])
-            self.setImportPath(data["filepath"])
-
-        self.core.callback("onStateSettingsLoaded", self, data)
 
 
     #########################
