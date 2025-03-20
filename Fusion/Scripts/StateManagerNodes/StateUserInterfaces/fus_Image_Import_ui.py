@@ -107,7 +107,7 @@ class Ui_wg_Image_Import(object):
 
         self.horizontalLayout_5.addWidget(self.l_curVersion)
 
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_5.addItem(self.horizontalSpacer)
 
@@ -134,7 +134,7 @@ class Ui_wg_Image_Import(object):
 
         self.horizontalLayout_14.addWidget(self.l_autoUpdate)
 
-        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
 
         self.horizontalLayout_14.addItem(self.horizontalSpacer_10)
 
@@ -189,11 +189,11 @@ class Ui_wg_Image_Import(object):
 
         self.lo_importButtons.addWidget(self.b_importSel)
 
-        self.b_import = QPushButton(self.gb_options)
-        self.b_import.setObjectName(u"b_import")
-        self.b_import.setFocusPolicy(Qt.NoFocus)
+        self.b_refresh = QPushButton(self.gb_options)
+        self.b_refresh.setObjectName(u"b_refresh")
+        self.b_refresh.setFocusPolicy(Qt.NoFocus)
 
-        self.lo_importButtons.addWidget(self.b_import)
+        self.lo_importButtons.addWidget(self.b_refresh)
 
 
         self.verticalLayout_6.addLayout(self.lo_importButtons)
@@ -250,7 +250,7 @@ class Ui_wg_Image_Import(object):
         self.gb_options.setTitle(QCoreApplication.translate("wg_Image_Import", u"Import", None))
         self.b_importAll.setText(QCoreApplication.translate("wg_Image_Import", u"Import All", None))
         self.b_importSel.setText(QCoreApplication.translate("wg_Image_Import", u"Import Selected", None))
-        self.b_import.setText(QCoreApplication.translate("wg_Image_Import", u"Re-Import", None))
+        self.b_refresh.setText(QCoreApplication.translate("wg_Image_Import", u"Refresh", None))
         self.gb_channels.setTitle(QCoreApplication.translate("wg_Image_Import", u"Image AOV / Channels", None))
     # retranslateUi
 

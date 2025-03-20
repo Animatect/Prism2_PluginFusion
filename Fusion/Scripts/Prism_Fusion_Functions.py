@@ -1110,9 +1110,9 @@ class Prism_Fusion_Functions(object):
 
 	#	TODO  TEMP
 
-	def makeImportData(self, context, aovDict, sourceData):
-		#	Function to aggregate data into importData
-		return Helper.makeImportData(self, context, aovDict, sourceData)
+	# def makeImportData(self, context, aovDict, sourceData):
+	# 	#	Function to aggregate data into importData
+	# 	return Helper.makeImportData(self, context, aovDict, sourceData)
 
 
 
@@ -1122,10 +1122,12 @@ class Prism_Fusion_Functions(object):
 		comp.Lock()
 		comp.StartUndo("Import Media")
 
-		self.wrapped_ImageImport(comp, state, importData)
+		result = self.wrapped_ImageImport(comp, state, importData)
 
 		comp.EndUndo()
 		comp.Unlock()
+
+		return result
 
 
 	#	Receives importData and adds the Loaders to the Comp
@@ -1183,65 +1185,27 @@ class Prism_Fusion_Functions(object):
 		
 		"""
 
-		#	Get "Sorting" checkbox state	
-		sorting = CompDb.sortingEnabled(comp)
-		sorting = True														#	TESTING - HARDCODED
-
-		# #	Get any UIDs for the Identifier
-		# uids = CompDb.getUIDsFromImportData(comp, "import2d", importData)
-
-		#	If there are already UIDs in the comp
-		# if uids and len(uids) > 0:
-		# 	self.importExisting(comp, uids, importData, importType, checkbox_checked)
-
-		#	Import the image(s)
-		self.configureImport(comp, importData, sortnodes=sorting)
-
-
-		
-		
-	@err_catcher(name=__name__)
-	def configureImport(self, comp, importData, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
 
 		refNode = None
+		#	Get "Sorting" checkbox state	
+		sortnodes = CompDb.sortingEnabled(comp)
+
+		sortnodes = True														#	TESTING - HARDCODED
 
 		#	Finds the left edge of the flow-nodes
 		if sortnodes:
 			refNode = Fus.findLeftmostLowerTool(comp, 0.5)
 
-		importList = []
-
-		# try:
-			#	For Current AOV
-			# if importType == "Current AOV":
-			# 	for importItem in importData["files"]:
-			# 		if importItem["aov"] == importData["aov"]:
-			# 			importList.append(importItem)
-			# 			break
-
-			#	For all AOVs or single item
-			# else:
-		# for importItem in importData["files"]:
-		# 	importList.append(importItem)
-
-		# except Exception as e:
-		# 	self.core.popup(f"ERROR: Unable to generate import item list:\n{e}")
-		# 	logger.warning(f"ERROR: Unable to generate import item list:\n{e}")
-		# 	return
-
 		# try:
 			#	For each import item
 		for importItem in importData["files"]:
-
 			# Deselect all nodes
 			flow.Select()
 
-			#	Make UUID
-			# toolUID = CompDb.createUUID()
-
 			#	Make base dict
 			toolData = {"nodeName": Fus.makeLdrName(importItem, importData),
+			   			"toolUID": importItem["fileUID"],
 						"version": importData["version"],
 						"stateUID": importData["stateUID"],
 						"mediaId": importData["identifier"],
@@ -1262,28 +1226,44 @@ class Prism_Fusion_Functions(object):
 				if key in importData:
 					toolData[key] = importData[key]
 
+			orig_toolUID = CompDb.getUIDsFromImportData(comp, "import2d", importItem)
 
-			#	Import the image
-			leftmostNode = self.addImage(comp, toolData, refNode, sortnodes)
+			#	Add Loader and configure
+			if len(orig_toolUID) == 0:
+				#	Import the image
+				leftmostNode = self.addImage(comp, toolData, refNode, sortnodes)
+
+				#	Return if failed
+				if not leftmostNode:
+					logger.warning(f"ERROR:  Unable to import Images:\n{e}")
+					self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
+					return False
+				
+				#	If Not Sorting
+				if not sortnodes:
+					logger.debug(f"Imported  {importData['identifier']} without sorting")
+					result = "Imported Image without Sorting"
+					doImport = True
+
+				#	If Sorting
+				else:
+					#	Sort and Arrange Loaders and Wireless tools
+					self.sortLoaders(comp, leftmostNode)
+
+					logger.debug(f"Imported  and sorted {importData['identifier']}")
+					result = "Imported Image without Sorting"
+					doImport = True
+
+			#	Update loader if it already exists in the Comp
+			else:
+
+				orig_toolUID = orig_toolUID[0]
+				self.updateImport(comp, orig_toolUID, toolData)
+				result = "Updated Image"
+				doImport = True
 
 
-		#	Return if failed
-		if not leftmostNode:
-			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
-			self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
-			return False
-		
-		#	Return if Not Sorting
-		if not sortnodes:
-			logger.debug(f"Imported  {importData['identifier']} without sorting")
-			return
-
-		#	Sort and Arrange Loaders and Wireless tools
-		self.sortLoaders(comp, leftmostNode)
-
-		logger.debug(f"Imported  and sorted {importData['identifier']}")
-
-		logger.debug(f"Added Import_Image State for {importData['identifier']}")
+		return {"result": result, "doImport": doImport}
 
 
 
@@ -1293,116 +1273,95 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def addImage(self, comp, toolData, refNode, sortnodes=True):				#	TODO - reinstate Try/Excepts
+	def addImage(self, comp, toolData, refNode, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
+		toolUID = toolData["toolUID"]
 
-		# try:
-		#	Get Position of Ref Tool
-		refX, refY = Fus.getToolPosition(comp, refNode)
+		try:
+			#	Get Position of Ref Tool
+			refX, refY = Fus.getToolPosition(comp, refNode)
 
-		toolUID = self.createUUID()
+			#	Add and configure Loader to the left so it will not mess up Flow
+			ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
+		
+			if not ldr:
+				self.core.popup(f"ERROR: Unable to add Loader to Comp")
+				return False
 
-		toolData["toolUID"] = toolUID
+			#	Add mode to Comp Database
+			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
 
-		#	Add and configure Loader to the left so it will not mess up Flow
-		ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
-	
-		if not ldr:
-			self.core.popup(f"ERROR: Unable to add Loader to Comp")
+		except:
+			logger.warning(f"ERROR: Unable to add Loader to Comp")
 			return False
-
-		#	Add mode to Comp Database
-		CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
-
-		# except:
-		# 	logger.warning(f"ERROR: Unable to Import Single Channel")
-		# 	return None
 
 		#	Deselect all
 		flow.Select()
 
 		if toolData["extension"] == ".exr":
-
 			#	Handle Multi-part .exrs
-			# try:
+			try:
+				channel = toolData["channel"]
 
-			channel = toolData["channel"]
+				#	Check if the file has parts
+				if ldr.Clip1.OpenEXRFormat.Part:
+					#	Get list of parts in file
+					parts = ldr.Clip1.OpenEXRFormat.Part.GetAttrs('INPIDT_ComboControl_ID')
+					#	Match and assign part
+					if channel in parts.values():
+						ldr.Clip1.OpenEXRFormat.Part = channel
+			except:
+				logger.warning(f"ERROR: Unable to assign multi-part .exr for ({channel})")
 
-			#	Check if the file has parts
-			if ldr.Clip1.OpenEXRFormat.Part:
-				#	Get list of parts in file
-				parts = ldr.Clip1.OpenEXRFormat.Part.GetAttrs('INPIDT_ComboControl_ID')
-				#	Match and assign part
-				if channel in parts.values():
-					ldr.Clip1.OpenEXRFormat.Part = channel
-
-			# except:
-			# 	logger.warning(f"ERROR: Unable to assign multi-part .exr for ({channel})")
-			# 	continue
-
-			# try:
+			try:
 				#	Get available channels from Loader
-			loaderChannels = Fus.getLoaderChannels(ldr)
-
-
-			channelData = Fus.getChannelData(loaderChannels)
-
-
-				# except Exception as e:
-				# 	logger.warning(f"ERROR: Unable to get channels from Loader:\n{e}")
-				# 	return None
+				loaderChannels = Fus.getLoaderChannels(ldr)
+				channelData = Fus.getChannelData(loaderChannels)
 
 				#	Get the channel list for the channel being processed
-			
+				if len(channelData) > 0:
+					channelDict = channelData[toolData["channel"]]
 
-			if len(channelData) > 0:
-				channelDict = channelData[toolData["channel"]]
-
-				# Dictionary to map channel types to attribute names
-				channel_attributes = {
-					'r': 'RedName', 'red': 'RedName',
-					'g': 'GreenName', 'green': 'GreenName',
-					'b': 'BlueName', 'blue': 'BlueName',
-					'a': 'AlphaName', 'alpha': 'AlphaName',
-					'x': 'RedName',
-					'y': 'GreenName',
-					'z': 'BlueName',
-					}
+					# Dictionary to map channel types to attribute names
+					channel_attributes = {
+						'r': 'RedName', 'red': 'RedName',
+						'g': 'GreenName', 'green': 'GreenName',
+						'b': 'BlueName', 'blue': 'BlueName',
+						'a': 'AlphaName', 'alpha': 'AlphaName',
+						'x': 'RedName',
+						'y': 'GreenName',
+						'z': 'BlueName',
+						}
 
 					# Check if contains only a Z-channel (for Depth, Mist, etc)
-					# try:
-				z_channel = None
-				for channel_str in channelDict:
-					if re.search(r'\.z$', channel_str.lower()):
-						z_channel = channel_str
-
-				#	Assign the Z-channel to the R, G, B, and Z
-				if z_channel and len(channelDict) == 1:
-					ldr.Clip1.OpenEXRFormat.RedName = z_channel
-					ldr.Clip1.OpenEXRFormat.GreenName = z_channel
-					ldr.Clip1.OpenEXRFormat.BlueName = z_channel
-					ldr.Clip1.OpenEXRFormat.ZName = z_channel
-				# except:
-				# 	logger.warning("ERROR: Unable to assign image Z-channel to Loader")
-				# 	return None
-
-				else:
-					# try:
-						#	Match the attrs based on the dict			#	TODO make sure this works for all DCC channel types
+					z_channel = None
 					for channel_str in channelDict:
-						match = re.search(r'\.([a-z])$', channel_str.lower())
+						if re.search(r'\.z$', channel_str.lower()):
+							z_channel = channel_str
 
-						if match:
-							suffix = match.group(1)
-							attribute = channel_attributes.get(suffix)
+					#	Assign the Z-channel to the R, G, B, and Z
+					if z_channel and len(channelDict) == 1:
+						ldr.Clip1.OpenEXRFormat.RedName = z_channel
+						ldr.Clip1.OpenEXRFormat.GreenName = z_channel
+						ldr.Clip1.OpenEXRFormat.BlueName = z_channel
+						ldr.Clip1.OpenEXRFormat.ZName = z_channel
 
-							#	Configure Loader channels based on dict
-							if attribute:
-								setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
-						# except:
-						# 	logger.warning("ERROR: Unable to assign image channels to Loader")
-						# 	return None
+					else:
+						#	Match the attrs based on the dict
+						for channel_str in channelDict:
+							match = re.search(r'\.([a-z])$', channel_str.lower())
 
+							if match:
+								suffix = match.group(1)
+								attribute = channel_attributes.get(suffix)
+
+								#	Configure Loader channels based on dict
+								if attribute:
+									setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
+
+			except:
+				logger.warning("ERROR: Unable to assign image channels to Loader")
+				return False
 
 		#	If sorting is enabled
 		if sortnodes:
@@ -1410,221 +1369,64 @@ class Prism_Fusion_Functions(object):
 			self.createWireless(toolUID)
 			
 		return ldr
-
-
-	# @err_catcher(name=__name__)
-	# def addMultiChannel(self, comp, toolData, refNode, channels, currChannel=None, sortnodes=True):
-	# 	flow = comp.CurrentFrame.FlowView
-
-	# 	#	Get Position of Ref Tool
-	# 	refX, refY = Fus.getToolPosition(comp, refNode)
-
-	# 	if currChannel:
-	# 		#	If not splitting, use currently viewed channel
-	# 		channelList = [currChannel]
-	# 	else:
-	# 		#	Use all channels
-	# 		channelList = channels
-
-	# 	for channel in channelList:
-	# 		#	Deselect all
-	# 		flow.Select()
-
-	# 		#	Make copy to edit for each channel
-	# 		toolData_copy = toolData.copy()
-
-	# 		toolUID = CompDb.createUUID()
-
-	# 		#	Edit dict copy
-	# 		toolData_copy["toolUID"] = toolUID
-	# 		toolData_copy["channel"] = channel
-	# 		toolData_copy["nodeName"] = Fus.makeLdrName(toolData_copy)
-			
-	# 		#	Add Loader with config data
-	# 		ldr = Fus.addTool(comp, "Loader", toolData_copy, refX-10, refY-10)
-
-	# 		#	Add node to Comp Database
-	# 		CompDb.addNodeToDB(comp, "import2d", toolUID, toolData_copy)
-
-	# 		try:
-	# 			#	Get available channels from Loader
-	# 			loaderChannels = Fus.getLoaderChannels(ldr)
-	# 			channelData = Fus.getChannelData(loaderChannels)
-	# 		except Exception as e:
-	# 			logger.warning(f"ERROR: Unable to get channels from Loader:\n{e}")
-	# 			return None
-
-	# 		#	Get the channel list for the channel being processed
-	# 		channelDict = channelData[channel]
-
-	# 		# Dictionary to map channel types to attribute names
-	# 		channel_attributes = {
-	# 			'r': 'RedName', 'red': 'RedName',
-	# 			'g': 'GreenName', 'green': 'GreenName',
-	# 			'b': 'BlueName', 'blue': 'BlueName',
-	# 			'a': 'AlphaName', 'alpha': 'AlphaName',
-	# 			'x': 'RedName',
-	# 			'y': 'GreenName',
-	# 			'z': 'BlueName',
-	# 			}
-
-	# 		# Check if contains only a Z-channel (for Depth, Mist, etc)
-	# 		try:
-	# 			z_channel = None
-	# 			for channel_str in channelDict:
-	# 				if re.search(r'\.z$', channel_str.lower()):
-	# 					z_channel = channel_str
-
-	# 			#	Assign the Z-channel to the R, G, B, and Z
-	# 			if z_channel and len(channelDict) == 1:
-	# 				ldr.Clip1.OpenEXRFormat.RedName = z_channel
-	# 				ldr.Clip1.OpenEXRFormat.GreenName = z_channel
-	# 				ldr.Clip1.OpenEXRFormat.BlueName = z_channel
-	# 				ldr.Clip1.OpenEXRFormat.ZName = z_channel
-	# 		except:
-	# 			logger.warning("ERROR: Unable to assign image Z-channel to Loader")
-	# 			return None
-
-	# 		else:
-	# 			try:
-	# 				#	Match the attrs based on the dict			#	TODO make sure this works for all DCC channel types
-	# 				for channel_str in channelDict:
-	# 					match = re.search(r'\.([a-z])$', channel_str.lower())
-
-	# 					if match:
-	# 						suffix = match.group(1)
-	# 						attribute = channel_attributes.get(suffix)
-
-	# 						#	Configure Loader channels based on dict
-	# 						if attribute:
-	# 							setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
-	# 			except:
-	# 				logger.warning("ERROR: Unable to assign image channels to Loader")
-	# 				return None
-
-	# 		#	Deselect all
-	# 		flow.Select()
-
-	# 		#	If sorting is enabled
-	# 		if sortnodes:
-	# 			Fus.setToolToLeft(comp, ldr, refNode)
-	# 			self.createWireless(toolUID)
-
-	# 	return ldr
 			
 
 	@err_catcher(name=__name__)
-	def updateImport(self, comp, importType, importData):
-		#	Just pass the import list as it should just be one file
-		if importType == "Update Version":
-			selUIDs = CompDb.getUIDsFromImportData(comp, "import2d", importData)
-
-		#	Handle selected updates
-		elif importType == "Update Selected":
-			#	Get selected Loaders
-			selTools = Fus.getSelectedTools(comp, "Loader")
-			
-			if len(selTools) < 1:
-				logger.debug("No Loaders selected in the Comp")
-				self.core.popup("No Loaders selected in the Comp")
-				return
-						
-			#	Convert selected Tools list to UUID's
-			selUIDs_all = []
-			for tool in selTools:
-				selUIDs_all.append(CompDb.getNodeUidFromTool(tool))
-
-			#	Get selected Media Identifier
-			selMediaId = importData["identifier"]
-			selUIDs = []
-			#	Iterate through UIDS and match only ones for Media ID
-			for uid in selUIDs_all:
-				tdata = CompDb.getNodeInfo(comp, "import2d", uid)
-				if tdata["mediaId"] == selMediaId:
-					selUIDs.append(uid)
-
-		#	Update all MediaId Loaders (from Import button)
-		elif importType == "Update All":
-			#	Remove keys to force all Loaders
-			if "aov" in importData:
-				del importData["aov"]
-			if "channel" in importData:
-				del importData["channel"]
-			
-			selUIDs = CompDb.getUIDsFromImportData(comp, "import2d", importData)
-
-		#	Update the current AOV/pass (from Import button)
-		elif importType == "Update Current":
-			selUIDs = CompDb.getUIDsFromImportData(comp, "import2d", importData)
-
-		#	Get file list from importData
-		fileList = importData["files"]
-
-		#	If there are no nodes for the Media ID in the comp
-		if not selUIDs or len(selUIDs) < 1:
-			logger.warning(f"ERROR: There are no Loaders for ({importData['identifier']}) in the Comp")
-			self.core.popup(f"There are no Loaders for ({importData['identifier']}) in the Comp")
-			return False
+	def updateImport(self, comp, orig_toolUID, toolData):
+		#	Get original node data from database
+		origNodeData = CompDb.getNodeInfo(comp, "import2d", orig_toolUID)
 		
-		updateMsgList = []
-	
-		#	Iterate through update items
-		for uid in selUIDs:
-			try:
-				#	Get original node data from database
-				origNodeData = CompDb.getNodeInfo(comp, "import2d", uid)
+		#	Make copy of original data
+		updateData = origNodeData.copy()
 
-				#	Get matching file data from file list based on AOV
-				updateFileData = Helper.getFileDataFromAOV(fileList, origNodeData["aov"])
+		#	Update data with new values
+		updateData["version"] = toolData["version"]
+		updateData["filepath"] = toolData["filepath"]
+		updateData["frame_start"] = toolData["frame_start"]
+		updateData["frame_end"] = toolData["frame_end"]
 
-				#	Skip to next item if no result
-				if not updateFileData:
-					continue
-				
-				#	Make copy of original data
-				updateData = origNodeData.copy()
-				#	Update data with new values
-				updateData["version"] = updateFileData["version"]
-				updateData["filepath"] = updateFileData["basefile"]
-				updateData["frame_start"] = updateFileData["frame_start"]
-				updateData["frame_end"] = updateFileData["frame_end"]
+		updateData["nodeName"] = Fus.makeLdrName(updateData, toolData)
 
-				#	Compare versions and get result and result string
-				compareRes, compareMsg = CompDb.compareVersions(origNodeData, updateData)
 
-				#	Add message to message list
-				updateMsgList.append(compareMsg)
 
-				#	If there was a match to the database
-				if compareRes:
-					#	Make dict
-					toolData = {"nodeName": Fus.makeLdrName(updateData, importData),
-								"version": updateData["version"],
-								"filepath": updateData["filepath"],
-								"frame_start": updateData["frame_start"],
-								"frame_end": updateData["frame_end"]
-								}
+		#	Compare versions and get result and result string										#	TODO - DO WE WANT A FEEDBACK POPUP?
+		# compareRes, compareMsg = CompDb.compareVersions(origNodeData, updateData)
 
-					#	Get original Loader
-					ldr = CompDb.getNodeByUID(comp, uid)
-					#	Update Loader config
-					Fus.configureTool(ldr, toolData)
-					#	Update Database record
-					CompDb.updateNodeInfo(comp, "import2d", uid, toolData)
+		#	Add message to message list
+		# updateMsgList.append(compareMsg)
+
+		#	If there was a match to the database
+		# if compareRes:
+
+		#	Make dict
+		# toolData = {"nodeName": Fus.makeLdrName(updateData, toolData),
+		# 			"version": updateData["version"],
+		# 			"filepath": updateData["filepath"],
+		# 			"frame_start": updateData["frame_start"],
+		# 			"frame_end": updateData["frame_end"]
+		# 			}
+		
+
+		#	Get original Loader
+		ldr = CompDb.getNodeByUID(comp, orig_toolUID)
+		#	Update Loader config
+		Fus.configureTool(ldr, updateData)
+		#	Update Database record
+		CompDb.updateNodeInfo(comp, "import2d", orig_toolUID, updateData)
 					
-			except Exception as e:
-				logger.warning(f"ERROR: Unable to update {importData['identifier']}")
-				return
 
-		#	Show update feedback
-		if len(updateMsgList) == 0:
-			formattedMsg = [["", f"No Selected Loaders for '{importData['identifier']}'"]]
-		else:
-			#	Sort message items
-			formattedMsg = sorted(updateMsgList)
 
-		#	Show popup
-		self.updateMsgPopup(formattedMsg)
+		# #	Show update feedback
+		# if len(updateMsgList) == 0:
+		# 	formattedMsg = [["", f"No Selected Loaders for '{importData['identifier']}'"]]
+		# else:
+		# 	#	Sort message items
+		# 	formattedMsg = sorted(updateMsgList)
+
+		# #	Show popup
+		# self.updateMsgPopup(formattedMsg)
+
+		return True
 
 
 	#	Creates and adds a Wireless set to the Loader

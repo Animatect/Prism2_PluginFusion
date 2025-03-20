@@ -252,7 +252,7 @@ def savePrismFileDb(comp, cpData_orig:dict):
         comp.SetData("PrismDB", cpData_str)
         logger.debug("Saved Prism Comp Database to Comp")
 
-        print(f"\n***  Prism Database:\n{cpData_str}\n")                            #   TESTING
+        # print(f"\n***  Prism Database:\n{cpData_str}\n")                            #   TESTING
 
     except:
         logger.warning("ERROR: Failed to save Prism Comp Database to Comp")
@@ -476,7 +476,8 @@ def getUIDsFromImportData(comp, listType:str, importData:dict) -> dict:
 
     #   Make copy and re-assign MediaID
     importData_copy = importData
-    importData_copy["mediaId"] = importData_copy.get("identifier", None)
+    if "mediaId" not in importData_copy:
+        importData_copy["mediaId"] = importData_copy.get("identifier", None)
     
     uids = []
     
@@ -491,7 +492,7 @@ def getUIDsFromImportData(comp, listType:str, importData:dict) -> dict:
             return []
 
         #   List of items to compare
-        compareKeys = ["mediaId", "mediaType", "extension", "aov", "itemType", "asset", "sequence", "shot"]
+        compareKeys = ["mediaId", "mediaType", "extension", "aov", "channel", "itemType", "asset", "sequence", "shot"]
 
         # Search for a record matching all the available items
         for uuid, node_data in nodes.items():

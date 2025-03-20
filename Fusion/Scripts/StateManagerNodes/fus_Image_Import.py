@@ -235,11 +235,13 @@ class Image_ImportClass(object):
         self.lw_objects.itemPressed.connect(self.onAovItemClicked)                              #   When AOV item clicked
         self.b_browse.clicked.connect(self.browse)                                              #   Select Version Button
         self.b_browse.customContextMenuRequested.connect(self.openFolder)                       #   RCL Select Version Button
-        self.b_importLatest.clicked.connect(lambda: self.importLatest(selectedStates=False))    #   Import Latest Button
+
+        self.b_importLatest.clicked.connect(lambda: self.importLatest(refreshUi=False, selectedStates=False, setChecked=True))    #   Import Latest Button
+
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)                        #   Latest Checkbox
         self.b_importAll.clicked.connect(lambda: self.importAll(refreshUi=True))
         self.b_importSel.clicked.connect(self.importSelected)
-        self.b_import.clicked.connect(self.imageImport)                                         #   Re-Import Button        TODO
+        self.b_refresh.clicked.connect(self.refresh)                                            #   Refresh Button        TODO
 
 
     #########################
@@ -401,7 +403,7 @@ class Image_ImportClass(object):
             curVersion, latestVersion = self.checkLatestVersion()
             if self.chb_autoUpdate.isChecked():
                 if curVersion.get("version") and latestVersion.get("version") and curVersion["version"] != latestVersion["version"]:
-                    self.importLatest(refreshUi=True, selectedStates=False)
+                    self.importLatest(refreshUi=False, selectedStates=False)
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -471,10 +473,11 @@ class Image_ImportClass(object):
             return False
 
         clicked = self.selResult[0]
-        self.selMediaContext = self.selResult[1]
+        self.importData = self.selResult[1]
 
         if clicked == "version":
-            result = self.makeImportData(self.selMediaContext)
+            currVersion = self.getCurrentVersion()
+            result = self.makeImportData(currVersion)
 
         if clicked == "identifier":
             result = self.importLatest(refreshUi=False, selectedStates=False, setChecked=True)
@@ -513,7 +516,7 @@ class Image_ImportClass(object):
         status = "error"
         if self.chb_autoUpdate.isChecked():
             if curVersionName and latestVersionName and curVersionName != latestVersionName:
-                self.importLatest(refreshUi=False)
+                self.importLatest(refreshUi=False, selectedStates=False, setChecked=True)
 
             if latestVersionName:
                 status = "ok"
@@ -1136,7 +1139,9 @@ class Image_ImportClass(object):
         if "setname" in data:
             self.setName = data["setname"]
         if "autoUpdate" in data:
-            self.chb_autoUpdate.setChecked(eval(data["autoUpdate"]))
+            checked = eval(data["autoUpdate"])
+            self.chb_autoUpdate.setChecked(checked)
+            self.autoUpdateChanged(checked)
         if "taskColor" in data:
             idx = self.cb_taskColor.findText(data["taskColor"])
             if idx != -1:
@@ -1152,18 +1157,13 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def makeImportData(self, context):
-        self.context = context
-
-        # version = self.mediaBrowser.getCurrentVersion()
-        version = self.getCurrentVersion()
-
-        if not version:
+        if not context:
             logger.warning(f"ERROR: There are no Versions for this Media Identifier")
             self.core.popup("There are no Versions for this Media Identifier")
             return "Empty"
 
         #   Get data from various sources
-        aovDict = self.getAOVsFromVersion(version)
+        aovDict = self.getAOVsFromVersion(context)
 
         #	Get sourceData based on passes - used to get framerange
         if len(aovDict) > 1:
@@ -1175,22 +1175,12 @@ class Image_ImportClass(object):
 
         try:
             #   Make base dict
-            importData = {"stateUID": self.stateUID,
-                        "identifier": context["identifier"],
-                        "displayName": context["displayName"],
-                        "mediaType": mediaType,
-                        "locations": context["locations"],
-                        "path": context["path"],
-                        "extension": "",
-                        "version": context["version"],
-                        "aovs": [],
-                        "channels": []
-                        }
-            
-            #	Add additional items if they exist
-            for key in ["asset", "sequence", "shot", "itemType"]:
-                if key in context:
-                    importData[key] = context[key]
+            importData = context
+
+            importData["stateUID"] = self.stateUID
+            importData["extension"] = ""
+            importData["aovs"] = []
+            importData["channels"] = []
 
             if "itemType" not in context:
                 if "asset" in context:
@@ -1562,8 +1552,6 @@ class Image_ImportClass(object):
         if not result:
             return
 
-        doImport = True
-
         #   Execute import
         importResult = self.fuseFuncts.imageImport(self, importData)
 
@@ -1578,7 +1566,7 @@ class Image_ImportClass(object):
 
         if doImport:
             if result == "canceled":
-                return
+                return False
 
         kwargs = {
             "state": self,
@@ -1592,14 +1580,11 @@ class Image_ImportClass(object):
         self.updateUi()
         self.stateManager.saveStatesToScene()
 
-        result = True                                       #   TODO fix
-
-        return result
+        return doImport
     
 
     @err_catcher(name=__name__)
     def importAll(self, refreshUi=False):
-
         #   Import all images
         self.imageImport(self.importData)
 
@@ -1670,7 +1655,20 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def importLatest(self, refreshUi=True, selectedStates=True, setChecked=False):
-        highestVer = self.getLatestVersion(self.selMediaContext, includeMaster=True)
+
+        importIdentifier = self.importData.copy()
+
+        keys_to_remove = [
+            'stateUID', 'locations', 'extension', 'version', 'aovs', 'channels', 
+            'files', 'statename', 'statemode', 'filepath', 'autoUpdate', 'taskname', 'taskColor', 'aov', 'comment', 'date', 
+            'source', 'user', 'username'
+        ]
+        
+        # Remove unwanted keys to make Prism context
+        for key in keys_to_remove:
+            importIdentifier.pop(key, None)
+
+        highestVer = self.getLatestVersion(importIdentifier, includeMaster=True)
 
         result = self.makeImportData(highestVer)
 
@@ -1690,6 +1688,15 @@ class Image_ImportClass(object):
 
         return True
 
+
+    @err_catcher(name=__name__)
+    def refresh(self):
+
+        # self.importSelected()                 #   DO WE WANT TO ACTUALLY IMPORT OR JUST KEEP UI REFRESH
+
+        self.updateUi()
+        self.updateAovChnlTree()
+        self.createAovThumbs()
 
 
     @err_catcher(name=__name__)
