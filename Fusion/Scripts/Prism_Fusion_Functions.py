@@ -1295,7 +1295,7 @@ class Prism_Fusion_Functions(object):
 			logger.warning(f"ERROR: Unable to add Loader to Comp")
 			return False
 
-		#	Deselect all
+		# Deselect all
 		flow.Select()
 
 		if toolData["extension"] == ".exr":
@@ -1313,7 +1313,7 @@ class Prism_Fusion_Functions(object):
 			except:
 				logger.warning(f"ERROR: Unable to assign multi-part .exr for ({channel})")
 
-			try:
+			try:		
 				#	Get available channels from Loader
 				loaderChannels = Fus.getLoaderChannels(ldr)
 				channelData = Fus.getChannelData(loaderChannels)
@@ -1358,7 +1358,6 @@ class Prism_Fusion_Functions(object):
 								#	Configure Loader channels based on dict
 								if attribute:
 									setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
-
 			except:
 				logger.warning("ERROR: Unable to assign image channels to Loader")
 				return False

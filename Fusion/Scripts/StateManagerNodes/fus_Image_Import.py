@@ -127,28 +127,29 @@ class Image_ImportClass(object):
         self.taskName = ""
         self.setName = ""
 
+        #   Sets main Fusion Plugin object
         self.fuseFuncts = self.core.appPlugin
 
+        #   Sets Import Media Browser
         self.mediaChooser = ReadMediaDialog(self, self.core)
 
+        #   Gets color mode from DCC settings
         self.taskColorMode = self.fuseFuncts.taskColorMode
         if self.taskColorMode == "Disabled":
             self.cb_taskColor.setVisible(False)
         else:
             self.cb_taskColor.setVisible(True)
             self.populateTaskColorCombo()
-
+        #   Get thumbnail size from DCC settings
         self.aovThumbWidth = self.fuseFuncts.aovThumbWidth
 
-        self.selMediaContext = None
-
+        #   State name stuff
         stateNameTemplate = "{entity}_{version}"
         self.stateNameTemplate = self.core.getConfig(
             "globals",
             "defaultImportStateName",
             configPath=self.core.prismIni,
         ) or stateNameTemplate
-
         self.e_name.setText(self.stateNameTemplate)
         
         #   Hide unused UI elements
@@ -156,6 +157,7 @@ class Image_ImportClass(object):
         self.e_name.setVisible(False)
         self.l_class.setVisible(False)
 
+        #   Sets colors
         self.oldPalette = self.b_importLatest.palette()
         self.updatePalette = QPalette()
         self.updatePalette.setColor(QPalette.Button, QColor(200, 100, 0))
@@ -167,7 +169,7 @@ class Image_ImportClass(object):
             )
 
     ####   Do one of the following:     ####
-        
+
         ##   1. Load State from Comp Data
         if stateData is not None:
             self.loadData(stateData)
@@ -235,9 +237,7 @@ class Image_ImportClass(object):
         self.lw_objects.itemPressed.connect(self.onAovItemClicked)                              #   When AOV item clicked
         self.b_browse.clicked.connect(self.browse)                                              #   Select Version Button
         self.b_browse.customContextMenuRequested.connect(self.openFolder)                       #   RCL Select Version Button
-
         self.b_importLatest.clicked.connect(lambda: self.importLatest(refreshUi=False, selectedStates=False, setChecked=True))    #   Import Latest Button
-
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)                        #   Latest Checkbox
         self.b_importAll.clicked.connect(lambda: self.importAll(refreshUi=True))
         self.b_importSel.clicked.connect(self.importSelected)
@@ -330,23 +330,22 @@ class Image_ImportClass(object):
     #########################
 
 
-    @err_catcher(name=__name__)
+    @err_catcher(name=__name__)                     #   NEEDED ???
     def setStateMode(self, stateMode):
         self.stateMode = stateMode
         self.l_class.setText(stateMode)
 
 
+    #   Set State Name and Icon
     @err_catcher(name=__name__)
-    def nameChanged(self, text=None):                                   #   TODO -- Cleanup
+    def nameChanged(self, text=None):
         name = self.e_name.text()
 
         if text:
             name = text
-
         else:
             try:
                 name = f"{self.importData['identifier']}__{self.importData['version']}"
-
             except Exception as e:                                          #   TODO
                 name = text
 
@@ -359,8 +358,9 @@ class Image_ImportClass(object):
         self.stateManager.saveStatesToScene()
 
 
+    #   Opens Media Chooser to select version
     @err_catcher(name=__name__)
-    def browse(self, refreshUi=True):                               #   TODO
+    def browse(self, refreshUi=True):
         self.callMediaWindow()
 
         if refreshUi:
@@ -395,6 +395,7 @@ class Image_ImportClass(object):
         self.stateManager.saveStatesToScene()
 
 
+    #   Updates the Auto-update UI
     @err_catcher(name=__name__)
     def autoUpdateChanged(self, checked):
         self.w_importLatest.setVisible(not checked)
@@ -456,25 +457,30 @@ class Image_ImportClass(object):
     #########################
 
 
+    #   Opens the Custom MediaBrowser window to choose import
     @err_catcher(name=__name__)
     def callMediaWindow(self):
-        self.selMediaContext = None
-            
+        #   Sets objects
         self.mediaBrowser = self.mediaChooser.w_browser
         self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
+        #   Connects clicked signal
         self.mediaChooser.mediaSelected.connect(lambda selResult: self.setSelectedMedia(selResult))
-
+        #   Calls the MediaBrowser and receives result
         result = self.mediaChooser.exec_()
 
+        #   If cancelled
         if result == QDialog.Rejected:
             return "Cancelled"
         
+        #   If error
         if not self.selResult:
             return False
 
+        #   Gets the result
         clicked = self.selResult[0]
         self.importData = self.selResult[1]
 
+        #   Makes funct call based on what was clicked (Identifier or Version)
         if clicked == "version":
             currVersion = self.getCurrentVersion()
             result = self.makeImportData(currVersion)
@@ -1178,7 +1184,6 @@ class Image_ImportClass(object):
             importData = context
 
             importData["stateUID"] = self.stateUID
-            importData["extension"] = ""
             importData["aovs"] = []
             importData["channels"] = []
 
@@ -1197,8 +1202,8 @@ class Image_ImportClass(object):
         #   If there are Prism AOV's (for example not for 2d Renders)
         hasAOVs = bool(aovDict)
 
-        # If AOVs exist, use aovDict and sourceData, otherwise use Context
-        dataPairs = zip(aovDict, sourceData) if hasAOVs else [(context, sourceData[0])]
+        # If AOVs exist, use aovDict and sourceData, otherwise use importData
+        dataPairs = zip(aovDict, sourceData) if hasAOVs else [(importData, sourceData[0])]
 
         for aovItem, sourceItem in dataPairs:
             if hasAOVs:
@@ -1206,13 +1211,13 @@ class Image_ImportClass(object):
                 filesList = self.getFilesFromContext(aovItem)
                 aov = aovItem["aov"]
             else:
-                filesList = self.getFilesFromContext(context)
+                filesList = self.getFilesFromContext(importData)
                 aov = None
 
             basefile = filesList[0]
 
             # Get file extension
-            extension = self.getImageExtension(context, basefile)
+            extension = self.getImageExtension(importData, basefile)
 
             # Get frame start and end
             frame_start, frame_end = self.getFramesFromSourceData(extension, sourceItem, basefile)
@@ -1227,9 +1232,9 @@ class Image_ImportClass(object):
                 # Create file dictionary
                 fileDict = {
                     "basefile": basefile,
-                    "identifier": context["identifier"],
+                    "identifier": importData["identifier"],
                     "channel": channel,
-                    "version": context["version"],
+                    "version": importData["version"],
                     "frame_start": frame_start,
                     "frame_end": frame_end,
                     "stateUID": self.stateUID
