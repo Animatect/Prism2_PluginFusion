@@ -703,11 +703,11 @@ def compareVersions(origVerRecord:dict, updateVerRecord:dict) -> Tuple[bool, str
             #   If frame ranges are the same
             if origFramerange == updateFramerange:
                 return [False, [f"{compareName}:", "  No Changes"]]
-            
+
             #   If frame ranges different
             else:
                 return [True, [f"{compareName}:", f"updated {origVer_str} frameRange ({origFramerange}-{updateFramerange})"]]
-            
+
         #   Versions are different
         else:
             return [True, [f"{compareName}:", f"{origVer_str} ({origFramerange})  -->  {updateVer_str} ({updateFramerange})"]]

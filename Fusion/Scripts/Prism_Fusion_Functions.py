@@ -1185,6 +1185,9 @@ class Prism_Fusion_Functions(object):
 		
 		"""
 
+		updated = False
+		updateMsgList = []
+
 		flow = comp.CurrentFrame.FlowView
 
 		refNode = None
@@ -1256,14 +1259,17 @@ class Prism_Fusion_Functions(object):
 
 			#	Update loader if it already exists in the Comp
 			else:
-
-				orig_toolUID = orig_toolUID[0]
-				self.updateImport(comp, orig_toolUID, toolData)
-				result = "Updated Image"
+				updated = True
 				doImport = True
+				orig_toolUID = orig_toolUID[0]
+				updateRes, compareMsg = self.updateImport(comp, orig_toolUID, toolData)
 
+				updateMsgList.append(compareMsg)
 
-		return {"result": result, "doImport": doImport}
+		if updated:
+			return {"result": "updated", "updateMsgList": updateMsgList, "doImport": doImport}
+		else:
+			return {"result": result, "doImport": doImport}
 
 
 
@@ -1383,28 +1389,7 @@ class Prism_Fusion_Functions(object):
 		updateData["filepath"] = toolData["filepath"]
 		updateData["frame_start"] = toolData["frame_start"]
 		updateData["frame_end"] = toolData["frame_end"]
-
 		updateData["nodeName"] = Fus.makeLdrName(updateData, toolData)
-
-
-
-		#	Compare versions and get result and result string										#	TODO - DO WE WANT A FEEDBACK POPUP?
-		# compareRes, compareMsg = CompDb.compareVersions(origNodeData, updateData)
-
-		#	Add message to message list
-		# updateMsgList.append(compareMsg)
-
-		#	If there was a match to the database
-		# if compareRes:
-
-		#	Make dict
-		# toolData = {"nodeName": Fus.makeLdrName(updateData, toolData),
-		# 			"version": updateData["version"],
-		# 			"filepath": updateData["filepath"],
-		# 			"frame_start": updateData["frame_start"],
-		# 			"frame_end": updateData["frame_end"]
-		# 			}
-		
 
 		#	Get original Loader
 		ldr = CompDb.getNodeByUID(comp, orig_toolUID)
@@ -1412,20 +1397,11 @@ class Prism_Fusion_Functions(object):
 		Fus.configureTool(ldr, updateData)
 		#	Update Database record
 		CompDb.updateNodeInfo(comp, "import2d", orig_toolUID, updateData)
-					
 
+		#	Get version compare message
+		compareRes, compareMsg = CompDb.compareVersions(origNodeData, toolData)
 
-		# #	Show update feedback
-		# if len(updateMsgList) == 0:
-		# 	formattedMsg = [["", f"No Selected Loaders for '{importData['identifier']}'"]]
-		# else:
-		# 	#	Sort message items
-		# 	formattedMsg = sorted(updateMsgList)
-
-		# #	Show popup
-		# self.updateMsgPopup(formattedMsg)
-
-		return True
+		return compareRes, compareMsg
 
 
 	#	Creates and adds a Wireless set to the Loader
@@ -3916,31 +3892,31 @@ path = r\"%s\"
 	#                                        #
 	##########################################	
 		
-	@err_catcher(name=__name__)
-	def importPopup(self, text, title=None, buttons=None, icon=None, parent=None, checked=False):
-		title = title or "Prism"
-		buttons = buttons or ["Yes", "No"]
-		parent = parent or getattr(self.core, "messageParent", None)
+	# @err_catcher(name=__name__)
+	# def importPopup(self, text, title=None, buttons=None, icon=None, parent=None, checked=False):
+	# 	title = title or "Prism"
+	# 	buttons = buttons or ["Yes", "No"]
+	# 	parent = parent or getattr(self.core, "messageParent", None)
 
-		dialog = ImageImportDialogue(text, title, buttons, parent)
-		dialog.checkbox.setChecked(checked)
-		result = dialog.exec_()
+	# 	dialog = ImageImportDialogue(text, title, buttons, parent)
+	# 	dialog.checkbox.setChecked(checked)
+	# 	result = dialog.exec_()
 
-		# Check if dialog was accepted or rejected
-		if result == QDialog.Accepted:
-			# Return the clicked button text and the checkbox state
-			return dialog.clicked_button_text, dialog.checkbox_checked
-		else:
-			# Handle the "X" case: Return None or default values
-			return None, dialog.checkbox.isChecked()
+	# 	# Check if dialog was accepted or rejected
+	# 	if result == QDialog.Accepted:
+	# 		# Return the clicked button text and the checkbox state
+	# 		return dialog.clicked_button_text, dialog.checkbox_checked
+	# 	else:
+	# 		# Handle the "X" case: Return None or default values
+	# 		return None, dialog.checkbox.isChecked()
 		
 
-	@err_catcher(name=__name__)
-	def updateMsgPopup(self, updateMsgList, parent=None):
-		parent = parent or getattr(self.core, "messageParent", None)
+	# @err_catcher(name=__name__)
+	# def updateMsgPopup(self, updateMsgList, parent=None):
+	# 	parent = parent or getattr(self.core, "messageParent", None)
 
-		dialog = UpdateDialog(updateMsgList, parent)
-		dialog.exec_()
+	# 	dialog = UpdateDialog(updateMsgList, parent)
+	# 	dialog.exec_()
 
 
 		
@@ -4397,82 +4373,82 @@ class ImageImportDialogue(QDialog):
 		self.accept()  # Close the dialog
 
 
-#	Popup for update message
-class UpdateDialog(QDialog):
-    def __init__(self, updateMsgList, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Update Information")
+# #	Popup for update message
+# class UpdateDialog(QDialog):
+#     def __init__(self, updateMsgList, parent=None):
+#         super().__init__(parent)
+#         self.setWindowTitle("Update Information")
 
-        layout = QVBoxLayout()
+#         layout = QVBoxLayout()
 
-        #	Add the "Updates" header at the top
-        header_label = QLabel("Updates:")
-        header_font = QFont()
-        header_font.setBold(True)
-        header_label.setFont(header_font)
-        layout.addWidget(header_label)
+#         #	Add the "Updates" header at the top
+#         header_label = QLabel("Updates:")
+#         header_font = QFont()
+#         header_font.setBold(True)
+#         header_label.setFont(header_font)
+#         layout.addWidget(header_label)
 
-        #	Create the table
-        self.table = QTableWidget()
-        self.table.setRowCount(len(updateMsgList))
-        self.table.setColumnCount(2)
+#         #	Create the table
+#         self.table = QTableWidget()
+#         self.table.setRowCount(len(updateMsgList))
+#         self.table.setColumnCount(2)
 
-        #	Hide table lines and numbers
-        self.table.verticalHeader().setVisible(False)
-        self.table.horizontalHeader().setVisible(False)
-        self.table.setShowGrid(False)
+#         #	Hide table lines and numbers
+#         self.table.verticalHeader().setVisible(False)
+#         self.table.horizontalHeader().setVisible(False)
+#         self.table.setShowGrid(False)
 
-        #	Reduce the space between cells
-        self.table.setContentsMargins(0, 0, 0, 0)
-        self.table.setStyleSheet("QTableWidget::item { padding: 0px; }")
+#         #	Reduce the space between cells
+#         self.table.setContentsMargins(0, 0, 0, 0)
+#         self.table.setStyleSheet("QTableWidget::item { padding: 0px; }")
 
-        #	Get the width of the longest text in the first column
-        font_metrics = QFontMetrics(self.font())
-        maxWidth_firstCol = 0
-        maxWidth_secondCol = 0
+#         #	Get the width of the longest text in the first column
+#         font_metrics = QFontMetrics(self.font())
+#         maxWidth_firstCol = 0
+#         maxWidth_secondCol = 0
 
-        for rowData in updateMsgList:
-            #	First column
-            textFirst = str(rowData[0])
-            textWidth_first = font_metrics.horizontalAdvance(textFirst)
-            if textWidth_first > maxWidth_firstCol:
-                maxWidth_firstCol = textWidth_first
+#         for rowData in updateMsgList:
+#             #	First column
+#             textFirst = str(rowData[0])
+#             textWidth_first = font_metrics.horizontalAdvance(textFirst)
+#             if textWidth_first > maxWidth_firstCol:
+#                 maxWidth_firstCol = textWidth_first
 
-            #	Second column
-            textSecond = str(rowData[1])
-            textWidth_second = font_metrics.horizontalAdvance(textSecond)
-            if textWidth_second > maxWidth_secondCol:
-                maxWidth_secondCol = textWidth_second
+#             #	Second column
+#             textSecond = str(rowData[1])
+#             textWidth_second = font_metrics.horizontalAdvance(textSecond)
+#             if textWidth_second > maxWidth_secondCol:
+#                 maxWidth_secondCol = textWidth_second
 
-        #	Add margin for both columns
-        firstColumn_width = maxWidth_firstCol + 20
-        secondColumn_width = maxWidth_secondCol + 20
+#         #	Add margin for both columns
+#         firstColumn_width = maxWidth_firstCol + 20
+#         secondColumn_width = maxWidth_secondCol + 20
 
-        #	Populate the table with data
-        for rowIndex, rowData in enumerate(updateMsgList):
-            for colIndex, cellData in enumerate(rowData):
-                item = QTableWidgetItem(str(cellData))
-                item.setFlags(Qt.NoItemFlags)
-                self.table.setItem(rowIndex, colIndex, item)
+#         #	Populate the table with data
+#         for rowIndex, rowData in enumerate(updateMsgList):
+#             for colIndex, cellData in enumerate(rowData):
+#                 item = QTableWidgetItem(str(cellData))
+#                 item.setFlags(Qt.NoItemFlags)
+#                 self.table.setItem(rowIndex, colIndex, item)
 
-        #	Set column widths
-        self.table.setColumnWidth(0, firstColumn_width)
-        self.table.setColumnWidth(1, secondColumn_width)
+#         #	Set column widths
+#         self.table.setColumnWidth(0, firstColumn_width)
+#         self.table.setColumnWidth(1, secondColumn_width)
 
-        #	Last column stretches
-        self.table.horizontalHeader().setStretchLastSection(False)
+#         #	Last column stretches
+#         self.table.horizontalHeader().setStretchLastSection(False)
 
-        #	Add the table
-        layout.addWidget(self.table)
+#         #	Add the table
+#         layout.addWidget(self.table)
 
-        # Add a close button
-        b_close = QPushButton("Close")
-        b_close.clicked.connect(self.close)
-        layout.addWidget(b_close)
+#         # Add a close button
+#         b_close = QPushButton("Close")
+#         b_close.clicked.connect(self.close)
+#         layout.addWidget(b_close)
 
-        # Set the dialog layout
-        self.setLayout(layout)
+#         # Set the dialog layout
+#         self.setLayout(layout)
 
-        # Adjust the window width to match the table content
-        totalTable_width = firstColumn_width + secondColumn_width + 50
-        self.resize(totalTable_width, self.table.verticalHeader().length() + 100)
+#         # Adjust the window width to match the table content
+#         totalTable_width = firstColumn_width + secondColumn_width + 50
+#         self.resize(totalTable_width, self.table.verticalHeader().length() + 100)
