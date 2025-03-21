@@ -364,7 +364,17 @@ class Image_ImportClass(object):
     #   Opens Media Chooser to select version
     @err_catcher(name=__name__)
     def browse(self, refreshUi=True):
-        self.callMediaWindow()
+        #   Get the AOV items
+        aovItems = self.getAllItems(useChecked=False, aovs=True)
+        if aovItems:
+            #   Get the MediaId of the first AOV item
+            itemData = self.getItemData(aovItems[0])
+            #   Call the MediaWindow with the MediaId
+            self.callMediaWindow(itemData)
+
+        else:
+            #   Just call without a MediaId
+            self.callMediaWindow()
 
         if refreshUi:
             self.updateUi()
@@ -462,10 +472,29 @@ class Image_ImportClass(object):
 
     #   Opens the Custom MediaBrowser window to choose import
     @err_catcher(name=__name__)
-    def callMediaWindow(self):
+    def callMediaWindow(self, itemData=None):
         #   Sets objects
         self.mediaBrowser = self.mediaChooser.w_browser
         self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
+
+        #   If passed itemData, navigate to the Media Item
+        if itemData:
+            try:
+                #   Navigate to the coorect tab/table
+                self.mediaBrowser.navigateToEntity(itemData)
+                #   Get the item title
+                mediaId = (itemData.get("displayName")
+                        or itemData.get("mediaId")
+                        or itemData.get("identifier")
+                        )
+
+                #   Find and select the Identifier
+                items = self.mediaBrowser.tw_identifier.findItems(mediaId, Qt.MatchFlag(Qt.MatchExactly & Qt.MatchCaseSensitive ^ Qt.MatchRecursive))
+                if items:
+                    self.mediaBrowser.tw_identifier.setCurrentItem(items[0])
+            except:
+                logger.debug("ERROR:  Unable to navigate to State's entity in the MediaBrowser")
+
         #   Connects clicked signal
         self.mediaChooser.mediaSelected.connect(lambda selResult: self.setSelectedMedia(selResult))
         #   Calls the MediaBrowser and receives result
@@ -1239,15 +1268,12 @@ class Image_ImportClass(object):
 
             for channel in channels:
                 # Create file dictionary
-                fileDict = {
-                    "basefile": basefile,
-                    "identifier": importData["identifier"],
-                    "channel": channel,
-                    "version": importData["version"],
-                    "frame_start": frame_start,
-                    "frame_end": frame_end,
-                    "stateUID": self.stateUID
-                }
+                fileDict = importData.copy()
+                #   Add additional items
+                fileDict["basefile"] = basefile
+                fileDict["channel"] = channel
+                fileDict["frame_start"] = frame_start
+                fileDict["frame_end"] = frame_end
 
                 # Add additional AOV-specific fields if applicable
                 if hasAOVs:
