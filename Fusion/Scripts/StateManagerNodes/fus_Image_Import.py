@@ -220,7 +220,6 @@ class Image_ImportClass(object):
         self.updateUi()
 
         self.updateAovChnlTree()
-        self.createStateThumbnail()
         self.createAovThumbs()
 
         self.stateManager.saveImports()
@@ -702,6 +701,7 @@ class Image_ImportClass(object):
             root_item.setText(0, f"{self.importData['identifier']}_{self.importData['version']}    ({data['frameRange']})")
 
         self.updateAovStatus()
+        self.createStateThumbnail()
 
 
     #   Adds checkbox and checkbox selection behaviour
@@ -1718,7 +1718,6 @@ class Image_ImportClass(object):
     def refresh(self):
 
         # self.importSelected()                 #   DO WE WANT TO ACTUALLY IMPORT OR JUST KEEP UI REFRESH
-
         self.updateUi()
         self.updateAovChnlTree()
         self.createAovThumbs()
