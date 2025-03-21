@@ -502,6 +502,11 @@ class Image_ImportClass(object):
     @err_catcher(name=__name__)
     def updateUi(self):
         versions = self.checkLatestVersion()
+
+        if not versions:
+            logger.debug("Skipped setting Latest Version Status")
+            return
+
         if versions:
             curVersion, latestVersion = versions
         else:
@@ -1665,20 +1670,24 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def checkLatestVersion(self):
-        path = self.getImportPath()
-        curVerData = {"version": self.importData["version"], "path": path}
+        try:
+            path = self.getImportPath()
+            curVerData = {"version": self.importData["version"], "path": path}
 
-        latestVerDict = self.getLatestVersion(self.importData, includeMaster=True)
+            latestVerDict = self.getLatestVersion(self.importData, includeMaster=True)
 
-        lastestVerName = latestVerDict["version"]
-        lastestVerPath = latestVerDict["path"]
+            lastestVerName = latestVerDict["version"]
+            lastestVerPath = latestVerDict["path"]
 
-        if latestVerDict:
-            latestVersionData = {"version": lastestVerName, "path": lastestVerPath}
-        else:
-            latestVersionData = {}
+            if latestVerDict:
+                latestVersionData = {"version": lastestVerName, "path": lastestVerPath}
+            else:
+                latestVersionData = {}
 
-        return curVerData, latestVersionData
+            return curVerData, latestVersionData
+        except:
+            logger.debug("ERROR:  Unable to get Latest Version.")
+            return None
     
 
     @err_catcher(name=__name__)
