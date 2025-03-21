@@ -1808,8 +1808,10 @@ class ReadMediaDialog(QDialog):
 
         self.bb_main = QDialogButtonBox()
         self.bb_main.addButton("Import Selected", QDialogButtonBox.AcceptRole)
-        self.bb_main.addButton("Import Custom", QDialogButtonBox.AcceptRole)
-        self.bb_main.addButton("Open Project Browser", QDialogButtonBox.AcceptRole)
+        ##  vvvvv    Disabled until functions added  vvvvvvvv    ##
+        # self.bb_main.addButton("Import Custom", QDialogButtonBox.AcceptRole)
+        # self.bb_main.addButton("Open Project Browser", QDialogButtonBox.AcceptRole)
+        ##  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^   ##
         self.bb_main.addButton("Cancel", QDialogButtonBox.RejectRole)
 
         self.bb_main.clicked.connect(self.buttonClicked)
