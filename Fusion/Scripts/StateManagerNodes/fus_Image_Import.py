@@ -224,7 +224,9 @@ class Image_ImportClass(object):
         self.updateUi()
 
         self.updateAovChnlTree()
+        self.createStateThumbnail()
         self.createAovThumbs()
+
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -240,7 +242,7 @@ class Image_ImportClass(object):
         self.lw_objects.itemPressed.connect(self.onAovItemClicked)                              #   When AOV item clicked
         self.b_browse.clicked.connect(self.browse)                                              #   Select Version Button
         self.b_browse.customContextMenuRequested.connect(self.openFolder)                       #   RCL Select Version Button
-        self.b_importLatest.clicked.connect(lambda: self.importLatest(refreshUi=False, selectedStates=False, setChecked=True))    #   Import Latest Button
+        self.b_importLatest.clicked.connect(lambda: self.importLatest(refreshUi=True, selectedStates=False, setChecked=True))    #   Import Latest Button
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)                        #   Latest Checkbox
         self.b_importAll.clicked.connect(lambda: self.importAll(refreshUi=True))
         self.b_importSel.clicked.connect(self.importSelected)
@@ -380,6 +382,8 @@ class Image_ImportClass(object):
             self.updateUi()
             self.updateAovChnlTree()
             self.createAovThumbs()
+            self.createStateThumbnail()
+
 
 
     @err_catcher(name=__name__)                     #   TODO
@@ -739,7 +743,6 @@ class Image_ImportClass(object):
             root_item.setText(0, f"{self.importData['identifier']}_{self.importData['version']}    ({data['frameRange']})")
 
         self.updateAovStatus()
-        self.createStateThumbnail()
 
 
     #   Adds checkbox and checkbox selection behaviour
@@ -1657,6 +1660,8 @@ class Image_ImportClass(object):
 
         #   Call the AOV coloring after toggling
         self.updateAovStatus()
+        # self.createStateThumbnail()
+
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -1748,6 +1753,8 @@ class Image_ImportClass(object):
             self.updateUi()
             self.updateAovChnlTree()
             self.createAovThumbs()
+            self.createStateThumbnail()
+
 
         return True
 
@@ -1759,6 +1766,8 @@ class Image_ImportClass(object):
         self.updateUi()
         self.updateAovChnlTree()
         self.createAovThumbs()
+        self.createStateThumbnail()
+
 
 
     @err_catcher(name=__name__)
