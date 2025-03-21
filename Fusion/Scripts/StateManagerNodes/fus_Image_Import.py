@@ -142,6 +142,8 @@ class Image_ImportClass(object):
             self.populateTaskColorCombo()
         #   Get thumbnail size from DCC settings
         self.aovThumbWidth = self.fuseFuncts.aovThumbWidth
+        #   Get use version update popup from DCC settings
+        self.useUpdatePopup = self.fuseFuncts.useUpdatePopup
 
         #   State name stuff
         stateNameTemplate = "{entity}_{version}"
@@ -1583,10 +1585,9 @@ class Image_ImportClass(object):
         self.updateUi()
         self.stateManager.saveStatesToScene()
 
-
-        if result == "updated":
+        #   Show version update popup if enabled
+        if self.useUpdatePopup and result == "updated":
             updateMsgList = importResult["updateMsgList"]
-
             self.showUpdatePopup(updateMsgList)
 
         return doImport

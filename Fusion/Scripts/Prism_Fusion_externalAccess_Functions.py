@@ -107,7 +107,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 
 		#	Start mode layout
 		lo_prismStartMode = QHBoxLayout()
-		origin.l_prismStartMode = QLabel("Prism Start Mode:       ")
+		origin.l_prismStartMode = QLabel("Prism Start Mode:        ")
 		origin.cb_prismStartMode = QComboBox()
 		
 		#	Add options to the combo box
@@ -183,21 +183,31 @@ class Prism_Fusion_externalAccess_Functions(object):
 		vertSpacer2 = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
 		lo_prismFusionOptions.addItem(vertSpacer2)
 		
-		#	Create a horz layout for the Dev Menu
-		lo_installDevTools = QHBoxLayout()
-		origin.l_installDevTools = QLabel("Install Prism Developer Menu With Plugin:")
-		origin.chk_installDevTools = QCheckBox()
-		
+		#	Create a horz layout for the bottom
+		lo_bottomLayout = QHBoxLayout()
+
+		#	Add version popup comboxbox
+		origin.l_updatePopup = QLabel("Version Update Popup: ")
+		origin.cb_updatePopup = QComboBox()
+		origin.cb_updatePopup.addItems(["Enabled", "Disabled"])
+		origin.cb_updatePopup.setCurrentIndex(0)  # Default to Enabled
+		lo_bottomLayout.addWidget(origin.l_updatePopup)
+		lo_bottomLayout.addWidget(origin.cb_updatePopup)
+
+
+		#	Install Dev menu
+		# origin.l_installDevTools = QLabel("Install Prism Developer Menu With Plugin:")
+		# origin.chk_installDevTools = QCheckBox()
 		#	Add label and checkbox to the horz layout
-		lo_installDevTools.addWidget(origin.l_installDevTools)
-		lo_installDevTools.addWidget(origin.chk_installDevTools)
+		# lo_bottomLayout.addWidget(origin.l_installDevTools)
+		# lo_bottomLayout.addWidget(origin.chk_installDevTools)
 
 		#	Add spacer on the right side
 		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-		lo_installDevTools.addItem(spacer)
+		lo_bottomLayout.addItem(spacer)
 		
 		#	Add the Dev menu layout to the group box layout
-		lo_prismFusionOptions.addLayout(lo_installDevTools)
+		lo_prismFusionOptions.addLayout(lo_bottomLayout)
 		
 		#	Add the Prism Fusion Options group box to the tab layout
 		tab.layout().addWidget(origin.gb_prismFusionOptions)
@@ -233,9 +243,14 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.l_thumbSize.setToolTip(tip)
 		origin.cb_thumbSize.setToolTip(tip)
 
-		tip = "Install Prism Development menu to Fusion when adding the integration."
-		origin.l_installDevTools.setToolTip(tip)
-		origin.chk_installDevTools.setToolTip(tip)
+		tip = ("Enables the Image Import Version Update Popup Window.\n"
+		 	   "If enabled, this will show which images (and AOV/Channels) were updated.")
+		origin.l_updatePopup.setToolTip(tip)
+		origin.cb_updatePopup.setToolTip(tip)
+
+		# tip = "Install Prism Development menu to Fusion when adding the integration."
+		# origin.l_installDevTools.setToolTip(tip)
+		# origin.chk_installDevTools.setToolTip(tip)
 
 	
 	@err_catcher(name=__name__)
@@ -265,6 +280,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 			settings["Fusion"]["taskColorMode"] = origin.cb_taskColoring.currentText()
 			settings["Fusion"]["useAovThumbs"] = origin.cb_useAovThumbs.currentText()
 			settings["Fusion"]["thumbsSize"] = origin.cb_thumbSize.currentText()
+			settings["Fusion"]["updatePopup"] = origin.cb_updatePopup.currentText()
 			
 
 		except Exception as e:
@@ -325,6 +341,14 @@ class Prism_Fusion_externalAccess_Functions(object):
 						origin.cb_thumbSize.setCurrentIndex(idx)
 				else:
 					origin.cb_thumbSize.setCurrentIndex(1)		#	Defaults to Medium
+
+				#	Sets Version Popup Enabled
+				if "updatePopup" in settings["Fusion"]:
+					idx = origin.cb_updatePopup.findText(settings["Fusion"]["updatePopup"])
+					if idx != -1:
+						origin.cb_updatePopup.setCurrentIndex(idx)
+				else:
+					origin.cb_updatePopup.setCurrentIndex(0)		#	Defaults to Enabled
 
 				self.configAovThumbUi(origin)
 

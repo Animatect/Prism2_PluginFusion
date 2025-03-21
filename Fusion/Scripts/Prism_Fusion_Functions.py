@@ -248,8 +248,14 @@ class Prism_Fusion_Functions(object):
 		
 		#	Gets config settings from the DCC settings
 		self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
-		# self.colorBrightness = self.core.getConfig("Fusion", "colorBrightness")
 		self.useAovThumbs = self.core.getConfig("Fusion", "useAovThumbs")
+
+		usePopup = self.core.getConfig("Fusion", "updatePopup")
+		if usePopup == "Enabled":
+			self.useUpdatePopup = True
+		else:
+			self.useUpdatePopup = False
+
 
 		#	Sets the AOV thumb size based off user settings
 		match self.core.getConfig("Fusion", "thumbsSize"):
