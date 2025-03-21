@@ -249,6 +249,7 @@ class Prism_Fusion_Functions(object):
 		#	Gets config settings from the DCC settings
 		self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
 		self.useAovThumbs = self.core.getConfig("Fusion", "useAovThumbs")
+		self.sortMode = self.core.getConfig("Fusion", "sorting")
 
 		usePopup = self.core.getConfig("Fusion", "updatePopup")
 		if usePopup == "Enabled":
@@ -1123,12 +1124,12 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def imageImport(self, state, importData):
+	def imageImport(self, state, importData, sortMode):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Import Media")
 
-		result = self.wrapped_ImageImport(comp, state, importData)
+		result = self.wrapped_ImageImport(comp, state, importData, sortMode)
 
 		comp.EndUndo()
 		comp.Unlock()
@@ -1138,7 +1139,7 @@ class Prism_Fusion_Functions(object):
 
 	#	Receives importData and adds the Loaders to the Comp
 	@err_catcher(name=__name__)
-	def wrapped_ImageImport(self, comp, state, importData):
+	def wrapped_ImageImport(self, comp, state, importData, sortMode):
 		"""
 		Example importData:
 			{
@@ -1191,110 +1192,117 @@ class Prism_Fusion_Functions(object):
 		
 		"""
 
+		flow = comp.CurrentFrame.FlowView
+
+		#	Initilizes the Update Message stuff
 		updated = False
 		updateMsgList = []
 
-		flow = comp.CurrentFrame.FlowView
+		#	Setup Sorting/Wireless modes
+		sortNodes = False
+		addWireless = False
+		if sortMode == "Sorting & Wireless":
+			sortNodes = True
+			addWireless = True
+		elif sortMode == "Sorting Only":
+			sortNodes = True
 
 		refNode = None
-		#	Get "Sorting" checkbox state	
-		sortnodes = CompDb.sortingEnabled(comp)
-
-		sortnodes = True														#	TESTING - HARDCODED
 
 		#	Finds the left edge of the flow-nodes
-		if sortnodes:
+		if sortNodes:
 			refNode = Fus.findLeftmostLowerTool(comp, 0.5)
 
-		# try:
-			#	For each import item
-		for importItem in importData["files"]:
-			# Deselect all nodes
-			flow.Select()
+		try:
+				#	For each import item
+			for importItem in importData["files"]:
+				# Deselect all nodes
+				flow.Select()
 
-			#	Make base dict
-			toolData = {"nodeName": Fus.makeLdrName(importItem, importData),
-			   			"toolUID": importItem["fileUID"],
-						"version": importData["version"],
-						"stateUID": importData["stateUID"],
-						"mediaId": importData["identifier"],
-						"displayName": importData["displayName"],
-						"mediaType": importData["mediaType"],
-						"aov": importItem.get("aov", ""),
-						"channel": importItem.get("channel", ""),
-						"filepath": importItem["basefile"],
-						"extension": importData["extension"],
-						"fuseFormat": self.getFuseFormat(importData["extension"]),
-						"frame_start": importItem["frame_start"],
-						"frame_end": importItem["frame_end"],
-						"listType": "import2d",
-						}
-				
-			#	Add additional items if they exist
-			for key in ["asset", "sequence", "shot", "itemType", "redirect"]:
-				if key in importData:
-					toolData[key] = importData[key]
+				#	Make base dict
+				toolData = {"nodeName": Fus.makeLdrName(importItem, importData),
+							"toolUID": importItem["fileUID"],
+							"version": importData["version"],
+							"stateUID": importData["stateUID"],
+							"mediaId": importData["identifier"],
+							"displayName": importData["displayName"],
+							"mediaType": importData["mediaType"],
+							"aov": importItem.get("aov", ""),
+							"channel": importItem.get("channel", ""),
+							"filepath": importItem["basefile"],
+							"extension": importData["extension"],
+							"fuseFormat": self.getFuseFormat(importData["extension"]),
+							"frame_start": importItem["frame_start"],
+							"frame_end": importItem["frame_end"],
+							"listType": "import2d",
+							}
+					
+				#	Add additional items if they exist
+				for key in ["asset", "sequence", "shot", "itemType", "redirect"]:
+					if key in importData:
+						toolData[key] = importData[key]
 
-			orig_toolUID = CompDb.getUIDsFromImportData(comp, "import2d", importItem)
+				orig_toolUID = CompDb.getUIDsFromImportData(comp, "import2d", importItem)
 
-			#	Add Loader and configure
-			if len(orig_toolUID) == 0:
-				#	Import the image
-				leftmostNode = self.addImage(comp, toolData, refNode, sortnodes)
+				#	Add Loader and configure
+				if len(orig_toolUID) == 0:
+					#	Import the image
+					leftmostNode = self.addImage(comp, toolData, refNode, sortNodes, addWireless)
 
-				#	Return if failed
-				if not leftmostNode:
-					logger.warning(f"ERROR:  Unable to import Images:\n{e}")
-					self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
-					return False
-				
-				#	If Not Sorting
-				if not sortnodes:
-					logger.debug(f"Imported  {importData['identifier']} without sorting")
-					result = "Imported Image without Sorting"
-					doImport = True
+					#	Return if failed
+					if not leftmostNode:
+						logger.warning(f"ERROR:  Unable to import Images:\n{e}")
+						self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
+						return False
+					
+					#	If Not Sorting
+					if not sortNodes:
+						logger.debug(f"Imported  {importData['identifier']} without sorting")
+						result = "Imported Image without Sorting"
+						doImport = True
 
-				#	If Sorting
+					#	If Sorting
+					else:
+						#	Sort and Arrange Loaders and Wireless tools
+						self.sortLoaders(comp, leftmostNode)
+
+						logger.debug(f"Imported  and sorted {importData['identifier']}")
+						result = "Imported Image without Sorting"
+						doImport = True
+
+				#	Update loader if it already exists in the Comp
 				else:
-					#	Sort and Arrange Loaders and Wireless tools
-					self.sortLoaders(comp, leftmostNode)
-
-					logger.debug(f"Imported  and sorted {importData['identifier']}")
-					result = "Imported Image without Sorting"
+					updated = True
 					doImport = True
+					orig_toolUID = orig_toolUID[0]
+					updateRes, compareMsg = self.updateImport(comp, orig_toolUID, toolData)
 
-			#	Update loader if it already exists in the Comp
+					updateMsgList.append(compareMsg)
+
+			if updated:
+				return {"result": "updated", "updateMsgList": updateMsgList, "doImport": doImport}
 			else:
-				updated = True
-				doImport = True
-				orig_toolUID = orig_toolUID[0]
-				updateRes, compareMsg = self.updateImport(comp, orig_toolUID, toolData)
+				return {"result": result, "doImport": doImport}
 
-				updateMsgList.append(compareMsg)
-
-		if updated:
-			return {"result": "updated", "updateMsgList": updateMsgList, "doImport": doImport}
-		else:
-			return {"result": result, "doImport": doImport}
-
-
-
-		# except Exception as e:
-		# 	logger.warning(f"ERROR:  Unable to import Images:\n{e}")
-		# 	self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
+		except Exception as e:
+			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
+			self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
 
 
 	@err_catcher(name=__name__)
-	def addImage(self, comp, toolData, refNode, sortnodes=True):
+	def addImage(self, comp, toolData, refNode, sortNodes, addWireless):
 		flow = comp.CurrentFrame.FlowView
 		toolUID = toolData["toolUID"]
 
 		try:
-			#	Get Position of Ref Tool
-			refX, refY = Fus.getToolPosition(comp, refNode)
-
-			#	Add and configure Loader to the left so it will not mess up Flow
-			ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
+			if sortNodes:
+				#	Get Position of Ref Tool
+				refX, refY = Fus.getToolPosition(comp, refNode)
+				#	Add and configure Loader to the left so it will not mess up Flow
+				ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
+			else:
+				#	Add and configure Loader without positiong
+				ldr = Fus.addTool(comp, "Loader", toolData)
 		
 			if not ldr:
 				self.core.popup(f"ERROR: Unable to add Loader to Comp")
@@ -1375,9 +1383,11 @@ class Prism_Fusion_Functions(object):
 				return False
 
 		#	If sorting is enabled
-		if sortnodes:
+		if sortNodes:
 			Fus.setToolToLeft(comp, ldr, refNode)
-			self.createWireless(toolUID)
+			#	If Add Wireless is enabled
+			if addWireless:
+				self.createWireless(toolUID)
 			
 		return ldr
 			
@@ -1545,63 +1555,56 @@ class Prism_Fusion_Functions(object):
 			for ldr in sortedloaders:
 				#   Get Loader data
 				ldrData = Fus.getToolData(ldr)
-				connectedTools = ldrData["connectedNodes"]
 				lyrNm = ldrData['mediaId']
 
-				# We reconnect to solve an issue that creates "Ghost" connections until comp is reopened.
-				inNode =  CompDb.getNodeByUID(comp, connectedTools["wireless_IN"])
-				outNode = CompDb.getNodeByUID(comp, connectedTools["wireless_OUT"])
+				#	Gets the connected tools if any
+				connectedTools = ldrData.get("connectedNodes", None)
 
-				#	Get input object connected Loader
+				if connectedTools:
+					# Gets the wireless nodes if available
+					inNode = CompDb.getNodeByUID(comp, connectedTools.get("wireless_IN"))
+					outNode = CompDb.getNodeByUID(comp, connectedTools.get("wireless_OUT"))
+				else:
+					inNode, outNode = None, None
+
+				# Get input object connected to Loader
 				nextToolInput = Fus.getInputsFromOutput(ldr)
+				nextTool = nextToolInput[0].GetTool() if nextToolInput else None
+				nextToolName = nextTool.Name if nextTool else None
 
-				#	Skip arranging if there is nothing connected to Loader
-				if not nextToolInput:
-					continue
-				
-				#	Get tool stuff
-				nextTool = nextToolInput[0].GetTool()
-				nextToolName = nextTool.Name
-				inNodeName = inNode.Name
+				# Get Wireless_IN position before moving (only if inNode exists)
+				inNodeOrigPos = Fus.getToolPosition(comp, inNode) if inNode else None
 
-				#	Skip arranging if there are not Wireless connected
-				if not nextToolName or not inNodeName:
-					continue
-
-				#	Get Wireless_IN position before moving
-				inNodeOrigPos = Fus.getToolPosition(comp, inNode)
-
-				#	Get the vert position of the Loader
+				# Adjust vertical position for the Loader
 				if lyrNm != lastLoaderLyr:
 					new_Y += vertGap
 
-				#	Sets Loader position
+				# Set Loader position
 				Fus.setToolPosition(flow, ldr, new_X, new_Y)
 
-				#	If there is a Tool in between Loader and Wireless_IN
-				if nextToolName != inNodeName:
-					#	Connect Loader to nextTool
-					Fus.connectTools(ldr, nextTool)
-					#	Sets nextTool position to the right of the Loader
-					Fus.setToolPosRelative(comp, nextTool, ldr, horzGap)
-					#	Connect nextTool to _IN
-					Fus.connectTools(nextTool, inNode)
-					#	Sets Wireless_IN position to the right of the Loader
-					Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
+				# Only handle connections if there are connected tools
+				if inNode and nextTool:
+					if nextToolName != inNode.Name:
+						# Connect Loader to nextTool
+						Fus.connectTools(ldr, nextTool)
+						# Position nextTool to the right of the Loader
+						Fus.setToolPosRelative(comp, nextTool, ldr, horzGap)
+						# Connect nextTool to _IN
+						Fus.connectTools(nextTool, inNode)
+						# Position Wireless_IN to the right of the Loader
+						Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
+					else:
+						# Connect Loader to Wireless IN
+						Fus.connectTools(ldr, inNode)
+						# Position Wireless_IN to the right of the Loader
+						Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
 
-				#	Sort Wireless as normal
-				else:
-					#	Connect Loader to Wireless IN
-					Fus.connectTools(ldr, inNode)
-					#	Sets Wireless_IN position to the right of the Loader
-					Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
-
-				if outNode:
-					#	If _OUT and _IN are within toolThresh it will position the _OUT
+				if outNode and inNode:
+					# If _OUT and _IN are within toolThresh, position _OUT
 					if Fus.isToolNearTool(comp, outNode, refPos=inNodeOrigPos, thresh=toolThresh):
 						Fus.setToolPosRelative(comp, outNode, inNode, horzGap)
 
-				#	Increment Vert Position
+				# Increment vertical position for next Loader
 				new_Y += vertGap
 				lastLoaderLyr = lyrNm
 

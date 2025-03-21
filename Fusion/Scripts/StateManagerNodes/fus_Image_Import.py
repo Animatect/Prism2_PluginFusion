@@ -142,6 +142,8 @@ class Image_ImportClass(object):
             self.populateTaskColorCombo()
         #   Get thumbnail size from DCC settings
         self.aovThumbWidth = self.fuseFuncts.aovThumbWidth
+        #   Get sorting mode from DCC settings
+        self.sortMode = self.fuseFuncts.sortMode
         #   Get use version update popup from DCC settings
         self.useUpdatePopup = self.fuseFuncts.useUpdatePopup
 
@@ -1527,7 +1529,7 @@ class Image_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def imageImport(self, importData, update=False, path=None, settings=None):                 #   TODO updating
+    def imageImport(self, importData, update=False, path=None, settings=None):
         result = True
         if self.stateManager.standalone:
             return result
@@ -1560,7 +1562,7 @@ class Image_ImportClass(object):
             return
 
         #   Execute import
-        importResult = self.fuseFuncts.imageImport(self, importData)
+        importResult = self.fuseFuncts.imageImport(self, importData, self.sortMode)
 
         if not importResult:
             result = None

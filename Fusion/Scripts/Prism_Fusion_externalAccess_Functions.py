@@ -186,6 +186,18 @@ class Prism_Fusion_externalAccess_Functions(object):
 		#	Create a horz layout for the bottom
 		lo_bottomLayout = QHBoxLayout()
 
+		#	Add sorting comboxbox
+		origin.l_sorting = QLabel("Sorting / Wireless: ")
+		origin.cb_sorting = QComboBox()
+		origin.cb_sorting.addItems(["Sorting & Wireless", "Sorting Only", "Disabled"])
+		origin.cb_sorting.setCurrentIndex(0)  # Default to All
+		lo_bottomLayout.addWidget(origin.l_sorting)
+		lo_bottomLayout.addWidget(origin.cb_sorting)
+
+		#	Add spacer on the right side
+		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		lo_bottomLayout.addItem(spacer)
+
 		#	Add version popup comboxbox
 		origin.l_updatePopup = QLabel("Version Update Popup: ")
 		origin.cb_updatePopup = QComboBox()
@@ -243,6 +255,15 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.l_thumbSize.setToolTip(tip)
 		origin.cb_thumbSize.setToolTip(tip)
 
+		tip = ("Sets the Loader Sorting mode:\n\n"
+		 	   "Sorting & Wireless:   Will add a set of Wireless tools to the Loader and sort all Loaders.\n"
+			   "Sorting Only:             Will only add the Loader and sort all Loaders\n"
+			   "Disabled:                    Sorting will be disabled and the added Loader will be placed\n"
+			   "                                    as per the native Fusion functionality")
+		origin.l_sorting.setToolTip(tip)
+		origin.cb_sorting.setToolTip(tip)
+
+
 		tip = ("Enables the Image Import Version Update Popup Window.\n"
 		 	   "If enabled, this will show which images (and AOV/Channels) were updated.")
 		origin.l_updatePopup.setToolTip(tip)
@@ -280,6 +301,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 			settings["Fusion"]["taskColorMode"] = origin.cb_taskColoring.currentText()
 			settings["Fusion"]["useAovThumbs"] = origin.cb_useAovThumbs.currentText()
 			settings["Fusion"]["thumbsSize"] = origin.cb_thumbSize.currentText()
+			settings["Fusion"]["sorting"] = origin.cb_sorting.currentText()
 			settings["Fusion"]["updatePopup"] = origin.cb_updatePopup.currentText()
 			
 
@@ -341,6 +363,14 @@ class Prism_Fusion_externalAccess_Functions(object):
 						origin.cb_thumbSize.setCurrentIndex(idx)
 				else:
 					origin.cb_thumbSize.setCurrentIndex(1)		#	Defaults to Medium
+
+				#	Sets Sorting Mode
+				if "sorting" in settings["Fusion"]:
+					idx = origin.cb_sorting.findText(settings["Fusion"]["sorting"])
+					if idx != -1:
+						origin.cb_sorting.setCurrentIndex(idx)
+				else:
+					origin.cb_sorting.setCurrentIndex(0)		#	Defaults to All
 
 				#	Sets Version Popup Enabled
 				if "updatePopup" in settings["Fusion"]:

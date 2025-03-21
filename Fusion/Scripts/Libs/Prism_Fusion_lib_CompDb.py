@@ -252,7 +252,7 @@ def savePrismFileDb(comp, cpData_orig:dict):
         comp.SetData("PrismDB", cpData_str)
         logger.debug("Saved Prism Comp Database to Comp")
 
-        # print(f"\n***  Prism Database:\n{cpData_str}\n")                            #   TESTING
+        print(f"\n***  Prism Database:\n{cpData_str}\n")                            #   TESTING
 
     except:
         logger.warning("ERROR: Failed to save Prism Comp Database to Comp")
@@ -587,9 +587,10 @@ def getUIDsFromStateUIDs(comp, listType:str, stateUID:str, includeConn:bool=True
             uids.append(uuid)
 
             if includeConn:
-                connected = nodeData.get("connectedNodes")
-                for name, connUID in connected.items():
-                    uids.append(connUID)
+                connected = nodeData.get("connectedNodes", None)
+                if connected:
+                    for name, connUID in connected.items():
+                        uids.append(connUID)
 
     return uids
 
