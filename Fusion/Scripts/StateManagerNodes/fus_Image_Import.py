@@ -118,20 +118,19 @@ class Image_ImportClass(object):
         stateData=None,
         settings=None,
     ):
-        self.state = state
+
+        #   Checks if the attr already exists and assigns if not
+        self.core = getattr(self, "core", core)
+        self.state = getattr(self, "state", state)
+        self.stateManager = getattr(self, "stateManager", stateManager)
+        self.fuseFuncts = getattr(self, "fuseFuncts", self.core.appPlugin)
+
+        if not hasattr(self, "mediaChooser"):
+            self.mediaChooser = ReadMediaDialog(self, self.core)
+            
         self.stateMode = "Image_Import"
-
-        self.core = core
-        self.stateManager = stateManager
-
         self.taskName = ""
         self.setName = ""
-
-        #   Sets main Fusion Plugin object
-        self.fuseFuncts = self.core.appPlugin
-
-        #   Sets Import Media Browser
-        self.mediaChooser = ReadMediaDialog(self, self.core)
 
         #   Gets color mode from DCC settings
         self.taskColorMode = self.fuseFuncts.taskColorMode
@@ -167,35 +166,47 @@ class Image_ImportClass(object):
         self.updatePalette.setColor(QPalette.Button, QColor(200, 100, 0))
         self.updatePalette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
 
-        createEmptyState = (
-            QApplication.keyboardModifiers() == Qt.ControlModifier
-            or not self.core.uiAvailable
-            )
+        # createEmptyState = (
+        #     QApplication.keyboardModifiers() == Qt.ControlModifier
+        #     or not self.core.uiAvailable
+        #     )
 
     ####   Do one of the following:     ####
 
         ##   1. Load State from Comp Data
         if stateData is not None:
             self.loadData(stateData)
-
             logger.debug("Loaded State from saved data")                    #   TODO
 
+            self.nameChanged()
+            self.updateUi()
+            self.updateAovChnlTree()
+            self.createStateThumbnail()
+            self.createAovThumbs()
 
         ##   2. If passed from FusFuncts. Receive importData via "settings" kwarg
         elif settings:
-            self.loadData(settings)
+            #   Create State UUID
+            self.stateUID = self.fuseFuncts.createUUID()
+            #   Make the importData from the passed settings (item data)
+            self.makeImportData(settings)
+            #   Import the latest version
+            self.importLatest(refreshUi=True, selectedStates=False, setChecked=True)
 
             logger.debug("Loaded State from data passed from ProjectBrowser Import")        #   TODO
+
 
         ##   3. Opens Media Popup to select import
         elif (
             importPath is None
             and stateData is None
-            and not createEmptyState
+            # and not createEmptyState
+            and not settings
             and not self.stateManager.standalone
             ):
             #   Make new UID for State
             self.stateUID = self.fuseFuncts.createUUID()
+
             #   Open MediaChooser to get import
             requestResult = self.callMediaWindow()
             
@@ -211,6 +222,13 @@ class Image_ImportClass(object):
                 self.core.popup("Unable to Import Image from MediaBrowser.")
                 return False
         
+            self.nameChanged()
+            self.updateUi()
+            self.updateAovChnlTree()
+            self.createStateThumbnail()
+            self.createAovThumbs()
+
+
         ##   4. If error
         else:
             logger.warning("ERROR: Unable to Import Image.")
@@ -220,13 +238,6 @@ class Image_ImportClass(object):
         getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
 
         self.connectEvents()
-        self.nameChanged()
-        self.updateUi()
-
-        self.updateAovChnlTree()
-        self.createStateThumbnail()
-        self.createAovThumbs()
-
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -1755,7 +1766,6 @@ class Image_ImportClass(object):
             self.createAovThumbs()
             self.createStateThumbnail()
 
-
         return True
 
 
@@ -1821,6 +1831,8 @@ class ReadMediaDialog(QDialog):
     def __init__(self, state, core):
         super(ReadMediaDialog, self).__init__()
         self.state = state
+        self.stateManager = self.state.stateManager
+        self.fuseFuncts = self.state.fuseFuncts
         self.core = core
 
         self.isValid = False
@@ -1829,9 +1841,6 @@ class ReadMediaDialog(QDialog):
 
     @err_catcher(name=__name__)
     def setupUi(self):
-        filepath = self.core.getCurrentFileName()
-        # entity = self.core.getScenefileData(filepath)
-        
         title = "Select Media"
         self.setWindowTitle(title)
         self.core.parentWindow(self)
@@ -1847,6 +1856,10 @@ class ReadMediaDialog(QDialog):
         self.w_browser.lw_version.itemDoubleClicked.disconnect()
         self.w_browser.lw_version.itemDoubleClicked.connect(self.ver_dblClk)
 
+        #   Disconnect native right-click-list and connect custom
+        self.w_browser.tw_identifier.customContextMenuRequested.disconnect()
+        self.w_browser.tw_identifier.customContextMenuRequested.connect(self.customRclList)
+
         self.lo_main = QVBoxLayout()
         self.setLayout(self.lo_main)
 
@@ -1857,23 +1870,54 @@ class ReadMediaDialog(QDialog):
         # self.bb_main.addButton("Open Project Browser", QDialogButtonBox.AcceptRole)
         ##  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^   ##
         self.bb_main.addButton("Cancel", QDialogButtonBox.RejectRole)
-
         self.bb_main.clicked.connect(self.buttonClicked)
 
         self.lo_main.addWidget(self.w_browser)
         self.lo_main.addWidget(self.bb_main)
 
-        # self.w_browser.navigate([entity])
 
-
+    #   Add custom RCL list to Identifier list
     @err_catcher(name=__name__)
-    def ident_dblClk(self, item, column):
+    def customRclList(self, pos):
+        selectedItems = self.w_browser.tw_identifier.selectedItems()
+
+        rcmenu = QMenu(self)
+
+        importAct = QAction("Import into Comp", self)
+        importAct.triggered.connect(lambda: self.handleRclImport(selectedItems))
+        rcmenu.addAction(importAct)
+
+        rcmenu.exec_(self.w_browser.tw_identifier.mapToGlobal(pos))
+
+
+    #   Handle import from custom RCL
+    @err_catcher(name=__name__)
+    def handleRclImport(self, selectedItems):
+
+        #   Close Dialogue
+        self.reject()
+
+        #   If single item, import directly in this state
+        if len(selectedItems) == 1:
+            self.ident_dblClk(selectedItems[0])
+        #   If multiple items, call the import through the main plugin
+        elif len(selectedItems) > 1:
+            for item in selectedItems:
+                iData = item.data(0, Qt.UserRole)
+                self.fuseFuncts.addImportState(self.stateManager, "Image_Import", useUi=False, settings=iData)
+        else:
+            logger.debug("No Media Items Selected")
+
+
+    #   Sends data back to the main code to import the latest version
+    @err_catcher(name=__name__)
+    def ident_dblClk(self, item, column=None):
         selResult = ["identifier", item.data(0, Qt.UserRole)]
 
         self.mediaSelected.emit(selResult)
         self.accept() 
 
-
+    #   Sends data back to main code to populate the version
     @err_catcher(name=__name__)
     def ver_dblClk(self, item):
         data = self.w_browser.getCurrentSource()
@@ -1895,7 +1939,7 @@ class ReadMediaDialog(QDialog):
         self.mediaSelected.emit(selResult)
         self.accept()  
 
-
+    #   Handles clicked buttons
     @err_catcher(name=__name__)
     def buttonClicked(self, button):
         if button == "select" or button.text() == "Import Selected":
@@ -1919,14 +1963,11 @@ class ReadMediaDialog(QDialog):
 
         elif button.text() == "Import Custom":
             self.core.popup("Not Yet Implemented")                                      #    TESTING
-    
         elif button.text() == "Open Project Browser":                                   #   TODO
             self.reject()
             self.openProjectBrowser()
-
         elif button.text() == "Cancel":
             self.reject()  # Close the dialog with no selection
-
         else:
             self.reject()  # Close the dialog with no selection
 

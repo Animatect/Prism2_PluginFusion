@@ -3844,48 +3844,72 @@ path = r\"%s\"
 	# 	# elif stateui.className == "ImportFile":
 			
 
-	#	This is called from the import buttons in the SM (Import Image and Import 3D)
+	#	This is called from the import buttons in the SM (Import Image and Import 3D) or called from outside code
 	@err_catcher(name=__name__)
-	def addImportState(self, origin, stateType, filepath=None):				#	TODO IMPLEMENT ADDING IMAGE IMPORT STATE TO SM WITH FILEPATH
+	def addImportState(self, origin, stateType, useUi=True, settings=None):
+		"""
+		for Image_Import settings could be a qt item data or Prism Identifier context, but must be a dict and contain:
+		
+		{'displayName',			(including '2d' or 'external' if applicable)
+		'hierarchy',
+		'identifier',
+		'itemType',				('shot' or 'asset')
+		'mediaType',			('3drenders' etc)
+		'path',
+		'project_name',
+		'project_path',
+		'sequence',				(if tiemType is 'shot')
+		'shot',					(if tiemType is 'shot')
+		'asset',				(if tiemType is 'asset')
+		'type'					('shot' or 'asset')
+		}
+		
+		"""
+
 		comp = self.getCurrentComp()	
 		if self.sm_checkCorrectComp(comp):
-			importStates = []
+			#	Not for passed settings
+			if useUi:
+				importStates = []
+				#	Gets selected item from the StateManager list - to allow for adding to folder
+				curSel = origin.getCurrentItem(origin.activeList)
+				if (origin.activeList == origin.tw_import
+					and curSel is not None
+					and curSel.ui.className == "Folder"
+					):
+					parent = curSel
+				else:
+					parent = None
+				#	Get types of States available
+				states = origin.stateTypes
+				#	Gets all available State of a given type
+				for state in states:
+					importStates += getattr(origin.stateTypes[state], "stateCategories", {}).get(stateType, [])
+				#	 If there is only one State, call it immediatly
+				if len(importStates) == 1:
+					origin.createState(importStates[0]["stateType"], parent=parent, setActive=True)
+				#	If there is more than one, create a submenu for the States
+				else:
+					menu = QMenu(origin)
+					for importState in importStates:
+						actSet = QAction(importState["label"], origin)
+						actSet.triggered.connect(lambda x=None,
+									st=importState: origin.createState(st["stateType"],
+									parent=parent,
+									setActive=True,
+									**st.get("kwargs",{}))
+							)
 
-			curSel = origin.getCurrentItem(origin.activeList)
-			if (origin.activeList == origin.tw_import
-				and curSel is not None
-				and curSel.ui.className == "Folder"
-				):
-				parent = curSel
+						menu.addAction(actSet)
+
+					if not menu.isEmpty():
+						menu.exec_(QCursor.pos())
+
+				origin.activeList.setFocus()
+
+			#	If passed settings just call the State directly ('Image_Import')
 			else:
-				parent = None
-
-			states = origin.stateTypes
-			for state in states:
-				importStates += getattr(origin.stateTypes[state], "stateCategories", {}).get(stateType, [])
-
-			if len(importStates) == 1:
-				origin.createState(importStates[0]["stateType"], parent=parent, setActive=True)
-			else:
-				menu = QMenu(origin)
-				for importState in importStates:
-					actSet = QAction(importState["label"], origin)
-					actSet.triggered.connect(lambda x=None,
-								st=importState: origin.createState(st["stateType"],
-								parent=parent,
-								setActive=True,
-								**st.get("kwargs",{}))
-						)
-
-
-
-					menu.addAction(actSet)
-
-				if not menu.isEmpty():
-					menu.exec_(QCursor.pos())
-
-			origin.activeList.setFocus()
-
+				origin.createState(stateType, parent=None, setActive=False, settings=settings)
 
 
 	@err_catcher(name=__name__)
