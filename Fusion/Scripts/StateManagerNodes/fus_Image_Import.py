@@ -1989,17 +1989,6 @@ class ReadMediaDialog(QDialog):
         self.w_browser.tw_identifier.customContextMenuRequested.disconnect()
         self.w_browser.tw_identifier.customContextMenuRequested.connect(self.customRclList)
 
-        tip = ("Double-click Identifier to Load\n"
-               "and Import the Latest Version.\n\n"
-               "Right-click on multi-selected items\n"
-               "to import the latest version of the multi-\n"
-               "selected items.")
-        self.w_browser.tw_identifier.setToolTip(tip)
-
-        tip = ("Double-click Version to Load\n"
-               "the Version into the State.")
-        self.w_browser.lw_version.setToolTip(tip)
-
         #   Create main window
         self.lo_main = QVBoxLayout()
         self.setLayout(self.lo_main)
@@ -2033,6 +2022,67 @@ class ReadMediaDialog(QDialog):
         # Add bottom layout to window
         self.lo_main.addLayout(self.lo_bottom)
 
+        tip = ("Double-click Identifier to Load\n"
+               "and Import the Latest Version.\n\n"
+               "Right-click on multi-selected items\n"
+               "to import the latest version of the multi-\n"
+               "selected items.")
+        self.w_browser.tw_identifier.setToolTip(tip)
+
+        tip = ("Double-click Version to Load\n"
+               "the Version into the State.")
+        self.w_browser.lw_version.setToolTip(tip)
+
+        tip = ("Single-selection:  load the selected version into the State.\n"
+               "Multi-selection:  import the latest version of each Identifier")
+        self.bb_main.setToolTip(tip)
+
+
+    #   Handles clicked buttons
+    @err_catcher(name=__name__)
+    def buttonClicked(self, button):
+        if button == "select" or button.text() == "Import Selected":
+            self.handelImportButton()
+        elif button.text() == "Import Custom":
+            self.core.popup("Not Yet Implemented")                                      #    TESTING
+        elif button.text() == "Open Project Browser":                                   #   TODO
+            self.reject()
+            self.openProjectBrowser()
+        elif button.text() == "Cancel":
+            self.reject()  # Close the dialog with no selection
+        else:
+            self.reject()  # Close the dialog with no selection
+
+
+    #   Handles if the Import Selected buton clicked
+    def handelImportButton(self):
+        selectedItems = self.w_browser.tw_identifier.selectedItems()
+
+        # if len(selectedItems) == 0:
+        #     self.reject()
+
+        if len(selectedItems) == 1:
+            data = self.w_browser.getCurrentSource()
+            if not data:
+                data = self.w_browser.getCurrentAOV()
+                if not data:
+                    data = self.w_browser.getCurrentVersion()
+                    if not data:
+                        data = self.w_browser.getCurrentIdentifier()
+
+            if not data:
+                msg = "Invalid version selected."
+                self.core.popup(msg, parent=self)
+                return
+            
+            selResult = ["version", data]
+
+            self.mediaSelected.emit(selResult)
+            self.accept()
+
+        elif len(selectedItems) > 1:
+            self.handleRclImport(selectedItems)
+
 
     #   Add custom RCL list to Identifier list
     @err_catcher(name=__name__)
@@ -2051,7 +2101,6 @@ class ReadMediaDialog(QDialog):
     #   Handle import from custom RCL
     @err_catcher(name=__name__)
     def handleRclImport(self, selectedItems):
-
         #   Close Dialogue
         self.reject()
 
@@ -2075,6 +2124,7 @@ class ReadMediaDialog(QDialog):
         self.mediaSelected.emit(selResult)
         self.accept() 
 
+
     #   Sends data back to main code to populate the version
     @err_catcher(name=__name__)
     def ver_dblClk(self, item):
@@ -2096,38 +2146,6 @@ class ReadMediaDialog(QDialog):
 
         self.mediaSelected.emit(selResult)
         self.accept()  
-
-    #   Handles clicked buttons
-    @err_catcher(name=__name__)
-    def buttonClicked(self, button):
-        if button == "select" or button.text() == "Import Selected":
-            data = self.w_browser.getCurrentSource()
-            if not data:
-                data = self.w_browser.getCurrentAOV()
-                if not data:
-                    data = self.w_browser.getCurrentVersion()
-                    if not data:
-                        data = self.w_browser.getCurrentIdentifier()
-
-            if not data:
-                msg = "Invalid version selected."
-                self.core.popup(msg, parent=self)
-                return
-            
-            selResult = ["version", data]
-
-            self.mediaSelected.emit(selResult)
-            self.accept()  
-
-        elif button.text() == "Import Custom":
-            self.core.popup("Not Yet Implemented")                                      #    TESTING
-        elif button.text() == "Open Project Browser":                                   #   TODO
-            self.reject()
-            self.openProjectBrowser()
-        elif button.text() == "Cancel":
-            self.reject()  # Close the dialog with no selection
-        else:
-            self.reject()  # Close the dialog with no selection
 
 
     @err_catcher(name=__name__)
