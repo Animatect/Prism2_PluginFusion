@@ -2058,8 +2058,8 @@ class ReadMediaDialog(QDialog):
     def handelImportButton(self):
         selectedItems = self.w_browser.tw_identifier.selectedItems()
 
-        # if len(selectedItems) == 0:
-        #     self.reject()
+        if len(selectedItems) == 0:
+            self.core.popup("No Items Selected")
 
         if len(selectedItems) == 1:
             data = self.w_browser.getCurrentSource()
