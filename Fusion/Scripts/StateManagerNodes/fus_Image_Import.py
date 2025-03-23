@@ -166,6 +166,14 @@ class Image_ImportClass(object):
         self.updatePalette.setColor(QPalette.Button, QColor(200, 100, 0))
         self.updatePalette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
 
+        font = self.l_curVersion.font()
+        font.setBold(True)
+        self.l_curVersion.setFont(font)
+
+        font = self.l_latestVersion.font()
+        font.setBold(True)
+        self.l_latestVersion.setFont(font)
+
         # createEmptyState = (
         #     QApplication.keyboardModifiers() == Qt.ControlModifier
         #     or not self.core.uiAvailable
@@ -238,6 +246,7 @@ class Image_ImportClass(object):
         getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
 
         self.connectEvents()
+        self.setToolTips()
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -418,7 +427,7 @@ class Image_ImportClass(object):
     @err_catcher(name=__name__)
     def setImportPath(self, path):                  #   Look at this
         self.importPath = path
-        self.w_currentVersion.setToolTip(path)
+        self.l_text_Current.setToolTip(path)
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
 
@@ -483,6 +492,54 @@ class Image_ImportClass(object):
     #          UI           #
     #                       #
     #########################
+
+
+    @err_catcher(name=__name__)
+    def setToolTips(self):
+        tip = ("Sets the color of the\n"
+               "Tools in the Fusion Comp")
+        self.cb_taskColor.setToolTip(tip)
+
+        tip = ("Centers the view of the State tools\n"
+               "in the Node Graph.")
+        self.b_focusView.setToolTip(tip)
+
+        tip = "Selects all the State tools in the Comp"
+        self.b_selectTools.setToolTip(tip)
+
+        tip = "Opens the Media Browser to select a specfic version"
+        self.b_browse.setToolTip(tip)
+
+        tip = ("Will import the latest version of the media.\n"
+               "This includes all AOVs, layers, and channels")
+        self.b_importLatest.setToolTip(tip)
+
+        tip = ("Enables Auto-update function.\n\n"
+               "This will automatically import/update to\n"
+               "the most recent version of the media.")
+        self.w_autoUpdate.setToolTip(tip)
+
+        tip = ("Will import the currently viewed version of the media.\n"
+               "This includes all AOVs, layers, and channels")
+        self.b_importAll.setToolTip(tip)
+
+        tip = ("Will import the currently selected AOVs, layers, and channels\n"
+               "of the currently viewed version")
+        self.b_importSel.setToolTip(tip)
+
+        tip = ("Refreshes the UI\n"
+               "Filepaths, version, thumbnails, statuses")
+        self.b_refresh.setToolTip(tip)
+
+        tip = ("AOV listing.\n\n"
+               "This displays all the Media Identifier's AOVs,\n"
+               "as well as layers, channels, and parts of\n"
+               "EXRs.\n\n"
+               "Checking an item allows for custom import with\n"
+               "the Import Selected button.")
+        self.lw_objects.setToolTip(tip)
+
+
 
 
     #   Opens the Custom MediaBrowser window to choose import
@@ -934,6 +991,16 @@ class Image_ImportClass(object):
 
             self.setItemStatusColor(item, color)
 
+
+    @err_catcher(name=__name__)
+    def refreshTips(self):
+        self.setStateThumbToolTip()
+
+    
+    @err_catcher(name=__name__)
+    def setStateThumbToolTip(self):
+        tip = f"State UUID: {self.stateUID}"
+        self.l_thumb.setToolTip(tip)
 
 
     #########################
@@ -1717,7 +1784,6 @@ class Image_ImportClass(object):
             curVerData = {"version": self.importData["version"], "path": path}
 
             latestVerDict = self.getLatestVersion(self.importData, includeMaster=True)
-
             lastestVerName = latestVerDict["version"]
             lastestVerPath = latestVerDict["path"]
 
@@ -1725,8 +1791,18 @@ class Image_ImportClass(object):
                 latestVersionData = {"version": lastestVerName, "path": lastestVerPath}
             else:
                 latestVersionData = {}
+            
+            #   Sets tooltips
+            curVerPath = curVerData["path"]
+            self.l_text_Current.setToolTip(curVerPath)
+            self.l_curVersion.setToolTip(curVerPath)
+
+            latestVerPath = latestVersionData["path"]
+            self.l_text_Latest.setToolTip(latestVerPath)
+            self.l_latestVersion.setToolTip(latestVerPath)
 
             return curVerData, latestVersionData
+        
         except:
             logger.debug("ERROR:  Unable to get Latest Version.")
             return None
@@ -1777,6 +1853,8 @@ class Image_ImportClass(object):
         self.updateAovChnlTree()
         self.createAovThumbs()
         self.createStateThumbnail()
+
+        self.refreshTips()
 
 
 
@@ -1860,9 +1938,31 @@ class ReadMediaDialog(QDialog):
         self.w_browser.tw_identifier.customContextMenuRequested.disconnect()
         self.w_browser.tw_identifier.customContextMenuRequested.connect(self.customRclList)
 
+        tip = ("Double-click Identifier to Load\n"
+               "and Import the Latest Version.\n\n"
+               "Right-click on multi-selected items\n"
+               "to import the latest version of the multi-\n"
+               "selected items.")
+        self.w_browser.tw_identifier.setToolTip(tip)
+
+        tip = ("Double-click Version to Load\n"
+               "the Version into the State.")
+        self.w_browser.lw_version.setToolTip(tip)
+
+        #   Create main window
         self.lo_main = QVBoxLayout()
         self.setLayout(self.lo_main)
 
+        #   Create bottom layout
+        self.lo_bottom = QHBoxLayout()
+
+        #   Add instructions label text to bottom
+        instructionsText = ("      Double-click Identifier to Import Latest Version      --      "
+                            "Double-click Version to Load Version into State     --     "
+                            "Right-click Identifier to Import Multiple Items")
+        l_instructions = QLabel(instructionsText)
+
+        #   Add button box
         self.bb_main = QDialogButtonBox()
         self.bb_main.addButton("Import Selected", QDialogButtonBox.AcceptRole)
         ##  vvvvv    Disabled until functions added  vvvvvvvv    ##
@@ -1872,8 +1972,15 @@ class ReadMediaDialog(QDialog):
         self.bb_main.addButton("Cancel", QDialogButtonBox.RejectRole)
         self.bb_main.clicked.connect(self.buttonClicked)
 
+        # Add widgets to the bottom layout
+        self.lo_bottom.addWidget(l_instructions)
+        self.lo_bottom.addStretch()  # Expanding spacer
+        self.lo_bottom.addWidget(self.bb_main)
+
+        #   Add main Browser to window
         self.lo_main.addWidget(self.w_browser)
-        self.lo_main.addWidget(self.bb_main)
+        # Add bottom layout to window
+        self.lo_main.addLayout(self.lo_bottom)
 
 
     #   Add custom RCL list to Identifier list

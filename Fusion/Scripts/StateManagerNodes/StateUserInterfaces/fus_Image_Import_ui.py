@@ -8,9 +8,17 @@
 ## WARNING! All changes made in this file will be lost when recompiling UI file!
 ################################################################################
 
-from qtpy.QtCore import *  # type: ignore
-from qtpy.QtGui import *  # type: ignore
-from qtpy.QtWidgets import *  # type: ignore
+from PySide6.QtCore import (QCoreApplication, QDate, QDateTime, QLocale,
+    QMetaObject, QObject, QPoint, QRect,
+    QSize, QTime, QUrl, Qt)
+from PySide6.QtGui import (QBrush, QColor, QConicalGradient, QCursor,
+    QFont, QFontDatabase, QGradient, QIcon,
+    QImage, QKeySequence, QLinearGradient, QPainter,
+    QPalette, QPixmap, QRadialGradient, QTransform)
+from PySide6.QtWidgets import (QAbstractItemView, QApplication, QCheckBox, QComboBox,
+    QGroupBox, QHBoxLayout, QHeaderView, QLabel,
+    QLineEdit, QPushButton, QSizePolicy, QSpacerItem,
+    QTreeWidget, QTreeWidgetItem, QVBoxLayout, QWidget)
 
 class Ui_wg_Image_Import(object):
     def setupUi(self, wg_Image_Import):
@@ -52,7 +60,7 @@ class Ui_wg_Image_Import(object):
         self.horizontalLayout_2.setContentsMargins(9, 0, 18, 0)
         self.l_thumb = QLabel(self.f_name)
         self.l_thumb.setObjectName(u"l_thumb")
-        sizePolicy = QSizePolicy(QSizePolicy.Expanding, QSizePolicy.Preferred)
+        sizePolicy = QSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Preferred)
         sizePolicy.setHorizontalStretch(0)
         sizePolicy.setVerticalStretch(0)
         sizePolicy.setHeightForWidth(self.l_thumb.sizePolicy().hasHeightForWidth())
@@ -92,60 +100,51 @@ class Ui_wg_Image_Import(object):
         self.gb_version.setObjectName(u"gb_version")
         self.verticalLayout_3 = QVBoxLayout(self.gb_version)
         self.verticalLayout_3.setObjectName(u"verticalLayout_3")
-        self.w_currentVersion = QWidget(self.gb_version)
-        self.w_currentVersion.setObjectName(u"w_currentVersion")
-        self.horizontalLayout_5 = QHBoxLayout(self.w_currentVersion)
+        self.lo_versions = QWidget(self.gb_version)
+        self.lo_versions.setObjectName(u"lo_versions")
+        self.horizontalLayout_5 = QHBoxLayout(self.lo_versions)
         self.horizontalLayout_5.setObjectName(u"horizontalLayout_5")
         self.horizontalLayout_5.setContentsMargins(9, 0, 9, 0)
-        self.l_text_Current = QLabel(self.w_currentVersion)
+        self.lo_currVersion = QHBoxLayout()
+        self.lo_currVersion.setObjectName(u"lo_currVersion")
+        self.l_text_Current = QLabel(self.lo_versions)
         self.l_text_Current.setObjectName(u"l_text_Current")
 
-        self.horizontalLayout_5.addWidget(self.l_text_Current)
+        self.lo_currVersion.addWidget(self.l_text_Current)
 
-        self.l_curVersion = QLabel(self.w_currentVersion)
+        self.l_curVersion = QLabel(self.lo_versions)
         self.l_curVersion.setObjectName(u"l_curVersion")
 
-        self.horizontalLayout_5.addWidget(self.l_curVersion)
+        self.lo_currVersion.addWidget(self.l_curVersion)
 
-        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
+        self.horizontalSpacer = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 
-        self.horizontalLayout_5.addItem(self.horizontalSpacer)
+        self.lo_currVersion.addItem(self.horizontalSpacer)
 
-        self.label_6 = QLabel(self.w_currentVersion)
-        self.label_6.setObjectName(u"label_6")
 
-        self.horizontalLayout_5.addWidget(self.label_6)
+        self.horizontalLayout_5.addLayout(self.lo_currVersion)
 
-        self.l_latestVersion = QLabel(self.w_currentVersion)
+        self.lo_latestVersion = QHBoxLayout()
+        self.lo_latestVersion.setObjectName(u"lo_latestVersion")
+        self.l_text_Latest = QLabel(self.lo_versions)
+        self.l_text_Latest.setObjectName(u"l_text_Latest")
+
+        self.lo_latestVersion.addWidget(self.l_text_Latest)
+
+        self.l_latestVersion = QLabel(self.lo_versions)
         self.l_latestVersion.setObjectName(u"l_latestVersion")
 
-        self.horizontalLayout_5.addWidget(self.l_latestVersion)
+        self.lo_latestVersion.addWidget(self.l_latestVersion)
+
+        self.horizontalSpacer_4 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.lo_latestVersion.addItem(self.horizontalSpacer_4)
 
 
-        self.verticalLayout_3.addWidget(self.w_currentVersion)
-
-        self.w_autoUpdate = QWidget(self.gb_version)
-        self.w_autoUpdate.setObjectName(u"w_autoUpdate")
-        self.horizontalLayout_14 = QHBoxLayout(self.w_autoUpdate)
-        self.horizontalLayout_14.setObjectName(u"horizontalLayout_14")
-        self.horizontalLayout_14.setContentsMargins(9, 0, 9, 0)
-        self.l_autoUpdate = QLabel(self.w_autoUpdate)
-        self.l_autoUpdate.setObjectName(u"l_autoUpdate")
-
-        self.horizontalLayout_14.addWidget(self.l_autoUpdate)
-
-        self.horizontalSpacer_10 = QSpacerItem(40, 20, QSizePolicy.Minimum, QSizePolicy.Expanding)
-
-        self.horizontalLayout_14.addItem(self.horizontalSpacer_10)
-
-        self.chb_autoUpdate = QCheckBox(self.w_autoUpdate)
-        self.chb_autoUpdate.setObjectName(u"chb_autoUpdate")
-        self.chb_autoUpdate.setChecked(False)
-
-        self.horizontalLayout_14.addWidget(self.chb_autoUpdate)
+        self.horizontalLayout_5.addLayout(self.lo_latestVersion)
 
 
-        self.verticalLayout_3.addWidget(self.w_autoUpdate)
+        self.verticalLayout_3.addWidget(self.lo_versions)
 
         self.w_importLatest = QWidget(self.gb_version)
         self.w_importLatest.setObjectName(u"w_importLatest")
@@ -154,8 +153,8 @@ class Ui_wg_Image_Import(object):
         self.horizontalLayout_7.setContentsMargins(9, 0, 9, 0)
         self.b_browse = QPushButton(self.w_importLatest)
         self.b_browse.setObjectName(u"b_browse")
-        self.b_browse.setFocusPolicy(Qt.NoFocus)
-        self.b_browse.setContextMenuPolicy(Qt.NoContextMenu)
+        self.b_browse.setFocusPolicy(Qt.FocusPolicy.NoFocus)
+        self.b_browse.setContextMenuPolicy(Qt.ContextMenuPolicy.NoContextMenu)
 
         self.horizontalLayout_7.addWidget(self.b_browse)
 
@@ -163,12 +162,39 @@ class Ui_wg_Image_Import(object):
         self.b_importLatest.setObjectName(u"b_importLatest")
         self.b_importLatest.setMinimumSize(QSize(0, 0))
         self.b_importLatest.setMaximumSize(QSize(99999, 16777215))
-        self.b_importLatest.setFocusPolicy(Qt.NoFocus)
+        self.b_importLatest.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self.horizontalLayout_7.addWidget(self.b_importLatest)
 
 
         self.verticalLayout_3.addWidget(self.w_importLatest)
+
+        self.w_autoUpdate = QWidget(self.gb_version)
+        self.w_autoUpdate.setObjectName(u"w_autoUpdate")
+        self.horizontalLayout_14 = QHBoxLayout(self.w_autoUpdate)
+        self.horizontalLayout_14.setObjectName(u"horizontalLayout_14")
+        self.horizontalLayout_14.setContentsMargins(9, 0, 9, 0)
+        self.horizontalSpacer_2 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_14.addItem(self.horizontalSpacer_2)
+
+        self.l_autoUpdate = QLabel(self.w_autoUpdate)
+        self.l_autoUpdate.setObjectName(u"l_autoUpdate")
+
+        self.horizontalLayout_14.addWidget(self.l_autoUpdate)
+
+        self.chb_autoUpdate = QCheckBox(self.w_autoUpdate)
+        self.chb_autoUpdate.setObjectName(u"chb_autoUpdate")
+        self.chb_autoUpdate.setChecked(False)
+
+        self.horizontalLayout_14.addWidget(self.chb_autoUpdate)
+
+        self.horizontalSpacer_3 = QSpacerItem(40, 20, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+
+        self.horizontalLayout_14.addItem(self.horizontalSpacer_3)
+
+
+        self.verticalLayout_3.addWidget(self.w_autoUpdate)
 
 
         self.verticalLayout_2.addWidget(self.gb_version)
@@ -191,7 +217,7 @@ class Ui_wg_Image_Import(object):
 
         self.b_refresh = QPushButton(self.gb_options)
         self.b_refresh.setObjectName(u"b_refresh")
-        self.b_refresh.setFocusPolicy(Qt.NoFocus)
+        self.b_refresh.setFocusPolicy(Qt.FocusPolicy.NoFocus)
 
         self.lo_importButtons.addWidget(self.b_refresh)
 
@@ -211,9 +237,9 @@ class Ui_wg_Image_Import(object):
         __qtreewidgetitem.setText(0, u"1");
         self.lw_objects.setHeaderItem(__qtreewidgetitem)
         self.lw_objects.setObjectName(u"lw_objects")
-        self.lw_objects.setSelectionMode(QAbstractItemView.NoSelection)
-        self.lw_objects.setVerticalScrollMode(QAbstractItemView.ScrollPerItem)
-        self.lw_objects.setHorizontalScrollMode(QAbstractItemView.ScrollPerItem)
+        self.lw_objects.setSelectionMode(QAbstractItemView.SelectionMode.NoSelection)
+        self.lw_objects.setVerticalScrollMode(QAbstractItemView.ScrollMode.ScrollPerItem)
+        self.lw_objects.setHorizontalScrollMode(QAbstractItemView.ScrollMode.ScrollPerItem)
 
         self.verticalLayout_4.addWidget(self.lw_objects)
 
@@ -239,14 +265,14 @@ class Ui_wg_Image_Import(object):
         self.b_selectTools.setText(QCoreApplication.translate("wg_Image_Import", u"Select Tools", None))
         self.gb_import.setTitle("")
         self.gb_version.setTitle(QCoreApplication.translate("wg_Image_Import", u"Version", None))
-        self.l_text_Current.setText(QCoreApplication.translate("wg_Image_Import", u"Current:     ", None))
+        self.l_text_Current.setText(QCoreApplication.translate("wg_Image_Import", u"CURRENT:", None))
         self.l_curVersion.setText(QCoreApplication.translate("wg_Image_Import", u"-", None))
-        self.label_6.setText(QCoreApplication.translate("wg_Image_Import", u"Latest:     ", None))
+        self.l_text_Latest.setText(QCoreApplication.translate("wg_Image_Import", u"LATEST:", None))
         self.l_latestVersion.setText(QCoreApplication.translate("wg_Image_Import", u"-", None))
-        self.l_autoUpdate.setText(QCoreApplication.translate("wg_Image_Import", u"Auto load latest version:", None))
-        self.chb_autoUpdate.setText("")
         self.b_browse.setText(QCoreApplication.translate("wg_Image_Import", u"Select Version", None))
         self.b_importLatest.setText(QCoreApplication.translate("wg_Image_Import", u"Import latest Version", None))
+        self.l_autoUpdate.setText(QCoreApplication.translate("wg_Image_Import", u"Auto load latest version:           ", None))
+        self.chb_autoUpdate.setText("")
         self.gb_options.setTitle(QCoreApplication.translate("wg_Image_Import", u"Import", None))
         self.b_importAll.setText(QCoreApplication.translate("wg_Image_Import", u"Import All", None))
         self.b_importSel.setText(QCoreApplication.translate("wg_Image_Import", u"Import Selected", None))
