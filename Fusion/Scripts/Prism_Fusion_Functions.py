@@ -3866,6 +3866,7 @@ path = r\"%s\"
 		
 		"""
 
+
 		comp = self.getCurrentComp()	
 		if self.sm_checkCorrectComp(comp):
 			#	Not for passed settings

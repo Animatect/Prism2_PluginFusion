@@ -49,6 +49,7 @@
 
 import os
 import logging
+from sys import version
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -196,8 +197,8 @@ class Image_ImportClass(object):
         elif settings:
             #   Create State UUID
             self.stateUID = self.fuseFuncts.createUUID()
-            #   Make the importData from the passed settings (item data)
-            self.makeImportData(settings)
+            #   Set intial importData to settings
+            self.importData = settings
             #   Import the latest version
             self.importLatest(refreshUi=True, selectedStates=False, setChecked=True)
 
@@ -318,20 +319,6 @@ class Image_ImportClass(object):
     def getAOVsFromVersion(self, version:dict) -> list:
         return self.core.mediaProducts.getAOVsFromVersion(version)
     
-    #   Returns a list containing each pass/aov for the current version with AOVs
-    @err_catcher(name=__name__)
-    def compGetImportPasses(self) -> list:
-        self.mediaBrowser = self.mediaChooser.w_browser
-        self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
-        return self.mediaPlayer.compGetImportPasses()
-    
-    #   Returns a list containing each pass/aov for the current version without AOVs
-    @err_catcher(name=__name__)
-    def compGetImportSource(self) -> list:
-        self.mediaBrowser = self.mediaChooser.w_browser
-        self.mediaPlayer = self.mediaBrowser.w_preview.mediaPlayer
-        return self.mediaPlayer.compGetImportSource()
-    
     #   Returns a list of all the image files for a given context
     @err_catcher(name=__name__)
     def getFilesFromContext(self, aovItem:dict) -> list:
@@ -403,7 +390,6 @@ class Image_ImportClass(object):
             self.updateAovChnlTree()
             self.createAovThumbs()
             self.createStateThumbnail()
-
 
 
     @err_catcher(name=__name__)                     #   TODO
@@ -538,8 +524,6 @@ class Image_ImportClass(object):
                "Checking an item allows for custom import with\n"
                "the Import Selected button.")
         self.lw_objects.setToolTip(tip)
-
-
 
 
     #   Opens the Custom MediaBrowser window to choose import
@@ -1289,12 +1273,14 @@ class Image_ImportClass(object):
 
         #   Get data from various sources
         aovDict = self.getAOVsFromVersion(context)
-
+        
         #	Get sourceData based on passes - used to get framerange
-        if len(aovDict) > 1:
-            sourceData = self.compGetImportPasses() #   has AOV's
+        versionDir = context["path"]
+        if len(aovDict) > 0:
+            usePasses = True    #   Has AOVs
         else:
-            sourceData = self.compGetImportSource() #   no AOV's
+            usePasses = False   #   No AOVs
+        sourceData = self.getImportSource(versionDir, usePasses)
 
         mediaType = context["mediaType"]
 
@@ -1338,9 +1324,6 @@ class Image_ImportClass(object):
             # Get file extension
             extension = self.getImageExtension(importData, basefile)
 
-            # Get frame start and end
-            frame_start, frame_end = self.getFramesFromSourceData(extension, sourceItem, basefile)
-
             # Get channels list
             channels = self.getLayersFromFile(basefile)
 
@@ -1353,8 +1336,8 @@ class Image_ImportClass(object):
                 #   Add additional items
                 fileDict["basefile"] = basefile
                 fileDict["channel"] = channel
-                fileDict["frame_start"] = frame_start
-                fileDict["frame_end"] = frame_end
+                fileDict["frame_start"] = sourceItem[1]
+                fileDict["frame_end"] = sourceItem[2]
 
                 # Add additional AOV-specific fields if applicable
                 if hasAOVs:
@@ -1400,6 +1383,90 @@ class Image_ImportClass(object):
 
         return True
     
+
+    #    Modified and combined version of Prism compGetImportSource() & compImportPasses()
+    @err_catcher(name=__name__)
+    def getImportSource(self, versionDir, usePasses):
+        sourceData = []
+
+        if usePasses:
+            #   Get AOV directories from version directory
+            sources = [
+                x
+                for x in os.listdir(versionDir)
+                if x[-5:] not in ["(mp4)", "(jpg)", "(png)"]
+                and os.path.isdir(os.path.join(versionDir, x))
+            ]
+
+        else:
+            #   Get souce
+            sources = self.core.media.getImgSources(versionDir, getFirstFile=True)
+
+        for source in sources:
+            #   Make sure sourceDir is a directory
+            sourcePath = os.path.join(versionDir, source)
+            if not os.path.isdir(sourcePath):
+                sourceDir = os.path.dirname(sourcePath)
+            else:
+                sourceDir = sourcePath
+
+            #   Get sequence Data
+            seqName, seqFiles = self.getSequenceData(sourceDir)
+            baseFile = seqFiles[0]
+            extension = self.getImageExtension(basefile=baseFile)
+
+            #   Handle images sequence
+            if len(seqFiles) > 1 and extension not in self.core.media.videoFormats:
+                    firstFrame, lastFrame = self.core.media.getFrameRangeFromSequence(seqFiles, baseFile=baseFile)
+                    filePath = os.path.join(versionDir, seqName).replace("\\", "/")
+            #   Handle video files
+            elif extension in self.core.media.videoFormats:
+                filePath = os.path.join(sourceDir, baseFile).replace("\\", "/")
+                duration = self.getVideoDuration(filePath)
+                firstFrame = 1
+                lastFrame = duration
+            #   Handle single image stills
+            else:
+                filePath = os.path.join(sourceDir, baseFile).replace("\\", "/")
+                firstFrame = 1
+                lastFrame = 1
+
+            sourceData.append([filePath, firstFrame, lastFrame])
+
+        return sourceData
+    
+
+    @err_catcher(name=__name__)
+    def getSequenceData(self, sourceDir):
+        #   Handle
+        if self.getLinkedFilepath(sourceDir):
+            files = self.getLinkedFilepath(sourceDir)
+
+        else:
+            files = os.listdir(sourceDir)
+
+        #   Filter and get sequence Dict
+        validFiles = self.core.media.filterValidMediaFiles(files)
+        validFiles = sorted(validFiles, key=lambda x: x if "cryptomatte" not in os.path.basename(x) else "zzz" + x)
+
+        seqDict = self.core.media.detectSequences(validFiles)
+        seqName, seqFiles = next(iter(seqDict.items()))
+
+        return seqName, seqFiles
+
+
+    @err_catcher(name=__name__)
+    def getLinkedFilepath(self, sourceDir):
+        redirectFile = os.path.join(sourceDir, "REDIRECT.txt")
+        if os.path.exists(redirectFile):
+            with open(redirectFile, "r") as rdFile:
+                files = [rdFile.read()]
+
+            return files
+        
+        else:
+            return None
+
 
     @err_catcher(name=__name__)
     def getAovNamesFromAovDict(self, aovDict:list) -> list:
@@ -1535,35 +1602,20 @@ class Image_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def getImageExtension(self, context, basefile):
-        #   Get file extension
-        if "extension" in context:
-            extension = context["extension"]
-        else:
-            _, extension = os.path.splitext(basefile)
-
-        return extension
-    
-
-    @err_catcher(name=__name__)
-    def getFramesFromSourceData(self, extension, sourceItem, basefile):
-        #   Use framerange from sourceData if it exists (sequences)
-        if type(sourceItem[1]) == int:
-            frame_start = sourceItem[1]
-            frame_end = sourceItem[2]
-
-        #   Use video duration for video formats
-        elif extension.lower() in self.fuseFuncts.core.media.videoFormats:
-            duration = self.getVideoDuration(basefile)
-            frame_start = 1
-            frame_end = duration
-
-        #   For Stills Images
-        else:
-            frame_start = 1
-            frame_end = 1
-
-        return frame_start, frame_end
+    def getImageExtension(self, context=None, basefile=None):
+        try:
+            if context and "extension" in context:
+                extension = context["extension"]
+            elif basefile:
+                _, extension = os.path.splitext(basefile)
+            else:
+                raise Exception
+            
+            return extension.lower()
+            
+        except:
+            logger.warning("ERROR:  Unable to get Image Extension")
+            return None
 
 
 
@@ -1739,7 +1791,6 @@ class Image_ImportClass(object):
         #   Call the AOV coloring after toggling
         self.updateAovStatus()
         # self.createStateThumbnail()
-
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
