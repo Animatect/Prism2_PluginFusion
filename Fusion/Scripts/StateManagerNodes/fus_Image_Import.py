@@ -956,7 +956,7 @@ class Image_ImportClass(object):
                 # Check if all required fields match
                 if (
                     mediaId == item_mediaId and 
-                    (aov is None or aov == item_aov) and
+                    (aov is None or aov == "" or aov == item_aov) and
                     (channel is None or channel == item_channel)
                 ):
                     id_match = True
