@@ -49,7 +49,6 @@
 
 import os
 import logging
-from sys import version
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -77,10 +76,12 @@ from PrismUtils.Decorators import err_catcher
 logger = logging.getLogger(__name__)
 
 #   Global Colors
-COLOR_GREEN = QColor(0, 130, 0)
-COLOR_ORANGE = QColor(200, 100, 0)
-COLOR_RED = QColor(130, 0, 0)
-COLOR_BLACK = QColor(0, 0, 0, 0)
+COLOR_GREEN = (0, 130, 0)
+COLOR_YELLOW = (200, 150, 0)
+COLOR_ORANGE = (150, 100, 0)
+COLOR_RED = (130, 0, 0)
+COLOR_BLACK = (0, 0, 0, 0)
+COLOR_WHITE = (255, 255, 255, 255)
 
 #   Color names for beauty/color pass
 COLORNAMES = ["color", 
@@ -91,7 +92,7 @@ COLORNAMES = ["color",
               "diffusecolor"]
 
 #   Width of State Thumbnail
-STATE_THUMB_WIDTH = 270               #   TODO HARDCODED with width for initil size issue.
+STATE_THUMB_WIDTH = 270
 
 #   Icon to be used for State
 scriptDir = os.path.dirname(os.path.dirname(__file__))
@@ -132,6 +133,8 @@ class Image_ImportClass(object):
         self.stateMode = "Image_Import"
         self.taskName = ""
         self.setName = ""
+        self.stateStaus = None
+        self.aovStatus = None
 
         #   Gets color mode from DCC settings
         self.taskColorMode = self.fuseFuncts.taskColorMode
@@ -164,8 +167,8 @@ class Image_ImportClass(object):
         #   Sets colors
         self.oldPalette = self.b_importLatest.palette()
         self.updatePalette = QPalette()
-        self.updatePalette.setColor(QPalette.Button, QColor(200, 100, 0))
-        self.updatePalette.setColor(QPalette.ButtonText, QColor(255, 255, 255))
+        self.updatePalette.setColor(QPalette.Button, QColor(*COLOR_ORANGE))
+        self.updatePalette.setColor(QPalette.ButtonText, QColor(*COLOR_WHITE))
 
         font = self.l_curVersion.font()
         font.setBold(True)
@@ -175,23 +178,17 @@ class Image_ImportClass(object):
         font.setBold(True)
         self.l_latestVersion.setFont(font)
 
-        # createEmptyState = (
-        #     QApplication.keyboardModifiers() == Qt.ControlModifier
-        #     or not self.core.uiAvailable
-        #     )
+
 
     ####   Do one of the following:     ####
 
         ##   1. Load State from Comp Data
         if stateData is not None:
             self.loadData(stateData)
-            logger.debug("Loaded State from saved data")                    #   TODO
+            logger.debug("Loaded State from saved data")
 
             self.nameChanged()
-            self.updateUi()
-            self.updateAovChnlTree()
-            self.createStateThumbnail()
-            self.createAovThumbs()
+            self.refresh()
 
         ##   2. If passed from FusFuncts. Receive importData via "settings" kwarg
         elif settings:
@@ -202,7 +199,7 @@ class Image_ImportClass(object):
             #   Import the latest version
             self.importLatest(refreshUi=True, selectedStates=False, setChecked=True)
 
-            logger.debug("Loaded State from data passed from ProjectBrowser Import")        #   TODO
+            logger.debug("Created State from passed Settings")
 
 
         ##   3. Opens Media Popup to select import
@@ -213,6 +210,7 @@ class Image_ImportClass(object):
             and not settings
             and not self.stateManager.standalone
             ):
+
             #   Make new UID for State
             self.stateUID = self.fuseFuncts.createUUID()
 
@@ -232,10 +230,7 @@ class Image_ImportClass(object):
                 return False
         
             self.nameChanged()
-            self.updateUi()
-            self.updateAovChnlTree()
-            self.createStateThumbnail()
-            self.createAovThumbs()
+            self.refresh()
 
 
         ##   4. If error
@@ -243,6 +238,7 @@ class Image_ImportClass(object):
             logger.warning("ERROR: Unable to Import Image.")
             self.core.popup("Unable to Import Image.")
             return False
+        
 
         getattr(self.core.appPlugin, "sm_import_startup", lambda x: None)(self)
 
@@ -263,11 +259,13 @@ class Image_ImportClass(object):
         self.lw_objects.itemPressed.connect(self.onAovItemClicked)                              #   When AOV item clicked
         self.b_browse.clicked.connect(self.browse)                                              #   Select Version Button
         self.b_browse.customContextMenuRequested.connect(self.openFolder)                       #   RCL Select Version Button
-        self.b_importLatest.clicked.connect(lambda: self.importLatest(refreshUi=True, selectedStates=False, setChecked=True))    #   Import Latest Button
+        self.b_importLatest.clicked.connect(lambda: self.importLatest(refreshUi=True,
+                                                                      selectedStates=False,
+                                                                      setChecked=True))         #   Import Latest Button
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)                        #   Latest Checkbox
-        self.b_importAll.clicked.connect(lambda: self.importAll(refreshUi=True))
-        self.b_importSel.clicked.connect(self.importSelected)
-        self.b_refresh.clicked.connect(self.refresh)                                            #   Refresh Button        TODO
+        self.b_importAll.clicked.connect(lambda: self.importAll(refreshUi=True))                #   Import All Button
+        self.b_importSel.clicked.connect(self.importSelected)                                   #   Import Selected button
+        self.b_refresh.clicked.connect(self.refresh)                                            #   Refresh Button
 
 
     #########################
@@ -298,7 +296,12 @@ class Image_ImportClass(object):
     #   Returns a pixmap from an exr image filepath (can specify channel/aov)
     @err_catcher(name=__name__)
     def getPixmapFromExrPath(self, filePath:str, width:int, height:int, channel:str, allowThumb:bool) -> PixMap:
-        pxmap = self.core.media.getPixmapFromExrPath(filePath, width=width, height=height, channel=channel, allowThumb=allowThumb)
+        pxmap = self.core.media.getPixmapFromExrPath(filePath,
+                                                     width=width,
+                                                     height=height,
+                                                     channel=channel,
+                                                     allowThumb=allowThumb
+                                                     )
         return pxmap
 
     #   Returns a pixmap from a generic media image filepath
@@ -358,7 +361,7 @@ class Image_ImportClass(object):
         else:
             try:
                 name = f"{self.importData['identifier']}__{self.importData['version']}"
-            except Exception as e:                                          #   TODO
+            except Exception as e:
                 name = text
 
         #   Set the name for the State list
@@ -372,7 +375,7 @@ class Image_ImportClass(object):
 
     #   Opens Media Chooser to select version
     @err_catcher(name=__name__)
-    def browse(self, refreshUi=True):
+    def browse(self):
         #   Get the AOV items
         aovItems = self.getAllItems(useChecked=False, aovs=True)
         if aovItems:
@@ -385,11 +388,7 @@ class Image_ImportClass(object):
             #   Just call without a MediaId
             self.callMediaWindow()
 
-        if refreshUi:
-            self.updateUi()
-            self.updateAovChnlTree()
-            self.createAovThumbs()
-            self.createStateThumbnail()
+        self.refresh()
 
 
     @err_catcher(name=__name__)                     #   TODO
@@ -426,8 +425,11 @@ class Image_ImportClass(object):
         if checked:
             curVersion, latestVersion = self.checkLatestVersion()
             if self.chb_autoUpdate.isChecked():
-                if curVersion.get("version") and latestVersion.get("version") and curVersion["version"] != latestVersion["version"]:
-                    self.importLatest(refreshUi=False, selectedStates=False)
+                if (curVersion.get("version")
+                    and latestVersion.get("version")
+                    and curVersion["version"] != latestVersion["version"]
+                    ):
+                    self.importLatest(refreshUi=True, selectedStates=False)
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -455,10 +457,9 @@ class Image_ImportClass(object):
         if not impFPS or not curFPS or impFPS == curFPS:
             return True
 
-        fString = (
-            "The FPS of the import doesn't match the FPS of the current scene:\n\nCurrent scene FPS:\t%s\nImport FPS:\t\t%s"
-            % (curFPS, impFPS)
-        )
+        fString = (f"The FPS of the import doesn't match the FPS of the current scene:\n\n"
+                   f"Current scene FPS: {curFPS}\n"
+                   f"Import FPS:  {impFPS}")
 
         result = self.core.popupQuestion(
             fString,
@@ -545,7 +546,11 @@ class Image_ImportClass(object):
                         )
 
                 #   Find and select the Identifier
-                items = self.mediaBrowser.tw_identifier.findItems(mediaId, Qt.MatchFlag(Qt.MatchExactly & Qt.MatchCaseSensitive ^ Qt.MatchRecursive))
+                items = self.mediaBrowser.tw_identifier.findItems(
+                    mediaId,
+                    Qt.MatchFlag(Qt.MatchExactly & Qt.MatchCaseSensitive ^ Qt.MatchRecursive)
+                    )
+                
                 if items:
                     self.mediaBrowser.tw_identifier.setCurrentItem(items[0])
             except:
@@ -575,7 +580,7 @@ class Image_ImportClass(object):
 
         if clicked == "identifier":
             result = self.importLatest(refreshUi=False, selectedStates=False, setChecked=True)
-        
+               
         if not result:
             return False
         if result == "Empty":
@@ -584,6 +589,17 @@ class Image_ImportClass(object):
             return True
         
 
+    #   Refreshes UI, Thumbnails, and Tooltips
+    @err_catcher(name=__name__)
+    def refresh(self):
+        self.updateAovChnlTree()
+        self.updateUi()
+        self.createAovThumbs()
+        self.createStateThumbnail()
+        self.refreshTips()
+
+
+    #   Refreshes only the UI Text and Coloring (not Thumbnails)
     @err_catcher(name=__name__)
     def updateUi(self):
         versions = self.checkLatestVersion()
@@ -612,45 +628,28 @@ class Image_ImportClass(object):
         self.l_curVersion.setText(curVersionName or "-")
         self.l_latestVersion.setText(latestVersionName or "-")
 
-        status = "error"
+        self.stateStatus = "error"
+
         if self.chb_autoUpdate.isChecked():
             if curVersionName and latestVersionName and curVersionName != latestVersionName:
                 self.importLatest(refreshUi=False, selectedStates=False, setChecked=True)
 
             if latestVersionName:
-                status = "ok"
+                self.stateStatus = "ok"
         else:
-            useSS = getattr(self.core.appPlugin, "colorButtonWithStyleSheet", False)
             if (
                 curVersionName
                 and latestVersionName
                 and curVersionName != latestVersionName
                 and not curVersionName.startswith("master")
             ):
-                status = "warning"
-                if useSS:
-                    self.b_importLatest.setStyleSheet(
-                        "QPushButton { background-color: rgb(200,100,0); }"
-                    )
-                else:
-                    self.b_importLatest.setPalette(self.updatePalette)
+                self.stateStatus = "warning"
             else:
                 if curVersionName and latestVersionName:
-                    status = "ok"
-
-                if useSS:
-                    self.b_importLatest.setStyleSheet("")
-                    self.b_importLatest.setStyleSheet(
-                        "QPushButton { background-color: rgb(0,100,0); }"
-                        )
-                else:
-                    # self.b_importLatest.setPalette(self.oldPalette)
-                    self.b_importLatest.setStyleSheet(
-                        "QPushButton { background-color: rgb(0,100,0); }"
-                        )
+                    self.stateStatus = "ok"
 
         self.nameChanged()
-        self.setStateColor(status)
+        self.setStateColor()
 
         getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
@@ -658,18 +657,42 @@ class Image_ImportClass(object):
         self.stateManager.saveStatesToScene()
 
 
-    @err_catcher(name=__name__)                             #   TODO - Add functionality to color based on AOV status
-    def setStateColor(self, status):
-        if status == "ok":
-            statusColor = COLOR_GREEN
-        elif status == "warning":
-            statusColor = COLOR_ORANGE
-        elif status == "error":
-            statusColor = COLOR_RED
-        else:
-            statusColor = COLOR_BLACK
+    ##   Set State Status Coloring based on statuses
+    @err_catcher(name=__name__) 
+    def setStateColor(self):
+        #   Defaults
+        statusColor = COLOR_BLACK
+        tip = ""
 
-        self.statusColor = statusColor
+        #   If either has a warning
+        if self.stateStatus == "warning" or self.aovStatus == "warning":
+            statusColor = COLOR_ORANGE
+            tip = ("Version: Not Current\n"
+                   "Loaders: Not Current")
+
+        #   If not the Latest version is loaded
+        if self.stateStatus == "warning" and self.aovStatus == "ok":
+            statusColor = COLOR_YELLOW
+            tip = ("Version: Higher Version is Available\n"
+                   "Loaders: Loader has selected Version Loaded")
+            
+        #   If both are ok
+        if self.stateStatus == "ok" and self.aovStatus == "ok":
+            statusColor = COLOR_GREEN 
+            tip = ("Version: Current\n"
+                   "Loaders: Current")
+            
+        #   If there is an error such as missing Loader
+        if self.stateStatus == "error" or self.aovStatus == "error":
+            statusColor = COLOR_RED
+            tip = "ERROR:  There may be missing Loaders in the Comp."
+
+        #   Sets color and tooltip of the "Import Latest" button
+        self.b_importLatest.setStyleSheet(f"QPushButton {{ background-color: rgb({', '.join(map(str, statusColor))}); }}")
+        self.b_importLatest.setToolTip(tip)
+
+        #   Used for StateManager State list coloring (left side)
+        self.statusColor = QColor(*statusColor)
         self.stateManager.tw_import.repaint()
 
 
@@ -831,6 +854,7 @@ class Image_ImportClass(object):
 
         #   Call the AOV coloring after toggling
         self.updateAovStatus()
+        self.updateUi()
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -915,6 +939,10 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def updateAovStatus(self):
+        #   Liat of each AOV status
+        aovStatuses = []
+
+        #   Gets all State UIDs
         stateUIDs = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID, includeConn=False)
 
         # Get child AOV items
@@ -968,20 +996,30 @@ class Image_ImportClass(object):
             # Assign color based on match status
             if ver_match:
                 color = COLOR_GREEN
+                aovStatuses.append("ok")
             elif id_match:
                 color = COLOR_ORANGE
+                aovStatuses.append("warning")
             else:
                 color = COLOR_RED
+                aovStatuses.append("error")
 
             self.setItemStatusColor(item, color)
 
+        # Determine final aovStatus based on priority
+        if len(aovStatuses) == 0:
+            self.aovStatus = "error"
+        else:
+            statusDict = {"error": 3, "warning": 2, "ok": 1}
+            self.aovStatus = max(aovStatuses, key=lambda status: statusDict[status], default="ok")
 
-    @err_catcher(name=__name__)
+
+    @err_catcher(name=__name__)                     #   TODO
     def refreshTips(self):
         self.setStateThumbToolTip()
 
     
-    @err_catcher(name=__name__)
+    @err_catcher(name=__name__)                     #   TODO - add more data to tooltip
     def setStateThumbToolTip(self):
         tip = f"State UUID: {self.stateUID}"
         self.l_thumb.setToolTip(tip)
@@ -1003,7 +1041,12 @@ class Image_ImportClass(object):
                 ext = os.path.splitext(filePath)[1]
 
                 if ext.lower() == ".exr":
-                    pixMap = self.getPixmapFromExrPath(filePath, width=width, height=height, channel=channel, allowThumb=allowThumb)
+                    pixMap = self.getPixmapFromExrPath(filePath,
+                                                       width=width,
+                                                       height=height,
+                                                       channel=channel,
+                                                       allowThumb=allowThumb
+                                                       )
                 else:
                     pixMap = self.getPixmapFromPath(filePath, width=width, height=height)
 
@@ -1032,7 +1075,11 @@ class Image_ImportClass(object):
             new_height = int(width * aspectRatio)
 
             # Scale the pixmap to fill the QLabel's width while maintaining aspect ratio
-            scaledPixmap = fallbackPixMap.scaled(STATE_THUMB_WIDTH, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            scaledPixmap = fallbackPixMap.scaled(STATE_THUMB_WIDTH,
+                                                 new_height,
+                                                 Qt.KeepAspectRatio,
+                                                 Qt.SmoothTransformation
+                                                 )
 
             logger.debug("Created scaled fallback thumbnail")
             return scaledPixmap, width, new_height
@@ -1056,7 +1103,6 @@ class Image_ImportClass(object):
             # Apply the scaled pixmap
             self.l_thumb.setPixmap(temp_pixmap)
             self.l_thumb.adjustSize()
-
             self.l_thumb.setFixedHeight(temp_height)
             self.l_thumb.setFixedWidth(temp_width)
             self.l_thumb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
@@ -1115,7 +1161,14 @@ class Image_ImportClass(object):
             return
 
         # Create thumb thread
-        self.createThumb_thread = ThumbnailThread(self.l_thumb, beautyFilepath, thumb_width, temp_height, channel, allowThumb, self.getPixMap)
+        self.createThumb_thread = ThumbnailThread(self.l_thumb,
+                                                  beautyFilepath,
+                                                  thumb_width,
+                                                  temp_height,
+                                                  channel,
+                                                  allowThumb,
+                                                  self.getPixMap)
+        
         # Connect the signal to update the QLabel when the thumbnail is ready
         self.createThumb_thread.thumbnail_ready.connect(self.updateThumbnail)
         # Start the thread
@@ -1137,6 +1190,7 @@ class Image_ImportClass(object):
         for item in imageItems:
             #   Get data from item
             itemData = self.getItemData(item)
+
             #   Skip item if no data
             if not itemData:
                 continue
@@ -1180,7 +1234,13 @@ class Image_ImportClass(object):
                     allowThumb = False
 
             # Create thumbnail thread
-            thumb_thread = ThumbnailThread(item, path, width, height, channel, allowThumb, self.getPixMap)
+            thumb_thread = ThumbnailThread(item,
+                                           path,
+                                           width,
+                                           height,
+                                           channel,
+                                           allowThumb,
+                                           self.getPixMap)
             #   Store thread
             self.thumb_threads.append(thumb_thread)
             #   Connect thread finish
@@ -1193,6 +1253,10 @@ class Image_ImportClass(object):
     @err_catcher(name=__name__)
     def setThumbToolTip(self, item, pixMap, new_height, new_width):
         try:
+            if not item:
+                logger.warning("ERROR: No AOV Item")
+                return
+
             # Convert QPixmap to Base64
             byte_array = QByteArray()
             buffer = QBuffer(byte_array)
@@ -1204,6 +1268,7 @@ class Image_ImportClass(object):
 
             #   Set Tool Tip
             item.setToolTip(0, thumbTip)
+
         except:
             logger.warning("ERROR:  Unable to set AOV thumb tooltip")
 
@@ -1222,7 +1287,6 @@ class Image_ImportClass(object):
             item.adjustSize()
         except:
             logger.warning("ERROR:  Unable to set State thumbnail")
-
 
 
 
@@ -1522,7 +1586,6 @@ class Image_ImportClass(object):
         self.stateManager.saveStatesToScene()
 
 
-
     @err_catcher(name=__name__)
     def getItemChecked(self, item):
         checked_raw = item.data(0, ITEM_ROLE_CHECKBOX)
@@ -1596,7 +1659,6 @@ class Image_ImportClass(object):
         for fileData in fData:
             if fileData["fileUID"] == itemUID:
                 return fileData
-            
         else:
             return None
 
@@ -1748,7 +1810,6 @@ class Image_ImportClass(object):
 
         # self.setImportPath(impFileName)
         self.stateManager.saveImports()
-        self.updateUi()
         self.stateManager.saveStatesToScene()
 
         #   Show version update popup if enabled
@@ -1775,9 +1836,8 @@ class Image_ImportClass(object):
         self.imageImport(self.importData)
 
         if refreshUi:
-            self.updateUi()
             self.updateAovChnlTree()
-            self.createAovThumbs()
+            self.updateUi()
         else:
             self.updateAovChnlTree()
 
@@ -1790,7 +1850,6 @@ class Image_ImportClass(object):
 
         #   Call the AOV coloring after toggling
         self.updateAovStatus()
-        # self.createStateThumbnail()
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -1817,9 +1876,10 @@ class Image_ImportClass(object):
         self.imageImport(importData)
 
         if refreshUi:
-            self.updateUi()
             self.updateAovChnlTree()
-            self.createAovThumbs()
+            self.updateUi()
+        else:
+            self.updateAovChnlTree()
 
         #   Call the AOV coloring after toggling
         self.updateAovStatus()
@@ -1866,8 +1926,8 @@ class Image_ImportClass(object):
 
         keys_to_remove = [
             'stateUID', 'locations', 'extension', 'version', 'aovs', 'channels', 
-            'files', 'statename', 'statemode', 'filepath', 'autoUpdate', 'taskname', 'taskColor', 'aov', 'comment', 'date', 
-            'source', 'user', 'username'
+            'files', 'statename', 'statemode', 'filepath', 'autoUpdate', 'taskname',
+            'taskColor', 'aov', 'comment', 'date', 'source', 'user', 'username'
         ]
         
         # Remove unwanted keys to make Prism context
@@ -1889,24 +1949,10 @@ class Image_ImportClass(object):
 
         if refreshUi:
             self.updateUi()
-            self.updateAovChnlTree()
             self.createAovThumbs()
             self.createStateThumbnail()
 
         return True
-
-
-    @err_catcher(name=__name__)
-    def refresh(self):
-
-        # self.importSelected()                 #   DO WE WANT TO ACTUALLY IMPORT OR JUST KEEP UI REFRESH
-        self.updateUi()
-        self.updateAovChnlTree()
-        self.createAovThumbs()
-        self.createStateThumbnail()
-
-        self.refreshTips()
-
 
 
     @err_catcher(name=__name__)
@@ -1928,10 +1974,9 @@ class Image_ImportClass(object):
             for uid in uids:
                 self.fuseFuncts.deleteNode("import2d", uid, delAction=True)
 
-            # self.core.appPlugin.deleteNodes(self)
-                
+               
 
-    @err_catcher(name=__name__)                                 #   TODO Make sure all info is in here (shot, asset, etc)
+    @err_catcher(name=__name__)
     def getStateProps(self):
 
         self.importData["statename"] = self.e_name.text()
@@ -2170,7 +2215,7 @@ class statusColorDelegate(QStyledItemDelegate):
             if isinstance(color, QColor):
                 brush_color = color
             else:
-                brush_color = QColor(color)  # Convert to QColor if not already
+                brush_color = QColor(*color)
 
             rect = QRect(option.rect)
             # Position on the right
