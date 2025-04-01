@@ -1128,7 +1128,7 @@ class Image_ImportClass(object):
             for item in aovItems:
                 itemData = self.getItemData(item)
                 
-                if itemData.get("aov") and itemData["aov"].lower() in COLORNAMES:
+                if itemData.get("aov") and any(color in itemData["aov"].lower() for color in COLORNAMES):
                     beautyFilepath = itemData["basefile"]
 
                     #   If user selected "All" in DCC settings use original image
