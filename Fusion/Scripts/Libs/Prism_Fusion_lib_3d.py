@@ -56,7 +56,6 @@ import os
 import tkinter as tk
 import logging
 
-from . import Prism_Fusion_lib_CompDb as CompDb
 from . import Prism_Fusion_lib_Fus as Fus
 
 from PrismUtils.Decorators import err_catcher as err_catcher

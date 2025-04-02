@@ -53,6 +53,7 @@
 import os
 import re
 import logging
+from webbrowser import get
 
 from PrismUtils.Decorators import err_catcher as err_catcher
 
@@ -109,7 +110,6 @@ logger = logging.getLogger(__name__)
 
 
 #	Returns the filename of the current comp
-
 def getCurrentFileName(comp, origin=None, path=True) -> str:
     try:
         if comp is None:
@@ -123,7 +123,6 @@ def getCurrentFileName(comp, origin=None, path=True) -> str:
         logger.warning(f"ERROR: Failed to get current filename:\n{e}")
 
 
-
 def openScene(fusion, sceneFormats:list, filepath:str, force=False) -> bool:
     if os.path.splitext(filepath)[1] not in sceneFormats:
         return False
@@ -135,7 +134,6 @@ def openScene(fusion, sceneFormats:list, filepath:str, force=False) -> bool:
         logger.warning("ERROR: Failed to load Comp")
 
     return True
-
 
 
 def saveScene(comp, filepath:str, details={}) -> bool:
@@ -152,7 +150,6 @@ def saveScene(comp, filepath:str, details={}) -> bool:
         return False
     
 
-
 def getFrameRange(comp) -> Tuple[int, int]:
     try:
         startframe = comp.GetAttrs()["COMPN_GlobalStart"]
@@ -164,7 +161,6 @@ def getFrameRange(comp) -> Tuple[int, int]:
     
 
 #	Sets the supplied framerange to the comp
-
 def setFrameRange(comp, startFrame:int, endFrame:int):
     try:
         comp.SetAttrs(
@@ -185,8 +181,6 @@ def setFrameRange(comp, startFrame:int, endFrame:int):
         logger.warning(f"ERROR: Could not set framerange in the comp:\n{e}")
 
 
-
-
 def getRenderRange(comp) -> Tuple[int, int]:
     try:
         startframe = comp.GetAttrs()["COMPN_RenderStart"]
@@ -198,7 +192,6 @@ def getRenderRange(comp) -> Tuple[int, int]:
     
 
 #	Sets the supplied framerange to the comp
-
 def setRenderRange(comp, startFrame:int, endFrame:int):
     try:
         comp.SetAttrs(
@@ -212,8 +205,6 @@ def setRenderRange(comp, startFrame:int, endFrame:int):
         logger.warning(f"ERROR: Could not set framerange in the comp:\n{e}")
 
 
-
-
 def getFPS(comp) -> float:
     try:
         return comp.GetPrefs()["Comp"]["FrameFormat"]["Rate"]
@@ -222,15 +213,11 @@ def getFPS(comp) -> float:
         return None
     
 
-
-
 def setFPS(comp, fps:float):
     try:
         return comp.SetPrefs({"Comp.FrameFormat.Rate": fps})
     except:
         logger.warning(f"ERROR: Failed to set the fps to the comp")
-
-
 
 
 def getResolution(comp) -> Tuple[int, int]:
@@ -346,6 +333,52 @@ def getToolData(tool:Tool) -> dict:
         logger.warning(f"ERROR: Unable to get tool data from: {tool}\n{e}")
         return {}
     
+
+def getToolDataByUID(comp, toolUID):
+    tool = getToolByUID(comp, toolUID)
+    return getToolData(tool)
+
+
+def getUidFromTool(tool):
+    tData = getToolData(tool)
+    if tData:
+        return tData["toolUID"]
+    else:
+        return None
+
+
+#   Return list of Tool UIDs for a given State UID
+def getUIDsFromStateUIDs(comp, stateUID:str, includeConn:bool=True) -> list:
+
+    uids = []
+
+    tools = getToolsFromStateUIDs(comp, stateUID)
+
+    for tool in tools:
+        uids.append(getUidFromTool(tool))
+
+    return uids
+
+
+def getMediaIDsForType(comp, listType:str) -> list[str]:                    #   TODO
+    mediaIDs = set()
+
+    try:
+        tools = getAllPrismTools(comp)
+
+        for tool in tools:
+            tData = getToolData(tool)
+
+
+            if tData["listType"] == listType:
+                mediaIDs.add(tData["mediaId"])
+        
+        logger.debug("Constructed list of MediaID's")
+        return sorted(mediaIDs)
+    
+    except Exception as e:
+        logger.warning(f"ERROR: Unable to get list of MediaID's from database:\n{e}")
+
 
 #   Creates a group with given tools and returns the Group UID and new UIDs.
 @err_catcher(name=__name__)
@@ -475,12 +508,60 @@ def groupTools(comp,
         logger.warning(f"ERROR: Failed to create group:\n{e}")
         return None
 
+def getAllTools(comp, selected=False):
+    if selected:
+        return comp.GetToolList(True).values()
+    else:
+        return comp.GetToolList(False).values()
+    
+
+def getAllPrismTools(comp, selected=False):
+    allTools = getAllTools(comp, selected=selected)
+    prismTools = []
+
+    for tool in allTools:
+        if getToolData(tool):
+            prismTools.append(tool)
+    
+    return prismTools
+
+
+def getToolByUID(comp, toolUID):
+    for tool in getAllTools(comp):
+        tData = getToolData(tool)
+
+        if tData and tData["toolUID"]:
+            if toolUID == tData["toolUID"]:
+                return tool
+        
+
+def toolExists(comp, toolUID:str) -> bool:
+    searchTool = getToolByUID(comp, toolUID)
+    searchTool_FusID = searchTool.GetAttrs("TOOLS_UniqueID")
+
+    for tool in comp.GetToolList(False).values():
+        if searchTool_FusID == tool.GetAttrs("TOOLS_UniqueID"):
+            return True
+    
+    return False
+
+
+#   Return Tool's Name
+def getToolName(tool:Tool) -> str:
+    return tool.Name
+
+
+def getToolNameByUID(comp, toolUID:str) -> Toolname:
+    tool = getToolByUID(comp, toolUID)
+    toolName = getToolName(tool)
+
+    return toolName
+
 
 #   Returns tool that matches name
-
 def getToolByName(comp, toolName:str) -> Tool:
     try:
-        for tool in comp.GetToolList(False).values():
+        for tool in getAllTools(comp):
             if tool.Name == toolName:
                 return tool
         logger.warning(f"ERROR: No tool found with the name: {toolName}")
@@ -506,7 +587,7 @@ def getToolType(tool:Tool) -> str:
 def getAllToolsByType(comp, toolType:str) -> list[Tool]:
     try:
         toolList = []
-        for tool in comp.GetToolList(False).values():
+        for tool in getAllTools(comp):
             if getToolType(tool) == toolType:
                 toolList.append(tool)
 
@@ -514,14 +595,30 @@ def getAllToolsByType(comp, toolType:str) -> list[Tool]:
     except:
         logger.warning(f"ERROR: Unable to get all {toolType} tools from the Comp")
         return None
+    #   Return list of Tool UIDs for a given State UID
+
+
+def getToolsFromStateUIDs(comp, stateUID:str) -> list:
+    toolList = []
+
+    try:
+        for tool in getAllTools(comp):
+            tData = getToolData(tool)
+            if tData["stateUID"] == stateUID:
+                toolList.append(tool)
+
+        return toolList
     
+    except:
+        logger.warning(f"ERROR:  Unable to get Tools from Comp for State UID {stateUID}")
+        return []
+
 
 #   Returns tools selected in Comp with optional Tool Type
-
 def getSelectedTools(comp, toolType:str=None) -> list[Tool]:
     try:
         toolList = []
-        for tool in comp.GetToolList(True).values():
+        for tool in getAllTools(comp, selected=True):
             if toolType:
                 if getToolType(tool) == toolType:
                     toolList.append(tool)
@@ -535,6 +632,53 @@ def getSelectedTools(comp, toolType:str=None) -> list[Tool]:
         return None
 
 
+#   Gets the database record for a given importData dict
+def getUIDsFromImportData(comp, importData:dict) -> dict:
+    #   Make copy and re-assign MediaID
+    importData_copy = importData
+    if "mediaId" not in importData_copy:
+        importData_copy["mediaId"] = importData_copy.get("identifier", None)
+    
+    uids = []
+    
+    try:
+        #   Get the requested node listType
+        tools = getAllTools(comp)
+        if not tools:
+            logger.debug(f"No Tools in the Comp")
+            return []
+        
+        prismTools = getAllPrismTools(comp)
+
+        #   List of items to compare
+        compareKeys = ["mediaId", "mediaType", "extension", "aov", "channel", "itemType", "asset", "sequence", "shot"]
+
+        # Search for a record matching all the available items
+        for tool in prismTools:
+            match = True  # Assume match unless proven otherwise
+            tData = getToolData(tool)
+            #   Itterate through keys and compare if exist in both dicts
+            for key in compareKeys:
+                if key in importData_copy and key in tData:
+                    import_value = importData_copy.get(key, None)
+                    node_value = tData.get(key, None)
+                    #   Check for match
+                    if import_value != node_value:
+                        match = False
+                        break  # No need to check further
+
+            # Add to UID list if exists
+            if match:
+                uids.append(tData["toolUID"])
+
+        return uids
+    
+    except:
+        logger.warning(f"No nodes found with mediaId '{importData['identifier']}'.")
+        return []
+
+
+
 #   Tries to find last tool in the flow
 
 def getLastTool(comp) -> Tool | None:
@@ -546,9 +690,48 @@ def getLastTool(comp) -> Tool | None:
     except:
         return None
         
-    
-#   Finds if tool has any outputs connected
 
+#   Returns the Connected Nodes for a given Node
+
+def getConnectedNodes(comp, tool) -> Union[list | None]:
+    try:
+        toolData = getToolData(tool)
+        if "connectedNodes" not in toolData:
+                return []
+            
+        else:
+            connectedNodes = toolData["connectedNodes"]
+
+        #   If connected nodes is a dict with names
+        if isinstance(connectedNodes, dict):
+            connUIDs = []
+            for name, uid in connectedNodes.items():
+                connUIDs.append(uid)
+
+            return connUIDs
+        #   If connected nodes is just a list of UIDs
+        else:
+            return connectedNodes
+
+    except:
+        logger.warning(f"ERROR: Unable to get connected nodes for {UUID}")
+        return None
+
+
+def isPassThrough(comp, toolUID:str=None, tool:str=None) -> bool:
+    if toolUID:
+        tool = getToolByUID(comp, toolUID)
+    return tool and tool.GetAttrs({"TOOLS_Name"})["TOOLB_PassThrough"]
+
+
+#	Sets the Fusion node's passthrough
+def setPassThrough(comp, toolUID:str=None, tool:str=None, passThrough=False):
+    if toolUID:
+        tool = getToolByUID(comp, toolUID)
+    tool.SetAttrs({"TOOLB_PassThrough": passThrough})
+
+
+#   Finds if tool has any outputs connected
 def hasConnectedOutputs(tool) -> bool:
     if not tool:
         return False
@@ -1130,3 +1313,67 @@ def focusOnTool(comp:Composition_, tool:Tool_, scalefactor = 0.5):
 ########################
     
 
+
+
+################################
+###        STATE DATA        ###
+
+
+def setDefaultState(comp):
+    defaultState = """{
+    "states": [
+        {
+            "statename": "publish",
+            "comment": "",
+            "description": ""
+        }
+    ]
+}_..._
+"""
+    try:
+        comp.SetData("prismStates", defaultState)
+        logger.debug("Saved the empty state data to the comp")
+    except:
+        logger.warning(f"ERROR: Unable to save default State Data to comp: {comp}")
+
+
+
+def sm_saveStates(comp, buf:str):
+    try:
+        comp.SetData("prismStates", buf + "_..._")
+        logger.debug(f"Saved the state data to the comp.")
+    except:
+        logger.warning(f"ERROR: Unable to save State Data to comp: {comp}")
+
+
+
+def sm_saveImports(comp, importPaths:str):
+    prismdata = comp.GetData("prismStates")
+    prismdata += importPaths.replace("\\\\", "\\")
+    comp.SetData("prismStates", prismdata)
+
+
+
+def sm_readStates(comp) -> str:
+    try:
+        prismdata = comp.GetData("prismStates")
+        if not prismdata:
+            logger.debug("Prism State Data does not exist.")
+        else:
+            return prismdata.split("_..._")[0]
+    except:
+        logger.warning(f"ERROR:  Unable to read State Data from comp: {comp}")
+        logger.warning(f"ERROR:  Resetting Prism State Data")
+        setDefaultState()
+
+
+#	Gets called from SM to remove all States
+
+def sm_deleteStates(comp):
+    #	Sets the states datablock to empty default state
+    setDefaultState()
+
+
+def getImportPaths(comp) -> str:
+    prismdata = comp.GetData("prismStates")
+    return prismdata.split("_..._")[1]

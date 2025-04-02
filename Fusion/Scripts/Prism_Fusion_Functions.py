@@ -81,7 +81,6 @@ from StateManagerNodes.fus_Legacy3D_Import import Legacy3D_ImportClass
 #	Import Prism Fusion Libraries
 import Libs.Prism_Fusion_lib_Helper as Helper
 import Libs.Prism_Fusion_lib_Fus as Fus
-import Libs.Prism_Fusion_lib_CompDb as CompDb
 import Libs.Prism_Fusion_lib_3d as Fus3d
 
 logger = logging.getLogger(__name__)
@@ -118,9 +117,7 @@ class Prism_Fusion_Functions(object):
 						("onStateManagerClose", self.onStateManagerClose),
 						("onStateManagerShow", self.onStateManagerShow),
 						("onStateCreated", self.onStateCreated),
-						("getIconPathForFileType", self.getIconPathForFileType),
-						# ("openPBListContextMenu", self.openPBListContextMenu),
-						# ("onMediaBrowserOpen", self.onMediaBrowserOpen),
+						("getIconPathForFileType", self.getIconPathForFileType)
 				]
 
 			# Iterate through the list to register callbacks
@@ -314,7 +311,7 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def createUUID(self, simple=False, length=8):
-		return CompDb.createUUID(simple=False, length=8)
+		return Helper.createUUID(simple=False, length=8)
 
 
 	@err_catcher(name=__name__)
@@ -358,73 +355,68 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def nodeExists(self, nodeUID):
+	def getToolByUID(self, toolUID):
 		comp = self.getCurrentComp()
-		return CompDb.nodeExists(comp, nodeUID)
-	
-
-	##############TODELETE############
-	@err_catcher(name=__name__)
-	def getNodeName(self, origin:Legacy3D_ImportClass, node:str):
-		if Fus3d.isNodeValid(origin, node):
-			try:
-				return node["name"]
-			except:
-				QMessageBox.warning(
-					self.core.messageParent, "Warning", "Cannot get name from %s" % node
-				)
-				return node
-		else:
-			return "invalid"
-	##############TODELETE############
+		return Fus.toolExists(comp, toolUID)
 
 
 	@err_catcher(name=__name__)
-	def getNodeByUID(self, nodeUID):
+	def toolExists(self, toolUID):
 		comp = self.getCurrentComp()
-		return CompDb.getNodeByUID(comp, nodeUID)
+		return Fus.toolExists(comp, toolUID)
 	
 
 	@err_catcher(name=__name__)
-	def getNodeNameByUID(self, nodeUID):
+	def getToolName(self, tool):
 		comp = self.getCurrentComp()
-		return CompDb.getNodeNameByUID(comp, nodeUID)
+		return Fus.getToolName(comp, tool)
 	
 
 	@err_catcher(name=__name__)
-	def getNodeInfo(self, type, nodeUID):
-		comp = self.getCurrentComp()
-		return CompDb.getNodeInfo(comp, type, nodeUID)
+	def getToolData(self, tool):
+		return Fus.getToolData(tool)
 	
 
 	@err_catcher(name=__name__)
-	def getUIDsFromStateUIDs(self, listType, stateUID, includeConn=True):
+	def getToolDataByUID(self, toolUID):
 		comp = self.getCurrentComp()
-		return CompDb.getUIDsFromStateUIDs(comp, listType, stateUID, includeConn)
+		return Fus.getToolDataByUID(comp, toolUID)
+	
+
+	@err_catcher(name=__name__)
+	def getUIDsFromStateUIDs(self, stateUID, includeConn:bool=True):
+		comp = self.getCurrentComp()
+		return Fus.getUIDsFromStateUIDs(comp, stateUID, includeConn)
 
 
 	@err_catcher(name=__name__)
-	def getConnectedNodes(self, listType:str, UUID:str):
+	def getToolsFromStateUIDs(self, stateUID):
 		comp = self.getCurrentComp()
-		return CompDb.getConnectedNodes(comp, listType, UUID)
-
-	@err_catcher(name=__name__)
-	def isPassThrough(self, nodeUID):
-		comp = self.getCurrentComp()
-		return CompDb.isPassThrough(comp, nodeUID)
+		return Fus.getToolsFromStateUIDs(comp, stateUID)
 
 
 	@err_catcher(name=__name__)
-	def setPassThrough(self, nodeUID=None, node=None, passThrough=False):
+	def getConnectedNodes(self, UUID:str):
 		comp = self.getCurrentComp()
-		CompDb.setPassThrough(comp, nodeUID=nodeUID, node=node, passThrough=passThrough)
+		return Fus.getConnectedNodes(comp, UUID)
+
+	@err_catcher(name=__name__)
+	def isPassThrough(self, toolUID=None, tool=None):
+		comp = self.getCurrentComp()
+		return Fus.isPassThrough(comp, toolUID, tool)
+
+
+	@err_catcher(name=__name__)
+	def setPassThrough(self, toolUID=None, tool=None, passThrough=False):
+		comp = self.getCurrentComp()
+		Fus.setPassThrough(comp, nodeUID=toolUID, tool=tool, passThrough=passThrough)
 
 
 	@err_catcher(name=__name__)
 	def setDefaultState(self):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			CompDb.setDefaultState(comp)
+			Fus.setDefaultState(comp)
 
 
 	@err_catcher(name=__name__)
@@ -434,7 +426,7 @@ class Prism_Fusion_Functions(object):
 		# here we just do a check,  by doing that we can check again in another function where we can actually interrupt the process
 		# in the other functions if there is a problem but avoid corrupting the comp's states.
 		if self.sm_checkCorrectComp(comp, displaypopup=False, deleteSM=False):
-			CompDb.sm_saveStates(comp, buf)
+			Fus.sm_saveStates(comp, buf)
 
 
 	@err_catcher(name=__name__)
@@ -443,14 +435,14 @@ class Prism_Fusion_Functions(object):
 		# The comp check for the imports should be done also in the import and delete functions for import states.
 		# here we just do a check, but by doing it there we can actually interrupt the process.
 		if self.sm_checkCorrectComp(comp, displaypopup=False, deleteSM=False):
-			CompDb.sm_saveImports(comp, importPaths)
+			Fus.sm_saveImports(comp, importPaths)
 
 
 	@err_catcher(name=__name__)
 	def sm_readStates(self, origin):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			return CompDb.sm_readStates(comp)
+			return Fus.sm_readStates(comp)
 
 	@err_catcher(name=__name__)
 	def sm_createStatePressed(self, origin, stateType):
@@ -468,7 +460,7 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			#	Sets the states datablock to empty default state
-			CompDb.setDefaultState(comp)
+			Fus.setDefaultState(comp)
 			self.core.popup("All States have been removed.\n"
 							"You may have to remove associated Loaders and Savers\n"
 							"from the comp manually.")
@@ -478,7 +470,7 @@ class Prism_Fusion_Functions(object):
 	def getImportPaths(self, origin):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			return CompDb.getImportPaths(comp)
+			return Fus.getImportPaths(comp)
 
 
 #########################################
@@ -736,7 +728,7 @@ class Prism_Fusion_Functions(object):
 			if renderedThumbs:
 				renderedThumb = renderedThumbs[0]  # Assuming only one matching file
 				os.rename(renderedThumb, thumbPath)
-				logger.debug(f"Created Thumbnail from: {CompDb.getNodeNameByTool(thumbTool)}")
+				logger.debug(f"Created Thumbnail from: {Fus.getToolName(thumbTool)}")
 			
 		except Exception as e:
 			logger.warning(f"ERROR: Filed to create thumbnail:\n{e}")
@@ -769,16 +761,16 @@ class Prism_Fusion_Functions(object):
 		# saverList = self.getSaverList(comp)
 		saverList = Fus.getAllToolsByType(comp, "Saver")
 		for tool in saverList:
-			toolName = CompDb.getNodeNameByTool(tool)
+			toolName = Fus.getToolName(tool)
 
 			if mode == "save":
 				# Save the current pass-through state
-				origSaverList[toolName] = CompDb.isPassThrough(comp, node=tool)
-				CompDb.setPassThrough(comp, node=tool, passThrough=True)
+				origSaverList[toolName] = Fus.isPassThrough(comp, tool=tool)
+				Fus.setPassThrough(comp, tool=tool, passThrough=True)
 			elif mode == "load":
 				# Restore the original pass-through state
 				if toolName in origSaverList:
-					CompDb.setPassThrough(comp, node=tool, passThrough=origSaverList[toolName])
+					Fus.setPassThrough(comp, tool=tool, passThrough=origSaverList[toolName])
 
 		return origSaverList
 
@@ -793,7 +785,7 @@ class Prism_Fusion_Functions(object):
 
 		# 2. Check for any saver that is not pass-through
 		for tool in comp.GetToolList(False).values():
-			if self.isSaver(tool) and not CompDb.isPassThrough(comp, node=tool):
+			if self.isSaver(tool) and not Fus.isPassThrough(comp, tool=tool):
 				return tool
 
 		# 3. Check for any saver, even if pass-through
@@ -851,20 +843,17 @@ class Prism_Fusion_Functions(object):
 	
 
 	@err_catcher(name=__name__)
-	def wrapped_createRendernode(self, nodeUID, nodeData, comp):
+	def wrapped_createRendernode(self, toolUID, toolData, comp):
 		if not comp:
 			comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			if not CompDb.nodeExists(comp, nodeUID):
+			if not Fus.toolExists(comp, toolUID):
 				#	Get selected Tool
 
 				selTools = Fus.getSelectedTools(comp)
 
 				#	Add Saver to Comp
-				sv = Fus.addTool(comp, "Saver", nodeData)
-
-				#	Add node to Comp Database
-				CompDb.addNodeToDB(comp, "render2d", nodeUID, nodeData)
+				sv = Fus.addTool(comp, "Saver", toolData)
 
 				#	Position Saver
 				if selTools:
@@ -873,13 +862,13 @@ class Prism_Fusion_Functions(object):
 						Fus.setToolPosRelative(comp, sv, selTools[0], 3)
 						# Fus.stackToolsByType(comp, sv)
 					except:
-						logger.debug(f"ERROR: Not able to position {nodeData['nodeName']}")
+						logger.debug(f"ERROR: Not able to position {toolData['nodeName']}")
 
 			if sv:
-				logger.debug(f"Saver created for: {nodeData['nodeName']} - {nodeUID}")
+				logger.debug(f"Saver created for: {toolData['nodeName']} - {toolData}")
 				return sv
 			else:
-				logger.warning(f"ERROR: Unable to create Saver for {nodeData['nodeName']}")
+				logger.warning(f"ERROR: Unable to create Saver for {toolData['nodeName']}")
 				return False
 
 
@@ -897,69 +886,61 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def wrapped_updateRendernode(self, nodeUID, nodeData, comp):
+	def wrapped_updateRendernode(self, toolUID, toolData, comp):
 		if self.sm_checkCorrectComp(comp):
-			sv = CompDb.getNodeByUID(comp, nodeUID)
+			sv = Fus.getToolByUID(comp, toolUID)
 
 			if sv:
 				#	Update Saver Info
-				Fus.configureTool(sv, nodeData)
-
-				#	Update Node in Comp Database
-				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
-
-				logger.debug(f"Saver updated: {nodeData['nodeName']}")
+				Fus.configureTool(sv, toolData)
+				logger.debug(f"Saver updated: {toolData['nodeName']}")
 			else:
-				logger.warning(f"ERROR: Not able to update: {nodeData['nodeName']}")
+				logger.warning(f"ERROR: Not able to update: {toolData['nodeName']}")
 
 			return sv
 		
 
 	#	Configures Saver filepath and image format
 	@err_catcher(name=__name__)
-	def configureRenderNode(self, nodeUID, nodeData):
+	def configureRenderNode(self, toolUID, toolData):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			sv = CompDb.getNodeByUID(comp, nodeUID)
+			sv = Fus.getToolByUID(comp, toolUID)
 			if sv:
 				#	Update Saver
-				Fus.configureTool(sv, nodeData)
-				#	Update Comp Database
-				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
+				Fus.configureTool(sv, toolData)
 
 				#	Check if Saver is connected to something
 				if Fus.hasConnectedInput(sv):
-					if "nodeName" in nodeData:
-						logger.debug(f"Configured Saver: {nodeData['nodeName']}")
+					if "nodeName" in toolUID:
+						logger.debug(f"Configured Saver: {toolData['nodeName']}")
 					else:
-						logger.debug(f"Configured Saver: {nodeUID}")
+						logger.debug(f"Configured Saver: {toolData}")
 
 
 				else:
-					logger.debug(f"ERROR: Render Node is not connected: {nodeUID}")
+					logger.debug(f"ERROR: Render Node is not connected: {toolUID}")
 			else:
-				logger.warning(f"ERROR: Render Node does not exist: {nodeUID}")
+				logger.warning(f"ERROR: Render Node does not exist: {toolUID}")
 
 
 	#	Removes Node from Comp
 	@err_catcher(name=__name__)
-	def deleteNode(self, type, nodeUID, delAction):
+	def deleteNode(self, toolUID, delAction):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			if delAction and CompDb.nodeExists(comp, nodeUID):
+			if delAction and Fus.toolExists(comp, toolUID):
 				#	Delete the Tool from the Comp
 				try:
-					tool = CompDb.getNodeByUID(comp, nodeUID)
-					toolName = CompDb.getNodeNameByUID(comp, nodeUID)
+					tool = Fus.getToolByUID(comp, toolUID)
+					toolName = Fus.getToolNameByUID(comp, toolUID)
 
 					tool.Delete()
 					logger.debug(f"Removed tool '{toolName}")
 
 				except:
-					logger.warning(f"ERROR:  Unable to remove tool from Comp: {nodeUID}")
+					logger.warning(f"ERROR:  Unable to remove tool from Comp: {toolUID}")
 
-			#	Remove the Tool from the Comp Database
-			CompDb.removeNodeFromDB(comp, type, nodeUID)
 	
 
 
@@ -1242,7 +1223,7 @@ class Prism_Fusion_Functions(object):
 					if key in importData:
 						toolData[key] = importData[key]
 
-				orig_toolUID = CompDb.getUIDsFromImportData(comp, "import2d", importItem)
+				orig_toolUID = Fus.getUIDsFromImportData(comp, importItem)
 
 				#	Add Loader and configure
 				if len(orig_toolUID) == 0:
@@ -1307,9 +1288,6 @@ class Prism_Fusion_Functions(object):
 			if not ldr:
 				self.core.popup(f"ERROR: Unable to add Loader to Comp")
 				return False
-
-			#	Add mode to Comp Database
-			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
 
 		except:
 			logger.warning(f"ERROR: Unable to add Loader to Comp")
@@ -1395,10 +1373,11 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def updateImport(self, comp, orig_toolUID, toolData):
 		#	Get original node data from database
-		origNodeData = CompDb.getNodeInfo(comp, "import2d", orig_toolUID)
+		origTool = Fus.getToolByUID(comp, orig_toolUID)
+		origToolData = Fus.getToolData(origTool)
 		
 		#	Make copy of original data
-		updateData = origNodeData.copy()
+		updateData = origToolData.copy()
 
 		#	Update data with new values
 		updateData["version"] = toolData["version"]
@@ -1408,14 +1387,12 @@ class Prism_Fusion_Functions(object):
 		updateData["nodeName"] = Fus.makeLdrName(updateData, toolData)
 
 		#	Get original Loader
-		ldr = CompDb.getNodeByUID(comp, orig_toolUID)
+		ldr = Fus.getToolByUID(comp, orig_toolUID)
 		#	Update Loader config
 		Fus.configureTool(ldr, updateData)
-		#	Update Database record
-		CompDb.updateNodeInfo(comp, "import2d", orig_toolUID, updateData)
 
 		#	Get version compare message
-		compareRes, compareMsg = CompDb.compareVersions(origNodeData, toolData)
+		compareRes, compareMsg = Helper.compareVersions(origToolData, toolData)
 
 		return compareRes, compareMsg
 
@@ -1423,7 +1400,7 @@ class Prism_Fusion_Functions(object):
 	#	Creates and adds a Wireless set to the Loader
 	#	This uses an AutoDomain tool for the "IN", and the Wireless for the "OUT"
 	@err_catcher(name=__name__)
-	def createWireless(self, nodeUID):							#	TODO  Look into adding wireless with "addTool"
+	def createWireless(self, toolUID):							#	TODO  Look into adding wireless with "addTool"
 		wirelessCopy = """{
 	Tools = ordered() {
 		neverreferencednameonwirelesslink = Fuse.Wireless {
@@ -1449,10 +1426,11 @@ class Prism_Fusion_Functions(object):
 		flow = comp.CurrentFrame.FlowView
 
 		#	Get Loader tool
-		ldr = CompDb.getNodeByUID(comp, nodeUID)
+		ldr = Fus.getToolByUID(comp, toolUID)
 
 		#	Get Loader data
-		ldrData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
+		ldrData = Fus.getToolData(ldr)
+
 		#	Make base name
 		baseName = Fus.makeWirelessName(ldrData)
 		
@@ -1463,9 +1441,11 @@ class Prism_Fusion_Functions(object):
 
 			#	Sets Wireless tools names
 			wireless_IN = comp.FindTool("neverreferencednameonautodomain")
-			wireless_IN.SetAttrs({'TOOLS_Name': baseName + '_IN'})
+			wireless_IN_name = baseName + '_IN'
+			wireless_IN.SetAttrs({'TOOLS_Name': wireless_IN_name})
 			wireless_OUT = comp.FindTool("neverreferencednameonwirelesslink")
-			wireless_OUT.SetAttrs({'TOOLS_Name': baseName + '_OUT'})
+			wireless_OUT_name = baseName + '_OUT'
+			wireless_OUT.SetAttrs({'TOOLS_Name': wireless_OUT_name})
 
 			#	Temporarily Set Positions of Tools
 			Fus.setToolPosRelative(comp, wireless_IN, ldr, 1.5)
@@ -1475,20 +1455,44 @@ class Prism_Fusion_Functions(object):
 			# wireless_IN.ConnectInput('Input', ldr)
 			Fus.connectTools(ldr, wireless_IN)
 
-			#	Set UUID's to Wireless Nodes
-			wirelessInUID = CompDb.createUUID()
-			wireless_IN.SetData('Prism_UUID', wirelessInUID)
-			wirelessOutUID = CompDb.createUUID()
-			wireless_OUT.SetData('Prism_UUID', wirelessOutUID)
+			#	Get Loader's Original Data
+			lData = Fus.getToolData(ldr)
 
-			#	Add Wireless Nodes to Comp Database
-			nodeData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
+			#	List of Keys that are not needed in the Wireless Tools
+			keysToDelete = ["nodeName",
+							"version",
+							"filepath",
+							"extension",
+							"fuseFormat",
+							"frame_start",
+							"frame_end",
+							"connectedNodes"]
+			
+			#	Make Generic Wireless Data using Loader Data deleting the keys
+			wData = {key: value for key, value in lData.items() if key not in keysToDelete}
 
-			nodeData["connectedNodes"] = {"wireless_IN": wirelessInUID,
-								 		  "wireless_OUT": wirelessOutUID}
+			#	Make Wireless_In data
+			w_inData = wData.copy()
+			#	Make Wireless_In UID and add to its Data
+			wirelessInUID = Helper.createUUID()
+			w_inData["toolUID"] = wirelessInUID
+			w_inData["nodeName"] = wireless_IN_name
+			#	Add Data to the Database
+			Fus.configureTool(wireless_IN, w_inData)
 
-			Fus.configureTool(ldr, nodeData)
-			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
+			#	Make Wireless_Out data
+			w_outData = wData.copy()
+			#	Make Wireless_Out UID and add to its Data
+			wirelessOutUID = Helper.createUUID()
+			w_outData["toolUID"] = wirelessOutUID
+			w_outData["nodeName"] = wireless_OUT_name
+			#	Add Data to the Database
+			Fus.configureTool(wireless_OUT, w_outData)
+
+			#	Add Wireless Nodes to Loader's Data
+			lData["connectedNodes"] = {"wireless_IN": wirelessInUID,
+											"wireless_OUT": wirelessOutUID}
+			Fus.configureTool(ldr, lData)
 
 			#	Select the wireless out
 			flow.Select()
@@ -1525,7 +1529,7 @@ class Prism_Fusion_Functions(object):
 			return
 
 		#	Gets list of all Media Identifiers in the Comp Database
-		mediaIDs = CompDb.getMediaIDsForType(comp, "import2d")
+		mediaIDs = Fus.getMediaIDsForType(comp, "import2d")
 
 		sortedloaders = []
 		for mediaId in mediaIDs:
@@ -1562,8 +1566,8 @@ class Prism_Fusion_Functions(object):
 
 				if connectedTools:
 					# Gets the wireless nodes if available
-					inNode = CompDb.getNodeByUID(comp, connectedTools.get("wireless_IN"))
-					outNode = CompDb.getNodeByUID(comp, connectedTools.get("wireless_OUT"))
+					inNode = Fus.getToolByUID(comp, connectedTools.get("wireless_IN"))
+					outNode = Fus.getToolByUID(comp, connectedTools.get("wireless_OUT"))
 				else:
 					inNode, outNode = None, None
 
@@ -1656,7 +1660,7 @@ class Prism_Fusion_Functions(object):
 		importRes = False
 
 		#	Add new uLoader if not update or if the Tool is not in the Comp
-		if not update or not CompDb.nodeExists(comp, UUID):
+		if not update or not Fus.toolExists(comp, UUID):
 			try:
 				#	Add tool
 				uLdr = Fus.addTool(comp, "uLoader", nodeData)
@@ -1668,15 +1672,13 @@ class Prism_Fusion_Functions(object):
 				return {"result": False, "doImport": False}
 			
 			if uLdr:
-				#	Add to Comp Database
-				addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
 				importRes = True
 		
 		#	Update uLoader
 		else:
 			try:
 				#	Get tool
-				tool = CompDb.getNodeByUID(comp, UUID)
+				tool = Fus.getToolByUID(comp, UUID)
 				#	 Update tool data
 				uLdr = Fus.configureTool(tool, nodeData)
 
@@ -1687,8 +1689,6 @@ class Prism_Fusion_Functions(object):
 				logger.warning(f"ERROR: Failed to update uLoader:\n{e}")
 
 			if uLdr:
-				#	Update Comp DB record
-				CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
 				importRes = True
 
 		return {"result": importRes, "doImport": importRes}
@@ -1751,11 +1751,12 @@ class Prism_Fusion_Functions(object):
 		#	If Update, just toggle Tool bypass
 		if update:
 			try:
-				sData = CompDb.getNodeInfo(comp, "import3d", UUID)
+				tool = Fus.getToolByUID(comp, UUID)
+				sData = Fus.getToolData(tool)
 				groupUID = sData["connectedNodes"]["Group"]
 				comp.Unlock()
-				CompDb.setPassThrough(comp, nodeUID=groupUID, passThrough=True)
-				CompDb.setPassThrough(comp, nodeUID=groupUID, passThrough=False)
+				Fus.setPassThrough(comp, nodeUID=groupUID, passThrough=True)
+				Fus.setPassThrough(comp, nodeUID=groupUID, passThrough=False)
 				comp.Lock()
 
 				return {"result": True, "doImport": True}
@@ -1787,10 +1788,6 @@ class Prism_Fusion_Functions(object):
 			comp.Unlock()
 			return False
 
-		#	Add uShader to Comp Database
-		del shdData["toolName"]
-		CompDb.addNodeToDB(comp, "import3d", texData["nodeUID"], shdData)
-
 		#	Handle textures
 		try:
 			connectedTexs = {}
@@ -1809,9 +1806,6 @@ class Prism_Fusion_Functions(object):
 				uTexture = Fus.addTool(comp, "uTexture", texDict, temp_x, temp_y)
 
 				if uTexture:
-					#	Add uTexture to Database
-					CompDb.addNodeToDB(comp, "import3d", toolUID, texDict)
-
 					#	Add to Connected Textures Dict
 					connectedTexs[f"Tex_{texture['map'].upper()}"] = toolUID
 
@@ -1822,10 +1816,9 @@ class Prism_Fusion_Functions(object):
 
 		#	Add connected tools to uShader database record
 		updateDict = {"connectedNodes": connectedTexs}
-		CompDb.updateNodeInfo(comp, "import3d", texData["nodeUID"], updateDict)
 
 		#	Get tool for each UID
-		texTools = [tool for uid in connectedTexs.values() if (tool := CompDb.getNodeByUID(comp, uid))]
+		texTools = [tool for uid in connectedTexs.values() if (tool := Fus.getToolByUID(comp, uid))]
 		#	Stack uTextures and get the average position
 		xPos, yPos = Fus.stackToolsByList(comp, texTools, yoffset=0.6)
 		#	Moves uShader to the right of the stack
@@ -1874,15 +1867,13 @@ class Prism_Fusion_Functions(object):
 						 "connectedNodes": newToolsUIDs}
 
 			#	Get Group Tool
-			groupTool = CompDb.getNodeByUID(comp, groupUID)
+			groupTool = Fus.getToolByUID(comp, groupUID)
 
 			#	Uodate Group and add to Database
 			Fus.configureTool(groupTool, groupData)
-			CompDb.addNodeToDB(comp, "import3d", groupUID, groupData)
 
 			#	Add Group UID to uShader database record
 			updateDict["connectedNodes"]["Group"] = groupUID
-			CompDb.updateNodeInfo(comp, "import3d", texData["nodeUID"], updateDict)
 
 			logger.debug(f"Created shader group: {groupName}")
 
@@ -1896,7 +1887,7 @@ class Prism_Fusion_Functions(object):
 			for uid in newToolsUIDs:
 				try:
 				#	Get tool data
-					tool = CompDb.getNodeByUID(comp, uid)
+					tool = Fus.getToolByUID(comp, uid)
 					toolData = Fus.getToolData(tool)
 
 					#	Get map type from data
@@ -1953,25 +1944,19 @@ class Prism_Fusion_Functions(object):
 				uMaterialX = Fus.addTool(comp, "uMaterialX", matXData)
 			
 				if uMaterialX:
-					#	Add to Comp Database
-					del matXData["toolName"]
-					addResult = CompDb.addNodeToDB(comp, "import3d", UUID, matXData)
-					if addResult:
-						result = True
-						logger.debug(f"Created MaterialX ({matXData['shaderName']})")
+					result = True
+					logger.debug(f"Created MaterialX ({matXData['shaderName']})")
 			except:
 				logger.warning("ERROR:  Failed to create MaterialX material")
 
 		else:
 			try:
-				tool = CompDb.getNodeByUID(comp, UUID)
+				tool = Fus.getToolByUID(comp, UUID)
 				uMaterialX = Fus.configureTool(tool, matXData)
 
 				if uMaterialX:
-					updateResult = CompDb.updateNodeInfo(comp, "import3d", UUID, matXData)
-					if updateResult:
-						result = True
-						logger.debug(f"Updated MaterialX ({matXData['shaderName']})")
+					result = True
+					logger.debug(f"Updated MaterialX ({matXData['shaderName']})")
 			except:
 				logger.warning("ERROR: Failed to update MaterialX material")
 
@@ -2007,7 +1992,7 @@ class Prism_Fusion_Functions(object):
 		format = nodeData["format"]
 
 		#	Add new 3d Loader if not update or Tool is not in the Comp
-		if not update or not CompDb.nodeExists(comp, UUID):
+		if not update or not Fus.toolExists(comp, UUID):
 			try:
 				#	Add tooltype based on format
 				if format == ".fbx":
@@ -2029,15 +2014,13 @@ class Prism_Fusion_Functions(object):
 				return {"result": False, "doImport": False}
 			
 			if ldr3d:
-				#	Add to Comp Database
-				addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
 				importRes = True
 		
 		#	Update 3d Loader
 		else:
 			try:
 				#	Get tool
-				tool = CompDb.getNodeByUID(comp, UUID)
+				tool = Fus.getToolByUID(comp, UUID)
 				#	 Update tool data
 				ldr3d = Fus.configureTool(tool, nodeData)
 
@@ -2048,8 +2031,6 @@ class Prism_Fusion_Functions(object):
 				logger.warning(f"ERROR: Failed to update Loader3d:\n{e}")
 
 			if ldr3d:
-				#	Update Comp DB record
-				CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
 				importRes = True
 
 		return {"result": importRes, "doImport": importRes}
@@ -2447,7 +2428,7 @@ class Prism_Fusion_Functions(object):
 		for stateData in stateDataRaw["states"]:
 			if stateData.get("nodeUID") == nodeUID:
 				stateDetails = stateData
-				logger.debug(f"State data found for: {CompDb.getNodeNameByUID(comp, nodeUID)}")
+				logger.debug(f"State data found for: {Fus.getToolNameByUID(comp, nodeUID)}")
 				return stateDetails
 
 		logging.warning(f"ERROR: No state details for:  {nodeUID}")
@@ -2730,14 +2711,14 @@ path = r\"%s\"
 		for nodeUID in renderStates:
 			#	Get State data from Comp
 			stateData = self.getMatchingStateDataFromUID(nodeUID)
-			nodeName = CompDb.getNodeNameByUID(comp, nodeUID)
+			nodeName = Fus.getToolNameByUID(comp, nodeUID)
 
 			#	Exits if unable to get state data
 			if not stateData:
 				logger.warning(f"ERROR: Unable to configure RenderComp for {nodeName}")
 
-			sv = CompDb.getNodeByUID(comp, nodeUID)
-			CompDb.setPassThrough(comp, nodeUID=nodeUID, passThrough=False)
+			sv = Fus.getToolByUID(comp, nodeUID)
+			Fus.setPassThrough(comp, nodeUID=nodeUID, passThrough=False)
 
 			#	Add Scale tool if scale override is above 100%
 			scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
@@ -2933,7 +2914,7 @@ path = r\"%s\"
 
 			nodeUID = rSettings["nodeUID"]
 
-			sv = CompDb.getNodeByUID(comp, nodeUID)
+			sv = Fus.getToolByUID(comp, nodeUID)
 
 			if sv:
 				nodeData = {"filepath": outputName,
@@ -3079,7 +3060,7 @@ path = r\"%s\"
 		if "extension" in details:
 			del details["extension"]
 
-		details["version"] = CompDb.createUUID(simple=True)
+		details["version"] = Helper.createUUID(simple=True)
 		details["sourceScene"] = self.tempFilePath
 		details["identifier"] = rSettings["groupName"]
 		details["comment"] = self.MP_stateManager.publishComment
@@ -3212,7 +3193,7 @@ path = r\"%s\"
 		comp:Composition_ = self.getCurrentComp()
 		flow:FlowView_ = comp.CurrentFrame.FlowView
 		try:
-			scenetool = CompDb.getNodeByUID(comp, stateUID)
+			scenetool = Fus.getToolByUID(comp, stateUID)
 			if scenetool:
 				x:float = 0.0
 				y:float = 0.0
@@ -3242,7 +3223,7 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def sm_view_FocusStateTool(self, stateUID):
 		comp:Composition_ = self.getCurrentComp()
-		focustool = CompDb.getNodeByUID(comp, stateUID)
+		focustool = Fus.getToolByUID(comp, stateUID)
 
 		if focustool:
 			Fus.focusOnTool(comp, focustool)
@@ -3419,7 +3400,7 @@ path = r\"%s\"
 		# deselect all nodes
 		flow.Select()
 
-		toolsToSelectUID = CompDb.getAllConnectedNodes(comp, "import2d", nodeUIDs)
+		toolsToSelectUID = Fus.getConnectedNodes(comp, nodeUIDs)
 		
 		if not toolsToSelectUID:
 			logger.debug("There are not Loaders associated with this task.")
@@ -3429,8 +3410,8 @@ path = r\"%s\"
 		#	Select all tools
 		for toolUID in toolsToSelectUID:
 			try:
-				if CompDb.nodeExists(comp, toolUID):
-					tool = CompDb.getNodeByUID(comp, toolUID)
+				if Fus.toolExists(comp, toolUID):
+					tool = Fus.getToolByUID(comp, toolUID)
 					flow.Select(tool, True)
 			except:
 				pass
@@ -3454,94 +3435,29 @@ path = r\"%s\"
 				logger.warning(f"ERROR: Cannot set color of tool: {tool.Name}.")
 
 
-	#	Colors tools in Comp based on Color mode in DCC settings
+	#	Colors tools in Comp
 	@err_catcher(name=__name__)
-	def colorTools(self, toolUIDs, type, color, item=None, category=None):
+	def colorTools(self, toolsToColor, color):
 		comp = self.getCurrentComp()
 
-		# #	Colors the Loaders and wireless nodes
-		# if self.taskColorMode == "All Nodes":
-		# 	toolsToColorUID = CompDb.getAllConnectedNodes(comp, type, nodeUIDs)
+		#	Handle if Passed Single Tool
+		if not isinstance(toolsToColor, list):
+			toolsToColor = [toolsToColor]
 
-		# #	Only colors the Loader nodes
-		# elif self.taskColorMode == "Loader Nodes":
-        # #   Handle single or multiple nodeUIDs
-		# 	toolsToColorUID = nodeUIDs if isinstance(nodeUIDs, list) else [nodeUIDs]
+		for tool in toolsToColor:
+			#	If the RGB is the Clear Color code
+			if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
+				try:
+					tool.TileColor = None
+				except:
+					logger.warning(f"ERROR: Unable to clear the color of the Loader: {tool}.")
+			else:
+				try:
+					tool.TileColor = color
+					logger.debug(f"Set color of tool: {tool}")
+				except:
+					logger.warning(f"ERROR: Cannot set color of tool: {tool}")
 
-		# #	Coloring is disabled
-		# else:
-		# 	return
-		
-		#	Color the Project Browser Task
-		# if item:
-		# 	self.colorItem(item, color)
-		# 	CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
-			
-		
-		# if not toolsToColorUID:
-		# 	logger.debug("There are not Loaders associated with this task.")
-		# 	self.core.popup("There are no loaders for this task.", severity="info")
-		# 	return
-				
-		#	If the RGB is the Clear Color code
-
-		if not isinstance(toolUIDs, list):
-			toolUIDs = [toolUIDs]
-
-		for toolUID in toolUIDs:
-			tool = CompDb.getNodeByUID(comp, toolUID)
-			if tool:
-				if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
-					try:
-						tool.TileColor = None
-					except:
-						logger.warning(f"ERROR: Unable to clear the color of the Loader: {toolUID}.")
-				else:
-					try:
-						tool.TileColor = color
-						logger.debug(f"Set color of tool: {CompDb.getNodeNameByUID(comp, toolUID)}")
-					except:
-						logger.warning(f"ERROR: Cannot set color of tool: {toolUID}")
-
-
-		#	Set the color for each tool
-		# else:
-		# 	for toolUID in toolUIDs:
-		# 		try:
-		# 			if CompDb.nodeExists(comp, toolUID):
-		# 				tool = CompDb.getNodeByUID(comp, toolUID)
-		# 				if tool:
-
-
-
-	# #	Colors Media Task based on Color mode in DCC settings
-	# @err_catcher(name=__name__)
-	# def colorItem(self, item, color):
-	# 	#	Check if R, G, and B are all 0.000011 to clear the color
-	# 	if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
-	# 		item.setBackground(0, QBrush())
-	# 		item.setForeground(0, QBrush())
-	# 		return
-		
-	# 	#	Convert brightness percent (e.g., "75%") to an integer alpha value (0–255)
-	# 	try:
-	# 		percentage = int(self.colorBrightness.strip('%'))
-	# 		alpha = int((percentage / 100) * 255)
-	# 	except ValueError:
-	# 		alpha = 75  # Default alpha if conversion fails
-
-	# 	qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
-
-	# 	#	Adding Alpha to mute task coloring
-	# 	qcolor.setAlpha(alpha)
-
-	# 	item.setBackground(0, qcolor)
-	# 	item.setForeground(0, QColor(230, 230, 230))
-
-	# 	#	If brightness is high, use luminance checker
-	# 	if alpha > 124:
-	# 		if Helper.isBgBright(color):
-	# 			item.setForeground(0, QColor(30, 30, 30))
 
 
 
@@ -3551,83 +3467,6 @@ path = r\"%s\"
 	#                                              #
 	################################################
 	
-
-	# @err_catcher(name=__name__)
-	# def onMediaBrowserTaskUpdate(self, origin):
-	# 	#	If DCC 'Task Node Coloring' is disabled
-	# 	if self.taskColorMode == "Disabled":
-	# 		return
-		
-	# 	comp = self.getCurrentComp()
-	# 	lw = origin.tw_identifier #listwidget
-	# 	entity = origin.getCurrentEntity()
-	# 	if lw == origin.tw_identifier:
-	# 		category = entity.get("type")
-	# 		if category in ["asset", "shot"]:
-	# 			for i in range(lw.topLevelItemCount()):
-	# 				item = lw.topLevelItem(i)
-	# 				color = CompDb.getPrismDbIdentifierColor(comp, category, item.text(0))
-	# 				if color:
-	# 					self.colorItem(item, color)
-
-
-	# @err_catcher(name=__name__)
-	# def openPBListContextMenu(self, origin, rcmenu, lw, item, path):
-	# 	#	If DCC 'Task Node Coloring' is disabled
-	# 	if self.taskColorMode == "Disabled":
-	# 		return
-		
-	# 	entity = origin.getCurrentEntity()
-	# 	if lw == origin.tw_identifier:
-	# 		category = entity.get("type")
-	# 		if category in ["asset", "shot"]:
-	# 			comp = self.getCurrentComp()
-
-	# 			#	Get Display Name from Item
-	# 			displayName = item.text(0)
-
-	# 			#	Get NodeUID based on Media Identifier
-	# 			mediaNodeUIDs = CompDb.getNodeUidFromMediaDisplayname(comp, "import2d", displayName)
-				
-	# 			#	Setup rcl "Select Nodes" items
-	# 			depAct = QAction("Select Task Nodes....", origin)
-	# 			depAct.triggered.connect(lambda: self.selecttasknodes(mediaNodeUIDs))
-	# 			rcmenu.addAction(depAct)
-
-	# 			#	Setup rcl "Color Nodes" items
-	# 			menuSelTaskC = QMenu("Select Task Color", origin)
-	# 			menuSelTaskC.setStyleSheet("""
-	# 				QMenu::item {
-	# 					padding-left: 5px;  /* Reduce left padding of item text */
-	# 					padding-right: 5px; /* Optional, adjust to control space around icon */
-	# 				}
-	# 				QMenu::icon {
-	# 					margin-right: -5px; /* Bring icon closer to text */
-	# 				}
-	# 			""")
-	# 			for key in self.fusionToolsColorsDict.keys():
-	# 				name = key
-	# 				color = self.fusionToolsColorsDict[key]
-
-	# 				qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
-	# 				depAct = QAction(name, origin)
-
-	# 				# we can pass name as a default argument in the lambda to "freeze" its value for each iteration
-	# 				# even if the action isn't checkable, the triggered signal passes checked as an argument by default.
-	# 				depAct.triggered.connect(lambda checked=False, color=color: self.colorTaskNodes(mediaNodeUIDs, "import2d", color, item, category))
-	# 				icon = self.create_color_icon(qcolor)
-	# 				depAct.setIcon(icon)
-	# 				menuSelTaskC.addAction(depAct)
-
-	# 			rcmenu.addMenu(menuSelTaskC)
-
-
-	#	This is to be able to call task coloring
-	# @err_catcher(name=__name__)
-	# def onMediaBrowserOpen(self, origin):
-	# 	self.MP_mediaBrowser = origin
-	# 	self.core.plugins.monkeyPatch(origin.updateTasks, self.updateTasks, self, force=True)
-
 
 	@err_catcher(name=__name__)
 	def onUserSettingsOpen(self, origin):
@@ -3740,7 +3579,7 @@ path = r\"%s\"
 		self.comp = comp
 
 		#Set State Manager Data on first open.
-		if CompDb.sm_readStates(comp) is None:
+		if Fus.sm_readStates(comp) is None:
 			self.setDefaultState()
 
 		self.MP_stateManager = origin
@@ -3762,10 +3601,6 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):
 		self.smUI = origin
-		# Reintegrate Nodes that are not in the DB
-		comp = self.getCurrentComp()	
-		if self.sm_checkCorrectComp(comp):
-			CompDb.updatePrismFileDB(comp)
 
 		##	Resizes the StateManager Window
 		# 	Check if SM has a resize method and resize it
@@ -3823,26 +3658,7 @@ path = r\"%s\"
 					curState.setCheckState(0, Qt.Checked)
 				else:
 					curState.setCheckState(0, Qt.Unchecked)
-
-
-	# @err_catcher(name=__name__)
-	# def onStateDeleted(self, origin, stateui):
-	# 	comp = self.getCurrentComp()
-	# 	if stateui.className == "ImageRender":
-	# 		try:
-	# 			node = CompDb.get
-	# 			node = comp.FindTool(stateui.b_setRendernode.text())
-	# 			if node:
-	# 				fString = "Do you want to also delete the Saver node\nassociated with this render:"
-	# 				buttons = ["Yes", "No"]
-	# 				result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
-	# 				if result == "Yes":
-	# 					node.Delete()
-	# 					CompDb.removeNodeFromDB(comp, "render2d", )
-	# 		except:
-	# 			logger.warning(f"ERROR: Unable to remove Saver: {node.Name}")
-	# 	# elif stateui.className == "ImportFile":
-			
+		
 
 	#	This is called from the import buttons in the SM (Import Image and Import 3D) or called from outside code
 	@err_catcher(name=__name__)

@@ -943,7 +943,7 @@ class Image_ImportClass(object):
         aovStatuses = []
 
         #   Gets all State UIDs
-        stateUIDs = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID, includeConn=False)
+        stateUIDs = self.fuseFuncts.getUIDsFromStateUIDs(self.stateUID, includeConn=False)
 
         # Get child AOV items
         aovItems = self.getAllItems(aovs=True)
@@ -969,10 +969,10 @@ class Image_ImportClass(object):
 
             # Check each stateUID
             for uid in stateUIDs:
-                if not self.fuseFuncts.nodeExists(uid):
+                if not self.fuseFuncts.toolExists(uid):
                     continue
 
-                uidData = self.fuseFuncts.getNodeInfo("import2d", uid)
+                uidData = self.fuseFuncts.getToolDataByUID(uid)
                 if not uidData:  
                     continue  
 
@@ -1691,20 +1691,19 @@ class Image_ImportClass(object):
     #   Colors State Tools in the Comp
     @err_catcher(name=__name__)
     def setToolColor(self, color):
-        #   Get all Tool UIDs for the State
-        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
+        #   Get all Tool for the State
+        stateTools = self.fuseFuncts.getToolsFromStateUIDs(self.stateUID)
 
         # Colors the Loaders and wireless nodes
         if self.taskColorMode == "All Nodes":
-            toolsToColorUID = uids
+            toolsToColor = stateTools
 
 		#	Only colors the Loader nodes
         elif self.taskColorMode == "Loader Nodes":
-            toolsToColorUID = []
-            for uid in uids:
-                tool = self.fuseFuncts.getNodeByUID(uid)
+            toolsToColor = []
+            for tool in stateTools:
                 if tool.ID == "Loader":
-                    toolsToColorUID.append(uid)
+                    toolsToColor.append(tool)
         else:
             logger.debug("Tool Coloring is Disabled")
             return
@@ -1712,7 +1711,7 @@ class Image_ImportClass(object):
         #   Get rgb color from dict
         colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
         #   Color tool
-        self.fuseFuncts.colorTools(toolsToColorUID, "import2d", colorRGB, category="import2d")
+        self.fuseFuncts.colorTools(toolsToColor, colorRGB)
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -1722,10 +1721,10 @@ class Image_ImportClass(object):
     @err_catcher(name=__name__)
     def focusView(self):
         #   Get all Tool UIDs for the State
-        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
+        uids = self.fuseFuncts.getUIDsFromStateUIDs(self.stateUID)
         for uid in uids:
             #   Focus on the main Tool
-            nData = self.fuseFuncts.getNodeInfo("import2d", uid)
+            nData = self.fuseFuncts.getToolDataByUID(uid)
             if nData["version"]:
                 self.fuseFuncts.sm_view_FocusStateTool(uid)
                 return
@@ -1738,11 +1737,10 @@ class Image_ImportClass(object):
         comp = self.fuseFuncts.getCurrentComp()
         flow = comp.CurrentFrame.FlowView
         #   All State Tool UIDS
-        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
+        stateTools = self.fuseFuncts.getToolsFromStateUIDs(self.stateUID)
 
         #   Select each Tool
-        for uid in uids:
-            tool = self.fuseFuncts.getNodeByUID(uid)
+        for tool in stateTools:
             flow.Select(tool)
 
 
@@ -1963,7 +1961,7 @@ class Image_ImportClass(object):
             action = "No"
 
         #   Get all Tool UIDs for the State
-        uids = self.fuseFuncts.getUIDsFromStateUIDs("import2d", self.stateUID)
+        uids = self.fuseFuncts.getUIDsFromStateUIDs(self.stateUID)
             
         if len(uids) > 0:
             text = "Do you want to Delete the Associated Loader(s)?"
@@ -1972,7 +1970,7 @@ class Image_ImportClass(object):
         if action == "Yes":
             #   Delete each tool
             for uid in uids:
-                self.fuseFuncts.deleteNode("import2d", uid, delAction=True)
+                self.fuseFuncts.deleteNode(uid, delAction=True)
 
                
 
