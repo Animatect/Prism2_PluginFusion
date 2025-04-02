@@ -275,23 +275,6 @@ class USD_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def setToolColor(self, color):
-        comp = self.fuseFuncts.getCurrentComp()
-        #   Get rgb color from dict
-        colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
-
-        #   Get State Tools:
-        stateTools = Fus.getToolsFromStateUIDs(comp, self.stateUID)
-
-        #   Color tools
-        for tool in stateTools:
-            self.fuseFuncts.colorTools(tool, colorRGB)
-
-        self.stateManager.saveImports()
-        self.stateManager.saveStatesToScene()
-
-
-    @err_catcher(name=__name__)
     def nameChanged(self, text=None):
         text = self.e_name.text()
         cacheData = self.core.paths.getCachePathData(self.getImportPath())
@@ -494,9 +477,9 @@ class USD_ImportClass(object):
 		#	Set node name
         productName = cacheData["product"]
         productVersion = cacheData["version"]
-        nodeName = f"{productName}_{productVersion}"
+        toolName = f"{productName}_{productVersion}"
 
-        nodeData = {"nodeName": nodeName,
+        toolData = {"toolName": toolName,
                     "toolUID": self.stateUID,
                     "stateUID": self.stateUID,
                     "version": productVersion,
@@ -508,7 +491,7 @@ class USD_ImportClass(object):
         #   Call import function
         importResult = self.fuseFuncts.importUSD(self,
                                                 UUID=self.stateUID,
-                                                nodeData=nodeData,
+                                                toolData=toolData,
                                                 update=update)
 
         if not importResult:
@@ -589,6 +572,25 @@ class USD_ImportClass(object):
 
         return curVersionData, latestVersionData
     
+
+    @err_catcher(name=__name__)
+    def setToolColor(self, color):
+        comp = self.fuseFuncts.getCurrentComp()
+        
+        #   Get rgb color from dict
+        colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
+
+        #   Get State Tools:
+        stateTools = Fus.getToolsFromStateUIDs(comp, self.stateUID)
+
+        #   Color tools
+        for tool in stateTools:
+            self.fuseFuncts.colorTools(tool, colorRGB)
+
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
+
+
     #   Centers Flow View on Tool
     @err_catcher(name=__name__)
     def focusView(self):
@@ -684,6 +686,7 @@ class USD_ImportClass(object):
     @err_catcher(name=__name__)
     def preDelete(self, item=None):
         comp = self.fuseFuncts.getCurrentComp()
+
         try:
             #   Defaults to Delete the Node
             delAction = "Yes"
@@ -693,11 +696,11 @@ class USD_ImportClass(object):
 
             else:
                 toolUID = self.stateUID
-                nodeName = Fus.getToolNameByUID(comp, toolUID)
+                toolName = Fus.getToolNameByUID(comp, toolUID)
 
                 #   If the Loader exists, show popup question
-                if nodeName:
-                    message = f"Would you like to also remove the associated uLoader: {nodeName}?"
+                if toolName:
+                    message = f"Would you like to also remove the associated uLoader: {toolName}?"
                     buttons = ["Yes", "No"]
                     buttonToBool = {"Yes": True, "No": False}
 

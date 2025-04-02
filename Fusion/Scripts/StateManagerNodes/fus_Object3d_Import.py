@@ -56,6 +56,17 @@ from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
 
+import Libs.Prism_Fusion_lib_Fus as Fus
+import Libs.Prism_Fusion_lib_Helper as Helper
+
+from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
+if TYPE_CHECKING:
+    pass
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
+
 logger = logging.getLogger(__name__)
 
 scriptDir = os.path.dirname(os.path.dirname(__file__))
@@ -263,17 +274,6 @@ class Object3d_ImportClass(object):
 
 
     @err_catcher(name=__name__)
-    def setToolColor(self, color):
-        #   Get rgb color from dict
-        colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
-        #   Color tool
-        self.fuseFuncts.colorTools(self.stateUID, "import3d", colorRGB, category="import3d")
-
-        self.stateManager.saveImports()
-        self.stateManager.saveStatesToScene()
-
-
-    @err_catcher(name=__name__)
     def nameChanged(self, text=None):
         text = self.e_name.text()
         cacheData = self.core.paths.getCachePathData(self.getImportPath())
@@ -435,7 +435,7 @@ class Object3d_ImportClass(object):
     def importObject(self, update=False, path=None, settings=None):
 
         if not update:
-            self.stateUID = self.fuseFuncts.createUUID()
+            self.stateUID = Helper.createUUID()
 
         result = True
         if self.stateManager.standalone:
@@ -477,14 +477,15 @@ class Object3d_ImportClass(object):
 		#	Set node name
         productName = cacheData["product"]
         productVersion = cacheData["version"]
-        nodeName = f"{productName}_{productVersion}"
+        toolName = f"{productName}_{productVersion}"
 
         #   Get file extension
         _, extension = os.path.splitext(impFileName)
 
         #   Make node data
-        nodeData = {"nodeName": nodeName,
-                    "nodeUID": self.stateUID,
+        toolData = {"toolName": toolName,
+                    "toolUID": self.stateUID,
+                    "stateUID": self.stateUID,
                     "version": productVersion,
                     "object3dFilepath": impFileName,
                     "product": productName,
@@ -494,7 +495,7 @@ class Object3d_ImportClass(object):
         #   Call import function
         importResult = self.fuseFuncts.import3dObject(self,
                                                       UUID=self.stateUID,
-                                                      nodeData=nodeData,
+                                                      toolData=toolData,
                                                       update=update)
 
         if not importResult:
@@ -572,6 +573,24 @@ class Object3d_ImportClass(object):
         return curVersionData, latestVersionData
 
 
+    @err_catcher(name=__name__)
+    def setToolColor(self, color):
+        comp = self.fuseFuncts.getCurrentComp()
+        
+        #   Get rgb color from dict
+        colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
+
+        #   Get State Tools:
+        stateTools = Fus.getToolsFromStateUIDs(comp, self.stateUID)
+
+        #   Color tools
+        for tool in stateTools:
+            self.fuseFuncts.colorTools(tool, colorRGB)
+
+        self.stateManager.saveImports()
+        self.stateManager.saveStatesToScene()
+
+
     #   Centers Flow View on Tool
     @err_catcher(name=__name__)
     def focusView(self):
@@ -583,10 +602,8 @@ class Object3d_ImportClass(object):
     def create3dScene(self):
         if self.stateManager.standalone:
             return
-        
-        UUID = self.stateUID
-        
-        result = self.fuseFuncts.create3dScene(self, UUID)
+
+        result = self.fuseFuncts.create3dScene(self, self.stateUID)
 
 
     @err_catcher(name=__name__)
@@ -669,6 +686,8 @@ class Object3d_ImportClass(object):
 
     @err_catcher(name=__name__)
     def preDelete(self, item=None):
+        comp = self.fuseFuncts.getCurrentComp()
+
         try:
             #   Defaults to Delete the Node
             delAction = "Yes"
@@ -677,19 +696,19 @@ class Object3d_ImportClass(object):
                 logger.debug(f"Deleting node: {item}")
 
             else:
-                nodeUID = self.stateUID
-                nodeName = self.fuseFuncts.getNodeNameByUID(nodeUID)
+                toolUID = self.stateUID
+                toolName = Fus.getToolNameByUID(comp, toolUID)
 
                 #   If the Loader exists, show popup question
-                if nodeName:
-                    message = f"Would you like to also remove the associated Loader3d: {nodeName}?"
+                if toolName:
+                    message = f"Would you like to also remove the associated Loader3d: {toolName}?"
                     buttons = ["Yes", "No"]
                     buttonToBool = {"Yes": True, "No": False}
 
                     response = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
                     delAction = buttonToBool.get(response, False)
 
-                    self.fuseFuncts.deleteNode("import3d", nodeUID, delAction=delAction)
+                    self.fuseFuncts.deleteNode(toolUID, delAction=delAction)
         except:
             logger.warning("ERROR: Unable to remove Loader3d from Comp")
 

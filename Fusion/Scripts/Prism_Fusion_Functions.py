@@ -1629,7 +1629,7 @@ class Prism_Fusion_Functions(object):
 
 	#	Imports or updates USD scene or object
 	@err_catcher(name=__name__)
-	def importUSD(self, origin, UUID, nodeData, update=False):
+	def importUSD(self, origin, UUID, toolData, update=False):
 		comp = self.getCurrentComp()
 		flow:FlowView_ = comp.CurrentFrame.FlowView
 
@@ -1638,7 +1638,7 @@ class Prism_Fusion_Functions(object):
 			comp.StartUndo("Import USD")
 
 			flow.InsertBookmark("USD_Import")
-			result = self.wrapped_importUSD(origin, UUID, nodeData, update)
+			result = self.wrapped_importUSD(origin, UUID, toolData, update)
 
 			
 			bookmarks = flow.GetBookmarkList()
@@ -1656,7 +1656,7 @@ class Prism_Fusion_Functions(object):
 	
 	#	Imports or updates USD scene or object
 	@err_catcher(name=__name__)
-	def wrapped_importUSD(self, origin, UUID, nodeData, update=False):
+	def wrapped_importUSD(self, origin, UUID, toolData, update=False):
 		comp = self.getCurrentComp()
 		importRes = False
 
@@ -1664,9 +1664,9 @@ class Prism_Fusion_Functions(object):
 		if not update or not Fus.toolExists(comp, UUID):
 			try:
 				#	Add tool
-				uLdr = Fus.addTool(comp, "uLoader", nodeData)
+				uLdr = Fus.addTool(comp, "uLoader", toolData)
 
-				logger.debug(f"Imported USD object: {nodeData['product']}")
+				logger.debug(f"Imported USD object: {toolData['product']}")
 
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to import USD object:\n{e}")
@@ -1681,9 +1681,9 @@ class Prism_Fusion_Functions(object):
 				#	Get tool
 				tool = Fus.getToolByUID(comp, UUID)
 				#	 Update tool data
-				uLdr = Fus.configureTool(tool, nodeData)
+				uLdr = Fus.configureTool(tool, toolData)
 
-				logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
+				logger.debug(f"Updated uLoader: {toolData['nodeName']}")
 				importRes = True
 
 			except Exception as e:
@@ -1974,7 +1974,7 @@ class Prism_Fusion_Functions(object):
 
 	#	Imports .fbx or .abc object into Comp
 	@err_catcher(name=__name__)
-	def import3dObject(self, origin, UUID, nodeData, update=False):
+	def import3dObject(self, origin, UUID, toolData, update=False):
 		comp = self.getCurrentComp()
 		flow:FlowView_ = comp.CurrentFrame.FlowView
 
@@ -1983,7 +1983,7 @@ class Prism_Fusion_Functions(object):
 			comp.StartUndo("Import 3D Object")
 
 			flow.InsertBookmark("3dObject_Import")
-			result = self.wrapped_import3dObject(origin, UUID, nodeData, comp=comp, update=update)
+			result = self.wrapped_import3dObject(origin, UUID, toolData, comp=comp, update=update)
 
 			comp.EndUndo()
 			comp.Unlock()
@@ -1995,10 +1995,10 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def wrapped_import3dObject(self, origin, UUID, nodeData, comp, update=False):
+	def wrapped_import3dObject(self, origin, UUID, toolData, comp, update=False):
 		importRes = False
 
-		format = nodeData["format"]
+		format = toolData["format"]
 
 		#	Add new 3d Loader if not update or Tool is not in the Comp
 		if not update or not Fus.toolExists(comp, UUID):
@@ -2014,9 +2014,9 @@ class Prism_Fusion_Functions(object):
 					return False
 
 				#	Add 3d Tool
-				ldr3d = Fus.addTool(comp, toolType, nodeData)
+				ldr3d = Fus.addTool(comp, toolType, toolData)
 
-				logger.debug(f"Imported 3d object: {nodeData['product']}")
+				logger.debug(f"Imported 3d object: {toolData['product']}")
 
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to import 3d object:\n{e}")
@@ -2031,9 +2031,9 @@ class Prism_Fusion_Functions(object):
 				#	Get tool
 				tool = Fus.getToolByUID(comp, UUID)
 				#	 Update tool data
-				ldr3d = Fus.configureTool(tool, nodeData)
+				ldr3d = Fus.configureTool(tool, toolData)
 
-				logger.debug(f"Updated Loader3d: {nodeData['nodeName']}")
+				logger.debug(f"Updated Loader3d: {toolData['nodeName']}")
 				importRes = True
 
 			except Exception as e:
