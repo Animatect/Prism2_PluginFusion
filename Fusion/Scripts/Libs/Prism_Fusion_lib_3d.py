@@ -49,6 +49,7 @@
 
 ##  THIS IS A LIBRARY FOR 3D FUNCTIONS FOR THE FUSION PRISM PLUGIN  ##
 	
+from pydoc import Helper
 import pyautogui
 import pyperclip
 import time
@@ -82,7 +83,7 @@ def createUsdScene(plugin, origin, UUID):
     flow = comp.CurrentFrame.FlowView
 
     #	Get uLoader node
-    usdTool = plugin.getNodeByUID(UUID)
+    usdTool = Fus.getToolByUID(comp, UUID)
 
     # Add uMerge and uRender nodes
     uMerge = comp.AddTool("uMerge")
@@ -107,7 +108,7 @@ def create3dScene(plugin, origin, UUID):
 
 
     #	Get uLoader node
-    fbxTool = plugin.getNodeByUID(UUID)
+    fbxTool = Fus.getToolByUID(comp, UUID)
 
     # Add uMerge and uRender nodes
     merge3d = comp.AddTool("Merge3D")
@@ -298,7 +299,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     isUpdate:bool = False
     positionedNodes:list[str] = []
     unsuccesfulConnections:list[str] = []
-    aggregateData = CompDb.loadPrismFileDb(comp)
+    # aggregateData = CompDb.loadPrismFileDb(comp)
 
     product = toolData["product"]
     version = toolData["version"]
@@ -341,7 +342,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
         for tool in impnodes:
             thisToolData:dict = toolData.copy()
             # Give a UUID to every imported node 
-            toolUID = CompDb.createUUID()
+            toolUID = Helper.createUUID()
             if tool.GetData("Prism_UUID"):
                 toolUID = tool.GetData("Prism_UUID")
             else:
@@ -349,7 +350,6 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
             thisToolData["nodeName"] = tool.Name
             thisToolData["toolOrigName"] = tool.Name
             thisToolData["toolUID"] = toolUID
-            thisToolData["nodeUID"] = toolUID
             thisToolData["stateUID"] = stateUUID
             thisToolData["tooltype"] = tool.GetAttrs('TOOLS_RegID')
             thisToolData["entryNode"] = {firstnode.Name : firstnode.GetData("Prism_UUID")}
@@ -359,7 +359,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 connectedNodesDict:dict= {}
                 for t in inputTools:
                     # print(f"Connected node name: {t.GetAttrs('TOOLS_Name')}")
-                    tUID = CompDb.createUUID()
+                    tUID = Helper.createUUID()
                     if t.GetData("Prism_UUID"):
                         tUID = t.GetData("Prism_UUID")
                     else:
@@ -369,7 +369,6 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 
                 thisToolData["connectedNodes"] = connectedNodesDict
             Fus.addToolData(tool, thisToolData)
-            CompDb.addNodeToDB(comp, "import3d", toolUID, thisToolData, saveDB=False, aggregateData=aggregateData)
             if not tool.Name in positionedNodes:
                 x,y  = flow.GetPosTable(tool).values()
                 newx = x+(atx-fstnx)
@@ -386,9 +385,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     #     importedNodes.append(getNode(newName))
     
     # add a suffix the name to make sure we don't deduplicate a name on the update by modifying its name making finding matching tools impossible.
-
-    CompDb.savePrismFileDb(comp, aggregateData)
-    
+   
     for t in importedTools:
         newName:str =  f"{t.GetAttrs('TOOLS_Name')}_{toolData.get('product')}_{version}"
         t.SetAttrs({'TOOLS_Name' : newName})
@@ -408,12 +405,12 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
 
     # Reselect based on the database.
     objs:list[Tool_] = []
-    cpData = aggregateData#CompDb.loadPrismFileDb(comp)
+    # cpData = aggregateData#CompDb.loadPrismFileDb(comp)
     for nodeuid in cpData["nodes"]["import3d"]:
         nodeData:dict = cpData["nodes"]["import3d"][nodeuid]
         nodeStateUID:str|None = nodeData.get('stateUID')
         if nodeStateUID and nodeStateUID == stateUUID:
-            tool:Tool_ = CompDb.getNodeByUID(comp, nodeuid)
+            tool:Tool_ = Fus.getToolByUID(comp, nodeuid)
             objs.append(tool)
 
     #   Select nodes in comp
@@ -482,22 +479,21 @@ def cleanbeforeImport(origin:Legacy3D_ImportClass, stateUID:str):
 
 
 def deleteTools(comp:Composition_, stateUID:str):
-    aggregateData = CompDb.loadPrismFileDb(comp)
+    # aggregateData = CompDb.loadPrismFileDb(comp)
     stateTools:list[Tool_] = getToolsFromNodeList(comp, getStateNodesList(comp, stateUID))
     for tool in stateTools:
         try:
             tool.Delete()
             if tool.GetData("Prism_UUID"):
-                CompDb.removeNodeFromDB(comp, "import3d", tool.GetData("Prism_UUID"), saveDB=False, aggregateData=aggregateData)
+                pass
+                # CompDb.removeNodeFromDB(comp, "import3d", tool.GetData("Prism_UUID"), saveDB=False, aggregateData=aggregateData)
 
         except:
             logger.debug("Could not delete the tool.")
     
-    CompDb.savePrismFileDb(comp, aggregateData)
-
 
 def getNodeStateTypes(comp:Composition_) -> list:
-    cpData = CompDb.loadPrismFileDb(comp)
+    # cpData = CompDb.loadPrismFileDb(comp)
     stateTypes:list = []
     for n in cpData["nodes"]:
         stateTypes.append(n)
@@ -506,7 +502,7 @@ def getNodeStateTypes(comp:Composition_) -> list:
 
 
 def getAllNodes(comp:Composition_) -> dict:
-    cpData = CompDb.loadPrismFileDb(comp)
+    # cpData = CompDb.loadPrismFileDb(comp)
     stateTypes:list[str] = getNodeStateTypes(comp)
     nodes:dict = {}
     for stateType  in stateTypes:
@@ -549,7 +545,7 @@ def getToolsFromNodeList(comp:Composition_, nodeUIDlist:list[str]) -> list[Tool_
 
     for nodeuid in nodeUIDlist:
         if nodes.get(nodeuid):
-            tool = CompDb.getNodeByUID(comp, nodeuid)
+            tool = Fus.getToolByUID(comp, nodeuid)
         tools.append(tool)
 
     return tools
@@ -568,7 +564,7 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
         return False, [], []
     
     if alldbnodes.get(stateUID):
-        oldSceneTool = CompDb.getNodeByUID(comp, stateUID)
+        oldSceneTool = Fus.getToolByUID(comp, stateUID)
     else:
         return False, [], []
     

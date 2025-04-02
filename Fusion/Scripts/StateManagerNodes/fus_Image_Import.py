@@ -48,6 +48,7 @@
 
 
 import os
+import sys
 import logging
 
 from qtpy.QtCore import *
@@ -56,7 +57,9 @@ from qtpy.QtWidgets import *
 
 from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
 if TYPE_CHECKING:
-    pass
+    #   Relative Import for the IDE
+    from ..Libs import Prism_Fusion_lib_Fus as Fus
+    from ..Libs import Prism_Fusion_lib_Helper as Helper
 else:
     Tool_ = Any
     Composition_ = Any
@@ -72,6 +75,17 @@ Toolname = str
 PixMap = Any
 
 from PrismUtils.Decorators import err_catcher
+
+
+#   Load Libs at Runtime
+libsPath =  os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Libs"))
+if libsPath not in sys.path:
+    sys.path.append(libsPath)
+
+import Prism_Fusion_lib_Fus as Fus
+import Prism_Fusion_lib_Helper as Helper
+
+
 
 logger = logging.getLogger(__name__)
 
@@ -193,7 +207,7 @@ class Image_ImportClass(object):
         ##   2. If passed from FusFuncts. Receive importData via "settings" kwarg
         elif settings:
             #   Create State UUID
-            self.stateUID = self.fuseFuncts.createUUID()
+            self.stateUID = Helper.createUUID()
             #   Set intial importData to settings
             self.importData = settings
             #   Import the latest version
@@ -212,7 +226,7 @@ class Image_ImportClass(object):
             ):
 
             #   Make new UID for State
-            self.stateUID = self.fuseFuncts.createUUID()
+            self.stateUID = Helper.createUUID()
 
             #   Open MediaChooser to get import
             requestResult = self.callMediaWindow()
@@ -939,11 +953,12 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def updateAovStatus(self):
+        comp = self.fuseFuncts.getCurrentComp()
         #   Liat of each AOV status
         aovStatuses = []
 
         #   Gets all State UIDs
-        stateUIDs = self.fuseFuncts.getUIDsFromStateUIDs(self.stateUID, includeConn=False)
+        stateUIDs = Fus.getUIDsFromStateUIDs(comp, self.stateUID, includeConn=False)
 
         # Get child AOV items
         aovItems = self.getAllItems(aovs=True)
@@ -969,10 +984,10 @@ class Image_ImportClass(object):
 
             # Check each stateUID
             for uid in stateUIDs:
-                if not self.fuseFuncts.toolExists(uid):
+                if not Fus.toolExists(comp, uid):
                     continue
 
-                uidData = self.fuseFuncts.getToolDataByUID(uid)
+                uidData = Fus.getToolDataByUID(comp, uid)
                 if not uidData:  
                     continue  
 
@@ -1408,7 +1423,7 @@ class Image_ImportClass(object):
                     fileDict.update({"aov": aov})
 
                 #   Create UUID for each basefile
-                fileDict["fileUID"] = self.fuseFuncts.createUUID()
+                fileDict["fileUID"] = Helper.createUUID()
 
                 # Append to files list
                 files.append(fileDict)
@@ -1691,8 +1706,10 @@ class Image_ImportClass(object):
     #   Colors State Tools in the Comp
     @err_catcher(name=__name__)
     def setToolColor(self, color):
+        comp = self.fuseFuncts.getCurrentComp()
+
         #   Get all Tool for the State
-        stateTools = self.fuseFuncts.getToolsFromStateUIDs(self.stateUID)
+        stateTools = Fus.getToolsFromStateUIDs(comp, self.stateUID)
 
         # Colors the Loaders and wireless nodes
         if self.taskColorMode == "All Nodes":
@@ -1720,11 +1737,13 @@ class Image_ImportClass(object):
     #   Centers Flow View on Tool
     @err_catcher(name=__name__)
     def focusView(self):
+        comp = self.fuseFuncts.getCurrentComp()
+
         #   Get all Tool UIDs for the State
-        uids = self.fuseFuncts.getUIDsFromStateUIDs(self.stateUID)
+        uids = Fus.getUIDsFromStateUIDs(comp, self.stateUID)
         for uid in uids:
             #   Focus on the main Tool
-            nData = self.fuseFuncts.getToolDataByUID(uid)
+            nData = Fus.getToolDataByUID(comp, uid)
             if nData["version"]:
                 self.fuseFuncts.sm_view_FocusStateTool(uid)
                 return
@@ -1737,7 +1756,7 @@ class Image_ImportClass(object):
         comp = self.fuseFuncts.getCurrentComp()
         flow = comp.CurrentFrame.FlowView
         #   All State Tool UIDS
-        stateTools = self.fuseFuncts.getToolsFromStateUIDs(self.stateUID)
+        stateTools = Fus.getToolsFromStateUIDs(comp, self.stateUID)
 
         #   Select each Tool
         for tool in stateTools:
@@ -1955,13 +1974,15 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def preDelete(self, item):
+        comp = self.fuseFuncts.getCurrentComp()
+
         if not self.core.uiAvailable:
             action = "Yes"
         else:
             action = "No"
 
         #   Get all Tool UIDs for the State
-        uids = self.fuseFuncts.getUIDsFromStateUIDs(self.stateUID)
+        uids = Fus.getUIDsFromStateUIDs(comp, self.stateUID)
             
         if len(uids) > 0:
             text = "Do you want to Delete the Associated Loader(s)?"

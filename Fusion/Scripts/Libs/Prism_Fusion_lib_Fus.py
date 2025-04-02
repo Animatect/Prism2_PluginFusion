@@ -604,7 +604,7 @@ def getToolsFromStateUIDs(comp, stateUID:str) -> list:
     try:
         for tool in getAllTools(comp):
             tData = getToolData(tool)
-            if tData["stateUID"] == stateUID:
+            if tData and "stateUID" in tData and tData["stateUID"] == stateUID:
                 toolList.append(tool)
 
         return toolList

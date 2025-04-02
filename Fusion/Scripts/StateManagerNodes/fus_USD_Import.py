@@ -48,7 +48,18 @@
 
 
 import os
+import sys
 import logging
+
+from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
+if TYPE_CHECKING:
+    #   Relative Import for the IDE
+    from ..Libs import Prism_Fusion_lib_Fus as Fus
+    from ..Libs import Prism_Fusion_lib_Helper as Helper
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -60,6 +71,15 @@ logger = logging.getLogger(__name__)
 
 scriptDir = os.path.dirname(os.path.dirname(__file__))
 STATE_ICON = os.path.join(scriptDir, "Icons", "Geo.png")
+
+#   Load Libs at Runtime
+libsPath =  os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Libs"))
+if libsPath not in sys.path:
+    sys.path.append(libsPath)
+
+import Prism_Fusion_lib_Fus as Fus
+import Prism_Fusion_lib_Helper as Helper
+
 
 
 
@@ -265,10 +285,16 @@ class USD_ImportClass(object):
 
     @err_catcher(name=__name__)
     def setToolColor(self, color):
+        comp = self.fuseFuncts.getCurrentComp()
         #   Get rgb color from dict
         colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
-        #   Color tool
-        self.fuseFuncts.colorTools(self.stateUID, "import3d", colorRGB, category="import3d")
+
+        #   Get State Tools:
+        stateTools = Fus.getToolsFromStateUIDs(comp, self.stateUID)
+
+        #   Color tools
+        for tool in stateTools:
+            self.fuseFuncts.colorTools(tool, colorRGB)
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -436,7 +462,7 @@ class USD_ImportClass(object):
     def importObject(self, update=False, path=None, settings=None):
 
         if not update:
-            self.stateUID = self.fuseFuncts.createUUID()
+            self.stateUID = Helper.createUUID()
 
         result = True
         if self.stateManager.standalone:
@@ -480,7 +506,8 @@ class USD_ImportClass(object):
         nodeName = f"{productName}_{productVersion}"
 
         nodeData = {"nodeName": nodeName,
-                    "nodeUID": self.stateUID,
+                    "toolUID": self.stateUID,
+                    "stateUID": self.stateUID,
                     "version": productVersion,
                     "usdFilepath": impFileName,
                     "product": productName,
@@ -583,9 +610,7 @@ class USD_ImportClass(object):
         if self.stateManager.standalone:
             return
         
-        UUID = self.stateUID
-        
-        result = self.fuseFuncts.createUsdScene(self, UUID)
+        result = self.fuseFuncts.createUsdScene(self, self.stateUID)
 
 
     @err_catcher(name=__name__)
@@ -667,6 +692,7 @@ class USD_ImportClass(object):
 
     @err_catcher(name=__name__)
     def preDelete(self, item=None):
+        comp = self.fuseFuncts.getCurrentComp()
         try:
             #   Defaults to Delete the Node
             delAction = "Yes"
@@ -675,8 +701,8 @@ class USD_ImportClass(object):
                 logger.debug(f"Deleting node: {item}")
 
             else:
-                nodeUID = self.stateUID
-                nodeName = self.fuseFuncts.getNodeNameByUID(nodeUID)
+                toolUID = self.stateUID
+                nodeName = Fus.getToolNameByUID(comp, toolUID)
 
                 #   If the Loader exists, show popup question
                 if nodeName:
@@ -687,7 +713,7 @@ class USD_ImportClass(object):
                     response = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
                     delAction = buttonToBool.get(response, False)
 
-                    self.fuseFuncts.deleteNode("import3d", nodeUID, delAction=delAction)
+                    self.fuseFuncts.deleteNode(toolUID, delAction=delAction)
         except:
             logger.warning("ERROR: Unable to remove uLoader from Comp")
 
