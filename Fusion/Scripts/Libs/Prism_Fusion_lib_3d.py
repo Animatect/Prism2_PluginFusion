@@ -49,15 +49,15 @@
 
 ##  THIS IS A LIBRARY FOR 3D FUNCTIONS FOR THE FUSION PRISM PLUGIN  ##
 	
-from pydoc import Helper
 import pyautogui
-import pyperclip
 import time
-import os
 import tkinter as tk
 import logging
+# import os
+# import pyperclip
 
-from . import Prism_Fusion_lib_Fus as Fus
+import Libs.Prism_Fusion_lib_Fus as Fus
+import Libs.Prism_Fusion_lib_Helper as Helper
 
 from PrismUtils.Decorators import err_catcher as err_catcher
 

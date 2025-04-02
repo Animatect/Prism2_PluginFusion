@@ -48,18 +48,20 @@
 
 
 import os
-import sys
 import logging
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
+from PrismUtils.Decorators import err_catcher
+
+import Libs.Prism_Fusion_lib_Fus as Fus
+import Libs.Prism_Fusion_lib_Helper as Helper
+
 from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
 if TYPE_CHECKING:
-    #   Relative Import for the IDE
-    from ..Libs import Prism_Fusion_lib_Fus as Fus
-    from ..Libs import Prism_Fusion_lib_Helper as Helper
+    pass
 else:
     Tool_ = Any
     Composition_ = Any
@@ -73,18 +75,6 @@ Color = int
 UUID = str
 Toolname = str
 PixMap = Any
-
-from PrismUtils.Decorators import err_catcher
-
-
-#   Load Libs at Runtime
-libsPath =  os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Libs"))
-if libsPath not in sys.path:
-    sys.path.append(libsPath)
-
-import Prism_Fusion_lib_Fus as Fus
-import Prism_Fusion_lib_Helper as Helper
-
 
 
 logger = logging.getLogger(__name__)

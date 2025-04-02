@@ -42,6 +42,17 @@ from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
 
+import Libs.Prism_Fusion_lib_Fus as Fus
+import Libs.Prism_Fusion_lib_Helper as Helper
+
+from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
+if TYPE_CHECKING:
+    pass
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
+
 logger = logging.getLogger(__name__)
 
 scriptDir = os.path.dirname(os.path.dirname(__file__))
@@ -115,7 +126,7 @@ class USD_MaterialClass(object):
         #   Loads Defaults
         else:
             self.stateName = self.stateMode
-            self.stateUID = self.fuseFuncts.createUUID()
+            self.stateUID = Helper.createUUID()
             self.stateSet = False
             self.lastExplorerDir = self.findProjectTexDir()
 
@@ -254,11 +265,13 @@ class USD_MaterialClass(object):
 
     @err_catcher(name=__name__)
     def updateUi(self):
+        comp = self.fuseFuncts.getCurrentComp()
+
         #   Gets method from FusFuncts if it exists
         getattr(self.core.appPlugin, "sm_import_updateUi", lambda x: None)(self)
 
         #   Get status's
-        exists = self.fuseFuncts.nodeExists(self.stateUID)
+        exists = Fus.toolExists(comp, self.stateUID)
         set = self.stateSet
 
         #   Sets up UI for State Mode
@@ -348,18 +361,16 @@ class USD_MaterialClass(object):
 
     @err_catcher(name=__name__)
     def setToolColor(self, color):
+        comp = self.fuseFuncts.getCurrentComp()
         #   Get rgb color from dict
         colorRGB = self.fuseFuncts.fusionToolsColorsDict[color]
 
-        #   Add main tool to list
-        toolsToColor = []
-        toolsToColor.append(self.stateUID)
-        #   Get connected tools and add to list
-        uids = self.fuseFuncts.getConnectedNodes("import3d", self.stateUID)
-        toolsToColor.extend(uids)
+        #   Get State Tools:
+        stateTools = Fus.getToolsFromStateUIDs(comp, self.stateUID)
 
         #   Color tools
-        self.fuseFuncts.colorTools(toolsToColor, "import3d", colorRGB, category="import3d")
+        for tool in stateTools:
+            self.fuseFuncts.colorTools(tool, colorRGB)
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -493,8 +504,9 @@ class USD_MaterialClass(object):
     #   Updates Material Tool or adds the Tool if it is not in the Comp
     @err_catcher(name=__name__)
     def reImport(self):
+        comp = self.fuseFuncts.getCurrentComp()
 
-        exists = self.fuseFuncts.nodeExists(self.stateUID)
+        exists = Fus.toolExists(comp, self.stateUID)
 
         if self.stateMode == "MaterialX":
             if exists:
@@ -539,6 +551,8 @@ class USD_MaterialClass(object):
 
     @err_catcher(name=__name__)
     def importMatX(self, importPath, update=False):
+        comp = self.fuseFuncts.getCurrentComp()
+
         result = True
 
         if self.stateManager.standalone:
@@ -563,14 +577,15 @@ class USD_MaterialClass(object):
 
         #   Make dict
         matxData = {"toolName": self.matxName,
-                    "nodeUID": self.stateUID,
+                    "toolUID": self.stateUID,
+                    "stateUID": self.stateUID,
                     "shaderName": self.matxName,
                     "shaderType": "MaterialX",
                     "listType": "import3d",
                     "matXfilePath": importPath}
         
         #   Updates existing tool if it exists
-        update = self.fuseFuncts.nodeExists(self.stateUID)
+        update = Fus.toolExists(comp, self.stateUID)
 
         #   Call fucntion to import
         importResult = self.fuseFuncts.createUsdMatX(self,
@@ -938,9 +953,10 @@ class USD_MaterialClass(object):
 
         #   Make dict
         texData = {"toolName": self.usdMatName,
+                   "stateUID": self.stateUID,
                    "shaderName": self.usdMatName,
                    "shaderType": "uShader",
-                   "nodeUID": self.stateUID,
+                   "toolUID": self.stateUID,
                    "texFiles": sendTexFiles}
 
         #   Call function to import
@@ -985,6 +1001,7 @@ class USD_MaterialClass(object):
     #   Called from StateManager when deleting state
     @err_catcher(name=__name__)
     def preDelete(self, item=None):
+        comp = self.fuseFuncts.getCurrentComp()
         try:
             #   Defaults to Delete the Node
             delAction = "Yes"
@@ -993,17 +1010,18 @@ class USD_MaterialClass(object):
                 logger.debug(f"Deleting node: {item}")
 
             else:
-                #   Get node data
-                nodeUID = self.stateUID
-                nodeName = self.fuseFuncts.getNodeNameByUID(nodeUID)
-                nodeData = self.fuseFuncts.getNodeInfo("import3d", nodeUID)
+                #   Get Tool Data
+                toolUID = self.stateUID
+                tool = Fus.getToolByUID(comp, toolUID)
+                toolName = Fus.getToolNameByUID(comp, toolUID)
+                tData = Fus.getToolData(tool)
 
                 #   Get associated textures
-                connectedTools = nodeData.get("connectedNodes", {})
+                connectedTools = tData.get("connectedNodes", {})
 
                 #   If the material tool exists, show popup question
-                if nodeName:
-                    message = f"Would you like to also remove the material ({nodeData['shaderName']}) from the Comp?"
+                if toolName:
+                    message = f"Would you like to also remove the material ({tData['shaderName']}) from the Comp?"
                     buttons = ["Yes", "No"]
                     buttonToBool = {"Yes": True, "No": False}
 
@@ -1011,10 +1029,10 @@ class USD_MaterialClass(object):
                     delAction = buttonToBool.get(response, False)
 
                     if response == "Yes":
-                        self.fuseFuncts.deleteNode("import3d", nodeUID, delAction=delAction)
+                        self.fuseFuncts.deleteNode(toolUID, delAction=delAction)
                         #   Delete all the textures
                         for uid in connectedTools.values():
-                            self.fuseFuncts.deleteNode("import3d", uid, delAction=delAction)
+                            self.fuseFuncts.deleteNode(uid, delAction=delAction)
 
         except:
             logger.warning("ERROR: Unable to remove Material from Comp")

@@ -48,18 +48,7 @@
 
 
 import os
-import sys
 import logging
-
-from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
-if TYPE_CHECKING:
-    #   Relative Import for the IDE
-    from ..Libs import Prism_Fusion_lib_Fus as Fus
-    from ..Libs import Prism_Fusion_lib_Helper as Helper
-else:
-    Tool_ = Any
-    Composition_ = Any
-    FlowView_ = Any
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -67,19 +56,21 @@ from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
 
+import Libs.Prism_Fusion_lib_Fus as Fus
+import Libs.Prism_Fusion_lib_Helper as Helper
+
+from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
+if TYPE_CHECKING:
+    pass
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
+
 logger = logging.getLogger(__name__)
 
 scriptDir = os.path.dirname(os.path.dirname(__file__))
 STATE_ICON = os.path.join(scriptDir, "Icons", "Geo.png")
-
-#   Load Libs at Runtime
-libsPath =  os.path.abspath(os.path.join(os.path.dirname(__file__), "..", "Libs"))
-if libsPath not in sys.path:
-    sys.path.append(libsPath)
-
-import Prism_Fusion_lib_Fus as Fus
-import Prism_Fusion_lib_Helper as Helper
-
 
 
 

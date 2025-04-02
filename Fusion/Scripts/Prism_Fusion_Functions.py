@@ -1223,7 +1223,8 @@ class Prism_Fusion_Functions(object):
 					if key in importData:
 						toolData[key] = importData[key]
 
-				orig_toolUID = Fus.getUIDsFromImportData(comp, importItem)
+				#	Get any Matching Tools already in the Comp
+				orig_toolUID = Fus.getUIDsFromImportData(comp, importItem, "import2d")
 
 				#	Add Loader and configure
 				if len(orig_toolUID) == 0:
@@ -1797,6 +1798,7 @@ class Prism_Fusion_Functions(object):
 				#	Configure texture data
 				texDict = {}
 				texDict["toolUID"] = toolUID
+				texDict["stateUID"] = texData["stateUID"]
 				texDict["nodeName"] = f"{texData['toolName']}_{texture['map'].upper()}"
 				texDict["shaderName"] = texData["shaderName"]
 				texDict["texMap"] = texture["map"].upper()
@@ -1814,8 +1816,9 @@ class Prism_Fusion_Functions(object):
 			comp.Unlock()
 			return False
 
-		#	Add connected tools to uShader database record
+		#	Add connected tools to uShader Data
 		updateDict = {"connectedNodes": connectedTexs}
+		Fus.updateToolData(uShader, updateDict)
 
 		#	Get tool for each UID
 		texTools = [tool for uid in connectedTexs.values() if (tool := Fus.getToolByUID(comp, uid))]
@@ -1862,18 +1865,24 @@ class Prism_Fusion_Functions(object):
 													groupTools,
 													outputTool=uShader,
 													pos=lastClicked)
+			
+
 			#	Make Group Data
 			groupData = {"groupName": texData['shaderName'],
+						 "stateUID": texData["stateUID"],
+						 "shaderName": texData["shaderName"],
 						 "connectedNodes": newToolsUIDs}
 
 			#	Get Group Tool
 			groupTool = Fus.getToolByUID(comp, groupUID)
+
 
 			#	Uodate Group and add to Database
 			Fus.configureTool(groupTool, groupData)
 
 			#	Add Group UID to uShader database record
 			updateDict["connectedNodes"]["Group"] = groupUID
+			Fus.updateToolData(uShader, updateDict)
 
 			logger.debug(f"Created shader group: {groupName}")
 
