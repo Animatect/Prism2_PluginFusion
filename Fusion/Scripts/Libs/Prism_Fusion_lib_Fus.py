@@ -458,78 +458,77 @@ def groupTools(comp,
         for tool in toolList:
             tool.Delete()
 
-    # try:
+    try:
+        #   Create group settings code
+        gt = {"Tools": {groupName: {"__ctor": "GroupOperator" }}}
 
-    #   Create group settings code
-    gt = {"Tools": {groupName: {"__ctor": "GroupOperator" }}}
+        gt["Tools"][groupName]["ViewInfo"] = dict(__ctor="GroupInfo")
+        gt["Tools"][groupName]["Inputs"] = dict()
+        gt["Tools"][groupName]["Outputs"] = dict()
 
-    gt["Tools"][groupName]["ViewInfo"] = dict(__ctor="GroupInfo")
-    gt["Tools"][groupName]["Inputs"] = dict()
-    gt["Tools"][groupName]["Outputs"] = dict()
+        #   Add the list of tools settings to the group
+        gt["Tools"][groupName]["Tools"] = toolsToCopy
 
-    #   Add the list of tools settings to the group
-    gt["Tools"][groupName]["Tools"] = toolsToCopy
+        #   Add an external input using the inputTool
+        if inputTool:
+            gt["Tools"][groupName]["Inputs"]["Input1"] = dict(
+                __ctor="InstanceInput", SourceOp=inputTool.Name, Source="Input"
+            )
 
-    #   Add an external input using the inputTool
-    if inputTool:
-        gt["Tools"][groupName]["Inputs"]["Input1"] = dict(
-            __ctor="InstanceInput", SourceOp=inputTool.Name, Source="Input"
-        )
+        #   Add an external output using the outputTool
+        if outputTool:
+            gt["Tools"][groupName]["Outputs"]["Output1"] = dict(
+                __ctor="InstanceOutput", SourceOp=outputTool.Name, Source="Output"
+            )
 
-    #   Add an external output using the outputTool
-    if outputTool:
-        gt["Tools"][groupName]["Outputs"]["Output1"] = dict(
-            __ctor="InstanceOutput", SourceOp=outputTool.Name, Source="Output"
-        )
+        #   Paste the group settings code into the composition
+        comp.Paste(gt)
 
-    #   Paste the group settings code into the composition
-    comp.Paste(gt)
-
-    #   Reconnect the tools
-    for toolDict in iOconnections:
-        #   Get the pasted tool from the saved Tool Name
-        tool = comp.FindTool(toolDict["toolName"])
-        #   Get the new output socket object
-        output = getToolOutputSocket(tool)
-
-        #   Itterate throught the input list since there can be multiple tools connected
-        for inputDict in toolDict["inputs"]:
+        #   Reconnect the tools
+        for toolDict in iOconnections:
             #   Get the pasted tool from the saved Tool Name
-            inputTool = getToolByName(comp, inputDict["inputToolName"])
-            #   Get the input socket object by matching saved name
-            input = getMatchingInputSocket(inputTool, inputDict["inputName"])
+            tool = comp.FindTool(toolDict["toolName"])
+            #   Get the new output socket object
+            output = getToolOutputSocket(tool)
 
-            #   Connect the two tools via their sockets
-            result = connectInputToOutput(input, output)
+            #   Itterate throught the input list since there can be multiple tools connected
+            for inputDict in toolDict["inputs"]:
+                #   Get the pasted tool from the saved Tool Name
+                inputTool = getToolByName(comp, inputDict["inputToolName"])
+                #   Get the input socket object by matching saved name
+                input = getMatchingInputSocket(inputTool, inputDict["inputName"])
 
-    if result:
-        #   Add UUID to Group Tool
-        groupUID = Helper.createUUID()
-        groupTool = getToolByName(comp, groupName)
-        groupTool.SetData('Prism_UUID', groupUID)
+                #   Connect the two tools via their sockets
+                result = connectInputToOutput(input, output)
 
-        #   Sets Group Tool Position if passed
-        if pos:
-            flow = comp.CurrentFrame.FlowView
-            setToolPosition(flow, groupTool, pos[0], pos[1])
+        if result:
+            #   Add UUID to Group Tool
+            groupUID = Helper.createUUID()
+            groupTool = getToolByName(comp, groupName)
+            groupTool.SetData('Prism_UUID', groupUID)
 
-        return groupUID, toolUIDs
+            #   Sets Group Tool Position if passed
+            if pos:
+                flow = comp.CurrentFrame.FlowView
+                setToolPosition(flow, groupTool, pos[0], pos[1])
+
+            return groupUID, toolUIDs
         
-
-    # except Exception as e:
-    #     logger.warning(f"ERROR: Failed to create group:\n{e}")
-    #     return None
+    except Exception as e:
+        logger.warning(f"ERROR: Failed to create group:\n{e}")
+        return None
     
 
 def getAllTools(comp, selected:bool=False) -> list:
     if selected:
-        return comp.GetToolList(True).values()
+        return list(comp.GetToolList(True).values())
     else:
-        return comp.GetToolList(False).values()
+        return list(comp.GetToolList(False).values())
     
 
 def getAllPrismTools(comp, selected:bool=False, category:str=None) -> list:
     allTools = getAllTools(comp, selected=selected)
+
     prismTools = []
 
     for tool in allTools:
@@ -538,7 +537,7 @@ def getAllPrismTools(comp, selected:bool=False, category:str=None) -> list:
             prismTools.append(tool)
 
     if category:
-        prismTools = [tool for tool in prismTools if getToolData(tool).get("category") == category]
+        prismTools = [tool for tool in prismTools if getToolData(tool).get("listType") == category]
 
     return prismTools
 
@@ -668,13 +667,14 @@ def getUIDsFromImportData(comp, importData:dict, category:str) -> dict:
     try:
         #   Get the requested node listType
         prismTools = getAllPrismTools(comp, category=category)
+
         if not prismTools:
             logger.debug(f"No Tools in the Comp")
             return []
         
 
         #   List of items to compare
-        compareKeys = ["listType", "mediaId", "mediaType", "extension", "aov", "channel", "itemType", "asset", "sequence", "shot"]
+        compareKeys = ["mediaId", "mediaType", "extension", "aov", "channel", "itemType", "asset", "sequence", "shot"]
 
         # Search for a record matching all the available items
         for tool in prismTools:
@@ -686,6 +686,7 @@ def getUIDsFromImportData(comp, importData:dict, category:str) -> dict:
                 if key in importData_copy and key in tData:
                     import_value = importData_copy.get(key, None)
                     node_value = tData.get(key, None)
+                    
                     #   Check for match
                     if import_value != node_value:
                         match = False
@@ -702,9 +703,7 @@ def getUIDsFromImportData(comp, importData:dict, category:str) -> dict:
         return []
 
 
-
 #   Tries to find last tool in the flow
-
 def getLastTool(comp) -> Tool | None:
     try:
         for tool in comp.GetToolList(False).values():

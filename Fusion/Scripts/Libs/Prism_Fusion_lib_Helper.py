@@ -347,7 +347,9 @@ def compareVersions(origVerRecord:dict, updateVerRecord:dict) -> Tuple[bool, str
         updateVer_int = int(updateVer_match.group()) if updateVer_match else 0
 
         #   Get frame ranges
-        origFramerange = f"{origVerRecord['frame_start']} - {origVerRecord['frame_end']}"
+        origFrameStart_int = int(origVerRecord['frame_start'])
+        origFrameEnd_int = int(origVerRecord['frame_end'])
+        origFramerange = f"{origFrameStart_int} - {origFrameEnd_int}"
         updateFramerange = f"{updateVerRecord['frame_start']} - {updateVerRecord['frame_end']}"
 
         #   Make name for update popup

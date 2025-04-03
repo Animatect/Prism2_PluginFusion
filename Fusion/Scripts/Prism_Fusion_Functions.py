@@ -310,11 +310,6 @@ class Prism_Fusion_Functions(object):
 	
 
 	@err_catcher(name=__name__)
-	def createUUID(self, simple=False, length=8):
-		return Helper.createUUID(simple=False, length=8)
-
-
-	@err_catcher(name=__name__)
 	def getFrameRange(self, origin):
 		curComp = self.getCurrentComp()
 		return Fus.getFrameRange(curComp)
@@ -347,69 +342,6 @@ class Prism_Fusion_Functions(object):
 	def setResolution(self, width=None, height=None):
 		comp = self.getCurrentComp()
 		Fus.setResolution(comp, width, height)
-
-
-	@err_catcher(name=__name__)
-	def getFusLegalName(self, origName, check=False):
-		return Helper.getFusLegalName(origName, check=check)
-
-
-	@err_catcher(name=__name__)
-	def getToolByUID(self, toolUID):
-		comp = self.getCurrentComp()
-		return Fus.toolExists(comp, toolUID)
-
-
-	@err_catcher(name=__name__)
-	def toolExists(self, toolUID):
-		comp = self.getCurrentComp()
-		return Fus.toolExists(comp, toolUID)
-	
-
-	@err_catcher(name=__name__)
-	def getToolName(self, tool):
-		comp = self.getCurrentComp()
-		return Fus.getToolName(comp, tool)
-	
-
-	@err_catcher(name=__name__)
-	def getToolData(self, tool):
-		return Fus.getToolData(tool)
-	
-
-	@err_catcher(name=__name__)
-	def getToolDataByUID(self, toolUID):
-		comp = self.getCurrentComp()
-		return Fus.getToolDataByUID(comp, toolUID)
-	
-
-	@err_catcher(name=__name__)
-	def getUIDsFromStateUIDs(self, stateUID, includeConn:bool=True):
-		comp = self.getCurrentComp()
-		return Fus.getUIDsFromStateUIDs(comp, stateUID, includeConn)
-
-
-	@err_catcher(name=__name__)
-	def getToolsFromStateUIDs(self, stateUID):
-		comp = self.getCurrentComp()
-		return Fus.getToolsFromStateUIDs(comp, stateUID)
-
-
-	@err_catcher(name=__name__)
-	def getConnectedNodes(self, UUID:str):
-		comp = self.getCurrentComp()
-		return Fus.getConnectedNodes(comp, UUID)
-
-	@err_catcher(name=__name__)
-	def isPassThrough(self, toolUID=None, tool=None):
-		comp = self.getCurrentComp()
-		return Fus.isPassThrough(comp, toolUID, tool)
-
-
-	@err_catcher(name=__name__)
-	def setPassThrough(self, toolUID=None, tool=None, passThrough=False):
-		comp = self.getCurrentComp()
-		Fus.setPassThrough(comp, nodeUID=toolUID, tool=tool, passThrough=passThrough)
 
 
 	@err_catcher(name=__name__)
@@ -1794,7 +1726,7 @@ class Prism_Fusion_Functions(object):
 			connectedTexs = {}
 			for texture in texData["texFiles"]:
 				#	Create UIDs for each texture
-				toolUID = self.createUUID()
+				toolUID = Helper.createUUID()
 				#	Configure texture data
 				texDict = {}
 				texDict["toolUID"] = toolUID

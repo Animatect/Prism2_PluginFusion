@@ -59,6 +59,17 @@ from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
 
+import Libs.Prism_Fusion_lib_Fus as Fus
+import Libs.Prism_Fusion_lib_Helper as Helper
+
+from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
+if TYPE_CHECKING:
+    pass
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
+
 logger = logging.getLogger(__name__)
 
 scriptDir = os.path.dirname(os.path.dirname(__file__))
@@ -75,7 +86,7 @@ class ImageRenderClass(object):
 		self.state = state
 		self.core = core
 		self.stateManager = stateManager
-		self.fusionFuncs = self.core.appPlugin
+		self.fuseFuncs = self.core.appPlugin
 		self.canSetVersion = True
 		self.customContext = None
 		self.allowCustomContext = False
@@ -125,7 +136,7 @@ class ImageRenderClass(object):
 		self.gb_submit.setChecked(False)
 		self.f_renderLayer.setVisible(False)
 
-		getattr(self.fusionFuncs, "sm_render_startup", lambda x: None)(self)
+		getattr(self.fuseFuncs, "sm_render_startup", lambda x: None)(self)
 
 		masterItems = ["Set as master", "Add to master", "Don't update master"]
 		self.cb_master.addItems(masterItems)
@@ -138,7 +149,7 @@ class ImageRenderClass(object):
 		self.tasknameRequired = True
 
 		#	Gets formats dict from Prism_Fusion_Functions.py to differentiate still/movie types
-		self.outputFormats = self.fusionFuncs.outputFormats
+		self.outputFormats = self.fuseFuncs.outputFormats
 		self.cb_format.addItems([formatDict["extension"] for formatDict in self.outputFormats])
 
 		self.connectEvents()
@@ -191,7 +202,7 @@ class ImageRenderClass(object):
 
 				self.setUniqueName(f"{self.className} - {self.getTaskname()}")
 
-				self.stateUID = self.fusionFuncs.createUUID()
+				self.stateUID = Helper.createUUID()
 
 				logger.debug("Loading State Defaults")
 
@@ -313,28 +324,12 @@ class ImageRenderClass(object):
 		self.core.callback("onStateSettingsLoaded", self, data)
 
 
-
-
-
-		# Setup the enabled disabled checkboxes
-		# nodename = self.getRendernodeName()
-		# if self.fusionFuncs.rendernode_exists(nodename):
-		# 	state = self.fusionFuncs.getNodePassthrough(nodename)
-		# 	if state:
-		# 		self.state.setCheckState(0, Qt.Checked)
-		# 	else:
-		# 		self.state.setCheckState(0, Qt.Unchecked)
-				
-		# self.stateManager.tw_export.itemChanged.connect(self.sm_handle_item_changed)
-
-		# self.state.setBackground(0, QColor("#365e99"))
-
-
-
 	@err_catcher(name=__name__)
 	def onStateLoaded(self):
-		if self.fusionFuncs.nodeExists(self.stateUID):
-			passThrough = self.fusionFuncs.isPassThrough(nodeUID=self.stateUID)
+		comp = self.fuseFuncs.getCurrentComp()
+
+		if Fus.toolExists(comp, self.stateUID):
+			passThrough = Fus.isPassThrough(comp, toolUID=self.stateUID)
 			if passThrough:
 				self.state.setCheckState(0, Qt.Unchecked)
 			else:
@@ -346,7 +341,7 @@ class ImageRenderClass(object):
 
 		self.stateManager.saveStatesToScene()
 
-		stateName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
+		stateName = Fus.getToolNameByUID(comp, self.stateUID)
 		logger.debug(f"Loaded State: {stateName}")
 
 
@@ -529,7 +524,7 @@ class ImageRenderClass(object):
 				self.expressionWin.close()
 
 			self.expressionWin = QFrame()
-			ss = getattr(self.fusionFuncs, "getFrameStyleSheet", lambda x: "")(self)
+			ss = getattr(self.fuseFuncs, "getFrameStyleSheet", lambda x: "")(self)
 			self.expressionWin.setStyleSheet(
 				ss + """ .QFrame{ border: 2px solid rgb(100,100,100);} """
 			)
@@ -688,7 +683,7 @@ class ImageRenderClass(object):
 
 		if result == 1:
 			#	Checks if entered name is Fusion legal
-			isLegal, errorStr = self.fusionFuncs.getFusLegalName(self.nameWin.e_item.text(), check=True)
+			isLegal, errorStr = Helper.getFusLegalName(self.nameWin.e_item.text(), check=True)
 			if not isLegal:
 				self.core.popup(errorStr)
 				return
@@ -696,7 +691,7 @@ class ImageRenderClass(object):
 			#	Gets user entered name
 			enteredName = self.nameWin.e_item.text()
 			#	Gets Fusion Legal name
-			fusLegalName = self.fusionFuncs.getFusLegalName(enteredName)
+			fusLegalName = Helper.getFusLegalName(enteredName)
 
 			#	Compares the names
 			if enteredName != fusLegalName:
@@ -813,15 +808,16 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def sm_ToggleNodeChanged(self, disabled)->None:
-		# disabled = twitem.checkState(0) != Qt.Checked
+		comp = self.fuseFuncs.getCurrentComp()
+
 		try:
-			nodeUID = self.stateUID
-			if self.fusionFuncs.nodeExists(nodeUID):
-				self.fusionFuncs.setPassThrough(nodeUID=nodeUID, passThrough=disabled)
+			toolUID = self.stateUID
+			if Fus.toolExists(comp, toolUID):
+				Fus.setPassThrough(comp, toolUID=toolUID, passThrough=disabled)
 			else:
 				self.setRendernode()
 		except:
-			stateName = self.fusionFuncs.getNodeNameByUID(nodeUID)
+			stateName = Fus.getToolNameByUID(comp, toolUID)
 			logger.warning(f"ERROR: Unable to change the {stateName} Saver's passthrough.")
 
 		# self.setTreeItemColor()
@@ -834,7 +830,7 @@ class ImageRenderClass(object):
 			identifier = self.getTaskname()
 
 			if identifier != "":
-				legalName = self.fusionFuncs.getFusLegalName(identifier)
+				legalName = Helper.getFusLegalName(identifier)
 				nodeName = f"PrSAVER_{legalName}"
 
 				return nodeName
@@ -849,20 +845,21 @@ class ImageRenderClass(object):
 	#	Adds and configures RenderNode
 	@err_catcher(name=__name__)
 	def setRendernode(self, create=False):
+		comp = self.fuseFuncs.getCurrentComp()
 		nodeName = self.getRendernodeName()
-		nodeUID = self.stateUID
+		toolUID = self.stateUID
 
 		#	If the Saver exists
-		if self.fusionFuncs.nodeExists(nodeUID):
+		if Fus.toolExists(comp, toolUID):
 			self.b_setRendernode.setText(nodeName)
 
 			#	Create Node Data
-			nodeData = {"nodeName": nodeName,
+			toolData = {"nodeName": nodeName,
 			   			"format": self.cb_format.currentText()
 				}
 						   
 
-			self.fusionFuncs.updateRendernode(nodeUID, nodeData)
+			self.fuseFuncs.updateRendernode(toolUID, toolData)
 
 		#	If it does not exist
 		else:
@@ -870,9 +867,9 @@ class ImageRenderClass(object):
 			if create:
 
 				#	Create Node Data
-				nodeData = {
+				toolData = {
 					"nodeName": nodeName,
-					"nodeUID": nodeUID,
+					"nodeUID": toolUID,
 					"version": "",
 					"filepath": "",
 					"format": "",
@@ -880,7 +877,7 @@ class ImageRenderClass(object):
 					}
 
 				try:
-					result = self.fusionFuncs.createRendernode(nodeUID, nodeData)
+					result = self.fuseFuncs.createRendernode(toolUID, toolData)
 					self.b_setRendernode.setText(nodeName)
 				except:
 					pass
@@ -900,12 +897,14 @@ class ImageRenderClass(object):
 	#	Checks the Saver's data and colors the button
 	@err_catcher(name=__name__)
 	def statusColorNodeButton(self):
+		comp = self.fuseFuncs.getCurrentComp()
+
 		try:
 			renderNodeName = self.getRendernodeName()
 
 			#	Checks if Saver exists
-			if self.fusionFuncs.nodeExists(self.stateUID):
-				toolName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
+			if Fus.toolExists(comp, self.stateUID):
+				toolName = Fus.getToolNameByUID(comp, self.stateUID)
 				#	Compares Identifier name to Saver name
 				if toolName == renderNodeName:
 					#	If they are the same then Green
@@ -933,6 +932,8 @@ class ImageRenderClass(object):
 	#	Sets image format and output path
 	@err_catcher(name=__name__)
 	def configureRenderNode(self, nodeName, useVersion="next", stateUI=None):
+		comp = self.fuseFuncs.getCurrentComp()
+
 		if stateUI is None:
 			stateUI = self
 		if stateUI.tasknameRequired and not stateUI.getTaskname():
@@ -954,14 +955,14 @@ class ImageRenderClass(object):
 				"version": version,
 				"filepath": outputName,
 				"format": extension,
-				"fuseFormat": self.fusionFuncs.getFuseFormat(extension)
+				"fuseFormat": self.fuseFuncs.getFuseFormat(extension)
 				}
 
-			self.fusionFuncs.configureRenderNode(nodeUID, nodeData)
+			self.fuseFuncs.configureRenderNode(nodeUID, nodeData)
 			self.stateManager.saveStatesToScene()
 
 		except:
-			nodeName = self.fusionFuncs.getNodeNameByUID(nodeUID)
+			nodeName = Fus.getToolNameByUID(comp, nodeUID)
 			logger.warning(f"ERROR: Unable to config Saver {nodeName}")
 
 
@@ -1020,8 +1021,8 @@ class ImageRenderClass(object):
 		# self.camlist = camNames = []
 
 		# if not self.stateManager.standalone:
-		#     self.camlist = self.fusionFuncs.getCamNodes(self, cur=True)
-		#     camNames = [self.fusionFuncs.getCamName(self, i) for i in self.camlist]
+		#     self.camlist = self.fuseFuncs.getCamNodes(self, cur=True)
+		#     camNames = [self.fuseFuncs.getCamName(self, i) for i in self.camlist]
 
 		# self.cb_cam.addItems(camNames)
 
@@ -1048,7 +1049,7 @@ class ImageRenderClass(object):
 		# self.cb_renderLayer.clear()
 
 		# layerList = getattr(
-		# 	self.fusionFuncs, "sm_render_getRenderLayer", lambda x: []
+		# 	self.fuseFuncs, "sm_render_getRenderLayer", lambda x: []
 		# )(self)
 
 		# self.cb_renderLayer.addItems(layerList)
@@ -1060,7 +1061,7 @@ class ImageRenderClass(object):
 		# 	self.stateManager.saveStatesToScene()
 
 		# self.refreshSubmitUi()
-		# getattr(self.fusionFuncs, "sm_render_refreshPasses", lambda x: None)(self)
+		# getattr(self.fuseFuncs, "sm_render_refreshPasses", lambda x: None)(self)
 
 		self.nameChanged(self.e_name.text())
   
@@ -1127,12 +1128,14 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def getFrameRange(self, rangeType):
+		comp = self.fuseFuncs.getCurrentComp()
+
 		startFrame = None
 		endFrame = None
 		try:
 			if rangeType == "Scene":
-				if hasattr(self.fusionFuncs, "getFrameRange"):
-					startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
+				if hasattr(self.fuseFuncs, "getFrameRange"):
+					startFrame, endFrame = self.fuseFuncs.getFrameRange(self)
 					startFrame = int(startFrame)
 					endFrame = int(endFrame)
 				else:
@@ -1148,7 +1151,6 @@ class ImageRenderClass(object):
 
 			elif rangeType == "Single Frame":
 				try:	
-					comp = self.fusionFuncs.getCurrentComp()
 					startFrame = comp.CurrentTime
 				except:
 					startFrame = 1001
@@ -1175,7 +1177,7 @@ class ImageRenderClass(object):
 			return startFrame, endFrame
 		
 		except:
-			stateName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
+			stateName = Fus.getToolNameByUID(comp, self.stateUID)
 			logger.warning(f"ERROR: Unable to set range type {rangeType} for {stateName}")
 	
 
@@ -1232,7 +1234,7 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def showPasses(self):
 		steps = getattr(
-			self.fusionFuncs, "sm_render_getRenderPasses", lambda x: None
+			self.fuseFuncs, "sm_render_getRenderPasses", lambda x: None
 		)(self)
 
 		if steps is None or len(steps) == 0:
@@ -1268,7 +1270,7 @@ class ImageRenderClass(object):
 
 		for i in self.il.tw_steps.selectedItems():
 			if i.column() == 0:
-				self.fusionFuncs.sm_render_addRenderPass(
+				self.fuseFuncs.sm_render_addRenderPass(
 					self, passName=i.text(), steps=steps
 				)
 
@@ -1278,7 +1280,7 @@ class ImageRenderClass(object):
 	# @err_catcher(name=__name__)
 	# def rclickPasses(self, pos):
 	# 	if self.lw_passes.currentItem() is None or not getattr(
-	# 		self.fusionFuncs, "canDeleteRenderPasses", True
+	# 		self.fuseFuncs, "canDeleteRenderPasses", True
 	# 	):
 	# 		return
 
@@ -1294,7 +1296,7 @@ class ImageRenderClass(object):
 	# def deleteAOVs(self):
 	# 	items = self.lw_passes.selectedItems()
 	# 	for i in items:
-	# 		self.fusionFuncs.removeAOV(i.text())
+	# 		self.fuseFuncs.removeAOV(i.text())
 	# 	self.updateUi()
 
 	@err_catcher(name=__name__)
@@ -1343,7 +1345,7 @@ class ImageRenderClass(object):
 
 		# if self.curCam is None or (									#	TODO - NEEDED ???
 		#     self.curCam != "Current View"
-		#     and not self.fusionFuncs.isNodeValid(self, self.curCam)
+		#     and not self.fuseFuncs.isNodeValid(self, self.curCam)
 		# ):
 		#     warnings.append(["No camera is selected.", "", 3])
 		# elif self.curCam == "Current View":
@@ -1361,7 +1363,7 @@ class ImageRenderClass(object):
 			plugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
 			warnings += plugin.sm_render_preExecute(self)
 
-		warnings += self.fusionFuncs.sm_render_preExecute(self)
+		warnings += self.fuseFuncs.sm_render_preExecute(self)
 
 		return [self.state.text(0), warnings]
 
@@ -1370,7 +1372,7 @@ class ImageRenderClass(object):
 	#################################################
 	# @err_catcher(name=__name__)										#	TODO - NEEDED ???
 	# def submitCheckPaths(self):
-	# 	self.fusionFuncs.sm_render_CheckSubmittedPaths()
+	# 	self.fuseFuncs.sm_render_CheckSubmittedPaths()
 
 	# @err_catcher(name=__name__)
 	# def setFarmedRange(self):
@@ -1392,6 +1394,8 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def getOutputName(self, useVersion="next", stateUI=None):
+		comp = self.fuseFuncs.getCurrentComp()
+
 		if stateUI == None:
 			stateUI = self
 		if stateUI.tasknameRequired and not stateUI.getTaskname():
@@ -1437,7 +1441,7 @@ class ImageRenderClass(object):
 			return outputPathData["path"], outputFolder, hVersion
 		
 		except Exception as e:
-			stateName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
+			stateName = Fus.getToolNameByUID(comp, self.stateUID)
 			logger.warning(f"ERROR: Unable to get render output name for {stateName}:\n{e}")
 			return None, None, None
 
@@ -1475,7 +1479,7 @@ class ImageRenderClass(object):
 
 			# if self.curCam is None or (
 			#     self.curCam != "Current View"
-			#     and not self.fusionFuncs.isNodeValid(self, self.curCam)
+			#     and not self.fuseFuncs.isNodeValid(self, self.curCam)
 			# ):
 			#     return [
 			#         self.state.text(0)
@@ -1511,7 +1515,7 @@ class ImageRenderClass(object):
 			details["comment"] = self.stateManager.publishComment
 
 			_, extension = os.path.splitext(outputName)
-			fuseFormat = self.fusionFuncs.getFuseFormat(extension)
+			fuseFormat = self.fuseFuncs.getFuseFormat(extension)
 
 			if self.mediaType == "3drenders":
 				infopath = os.path.dirname(outputPath)
@@ -1541,7 +1545,7 @@ class ImageRenderClass(object):
 			rSettings["scalingOvr"] = self.chb_resOverride.isChecked()
 			rSettings["render_Scale"] = self.cb_renderScaling.currentText()
 
-			self.fusionFuncs.sm_render_preSubmit(self, rSettings)
+			self.fuseFuncs.sm_render_preSubmit(self, rSettings)
 
 			kwargs = {
 				"state": self,
@@ -1561,19 +1565,19 @@ class ImageRenderClass(object):
 				os.makedirs(os.path.dirname(rSettings["outputName"]))
 
 
-			result = self.fusionFuncs.sm_render_startLocalRender(
+			result = self.fuseFuncs.sm_render_startLocalRender(
 					self, outOnly, rSettings["outputName"], rSettings
 				)
 
 		else:
 			rSettings = self.LastRSettings
-			result = self.fusionFuncs.sm_render_startLocalRender(
+			result = self.fuseFuncs.sm_render_startLocalRender(
 				self, outOnly, rSettings["outputName"], rSettings
 			)
 			outputName = rSettings["outputName"]
 
 		if not self.renderingStarted:
-			self.fusionFuncs.sm_render_undoRenderSettings(self, rSettings)
+			self.fuseFuncs.sm_render_undoRenderSettings(self, rSettings)
 
 		if result == "publish paused":
 			return [self.state.text(0) + " - publish paused"]
@@ -1626,10 +1630,12 @@ class ImageRenderClass(object):
 
 	@err_catcher(name=__name__)
 	def handleMasterVersion(self, outputName):
+		comp = self.fuseFuncs.getCurrentComp()
+
 		if not self.isUsingMasterVersion():
 			return
 
-		stateName = self.fusionFuncs.getNodeNameByUID(self.stateUID)
+		stateName = Fus.getToolNameByUID(comp, self.stateUID)
 
 		masterAction = self.cb_master.currentText()
 		if masterAction == "Set as master":
@@ -1650,7 +1656,7 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def setTaskWarn(self, warn):
 		try:
-			useSS = getattr(self.fusionFuncs, "colorButtonWithStyleSheet", False)
+			useSS = getattr(self.fuseFuncs, "colorButtonWithStyleSheet", False)
 			if warn:
 				if useSS:
 					self.b_changeTask.setStyleSheet(
@@ -1669,6 +1675,8 @@ class ImageRenderClass(object):
 	#	Called Directly from StateManager
 	@err_catcher(name=__name__)
 	def preDelete(self, item=None):
+		comp = self.fuseFuncs.getCurrentComp()
+
 		try:
 			#   Defaults to Delete the Node
 			delAction = "Yes"
@@ -1678,7 +1686,7 @@ class ImageRenderClass(object):
 
 			else:
 				nodeUID = self.stateUID
-				nodeName = self.fusionFuncs.getNodeNameByUID(nodeUID)
+				nodeName = Fus.getToolNameByUID(comp, nodeUID)
 
 				#   If the Loader exists, show popup question
 				if nodeName:
@@ -1689,7 +1697,7 @@ class ImageRenderClass(object):
 					response = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
 					delAction = buttonToBool.get(response, False)
 				
-				self.fusionFuncs.deleteNode("render2d", nodeUID, delAction=delAction)
+				self.fuseFuncs.deleteNode("render2d", nodeUID, delAction=delAction)
 
 		except:
 			logger.warning("ERROR: Unable to remove Saver from Comp")
