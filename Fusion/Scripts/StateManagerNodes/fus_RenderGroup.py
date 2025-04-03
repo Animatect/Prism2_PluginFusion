@@ -58,6 +58,17 @@ from qtpy.QtWidgets import *
 
 from PrismUtils.Decorators import err_catcher
 
+import Libs.Prism_Fusion_lib_Fus as Fus
+import Libs.Prism_Fusion_lib_Helper as Helper
+
+from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
+if TYPE_CHECKING:
+    pass
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
+
 logger = logging.getLogger(__name__)
 
 scriptDir = os.path.dirname(os.path.dirname(__file__))
@@ -74,7 +85,7 @@ class RenderGroupClass(object):
 		self.state = state
 		self.core = core
 		self.stateManager = stateManager
-		self.fusionFuncs = self.core.appPlugin
+		self.fuseFuncs = self.core.appPlugin
 		self.canSetVersion = True
 		self.customContext = None
 		self.allowCustomContext = False
@@ -96,7 +107,7 @@ class RenderGroupClass(object):
 
 		self.populateCombos()
 
-		getattr(self.fusionFuncs, "sm_render_startup", lambda x: None)(self)
+		getattr(self.fuseFuncs, "sm_render_startup", lambda x: None)(self)
 
 		self.tasknameRequired = True
 
@@ -493,7 +504,7 @@ class RenderGroupClass(object):
 				self.expressionWin.close()
 
 			self.expressionWin = QFrame()
-			ss = getattr(self.fusionFuncs, "getFrameStyleSheet", lambda x: "")(self)
+			ss = getattr(self.fuseFuncs, "getFrameStyleSheet", lambda x: "")(self)
 			self.expressionWin.setStyleSheet(
 				ss + """ .QFrame{ border: 2px solid rgb(100,100,100);} """
 			)
@@ -782,7 +793,7 @@ class RenderGroupClass(object):
 	@err_catcher(name=__name__)
 	def getStateData(self):
 		try:
-			stateDataRaw = json.loads(self.fusionFuncs.sm_readStates(self))
+			stateDataRaw = json.loads(self.fuseFuncs.sm_readStates(self))
 			return stateDataRaw['states']
 		
 		except:
@@ -797,7 +808,7 @@ class RenderGroupClass(object):
 
 			#	Itterates through states
 			for state in stateData:
-				if "nodeUID" in state and state["nodeUID"] == UID:
+				if "toolUID" in state and state["toolUID"] == UID:
 					#	Create displayName format
 					stateName = f"{state['stateclass']} - {state['taskname']}"
 					return stateName
@@ -816,7 +827,7 @@ class RenderGroupClass(object):
 					#	Create displayName format
 					displayName = f"{state['stateclass']} - {state['taskname']}"
 					if displayName == stateName:
-						return state["nodeUID"]
+						return state["toolUID"]
 		except:
 			logger.debug(f"ERROR: Unable to get state UID from: {stateName}")
 
@@ -835,7 +846,7 @@ class RenderGroupClass(object):
 		for state in stateData:
 			#	Only passes allowed state types
 			if "stateclass" in state and state["stateclass"] in self.includedStateTypes:
-				stateList.append(state["nodeUID"])
+				stateList.append(state["toolUID"])
 
 		#	Make the UI popup
 		selStatesUI = ItemList.ItemList(core=self.core)
@@ -896,7 +907,7 @@ class RenderGroupClass(object):
 			# Create the list item and set its text
 			item = QListWidgetItem(stateName)
 
-			# Get the color style based on node status and apply it
+			# Get the color style based on tool status and apply it
 			color = self.stateStatusColor(stateUID)
 			item.setBackground(QColor(color['background']))
 			item.setForeground(QColor(color['foreground']))
@@ -907,9 +918,11 @@ class RenderGroupClass(object):
 	#	Checks the Saver's data and returns a color
 	@err_catcher(name=__name__)
 	def stateStatusColor(self, stateUID):
+		comp = self.fuseFuncs.getCurrentComp()
+
 		try:
 			#	Checks if Saver exists
-			if self.fusionFuncs.nodeExists(stateUID):
+			if Fus.toolExists(comp, stateUID):
 				return {"background": "#54754c", "foreground": "#FFFFFF"}
 			else:
 				raise Exception
@@ -1096,14 +1109,16 @@ class RenderGroupClass(object):
 
 	@err_catcher(name=__name__)
 	def getFrameRange(self, rangeType):
+		comp = self.fuseFuncs.getCurrentComp()
+
 		#	Get framerange from override if checked
 		if self.chb_overrideFrameRange.isChecked():
 			startFrame = None
 			endFrame = None
 
 			if rangeType == "Scene":
-				if hasattr(self.fusionFuncs, "getFrameRange"):
-					startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
+				if hasattr(self.fuseFuncs, "getFrameRange"):
+					startFrame, endFrame = self.fuseFuncs.getFrameRange(self)
 					startFrame = int(startFrame)
 					endFrame = int(endFrame)
 				else:
@@ -1119,7 +1134,6 @@ class RenderGroupClass(object):
 
 			elif rangeType == "Single Frame":
 				try:
-					comp = self.fusionFuncs.getCurrentComp()
 					startFrame = comp.CurrentTime
 				except:
 					startFrame = 1001
@@ -1150,7 +1164,7 @@ class RenderGroupClass(object):
 			idx = self.cb_rangeType.findText("Scene")
 			if idx != -1:
 				self.cb_rangeType.setCurrentIndex(idx)
-			startFrame, endFrame = self.fusionFuncs.getFrameRange(self)
+			startFrame, endFrame = self.fuseFuncs.getFrameRange(self)
 			return startFrame, endFrame
 
 
@@ -1245,6 +1259,8 @@ class RenderGroupClass(object):
 
 	@err_catcher(name=__name__)
 	def preExecuteState(self):
+		comp = self.fuseFuncs.getCurrentComp()
+
 		warnings = []
 
 		self.updateUi()
@@ -1266,12 +1282,12 @@ class RenderGroupClass(object):
 			#	Gets group stateNames from UID's
 			renderStatesNames = []
 			missingSaverList = []
-			for nodeUID in self.groupStates:
+			for toolUID in self.groupStates:
 				#	Gets the State names in group
-				renderStatesNames.append(self.getStateNameFromUID(nodeUID))
+				renderStatesNames.append(self.getStateNameFromUID(toolUID))
 				#	If the associated Saver does not exist
-				if not self.fusionFuncs.nodeExists(nodeUID):
-					missingSaverList.append(self.getStateNameFromUID(nodeUID))
+				if not Fus.toolExists(comp, toolUID):
+					missingSaverList.append(self.getStateNameFromUID(toolUID))
 
 			#	Makes the warning string for Group states
 			renderStatesString = "\n    ".join(renderStatesNames)
@@ -1325,7 +1341,7 @@ class RenderGroupClass(object):
 			warnings += farmplugin.sm_render_preExecute(self)
 
 		#	Gets DCC render warnings
-		warnings += self.fusionFuncs.sm_render_preExecute(self)
+		warnings += self.fuseFuncs.sm_render_preExecute(self)
 
 		#	Returns warnings for Core to display
 		return [self.state.text(0), warnings]
@@ -1333,12 +1349,12 @@ class RenderGroupClass(object):
 
 	@err_catcher(name=__name__)
 	def submitCheckPaths(self):
-		self.fusionFuncs.sm_render_CheckSubmittedPaths()
+		self.fuseFuncs.sm_render_CheckSubmittedPaths()
 
 
 	@err_catcher(name=__name__)
 	def setFarmedRange(self, startFrame, endFrame):
-		self.fusionFuncs.setFrameRange(self, startFrame, endFrame)
+		self.fuseFuncs.setFrameRange(self, startFrame, endFrame)
 
 
 	@err_catcher(name=__name__)
@@ -1396,17 +1412,17 @@ class RenderGroupClass(object):
 
 		if not sumbitToFarm:
 			#	Executes render on local machine
-			result = self.fusionFuncs.sm_render_startLocalGroupRender(self, rSettings=rSettings)
+			result = self.fuseFuncs.sm_render_startLocalGroupRender(self, rSettings=rSettings)
 		else:
 			#	Submits render to farm
-			result = self.fusionFuncs.sm_render_startFarmGroupRender(self, farmPlugin, rSettings=rSettings)
+			result = self.fuseFuncs.sm_render_startFarmGroupRender(self, farmPlugin, rSettings=rSettings)
 
 		return result
 
 
 	@err_catcher(name=__name__)
 	def setTaskWarn(self, warn):														#	NEEDED ???
-		# useSS = getattr(self.fusionFuncs, "colorButtonWithStyleSheet", False)
+		# useSS = getattr(self.fuseFuncs, "colorButtonWithStyleSheet", False)
 		# if warn:
 		# 	if useSS:
 		# 		self.b_changeTask.setStyleSheet(

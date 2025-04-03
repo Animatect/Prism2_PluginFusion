@@ -756,19 +756,19 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def getRendernodeName(self, stateName):
 		legalName = Helper.getFusLegalName(stateName)
-		nodeName = f"PrSAVER_{legalName}"
+		toolName = f"PrSAVER_{legalName}"
 
-		return nodeName
+		return toolName
 	
 	
 	#	Creates Saver with UUID associated with ImageRender state
 	@err_catcher(name=__name__)
-	def createRendernode(self, nodeUID, nodeData):
+	def createRendernode(self, toolUID, toolData):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Create Render Node")
 
-		self.wrapped_createRendernode(nodeUID, nodeData, comp=comp)
+		self.wrapped_createRendernode(toolUID, toolData, comp=comp)
 
 		comp.EndUndo()
 		comp.Unlock()		
@@ -794,24 +794,24 @@ class Prism_Fusion_Functions(object):
 						Fus.setToolPosRelative(comp, sv, selTools[0], 3)
 						# Fus.stackToolsByType(comp, sv)
 					except:
-						logger.debug(f"ERROR: Not able to position {toolData['nodeName']}")
+						logger.debug(f"ERROR: Not able to position {toolData['toolName']}")
 
 			if sv:
-				logger.debug(f"Saver created for: {toolData['nodeName']} - {toolData}")
+				logger.debug(f"Saver created for: {toolData['toolName']} - {toolData}")
 				return sv
 			else:
-				logger.warning(f"ERROR: Unable to create Saver for {toolData['nodeName']}")
+				logger.warning(f"ERROR: Unable to create Saver for {toolData['toolName']}")
 				return False
 
 
-	#	Updates Saver node name
+	#	Updates Saver tool name
 	@err_catcher(name=__name__)
-	def updateRendernode(self, nodeUID, nodeData):
+	def updateRendernode(self, toolUID, toolData):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Update Render Node")
 
-		self.wrapped_updateRendernode(nodeUID, nodeData, comp)	
+		self.wrapped_updateRendernode(toolUID, toolData, comp)	
 
 		comp.EndUndo()
 		comp.Unlock()
@@ -825,9 +825,9 @@ class Prism_Fusion_Functions(object):
 			if sv:
 				#	Update Saver Info
 				Fus.configureTool(sv, toolData)
-				logger.debug(f"Saver updated: {toolData['nodeName']}")
+				logger.debug(f"Saver updated: {toolData['toolName']}")
 			else:
-				logger.warning(f"ERROR: Not able to update: {toolData['nodeName']}")
+				logger.warning(f"ERROR: Not able to update: {toolData['toolName']}")
 
 			return sv
 		
@@ -844,8 +844,8 @@ class Prism_Fusion_Functions(object):
 
 				#	Check if Saver is connected to something
 				if Fus.hasConnectedInput(sv):
-					if "nodeName" in toolUID:
-						logger.debug(f"Configured Saver: {toolData['nodeName']}")
+					if "toolName" in toolUID:
+						logger.debug(f"Configured Saver: {toolData['toolName']}")
 					else:
 						logger.debug(f"Configured Saver: {toolData}")
 
@@ -2360,19 +2360,19 @@ class Prism_Fusion_Functions(object):
 
 	#	Gets individual State data from the comp state data based on the UUID
 	@err_catcher(name=__name__)
-	def getMatchingStateDataFromUID(self, nodeUID):
+	def getMatchingStateDataFromUID(self, toolUID):
 		comp = self.getCurrentComp()
 		stateDataRaw = json.loads(self.sm_readStates(self))
 
 		# Iterate through the states to find the matching state dictionary
 		stateDetails = None
 		for stateData in stateDataRaw["states"]:
-			if stateData.get("nodeUID") == nodeUID:
+			if stateData.get("toolUID") == toolUID:
 				stateDetails = stateData
-				logger.debug(f"State data found for: {Fus.getToolNameByUID(comp, nodeUID)}")
+				logger.debug(f"State data found for: {Fus.getToolNameByUID(comp, toolUID)}")
 				return stateDetails
 
-		logging.warning(f"ERROR: No state details for:  {nodeUID}")
+		logging.warning(f"ERROR: No state details for:  {toolUID}")
 		return None
 
 
@@ -2593,9 +2593,9 @@ path = r\"%s\"
 			self.setResolution(renderRezX, renderRezY)
 
 
-	#	Adds a Scale node if the Scale override is used by the RenderGroup
+	#	Adds a Scale tool if the Scale override is used by the RenderGroup
 	@err_catcher(name=__name__)
-	def addScaleNode(self, comp, sv, scaleOvrCode):
+	def addScaletool(self, comp, sv, scaleOvrCode):
 		try:
 			if sv:
 				#	Add a Scale tool
@@ -2614,10 +2614,10 @@ path = r\"%s\"
 					logger.debug(f"No input found connected to {sv.Name}.")
 		
 		except Exception as e:
-			logger.warning(f"ERROR: Could not add Scale node: {e}")
+			logger.warning(f"ERROR: Could not add Scale tool: {e}")
 
 
-	#	Deletes the temp Scale nodes
+	#	Deletes the temp Scale tools
 	@err_catcher(name=__name__)
 	def deleteTempScaleTools(self):
 		for tool in self.tempScaleTools:
@@ -2649,22 +2649,22 @@ path = r\"%s\"
 		#	Configure Comp with overrides from RenderGroup
 		self.setCompOverrides(comp, rSettings)
 
-		for nodeUID in renderStates:
+		for toolUID in renderStates:
 			#	Get State data from Comp
-			stateData = self.getMatchingStateDataFromUID(nodeUID)
-			nodeName = Fus.getToolNameByUID(comp, nodeUID)
+			stateData = self.getMatchingStateDataFromUID(toolUID)
+			toolName = Fus.getToolNameByUID(comp, toolUID)
 
 			#	Exits if unable to get state data
 			if not stateData:
-				logger.warning(f"ERROR: Unable to configure RenderComp for {nodeName}")
+				logger.warning(f"ERROR: Unable to configure RenderComp for {toolName}")
 
-			sv = Fus.getToolByUID(comp, nodeUID)
-			Fus.setPassThrough(comp, nodeUID=nodeUID, passThrough=False)
+			sv = Fus.getToolByUID(comp, toolUID)
+			Fus.setPassThrough(comp, toolUID=toolUID, passThrough=False)
 
 			#	Add Scale tool if scale override is above 100%
 			scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
 			if scaleOvrType == "scale":
-				self.addScaleNode(comp, sv, scaleOvrCode)
+				self.addScaletool(comp, sv, scaleOvrCode)
 
 			#	Set frame padding format for Fusion
 			extension = stateData["outputFormat"]
@@ -2728,12 +2728,12 @@ path = r\"%s\"
 			self.outputPath = outputPathData["path"]
 
 			#	Configure Saver with new filepath						#	TODO
-			nodeData = {"nodeName": nodeName,
+			toolData = {"toolName": toolName,
 						"filepath": self.outputPath,
 			   			"format": extension,
 						"fuseFormat": self.getFuseFormat(extension)}
 
-			self.configureRenderNode(nodeUID, nodeData)
+			self.configureRenderNode(toolUID, toolData)
 
 			stateData["comment"] = self.MP_stateManager.publishComment
 			renderDir = os.path.dirname(self.outputPath)
@@ -2853,18 +2853,18 @@ path = r\"%s\"
 			self.tempScaleTools = []
 			origCompSettings = self.saveOrigCompSettings(comp)
 
-			nodeUID = rSettings["nodeUID"]
+			toolUID = rSettings["toolUID"]
 
-			sv = Fus.getToolByUID(comp, nodeUID)
+			sv = Fus.getToolByUID(comp, toolUID)
 
 			if sv:
-				nodeData = {"filepath": outputName,
+				toolData = {"filepath": outputName,
 							"version": rSettings["version"],
 			   				"format": rSettings["format"],
 							"fuseFormat": rSettings["fuseFormat"]
 							}
 				
-				self.configureRenderNode(nodeUID, nodeData)
+				self.configureRenderNode(toolUID, toolData)
 				# sv.Clip = outputName
 
 				if not Fus.hasConnectedInput(sv):
@@ -2881,7 +2881,7 @@ path = r\"%s\"
 				#	Add Scale tool if scale override is above 100%
 				scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
 				if scaleOvrType == "scale":
-					self.addScaleNode(comp, sv, scaleOvrCode)
+					self.addScaletool(comp, sv, scaleOvrCode)
 
 				#	Gets render args from override settings
 				renderCmd = self.makeRenderCmd(comp, rSettings)
@@ -2892,7 +2892,7 @@ path = r\"%s\"
 				#	Renders with override args
 				comp.Render({**renderCmd, 'Tool': sv, "Wait": True})
 
-				#	Remove any temp Scale nodes
+				#	Remove any temp Scale tools
 				self.deleteTempScaleTools()
 
 				#	Reset Comp settings to Original
@@ -2934,10 +2934,13 @@ path = r\"%s\"
 			#	Gets render args from override settings
 			renderCmd = self.makeRenderCmd(comp, rSettings, group=True)
 
+			#	Minimize the State Manager
+			origin.stateManager.showMinimized()	
+
 			#	Renders with override args
 			comp.Render({**renderCmd, "Wait": True})
 
-			#	Remove any temp Scale nodes
+			#	Remove any temp Scale tools
 			self.deleteTempScaleTools()
 
 			#	Reset Comp settings to Original
@@ -2945,6 +2948,9 @@ path = r\"%s\"
 
 			#	Reconfigure pass-through of Savers
 			self.origSaverStates("load", comp, self.origSaverList)
+
+			#	Un-Minimize the State Manager
+			# self.stateManager.showNormal()	
 
 			renderResult = True
 
@@ -3087,7 +3093,7 @@ path = r\"%s\"
 		except:
 			logger.warning(f"Unable to remove temp directory:  {tempDir}")
 
-		#	Remove any temp Scale nodes
+		#	Remove any temp Scale tools
 		self.deleteTempScaleTools()
 
 		#	Reset Comp settings to Original

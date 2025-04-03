@@ -219,8 +219,8 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def loadData(self, data):
 		try:
-			if "nodeUID" in data:
-				self.stateUID = data["nodeUID"]
+			if "toolUID" in data:
+				self.stateUID = data["toolUID"]
 			if "contextType" in data:
 				self.setContextType(data["contextType"])
 			if "customContext" in data:
@@ -565,10 +565,6 @@ class ImageRenderClass(object):
 		if hasattr(self, "expressionWin") and self.expressionWin.isVisible():
 			self.expressionWin.close()
 
-	# @err_catcher(name=__name__)
-	# def setCam(self, index):
-	#     self.curCam = self.camlist[index]
-	#     self.stateManager.saveStatesToScene()
 
 	@err_catcher(name=__name__)
 	def nameChanged(self, text):
@@ -631,10 +627,12 @@ class ImageRenderClass(object):
 
 		return False
 
+
 	@err_catcher(name=__name__)
 	def getContextType(self):
 		contextType = self.cb_context.currentText()
 		return contextType
+
 
 	@err_catcher(name=__name__)
 	def setContextType(self, contextType):
@@ -645,6 +643,7 @@ class ImageRenderClass(object):
 			return True
 
 		return False
+
 
 	@err_catcher(name=__name__)
 	def getTaskname(self):
@@ -830,9 +829,9 @@ class ImageRenderClass(object):
 
 			if identifier != "":
 				legalName = Helper.getFusLegalName(identifier)
-				nodeName = f"PrSAVER_{legalName}"
+				toolName = f"PrSAVER_{legalName}"
 
-				return nodeName
+				return toolName
 			
 			else:
 				return None
@@ -845,15 +844,15 @@ class ImageRenderClass(object):
 	@err_catcher(name=__name__)
 	def setRendernode(self, create=False):
 		comp = self.fuseFuncs.getCurrentComp()
-		nodeName = self.getRendernodeName()
+		toolName = self.getRendernodeName()
 		toolUID = self.stateUID
 
 		#	If the Saver exists
 		if Fus.toolExists(comp, toolUID):
-			self.b_setRendernode.setText(nodeName)
+			self.b_setRendernode.setText(toolName)
 
 			#	Create Node Data
-			toolData = {"nodeName": nodeName,
+			toolData = {"toolName": toolName,
 			   			"format": self.cb_format.currentText()
 				}
 						   
@@ -867,8 +866,8 @@ class ImageRenderClass(object):
 
 				#	Create Node Data
 				toolData = {
-					"nodeName": nodeName,
-					"nodeUID": toolUID,
+					"toolName": toolName,
+					"toolUID": toolUID,
 					"version": "",
 					"filepath": "",
 					"format": "",
@@ -877,7 +876,7 @@ class ImageRenderClass(object):
 
 				try:
 					result = self.fuseFuncs.createRendernode(toolUID, toolData)
-					self.b_setRendernode.setText(nodeName)
+					self.b_setRendernode.setText(toolName)
 				except:
 					pass
 
@@ -886,7 +885,7 @@ class ImageRenderClass(object):
 				self.b_setRendernode.setText("SetRenderNode")
 
 
-		self.configureRenderNode(nodeName)
+		self.configureRenderNode(toolName)
 		self.statusColorNodeButton()
 		self.updateUi()
 		self.setTreeItemColor()
@@ -930,7 +929,7 @@ class ImageRenderClass(object):
 
 	#	Sets image format and output path
 	@err_catcher(name=__name__)
-	def configureRenderNode(self, nodeName, useVersion="next", stateUI=None):
+	def configureRenderNode(self, toolName, useVersion="next", stateUI=None):
 		comp = self.fuseFuncs.getCurrentComp()
 
 		if stateUI is None:
@@ -938,7 +937,7 @@ class ImageRenderClass(object):
 		if stateUI.tasknameRequired and not stateUI.getTaskname():
 			return
 		
-		nodeUID = self.stateUID
+		toolUID = self.stateUID
 
 		outputName, dir, version = self.getOutputName(useVersion=useVersion)
 
@@ -949,20 +948,20 @@ class ImageRenderClass(object):
 		fuseName = None
 
 		try:
-			nodeData = {
-				"nodeName": nodeName,
+			toolData = {
+				"toolName": toolName,
 				"version": version,
 				"filepath": outputName,
 				"format": extension,
 				"fuseFormat": self.fuseFuncs.getFuseFormat(extension)
 				}
 
-			self.fuseFuncs.configureRenderNode(nodeUID, nodeData)
+			self.fuseFuncs.configureRenderNode(toolUID, toolData)
 			self.stateManager.saveStatesToScene()
 
 		except:
-			nodeName = Fus.getToolNameByUID(comp, nodeUID)
-			logger.warning(f"ERROR: Unable to config Saver {nodeName}")
+			toolName = Fus.getToolNameByUID(comp, toolUID)
+			logger.warning(f"ERROR: Unable to config Saver {toolName}")
 
 
 	@err_catcher(name=__name__)
@@ -1014,53 +1013,12 @@ class ImageRenderClass(object):
 		self.w_context.setHidden(not self.allowCustomContext)
 		self.refreshContext()
 
-
-		# update Cams																		#	TODO - NEEDED ???
-		# self.cb_cam.clear()
-		# self.camlist = camNames = []
-
-		# if not self.stateManager.standalone:
-		#     self.camlist = self.fuseFuncs.getCamNodes(self, cur=True)
-		#     camNames = [self.fuseFuncs.getCamName(self, i) for i in self.camlist]
-
-		# self.cb_cam.addItems(camNames)
-
-		# if self.curCam in self.camlist:
-		#     self.cb_cam.setCurrentIndex(self.camlist.index(self.curCam))
-		# else:
-		#     self.cb_cam.setCurrentIndex(0)
-		#     if len(self.camlist) > 0:
-		#         self.curCam = self.camlist[0]
-		#     else:
-		#         self.curCam = None
-
-		#     self.stateManager.saveStatesToScene()
-
 		self.updateRange()
 
 		if not self.core.mediaProducts.getUseMaster():
 			self.w_master.setVisible(False)
 
 		self.cb_renderScaling.setEnabled(self.chb_resOverride.isChecked())
-
-		# update Render Layer
-		# curLayer = self.cb_renderLayer.currentText()
-		# self.cb_renderLayer.clear()
-
-		# layerList = getattr(
-		# 	self.fuseFuncs, "sm_render_getRenderLayer", lambda x: []
-		# )(self)
-
-		# self.cb_renderLayer.addItems(layerList)
-
-		# if curLayer in layerList:
-		# 	self.cb_renderLayer.setCurrentIndex(layerList.index(curLayer))
-		# else:
-		# 	self.cb_renderLayer.setCurrentIndex(0)
-		# 	self.stateManager.saveStatesToScene()
-
-		# self.refreshSubmitUi()
-		# getattr(self.fuseFuncs, "sm_render_refreshPasses", lambda x: None)(self)
 
 		self.nameChanged(self.e_name.text())
   
@@ -1276,27 +1234,6 @@ class ImageRenderClass(object):
 		self.updateUi()
 		self.stateManager.saveStatesToScene()
 
-	# @err_catcher(name=__name__)
-	# def rclickPasses(self, pos):
-	# 	if self.lw_passes.currentItem() is None or not getattr(
-	# 		self.fuseFuncs, "canDeleteRenderPasses", True
-	# 	):
-	# 		return
-
-	# 	rcmenu = QMenu()
-
-	# 	delAct = QAction("Delete", self)
-	# 	delAct.triggered.connect(self.deleteAOVs)
-	# 	rcmenu.addAction(delAct)
-
-	# 	rcmenu.exec_(QCursor.pos())
-
-	# @err_catcher(name=__name__)
-	# def deleteAOVs(self):
-	# 	items = self.lw_passes.selectedItems()
-	# 	for i in items:
-	# 		self.fuseFuncs.removeAOV(i.text())
-	# 	self.updateUi()
 
 	@err_catcher(name=__name__)
 	def rjToggled(self, checked):
@@ -1338,17 +1275,9 @@ class ImageRenderClass(object):
 			warnings.append(["No identifier is given.", "", 3])
 
 		#	Checks for any node errors
-		nodeStatus = self.statusColorNodeButton()
-		if nodeStatus is not True:
-			warnings.append([nodeStatus, "", 3])
-
-		# if self.curCam is None or (									#	TODO - NEEDED ???
-		#     self.curCam != "Current View"
-		#     and not self.fuseFuncs.isNodeValid(self, self.curCam)
-		# ):
-		#     warnings.append(["No camera is selected.", "", 3])
-		# elif self.curCam == "Current View":
-		#     warnings.append(["No camera is selected.", "", 2])
+		toolStatus = self.statusColorNodeButton()
+		if toolStatus is not True:
+			warnings.append([toolStatus, "", 3])
 
 		rangeType = self.cb_rangeType.currentText()
 		frames = self.getFrameRange(rangeType)
@@ -1365,30 +1294,6 @@ class ImageRenderClass(object):
 		warnings += self.fuseFuncs.sm_render_preExecute(self)
 
 		return [self.state.text(0), warnings]
-
-
-
-	#################################################
-	# @err_catcher(name=__name__)										#	TODO - NEEDED ???
-	# def submitCheckPaths(self):
-	# 	self.fuseFuncs.sm_render_CheckSubmittedPaths()
-
-	# @err_catcher(name=__name__)
-	# def setFarmedRange(self):
-	# 	print("hay que poner el frame range para la farm")
-
-	# @err_catcher(name=__name__)
-	# def upSubmittedSaversVersions(self, parent):
-	# 	# Before Submitting, change version of elegible Savers.
-	# 	sm = parent
-	# 	fileName = self.core.getCurrentFileName()
-	# 	context = self.getCurrentContext()
-	# 	for state in sm.states:
-	# 		stateUI = state.ui
-	# 		if stateUI.className == "ImageRender":
-	# 			if not stateUI.b_setRendernode.text() == "SetRenderNode" and stateUI.chb_passthrough.isChecked():
-	# 				#Get Output, Update UI and set infoFile.				
-	# 				stateUI.executeState(parent=parent, outOnly=True)
 
 
 	@err_catcher(name=__name__)
@@ -1476,15 +1381,6 @@ class ImageRenderClass(object):
 					+ ": error - no identifier is given. Skipped the activation of this state."
 				]
 
-			# if self.curCam is None or (
-			#     self.curCam != "Current View"
-			#     and not self.fuseFuncs.isNodeValid(self, self.curCam)
-			# ):
-			#     return [
-			#         self.state.text(0)
-			#         + ": error - no camera is selected. Skipping activation of this state."
-			#     ]
-
 			outputName, outputPath, hVersion = self.getOutputName(useVersion=useVersion)
 
 			if not outputName:
@@ -1531,7 +1427,7 @@ class ImageRenderClass(object):
 
 			rSettings = {
 				"outputName": outputName,
-				"nodeUID": self.stateUID,
+				"toolUID": self.stateUID,
 				"version": hVersion,
 				"format": extension,
 				"fuseFormat": fuseFormat,
@@ -1682,26 +1578,26 @@ class ImageRenderClass(object):
 		comp = self.fuseFuncs.getCurrentComp()
 
 		try:
-			#   Defaults to Delete the Node
+			#   Defaults to Delete the tool
 			delAction = "Yes"
 
 			if not self.core.uiAvailable:
-				logger.debug(f"Deleting node: {item}")
+				logger.debug(f"Deleting tool: {item}")
 
 			else:
-				nodeUID = self.stateUID
-				nodeName = Fus.getToolNameByUID(comp, nodeUID)
+				toolUID = self.stateUID
+				toolName = Fus.getToolNameByUID(comp, toolUID)
 
 				#   If the Loader exists, show popup question
-				if nodeName:
-					message = f"Would you like to also remove the associated Saver: {nodeName}?"
+				if toolName:
+					message = f"Would you like to also remove the associated Saver: {toolName}?"
 					buttons = ["Yes", "No"]
 					buttonToBool = {"Yes": True, "No": False}
 
 					response = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
 					delAction = buttonToBool.get(response, False)
 				
-				self.fuseFuncs.deleteNode("render2d", nodeUID, delAction=delAction)
+				self.fuseFuncs.deleteNode("render2d", toolUID, delAction=delAction)
 
 		except:
 			logger.warning("ERROR: Unable to remove Saver from Comp")
@@ -1712,7 +1608,7 @@ class ImageRenderClass(object):
 	def getStateProps(self):
 		stateProps = {
 			"stateName": self.e_name.text(),
-			"nodeUID": self.stateUID, 
+			"toolUID": self.stateUID, 
 			"contextType": self.getContextType(),
 			"customContext": self.customContext,
 			"taskname": self.getTaskname(),
@@ -1722,14 +1618,6 @@ class ImageRenderClass(object):
 			"startframe": self.sp_rangeStart.value(),
 			"endframe": self.sp_rangeEnd.value(),
 			"frameExpression": self.le_frameExpression.text(),
-			# "currentcam": str(self.curCam),
-			# "resoverride": str(
-			# 	[
-			# 		self.chb_resOverride.isChecked(),
-			# 		self.sp_resWidth.value(),
-			# 		self.sp_resHeight.value(),
-			# 	]
-			# ),
 			"masterVersion": self.cb_master.currentText(),
 			"curoutputpath": self.cb_outPath.currentText(),
 			"renderlayer": str(self.cb_renderLayer.currentText()),
