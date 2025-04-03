@@ -165,6 +165,7 @@ class ImageRenderClass(object):
 		self.cb_manager.addItems([p.pluginName for p in self.core.plugins.getRenderfarmPlugins()])
 		self.core.callback("onStateStartup", self)
 
+
 		#Disable Distributed rendering as it is handled by the NetRender state.
 		self.gb_submit.setVisible(False)
 		self.gb_submit.setChecked(False)
@@ -320,7 +321,6 @@ class ImageRenderClass(object):
 		except:
 			logger.warning("ERROR: Failed to load State Data into UI")
 
-
 		self.core.callback("onStateSettingsLoaded", self, data)
 
 
@@ -341,8 +341,7 @@ class ImageRenderClass(object):
 
 		self.stateManager.saveStatesToScene()
 
-		stateName = Fus.getToolNameByUID(comp, self.stateUID)
-		logger.debug(f"Loaded State: {stateName}")
+		logger.debug(f"Loaded State: {self.e_name.text()}")
 
 
 	@err_catcher(name=__name__)
@@ -1564,7 +1563,6 @@ class ImageRenderClass(object):
 			if not os.path.exists(os.path.dirname(rSettings["outputName"])):
 				os.makedirs(os.path.dirname(rSettings["outputName"]))
 
-
 			result = self.fuseFuncs.sm_render_startLocalRender(
 					self, outOnly, rSettings["outputName"], rSettings
 				)
@@ -1596,7 +1594,12 @@ class ImageRenderClass(object):
 			self.core.callback("postRender", **kwargs)
 
 			if "Result=Success" in result:
+
+				#	Restore StateManager
+				# self.stateManager.showNormal()
+
 				return [self.state.text(0) + " - success"]
+			
 			else:
 				erStr = "%s ERROR - sm_default_imageRenderPublish %s:\n%s" % (
 					time.strftime("%d/%m/%y %X"),
@@ -1612,6 +1615,7 @@ class ImageRenderClass(object):
 						)
 					else:
 						self.core.writeErrorLog(erStr)
+
 				return [self.state.text(0) + " - error - " + result]
 
 

@@ -2886,6 +2886,9 @@ path = r\"%s\"
 				#	Gets render args from override settings
 				renderCmd = self.makeRenderCmd(comp, rSettings)
 
+				#	Minimize the State Manager
+				origin.stateManager.showMinimized()	
+
 				#	Renders with override args
 				comp.Render({**renderCmd, 'Tool': sv, "Wait": True})
 
@@ -2894,6 +2897,9 @@ path = r\"%s\"
 
 				#	Reset Comp settings to Original
 				self.loadOrigCompSettings(comp, origCompSettings)
+
+				#	Un-Minimize the State Manager
+				# self.stateManager.showNormal()	
 
 				if len(os.listdir(os.path.dirname(outputName))) > 0:
 					return "Result=Success"
