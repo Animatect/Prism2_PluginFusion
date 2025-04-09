@@ -56,6 +56,7 @@ import math
 import glob
 import shutil
 import logging
+import time
 
 import BlackmagicFusion as bmd
 
@@ -1128,6 +1129,8 @@ class Prism_Fusion_Functions(object):
 
 		try:
 				#	For each import item
+			start = time.time()
+			refX, refY = Fus.getToolPosition(comp, refNode)
 			for importItem in importData["files"]:
 				# Deselect all nodes
 				flow.Select()
@@ -1161,7 +1164,8 @@ class Prism_Fusion_Functions(object):
 				#	Add Loader and configure
 				if len(orig_toolUID) == 0:
 					#	Import the image
-					leftmostNode = self.addImage(comp, toolData, refNode, sortNodes, addWireless)
+					# leftmostNode = self.addImage(comp, toolData, refNode, sortNodes, addWireless)
+					leftmostNode = self.addImage(comp, toolData, refNode, True, addWireless, refX, refY)
 
 					#	Return if failed
 					if not leftmostNode:
@@ -1169,20 +1173,7 @@ class Prism_Fusion_Functions(object):
 						self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
 						return False
 					
-					#	If Not Sorting
-					if not sortNodes:
-						logger.debug(f"Imported  {importData['identifier']} without sorting")
-						result = "Imported Image without Sorting"
-						doImport = True
-
-					#	If Sorting
-					else:
-						#	Sort and Arrange Loaders and Wireless tools
-						self.sortLoaders(comp, leftmostNode)
-
-						logger.debug(f"Imported  and sorted {importData['identifier']}")
-						result = "Imported Image without Sorting"
-						doImport = True
+					
 
 				#	Update loader if it already exists in the Comp
 				else:
@@ -1192,7 +1183,30 @@ class Prism_Fusion_Functions(object):
 					updateRes, compareMsg = self.updateImport(comp, orig_toolUID, toolData)
 
 					updateMsgList.append(compareMsg)
+			
+			end1 = time.time()
+			print(f"# tool Adding Execution time: {end1 - start:.4f} seconds")
+			########################
+			# SORT ALL PRISM NODES #
+			########################
+					
+			#	If Not Sorting
+			if not sortNodes:
+				logger.debug(f"Imported  {importData['identifier']} without sorting")
+				result = "Imported Image without Sorting"
+				doImport = True
 
+			#	If Sorting
+			else:
+				#	Sort and Arrange Loaders and Wireless tools
+				self.sortLoaders(comp, leftmostNode)
+
+				logger.debug(f"Imported  and sorted {importData['identifier']}")
+				result = "Imported Image without Sorting"
+				doImport = True
+
+			end = time.time()
+			print(f"Execution time: {end - start:.4f} seconds")
 			if updated:
 				return {"result": "updated", "updateMsgList": updateMsgList, "doImport": doImport}
 			else:
@@ -1204,14 +1218,14 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def addImage(self, comp, toolData, refNode, sortNodes, addWireless):
+	def addImage(self, comp, toolData, refNode, sortNodes, addWireless, refX=0, refY=0):
 		flow = comp.CurrentFrame.FlowView
 		toolUID = toolData["toolUID"]
-
+		
 		try:
 			if sortNodes:
 				#	Get Position of Ref Tool
-				refX, refY = Fus.getToolPosition(comp, refNode)
+				# refX, refY = Fus.getToolPosition(comp, refNode)
 				#	Add and configure Loader to the left so it will not mess up Flow
 				ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
 			else:
@@ -1294,11 +1308,11 @@ class Prism_Fusion_Functions(object):
 				return False
 
 		#	If sorting is enabled
-		if sortNodes:
-			Fus.setToolToLeft(comp, ldr, refNode)
-			#	If Add Wireless is enabled
-			if addWireless:
-				self.createWireless(toolUID)
+		# if sortNodes:
+		# 	Fus.setToolToLeft(comp, ldr, refNode)
+		#	If Add Wireless is enabled
+		if addWireless:
+			self.createWireless(toolUID)
 			
 		return ldr
 			
@@ -1447,6 +1461,7 @@ class Prism_Fusion_Functions(object):
 
 		#   We get only the loaders within a threshold from the leftmost and who were created by prism.
 		try:
+			start=time.time()
 			loaders = [l for l in comp.GetToolList(False, "Loader").values()
 					if (
 						abs(Fus.getToolPosition(comp, l)[0] - leftmostpos) <= flowThresh
@@ -1456,12 +1471,15 @@ class Prism_Fusion_Functions(object):
 						]
 			
 			loaderstop2bot = sorted(loaders, key=lambda ld: Fus.getToolPosition(comp, ld)[1])
+			end = time.time()
+			print(f"# get and sort loaders Execution time: {end - start:.4f} seconds")
 			
 		except:
 			logger.warning("ERROR: Cannot sort loaders - unable to resolve threshold in the flow")
 			return
 
 		#	Gets list of all Media Identifiers in the Comp Database
+		start = time.time()
 		mediaIDs = Fus.getMediaIDsForType(comp, "import2d")
 
 		sortedloaders = []
@@ -1477,12 +1495,14 @@ class Prism_Fusion_Functions(object):
 
 		if len(sortedloaders) < 1:
 			return
-		
 		# To check if a node is in a layer or if we've switched layers, we first store a refernce layer
 		# update it and compare it in each iteration.
 		lastLoaderLyr = sortedloaders[0].GetData("Prism_ToolData").get("mediaId")
+		end = time.time()
+		print(f"# get and sort MediaID Execution time: {end - start:.4f} seconds")
 
 		try:
+			start = time.time()
 			new_X = leftmostpos
 			new_Y = Fus.getToolPosition(comp, loaderstop2bot[0])[1]
 
@@ -1544,7 +1564,9 @@ class Prism_Fusion_Functions(object):
 				# Increment vertical position for next Loader
 				new_Y += vertGap
 				lastLoaderLyr = lyrNm
-
+			
+			end = time.time()
+			print(f"# Tools Sorting Execution time: {end - start:.4f} seconds")
 			logger.debug("Sorted Nodes")
 
 		except Exception as e:
