@@ -1164,8 +1164,7 @@ class Prism_Fusion_Functions(object):
 				#	Add Loader and configure
 				if len(orig_toolUID) == 0:
 					#	Import the image
-					# leftmostNode = self.addImage(comp, toolData, refNode, sortNodes, addWireless)
-					leftmostNode = self.addImage(comp, toolData, refNode, True, addWireless, refX, refY)
+					leftmostNode = self.addImage(comp, toolData, sortNodes, addWireless, refX, refY)
 
 					#	Return if failed
 					if not leftmostNode:
@@ -1186,9 +1185,10 @@ class Prism_Fusion_Functions(object):
 			
 			end1 = time.time()
 			print(f"# tool Adding Execution time: {end1 - start:.4f} seconds")
-			########################
-			# SORT ALL PRISM NODES #
-			########################
+
+			##########################
+			# SORT ALL PRISM LOADERS #
+			##########################
 					
 			#	If Not Sorting
 			if not sortNodes:
@@ -1218,16 +1218,14 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def addImage(self, comp, toolData, refNode, sortNodes, addWireless, refX=0, refY=0):
+	def addImage(self, comp, toolData, sortNodes, addWireless, refX=0, refY=0):
 		flow = comp.CurrentFrame.FlowView
 		toolUID = toolData["toolUID"]
 		
 		try:
 			if sortNodes:
-				#	Get Position of Ref Tool
-				# refX, refY = Fus.getToolPosition(comp, refNode)
-				#	Add and configure Loader to the left so it will not mess up Flow
-				ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
+				#	Add and configure Loader below so it will not mess up Flow
+				ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX , yPos=refY + 0.5)
 			else:
 				#	Add and configure Loader without positiong
 				ldr = Fus.addTool(comp, "Loader", toolData)
@@ -1307,9 +1305,6 @@ class Prism_Fusion_Functions(object):
 				logger.warning("ERROR: Unable to assign image channels to Loader")
 				return False
 
-		#	If sorting is enabled
-		# if sortNodes:
-		# 	Fus.setToolToLeft(comp, ldr, refNode)
 		#	If Add Wireless is enabled
 		if addWireless:
 			self.createWireless(toolUID)
