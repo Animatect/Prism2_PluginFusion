@@ -1199,7 +1199,7 @@ class Prism_Fusion_Functions(object):
 			#	If Sorting
 			else:
 				#	Sort and Arrange Loaders and Wireless tools
-				self.sortLoaders(comp, leftmostNode)
+				self.sortLoaders(comp, leftmostNode, importData["stateUID"])
 
 				logger.debug(f"Imported  and sorted {importData['identifier']}")
 				result = "Imported Image without Sorting"
@@ -1445,12 +1445,45 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR:  Could not add wireless nodes:\n{e}")
 
+	@err_catcher(name=__name__)
+	def get_all_items(self, tree_widget):
+		def recurse_items(parent):
+			items = []
+			for i in range(parent.childCount()):
+				child = parent.child(i)
+				items.append(child)
+				items.extend(recurse_items(child))
+			return items
+
+		all_items = []
+		for i in range(tree_widget.topLevelItemCount()):
+			top_item = tree_widget.topLevelItem(i)
+			all_items.append(top_item)
+			all_items.extend(recurse_items(top_item))
+		return all_items
+
+	@err_catcher(name=__name__)
+	def getImageStatesIDs(self)->list:
+		sm = self.MP_stateManager
+		items = self.get_all_items(sm.tw_import)
+		imageImports:list = []
+		for item in items:
+			if item.ui.className == "Image_Import":
+				props = item.ui.getStateProps()
+				taskName = props["displayName"]
+				stateUID = item.ui.stateUID
+				imageImports.append(stateUID)
+		return imageImports
 
 	#	Sort and arrange all Prism Loaders 
 	@err_catcher(name=__name__)
-	def sortLoaders(self, comp, posRefNode, offset=1.5, flowThresh=100, toolThresh=3, horzGap=1.1, vertGap=1):
+	def sortLoaders(self, comp, posRefNode, currentStateID,  offset=1.5, flowThresh=100, toolThresh=3, horzGap=1.1, vertGap=1):
 		flow = comp.CurrentFrame.FlowView
-
+		stateuids:list = self.getImageStatesIDs()
+		# In case the state object has not been created and can't be listed or queried.
+		if not currentStateID in stateuids:
+			stateuids.append(currentStateID)
+		print("stateuids: ", stateuids)
 		#   Get the left-most and bottom-most Loader within a threshold.
 		leftmostpos, bottommostpos = Fus.getToolPosition(comp, posRefNode)
 
@@ -1462,9 +1495,10 @@ class Prism_Fusion_Functions(object):
 						abs(Fus.getToolPosition(comp, l)[0] - leftmostpos) <= flowThresh
 						and l.GetData("Prism_UUID")
 						and l.GetData('Prism_ToolData')
+						and l.GetData('Prism_ToolData').get("stateUID") in stateuids
 						)
 						]
-			
+			# We sort top to bottom to get the topmost position among these
 			loaderstop2bot = sorted(loaders, key=lambda ld: Fus.getToolPosition(comp, ld)[1])
 			end = time.time()
 			print(f"# get and sort loaders Execution time: {end - start:.4f} seconds")
@@ -1475,15 +1509,12 @@ class Prism_Fusion_Functions(object):
 
 		#	Gets list of all Media Identifiers in the Comp Database
 		start = time.time()
-		mediaIDs = Fus.getMediaIDsForType(comp, "import2d")
 
-		sortedloaders = []
-		for mediaId in mediaIDs:
-
-			lyloaders = [l for l in loaders if l.GetData("Prism_ToolData") and l.GetData("Prism_ToolData").get("mediaId") == mediaId]
-
-			sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
-			sortedloaders += sorted_loader_names
+		# Create a mapping for UID priority
+		uid_index = {uid: index for index, uid in enumerate(stateuids)}
+		# Sort first by UID block using the index on the sorted function, then by name
+		# Sort primarily by the UID order (using its numeric rank from uid_index) If multiple entries share the same UID, sort alphabetically by name
+		sortedloaders = sorted(loaders, key=lambda ld: (uid_index[ld.GetData("Prism_ToolData").get("stateUID")], ld.Name.lower()))
 			
 		# if refNode is not part of nodes to sort we move the nodes down so they don't overlap it.
 		refInNodes = any(ldr.Name == posRefNode.Name for ldr in sortedloaders)
@@ -3571,6 +3602,8 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):
 		self.smUI = origin
+		for id in self.getImageStatesIDs():
+			print(f"id: {id}")
 
 		##	Resizes the StateManager Window
 		# 	Check if SM has a resize method and resize it
