@@ -866,7 +866,7 @@ class Prism_Fusion_Functions(object):
 				#	Delete the Tool from the Comp
 				try:
 					tool = Fus.getToolByUID(comp, toolUID)
-					toolName = Fus.getToolNameByUID(comp, toolUID)
+					toolName = Fus.getToolName(tool)
 
 					tool.Delete()
 					logger.debug(f"Removed tool '{toolName}")
