@@ -49,6 +49,7 @@
 
 import os
 import logging
+import time
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -183,6 +184,33 @@ class Image_ImportClass(object):
         self.l_latestVersion.setFont(font)
 
 
+        # settings = {
+		# 			"nodeName": "_010_MEDIA_010_MEDIA_MultiLayer-MultiAOV_RGB_RGB_v001",
+		# 			"toolUID ": "3c4042d9",
+		# 			"version": "v001",
+		# 			"stateUID": "2caf5828",
+		# 			"identifier": "MultiLayer-MultiAOV",
+		# 			"displayName": "MultiLayer-MultiAOV",
+		# 			"mediaType": "3drenders",
+		# 			"aov": "RGB",
+		# 			"channel": "RGB",
+		# 			"path": "N:\\Data\\Projects\\Prism Tests\\01_Production\\Shots\\010_MEDIA\\010_MEDIA\\Renders\\3dRender\\MultiLayer-MultiAOV\\v001\\RGB\\010_MEDIA-010_MEDIA_MultiLayer-MultiAOV_v001_RGB.0001.exr",
+		# 			"extension": ".exr",
+		# 			"fuseFormat": "OpenEXRFormat",
+		# 			"frame_start": 1,
+		# 			"frame_end": 19,
+		# 			"listType": "import2d",
+		# 			"sequence": "010_MEDIA",
+		# 			"shot": "010_MEDIA",
+		# 			"itemType": "shot",
+        # }
+
+
+        # settings = {'displayName': 'SingleLyr-SingleAOV', 'hierarchy': '010_MEDIA/010_MEDIA', 'identifier': 'SingleLyr-SingleAOV', 'itemType': 'shot', 'mediaType': '3drenders', 'path': 'N:\\Data\\Projects\\Prism Tests\\01_Production\\Shots\\010_MEDIA\\010_MEDIA\\Renders\\3dRender\\SingleLyr-SingleAOV\\master', 'project_name': 'Prism Tests', 'project_path': 'N:\\Data\\Projects\\Prism Tests', 'sequence': '010_MEDIA', 'shot': '010_MEDIA', 'type': 'shot', 'version': 'master', 'paths': ['N:\\Data\\Projects\\Prism Tests\\01_Production\\Shots\\010_MEDIA\\010_MEDIA\\Renders\\3dRender\\SingleLyr-SingleAOV\\master', 'N:\\Data\\Projects\\Prism Tests\\01_Production\\Shots\\010_MEDIA\\010_MEDIA\\Renders\\3dRender\\SingleLyr-SingleAOV\\master', 'N:\\Data\\Projects\\Prism Tests\\01_Production\\Shots\\010_MEDIA\\010_MEDIA\\Renders\\3dRender\\SingleLyr-SingleAOV\\master', 'N:\\Data\\Projects\\Prism Tests\\01_Production\\Shots\\010_MEDIA\\010_MEDIA\\Renders\\3dRender\\SingleLyr-SingleAOV\\master'], 'locations': {'global': 'N:\\Data\\Projects\\Prism Tests\\01_Production\\Shots\\010_MEDIA\\010_MEDIA\\Renders\\3dRender\\SingleLyr-SingleAOV\\master'}}
+
+
+
+
 
     ####   Do one of the following:     ####
 
@@ -194,14 +222,20 @@ class Image_ImportClass(object):
             self.nameChanged()
             self.refresh()
 
-        ##   2. If passed from FusFuncts. Receive importData via "settings" kwarg
+        ##   2. If passed from FusFuncts. Receive importData via "settings" kwarg                       #   TODO - FINISH
         elif settings:
             #   Create State UUID
             self.stateUID = Helper.createUUID()
             #   Set intial importData to settings
             self.importData = settings
+
+            self.makeImportData(self.importData)
+
             #   Import the latest version
-            self.importLatest(refreshUi=True, selectedStates=False, setChecked=True)
+            # self.importLatest(refreshUi=True, selectedStates=False, setChecked=True)
+        
+            self.nameChanged()
+            self.refresh()
 
             logger.debug("Created State from passed Settings")
 
@@ -821,7 +855,9 @@ class Image_ImportClass(object):
         if not hasAOVs:
             root_item.setText(0, f"{self.importData['identifier']}_{self.importData['version']}    ({data['frameRange']})")
 
+
         self.updateAovStatus()
+
 
 
     #   Adds checkbox and checkbox selection behaviour
@@ -846,6 +882,8 @@ class Image_ImportClass(object):
     #   Adds checkbox selection behaviours
     @err_catcher(name=__name__)
     def onAovItemClicked(self, item, column):
+
+        
         if item.flags() & Qt.ItemIsUserCheckable:
             #   Get current checked state
             current_checked = self.getItemChecked(item)
@@ -941,20 +979,63 @@ class Image_ImportClass(object):
         return items
 
 
+
+
+
+
+
+
+
+
+
     @err_catcher(name=__name__)
     def updateAovStatus(self):
+
+        total_start = time.time()                            # TESTING
+
         comp = self.fuseFuncts.getCurrentComp()
-        #   Liat of each AOV status
+
+        toolCache = Fus.getAllPrismTools(comp)
+
         aovStatuses = []
 
-        #   Gets all State UIDs
-        stateUIDs = Fus.getUIDsFromStateUIDs(comp, self.stateUID, includeConn=False)
+        # --- Preload all valid uidData upfront ---
+        preload_start = time.time()
 
-        # Get child AOV items
+        stateUIDs = Fus.getUIDsFromStateUIDs(comp, self.stateUID, includeConn=False)
+        uidDataDict = {}
+
+        print(f"[Timer] Preloaded {len(stateUIDs)} stateUIDs entries in {time.time() - preload_start:.4f} seconds")
+
+        for uid in stateUIDs:
+            # Timer for Fus.toolExists
+            tool_exists_start = time.time()
+            if Fus.toolExists(comp, uid, cache=toolCache):
+
+                print(f"[Timer] Fus.toolExists for {uid} took {time.time() - tool_exists_start:.4f} seconds")
+
+                # Timer for Fus.getToolDataByUID
+                get_tool_data_start = time.time()
+
+                uidData = Fus.getToolDataByUID(comp, uid, cache=toolCache)
+
+                print(f"[Timer] Fus.getToolDataByUID for {uid} took {time.time() - get_tool_data_start:.4f} seconds")
+
+                if uidData:
+                    uidDataDict[uid] = uidData
+
+        print(f"[Timer] Preloaded {len(uidDataDict)} uidData entries in {time.time() - preload_start:.4f} seconds")
+
+
+        # --- Get AOV items ---
+        aov_start = time.time()
         aovItems = self.getAllItems(aovs=True)
+        print(f"[Timer] Got {len(aovItems)} AOV items in {time.time() - aov_start:.4f} seconds")
+
+        loop_start = time.time()
 
         for item in aovItems:
-            #   Removes and then skips unchecked items
+            # Skip unchecked items
             if self.getItemChecked(item) != "checked":
                 self.setItemStatusColor(item, None)
                 continue
@@ -964,31 +1045,22 @@ class Image_ImportClass(object):
 
             itemData = self.getItemData(item)
             if not itemData:
-                continue  
+                continue
 
-            # Extract necessary values from itemData
             item_mediaId = itemData.get("identifier")
             item_aov = itemData.get("aov")
             item_channel = itemData.get("channel")
             item_version = itemData.get("version")
 
-            # Check each stateUID
-            for uid in stateUIDs:
-                if not Fus.toolExists(comp, uid):
-                    continue
-
-                uidData = Fus.getToolDataByUID(comp, uid)
-                if not uidData:  
-                    continue  
-
+            # Loop through preloaded uidDataDict
+            for uid, uidData in uidDataDict.items():
                 mediaId = uidData.get("mediaId")
                 aov = uidData.get("aov")
                 channel = uidData.get("channel")
                 version = uidData.get("version")
 
-                # Check if all required fields match
                 if (
-                    mediaId == item_mediaId and 
+                    mediaId == item_mediaId and
                     (aov is None or aov == "" or aov == item_aov) and
                     (channel is None or channel == item_channel)
                 ):
@@ -1011,12 +1083,27 @@ class Image_ImportClass(object):
 
             self.setItemStatusColor(item, color)
 
-        # Determine final aovStatus based on priority
+        print(f"[Timer] Finished AOV loop in {time.time() - loop_start:.4f} seconds")
+
+        # --- Determine final aovStatus ---
+        final_status_start = time.time()
         if len(aovStatuses) == 0:
             self.aovStatus = "error"
         else:
             statusDict = {"error": 3, "warning": 2, "ok": 1}
             self.aovStatus = max(aovStatuses, key=lambda status: statusDict[status], default="ok")
+
+        print(f"[Timer] Final status determination in {time.time() - final_status_start:.4f} seconds")
+        print(f"[Timer] Total execution time: {time.time() - total_start:.4f} seconds")
+
+
+
+
+
+
+
+
+
 
 
     @err_catcher(name=__name__)                     #   TODO
@@ -1335,6 +1422,11 @@ class Image_ImportClass(object):
 
     @err_catcher(name=__name__)
     def makeImportData(self, context):
+
+
+        print(f"*** context:  {context}")                                      #    TESTING
+        self.core.popup(f"context:  {context}")                                      #    TESTING
+
         if not context:
             logger.warning(f"ERROR: There are no Versions for this Media Identifier")
             self.core.popup("There are no Versions for this Media Identifier")
@@ -1342,6 +1434,9 @@ class Image_ImportClass(object):
 
         #   Get data from various sources
         aovDict = self.getAOVsFromVersion(context)
+
+        print(f"*** aovDict:  {aovDict}")                                      #    TESTING
+        self.core.popup(f"aovDict:  {aovDict}")                                      #    TESTING
         
         #	Get sourceData based on passes - used to get framerange
         versionDir = context["path"]
@@ -1350,6 +1445,8 @@ class Image_ImportClass(object):
         else:
             usePasses = False   #   No AOVs
         sourceData = self.getImportSource(versionDir, usePasses)
+
+        self.core.popup(f"sourceData:  {sourceData}")                                      #    TESTING
 
         mediaType = context["mediaType"]
 

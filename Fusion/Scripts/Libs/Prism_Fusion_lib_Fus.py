@@ -346,8 +346,8 @@ def getToolData(tool:Tool) -> dict:
         return {}
     
 
-def getToolDataByUID(comp, toolUID:str) -> dict:
-    tool = getToolByUID(comp, toolUID)
+def getToolDataByUID(comp, toolUID:str, cache:dict=None) -> dict:
+    tool = getToolByUID(comp, toolUID, cache=cache)
     return getToolData(tool)
 
 
@@ -519,54 +519,52 @@ def groupTools(comp,
         return None
     
 
-def getAllTools(comp, selected:bool=False) -> list:
-    if selected:
-        return list(comp.GetToolList(True).values())
-    else:
-        return list(comp.GetToolList(False).values())
+def getAllTools(comp, selected:bool=False, cache:dict=None) -> list:
+    # Check if cache is provided and ensure it's a dictionary
+    if cache is not None:
+        if isinstance(cache, dict):
+            return list(cache.values())
+        else:
+            # If it's already a list, just return it
+            return list(cache)
+    return list(comp.GetToolList(selected).values())
+
+
     
-
-def getAllPrismTools(comp, selected:bool=False, category:str=None) -> list:
-    allTools = getAllTools(comp, selected=selected)
-
+def getAllPrismTools(comp, selected:bool=False, category:str=None, cache:dict=None) -> list:
+    allTools = getAllTools(comp, selected=selected, cache=cache)
     prismTools = []
 
     for tool in allTools:
         tData = getToolData(tool)
-        if tData:
-            prismTools.append(tool)
-
-    if category:
-        prismTools = [tool for tool in prismTools if getToolData(tool).get("listType") == category]
+        if tData and tool.GetData("Prism_UUID"):
+            if category is None or tData.get("listType") == category:
+                prismTools.append(tool)
 
     return prismTools
 
 
-def getToolByUID(comp, toolUID:str) -> Tool:
+def getToolByUID(comp, toolUID:str, cache:dict=None) -> Tool:
     try:
-        for tool in getAllTools(comp):
+        for tool in getAllPrismTools(comp, cache=cache):
             if toolUID == tool.GetData('Prism_UUID'):
                 return tool
-            
         return None
-
+    
     except Exception as e:
-        logger.warning(f"ERROR: Unable to get tool data from: {tool}\n{e}")
-        return {}
+        logger.warning(f"ERROR: Unable to get tool by UID: {toolUID}\n{e}")
+        return None
         
 
-def toolExists(comp, toolUID:str) -> bool:
-    searchTool = getToolByUID(comp, toolUID)
+def toolExists(comp, toolUID:str, cache:dict=None) -> bool:
+    searchTool = getToolByUID(comp, toolUID, cache=cache)
     if not searchTool:
-        return
-    
+        return False
+
     searchTool_FusID = searchTool.GetAttrs("TOOLS_UniqueID")
 
-    for tool in comp.GetToolList(False).values():
-        if searchTool_FusID == tool.GetAttrs("TOOLS_UniqueID"):
-            return True
-    
-    return False
+    allTools = getAllTools(comp, cache=cache)
+    return any(searchTool_FusID == tool.GetAttrs("TOOLS_UniqueID") for tool in allTools)
 
 
 #   Return Tool's Name
@@ -574,17 +572,10 @@ def getToolName(tool:Tool) -> str:
     return tool.Name
 
 
-def getToolNameByUID(comp, toolUID:str) -> Toolname:
-    tool = getToolByUID(comp, toolUID)
-    toolName = getToolName(tool)
-
-    return toolName
-
-
 #   Returns tool that matches name
 def getToolByName(comp, toolName:str) -> Tool:
     try:
-        for tool in getAllTools(comp):
+        for tool in getAllPrismTools(comp):
             if tool.Name == toolName:
                 return tool
         logger.warning(f"ERROR: No tool found with the name: {toolName}")
@@ -610,7 +601,7 @@ def getToolType(tool:Tool) -> str:
 def getAllToolsByType(comp, toolType:str) -> list[Tool]:
     try:
         toolList = []
-        for tool in getAllTools(comp):
+        for tool in getAllPrismTools(comp):
             if getToolType(tool) == toolType:
                 toolList.append(tool)
 
@@ -625,7 +616,7 @@ def getToolsFromStateUIDs(comp, stateUID:str) -> list:
     toolList = []
 
     try:
-        for tool in getAllTools(comp):
+        for tool in getAllPrismTools(comp):
             tData = getToolData(tool)
             if tData and "stateUID" in tData and tData["stateUID"] == stateUID:
                 toolList.append(tool)
