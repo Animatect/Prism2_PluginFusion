@@ -1199,7 +1199,7 @@ class Prism_Fusion_Functions(object):
 			#	If Sorting
 			else:
 				#	Sort and Arrange Loaders and Wireless tools
-				self.sortLoaders(comp, leftmostNode, importData["stateUID"])
+				self.sortLoaders(comp, currentStateID=importData["stateUID"])
 
 				logger.debug(f"Imported  and sorted {importData['identifier']}")
 				result = "Imported Image without Sorting"
@@ -1477,11 +1477,13 @@ class Prism_Fusion_Functions(object):
 
 	#	Sort and arrange all Prism Loaders 
 	@err_catcher(name=__name__)
-	def sortLoaders(self, comp, posRefNode, currentStateID,  offset=1.5, flowThresh=100, toolThresh=3, horzGap=1.1, vertGap=1):
+	def sortLoaders(self, comp, currentStateID=None,  offset=1.5, flowThresh=100, toolThresh=3, horzGap=1.1, vertGap=1):
 		flow = comp.CurrentFrame.FlowView
+		print("sorting...")
+		posRefNode = Fus.findLeftmostUpperTool(comp, 'Loader')
 		stateuids:list = self.getImageStatesIDs()
 		# In case the state object has not been created and can't be listed or queried.
-		if not currentStateID in stateuids:
+		if currentStateID and not currentStateID in stateuids:
 			stateuids.append(currentStateID)
 		print("stateuids: ", stateuids)
 		#   Get the left-most and bottom-most Loader within a threshold.
@@ -3584,6 +3586,19 @@ path = r\"%s\"
 			self.setDefaultState()
 
 		self.MP_stateManager = origin
+
+		
+		# Add MenuItem
+		origin.actionSortImageLoaders = QAction(origin)
+		origin.actionSortImageLoaders.setObjectName(u"actionSortImageLoaders")
+		origin.actionSortImageLoaders.setText(QCoreApplication.translate("mw_StateManager", u"Sort Image Loaders", None))
+		origin.actionSortImageLoaders.triggered.connect(lambda: self.sortLoaders(comp))
+		#.
+		origin.menuAbout.addSeparator()
+		origin.menuAbout.addAction(origin.actionSortImageLoaders)
+		origin.menuAbout.addSeparator()
+		##
+
 		try:
 			self.core.plugins.monkeyPatch(origin.rclTree, self.rclTree, self, force=True)
 			self.core.plugins.monkeyPatch(self.core.mediaProducts.getVersionStackContextFromPath,
@@ -3597,7 +3612,6 @@ path = r\"%s\"
 			logger.warning(f"ERROR: Failed to load patched functions:\n{e}")
 
 		#origin.gb_import.setStyleSheet("margin-top: 20px;")
-
 
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):

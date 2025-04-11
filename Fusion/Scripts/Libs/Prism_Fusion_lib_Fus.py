@@ -1214,6 +1214,32 @@ def findLeftmostLowerTool(comp, threshold:float=0.5) -> Tool:
     except:
         logger.warning("ERROR: Failed to find leftmost lower node")
         return None
+    
+def findLeftmostUpperTool(comp, threshold: float = 0.5, toolType:str = None) -> Tool:
+    flow = comp.CurrentFrame.FlowView
+
+    try:
+        tool_list = comp.GetToolList(False, "Loader") if toolType else comp.GetToolList(False)
+
+        nodes = [
+            t for t in tool_list.values()
+            if flow.GetPosTable(t) and t.GetAttrs('TOOLS_RegID') != 'Underlay'
+        ]
+
+        if not nodes:
+            return None
+
+        leftmost = min(nodes, key=lambda t: flow.GetPosTable(t)[1])   # Smallest x (leftmost)
+        upmost   = min(nodes, key=lambda t: flow.GetPosTable(t)[2])   # Smallest y (upmost)
+
+        if abs(flow.GetPosTable(upmost)[1] - flow.GetPosTable(leftmost)[1]) <= threshold:
+            return upmost
+        else:
+            return leftmost
+
+    except Exception as e:
+        logger.warning(f"ERROR: Failed to find leftmost upper node: {e}")
+        return None
 
 
 def getRefPosition(comp:Composition_, flow:FlowView_) -> tuple[float,float]:
