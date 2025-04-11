@@ -376,22 +376,12 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 flow.SetPos(tool, newx-1, newy)
 
     ##########
-    # importedNodes = []
-    # for i in newNodes:
-    #     #   Append sufix to objNames to identify product with unique Name
-    #     node:Tool_ = getObject(comp, i)
-    #     newName:str =  node.GetAttrs("TOOLS_Name") # applyProductSufix(i, origin)
-    #     # node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
-    #     importedNodes.append(getNode(newName))
-    
-    # add a suffix the name to make sure we don't deduplicate a name on the update by modifying its name making finding matching tools impossible.
    
     for t in importedTools:
         newName:str =  f"{t.GetAttrs('TOOLS_Name')}_{toolData.get('product')}_{version}"
         t.SetAttrs({'TOOLS_Name' : newName})
 
     origin.setName = "Import_" + toolData.get("product")
-    # origin.nodes = importedNodes
     
     # Re-center view on the creation coordinates.
     flow.GoToBookmark('3dImportBM')
@@ -403,15 +393,13 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     #   Deselect All
     flow.Select()
 
-    # Reselect based on the database.
+    # Reselect.
     objs:list[Tool_] = []
-    # cpData = aggregateData#CompDb.loadPrismFileDb(comp)
-    for nodeuid in cpData["nodes"]["import3d"]:
-        nodeData:dict = cpData["nodes"]["import3d"][nodeuid]
-        nodeStateUID:str|None = nodeData.get('stateUID')
-        if nodeStateUID and nodeStateUID == stateUUID:
-            tool:Tool_ = Fus.getToolByUID(comp, nodeuid)
-            objs.append(tool)
+
+    #REPLACEMENT UP#
+    stateTools:list[Tool_] = getToolsFromNodeList(comp, getStateNodesList(comp, stateUUID))
+    for tool in stateTools:
+        objs.append(tool)
 
     #   Select nodes in comp
     for o in objs:
@@ -492,37 +480,41 @@ def deleteTools(comp:Composition_, stateUID:str):
             logger.debug("Could not delete the tool.")
     
 
-def getNodeStateTypes(comp:Composition_) -> list:
-    # cpData = CompDb.loadPrismFileDb(comp)
-    stateTypes:list = []
-    for n in cpData["nodes"]:
-        stateTypes.append(n)
+# def getNodeStateTypes(comp:Composition_) -> list:
+#     # cpData = CompDb.loadPrismFileDb(comp)
+#     stateTypes:list = []
+#     for n in cpData["nodes"]:
+#         stateTypes.append(n)
 
-    return stateTypes
+#     return stateTypes
 
 
 def getAllNodes(comp:Composition_) -> dict:
     # cpData = CompDb.loadPrismFileDb(comp)
-    stateTypes:list[str] = getNodeStateTypes(comp)
-    nodes:dict = {}
-    for stateType  in stateTypes:
-        stateTypeNodes:dict  = cpData["nodes"][stateType]
-        for item in stateTypeNodes.items():
-            nodes.update({item[0]:item[1]})
+    # stateTypes:list[str] = getNodeStateTypes(comp)
+    nodes:dict = {
+        l.GetData("Prism_UUID") : l for l in comp.GetToolList(False, "Loader").values()
+            if (
+                l.GetData("Prism_UUID") and
+                isinstance(l.GetData('Prism_ToolData'), dict) and
+                l.GetData('Prism_ToolData').get("stateUID")
+            )
+    }
     
     return nodes
 
 
 def getStateNodesList(comp:Composition_, stuid:str) -> list[str]:
-    allnodes = getAllNodes(comp)
-    
-    # Use a list comprehension with robust key checks
-    nodels:list[str] = [
-        stateuid for stateuid, node_data in allnodes.items()
-        if node_data.get("stateUID") == stuid
+    # Get a list of the state nodes UIDS
+    toolls:list[str] = [
+        l.GetData("Prism_UUID") for l in comp.GetToolList(False, "Loader").values()
+        if (
+            l.GetData("Prism_UUID")
+            and l.GetData('Prism_ToolData').get("stateUID") == stuid
+        )
     ]
     
-    return nodels
+    return toolls
 
 
 def getStateNodesOrigNameList(comp:Composition_, nodeUIDlist:list[str]) -> list[str]:
@@ -530,9 +522,10 @@ def getStateNodesOrigNameList(comp:Composition_, nodeUIDlist:list[str]) -> list[
     nodeNmLs:list[str] = []
 
     for nodeuid in nodeUIDlist:
-        node:dict = nodes.get(nodeuid)
-        if node:
-            toolorignm:str = node.get("toolOrigName")
+        node:Tool_ = nodes.get(nodeuid)
+        nodeData:dict = node.GetData('Prism_ToolData')
+        if nodeData:
+            toolorignm:str = nodeData.get("toolOrigName")
             if toolorignm:
                 nodeNmLs.append(toolorignm)
     
@@ -544,9 +537,8 @@ def getToolsFromNodeList(comp:Composition_, nodeUIDlist:list[str]) -> list[Tool_
     tools:list[Tool_] = []
 
     for nodeuid in nodeUIDlist:
-        if nodes.get(nodeuid):
-            tool = Fus.getToolByUID(comp, nodeuid)
-        tools.append(tool)
+        if (tool := nodes.get(nodeuid)):
+            tools.append(tool)
 
     return tools
 
@@ -563,8 +555,8 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
     if len(stateTools) < 1:
         return False, [], []
     
-    if alldbnodes.get(stateUID):
-        oldSceneTool = Fus.getToolByUID(comp, stateUID)
+    if (oldSceneTool := alldbnodes.get(stateUID)):
+        pass # using the walrus operator to assign the variable that would have been assigned inside the block
     else:
         return False, [], []
     
@@ -577,9 +569,10 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
         oldtool:Tool_ = None
         if newtool.Name in stateNodesNames:
             for nodeuid in statenodesuids:
-                node:dict = alldbnodes.get(nodeuid)
-                if node:
-                    if newtool.Name == node.get("toolOrigName") and toolType == node.get("tooltype"):
+                node:Tool_ = alldbnodes.get(nodeuid)
+                node_data:dict = node.GetData('Prism_ToolData') if node else None
+                if node_data:
+                    if newtool.Name == node_data.get("toolOrigName") and toolType == node_data.get("tooltype"):
                         for t in stateTools:
                             if t.GetData('Prism_UUID') == nodeuid:
                                 oldtool = t
