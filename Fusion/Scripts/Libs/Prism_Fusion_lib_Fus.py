@@ -1219,7 +1219,7 @@ def findLeftmostUpperTool(comp, threshold: float = 0.5, toolType:str = None) -> 
     flow = comp.CurrentFrame.FlowView
 
     try:
-        tool_list = comp.GetToolList(False, "Loader") if toolType else comp.GetToolList(False)
+        tool_list = comp.GetToolList(False, toolType) if toolType else comp.GetToolList(False)
 
         nodes = [
             t for t in tool_list.values()

@@ -1474,13 +1474,34 @@ class Prism_Fusion_Functions(object):
 				stateUID = item.ui.stateUID
 				imageImports.append(stateUID)
 		return imageImports
+	
+	@err_catcher(name=__name__)
+	def selectAllStateLoaders(self):
+		#   Get Fusion objects
+		comp = self.getCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+		#	All State iDs
+		imagestateuids:list = self.getImageStatesIDs()
+		allstatetools:list = []
+		#   All State Tool UIDS
+		for stateUID in imagestateuids:
+			stateTools = Fus.getToolsFromStateUIDs(comp, stateUID)
+			allstatetools += stateTools
+
+		#   Select each Tool
+		flow.Select()
+		for tool in allstatetools:
+			flow.Select(tool)
 
 	#	Sort and arrange all Prism Loaders 
 	@err_catcher(name=__name__)
-	def sortLoaders(self, comp, currentStateID=None,  offset=1.5, flowThresh=100, toolThresh=3, horzGap=1.1, vertGap=1):
+	def sortLoaders(self, comp, currentStateID=None, getfeedback:bool=False, offset=1.5, flowThresh=100, toolThresh=3, horzGap=1.1, vertGap=1):
 		flow = comp.CurrentFrame.FlowView
 		print("sorting...")
-		posRefNode = Fus.findLeftmostUpperTool(comp, 'Loader')
+		posRefNode = Fus.findLeftmostUpperTool(comp, toolType="Loader")
+		if not posRefNode:
+			return self.core.popup("Nothing to Sort", severity="info")
+		
 		stateuids:list = self.getImageStatesIDs()
 		# In case the state object has not been created and can't be listed or queried.
 		if currentStateID and not currentStateID in stateuids:
@@ -1517,7 +1538,7 @@ class Prism_Fusion_Functions(object):
 		# Sort first by UID block using the index on the sorted function, then by name
 		# Sort primarily by the UID order (using its numeric rank from uid_index) If multiple entries share the same UID, sort alphabetically by name
 		sortedloaders = sorted(loaders, key=lambda ld: (uid_index[ld.GetData("Prism_ToolData").get("stateUID")], ld.Name.lower()))
-			
+					
 		# if refNode is not part of nodes to sort we move the nodes down so they don't overlap it.
 		refInNodes = any(ldr.Name == posRefNode.Name for ldr in sortedloaders)
 
@@ -1596,6 +1617,10 @@ class Prism_Fusion_Functions(object):
 			end = time.time()
 			print(f"# Tools Sorting Execution time: {end - start:.4f} seconds")
 			logger.debug("Sorted Nodes")
+			
+			if getfeedback:
+				self.core.popup("Sorted!", severity="info")
+		
 
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to sort nodes:\n{e}")
@@ -3588,14 +3613,20 @@ path = r\"%s\"
 		self.MP_stateManager = origin
 
 		
-		# Add MenuItem
+		# Add MenuItems
 		origin.actionSortImageLoaders = QAction(origin)
 		origin.actionSortImageLoaders.setObjectName(u"actionSortImageLoaders")
 		origin.actionSortImageLoaders.setText(QCoreApplication.translate("mw_StateManager", u"Sort Image Loaders", None))
-		origin.actionSortImageLoaders.triggered.connect(lambda: self.sortLoaders(comp))
+		origin.actionSortImageLoaders.triggered.connect(lambda: self.sortLoaders(comp, getfeedback=True))
+		#.
+		origin.actionSelectImageLoaders = QAction(origin)
+		origin.actionSelectImageLoaders.setObjectName(u"actionSelectImageLoaders")
+		origin.actionSelectImageLoaders.setText(QCoreApplication.translate("mw_StateManager", u"Select Image Loaders", None))
+		origin.actionSelectImageLoaders.triggered.connect(self.selectAllStateLoaders)
 		#.
 		origin.menuAbout.addSeparator()
 		origin.menuAbout.addAction(origin.actionSortImageLoaders)
+		origin.menuAbout.addAction(origin.actionSelectImageLoaders)
 		origin.menuAbout.addSeparator()
 		##
 
@@ -3612,6 +3643,8 @@ path = r\"%s\"
 			logger.warning(f"ERROR: Failed to load patched functions:\n{e}")
 
 		#origin.gb_import.setStyleSheet("margin-top: 20px;")
+	
+
 
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):
