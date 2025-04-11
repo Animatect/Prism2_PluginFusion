@@ -91,6 +91,7 @@ logger = logging.getLogger(__name__)
 #					toolUID = "7d1a2de3",
 #					mediaId = "SingleLyr-SingleAOV",
 #					displayName = "SingleLyr-SingleAOV",
+#                   hierarchy = "010_Media/010_Media",
 #					mediaType = "3drenders",
 #					aov = "RGB",
 #					filepath = "N:\\Data\\Projects\\Prism Tests\\01_Production\\Shots\\010_MEDIA\\010_MEDIA\\Renders\\3dRender\\SingleLyr-SingleAOV\\master\\RGB\\010_MEDIA-010_MEDIA_SingleLyr-SingleAOV_master_RGB.0001.exr",
@@ -531,15 +532,19 @@ def getAllTools(comp, selected:bool=False, cache:dict=None) -> list:
 
 
     
-def getAllPrismTools(comp, selected:bool=False, category:str=None, cache:dict=None) -> list:
+def getAllPrismTools(comp, selected:bool=False, category:str=None, toolType:str=None, cache:dict=None) -> list:
     allTools = getAllTools(comp, selected=selected, cache=cache)
     prismTools = []
 
     for tool in allTools:
         tData = getToolData(tool)
-        if tData and tool.GetData("Prism_UUID"):
-            if category is None or tData.get("listType") == category:
-                prismTools.append(tool)
+        if not tData or not tool.GetData("Prism_UUID"):
+            continue
+        if category is not None and tData.get("listType") != category:
+            continue
+        if toolType is not None and getToolType(tool) != toolType:
+            continue
+        prismTools.append(tool)
 
     return prismTools
 
@@ -647,7 +652,7 @@ def getSelectedTools(comp, toolType:str=None) -> list[Tool]:
 
 
 #   Gets the database record for a given importData dict
-def getUIDsFromImportData(comp, importData:dict, category:str) -> dict:
+def getUIDsFromImportData(comp, importData:dict, category:str=None, toolType:str=None) -> dict:
     #   Make copy and re-assign MediaID
     importData_copy = importData
     if "mediaId" not in importData_copy:
@@ -657,7 +662,7 @@ def getUIDsFromImportData(comp, importData:dict, category:str) -> dict:
     
     try:
         #   Get the requested node listType
-        prismTools = getAllPrismTools(comp, category=category)
+        prismTools = getAllPrismTools(comp, category=category, toolType=toolType)
 
         if not prismTools:
             logger.debug(f"No Tools in the Comp")
@@ -706,7 +711,6 @@ def getLastTool(comp) -> Tool | None:
         
 
 #   Returns the Connected Nodes for a given Node
-
 def getConnectedNodes(comp, tool) -> Union[list | None]:
     try:
         toolData = getToolData(tool)
