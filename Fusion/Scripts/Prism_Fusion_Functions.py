@@ -3602,8 +3602,6 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):
 		self.smUI = origin
-		for id in self.getImageStatesIDs():
-			print(f"id: {id}")
 
 		##	Resizes the StateManager Window
 		# 	Check if SM has a resize method and resize it

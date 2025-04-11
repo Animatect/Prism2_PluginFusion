@@ -995,7 +995,13 @@ class Image_ImportClass(object):
 
         comp = self.fuseFuncts.getCurrentComp()
 
-        toolCache = Fus.getAllPrismTools(comp)
+        # Filter Prism loaders
+        # toolCache = Fus.getAllPrismTools(comp)
+        prismloaders: dict = {
+            prism_data.get("toolUID"): prismloader
+            for prismloader in comp.GetToolList(False, "Loader").values()
+            if (prism_data := prismloader.GetData("Prism_ToolData")) and prism_data.get("toolUID")
+            }
 
         aovStatuses = []
 
@@ -1010,14 +1016,16 @@ class Image_ImportClass(object):
         for uid in stateUIDs:
             # Timer for Fus.toolExists
             tool_exists_start = time.time()
-            if Fus.toolExists(comp, uid, cache=toolCache):
+            # if Fus.toolExists(comp, uid, cache=toolCache):
+            if uid in list(prismloaders.keys()):
 
                 print(f"[Timer] Fus.toolExists for {uid} took {time.time() - tool_exists_start:.4f} seconds")
 
                 # Timer for Fus.getToolDataByUID
                 get_tool_data_start = time.time()
 
-                uidData = Fus.getToolDataByUID(comp, uid, cache=toolCache)
+                # uidData = Fus.getToolDataByUID(comp, uid, cache=toolCache)
+                uidData:dict = prismloaders[uid].GetData('Prism_ToolData')
 
                 print(f"[Timer] Fus.getToolDataByUID for {uid} took {time.time() - get_tool_data_start:.4f} seconds")
 
