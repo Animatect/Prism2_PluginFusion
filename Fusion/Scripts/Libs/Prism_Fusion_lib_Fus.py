@@ -577,6 +577,12 @@ def getToolName(tool:Tool) -> str:
     return tool.Name
 
 
+#   Return Tool's Name
+def getToolNameByUID(comp, toolUID:str) -> str:
+    tool = getToolByUID(comp, toolUID)
+    return getToolName(tool)
+
+
 #   Returns tool that matches name
 def getToolByName(comp, toolName:str) -> Tool:
     try:
