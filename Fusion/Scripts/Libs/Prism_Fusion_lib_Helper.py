@@ -316,8 +316,25 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
     return importData
 
 
-#   Return File data based on desired AOV
+#   Converts Data Stored in the tool to a Prism Context Structure
+def convertToolDataToPrismData(toolData):                               #   TODO - See which items are needed
+    pData = toolData.copy()
 
+    if "mediaId" in toolData:
+        pData["identifier"] = toolData["mediaId"]
+    if "itemType" in toolData:
+        pData["type"] = toolData["itemType"]
+
+    delList = ["nodeName", "stateUID", "toolUID", "aov", "channel", "fuseFormat",
+               "filepath", "frame_start", "frame_end", "listType", "mediaId", "extension", "connectedNodes"]
+
+    for delItem in delList:
+        pData.pop(delItem, None)
+
+    return pData
+
+
+#   Return File data based on desired AOV
 def getFileDataFromAOV(fileList:list, aov:str) -> dict:
     #   If list is one item, jut return the item
     if len(fileList) == 1:

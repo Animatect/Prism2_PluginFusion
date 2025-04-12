@@ -57,6 +57,8 @@ import glob
 import shutil
 import logging
 import time
+from collections import defaultdict
+
 
 import BlackmagicFusion as bmd
 
@@ -248,6 +250,7 @@ class Prism_Fusion_Functions(object):
 		self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
 		self.useAovThumbs = self.core.getConfig("Fusion", "useAovThumbs")
 		self.sortMode = self.core.getConfig("Fusion", "sorting")
+		self.scanComp = self.core.getConfig("Fusion", "scanComp")
 
 		usePopup = self.core.getConfig("Fusion", "updatePopup")
 		if usePopup == "Enabled":
@@ -1055,8 +1058,8 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def wrapped_ImageImport(self, comp, state, importData, sortMode):
 		"""
-		Example importData:
-			{
+		Example importData:														#	TODO - Make sure this is correct
+			{		
 			'stateUID': '0b67a0f6',
 			'identifier': 'SingleLyr-MultiAOV',
 			'displayName': 'SingleLyr-MultiAOV',
@@ -1129,7 +1132,6 @@ class Prism_Fusion_Functions(object):
 
 		try:
 				#	For each import item
-			start = time.time()
 			refX, refY = Fus.getToolPosition(comp, refNode)
 			for importItem in importData["files"]:
 				# Deselect all nodes
@@ -1138,15 +1140,10 @@ class Prism_Fusion_Functions(object):
 				#	Make base dict
 				toolData = {"nodeName": Fus.makeLdrName(importItem, importData),
 							"toolUID": importItem["fileUID"],
-							"version": importData["version"],
-							"stateUID": importData["stateUID"],
 							"mediaId": importData["identifier"],
-							"displayName": importData["displayName"],
-							"mediaType": importData["mediaType"],
 							"aov": importItem.get("aov", ""),
 							"channel": importItem.get("channel", ""),
 							"filepath": importItem["basefile"],
-							"extension": importData["extension"],
 							"fuseFormat": self.getFuseFormat(importData["extension"]),
 							"frame_start": importItem["frame_start"],
 							"frame_end": importItem["frame_end"],
@@ -1154,12 +1151,14 @@ class Prism_Fusion_Functions(object):
 							}
 					
 				#	Add additional items if they exist
-				for key in ["asset", "sequence", "shot", "itemType", "redirect"]:
+				for key in ["displayName", "project_name", "project_path", "hierarchy", "mediaType", "stateUID", "asset",
+							"sequence", "shot", "itemType", "version", "extension", "redirect", "path", "paths", "locations"]:
+					
 					if key in importData:
 						toolData[key] = importData[key]
 
 				#	Get any Matching Tools already in the Comp
-				orig_toolUID = Fus.getUIDsFromImportData(comp, importItem, "import2d")
+				orig_toolUID = Fus.getUIDsFromImportData(comp, importItem, category="import2d", toolType="Loader")
 
 				#	Add Loader and configure
 				if len(orig_toolUID) == 0:
@@ -1171,8 +1170,6 @@ class Prism_Fusion_Functions(object):
 						logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 						self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
 						return False
-					
-					
 
 				#	Update loader if it already exists in the Comp
 				else:
@@ -1182,9 +1179,7 @@ class Prism_Fusion_Functions(object):
 					updateRes, compareMsg = self.updateImport(comp, orig_toolUID, toolData)
 
 					updateMsgList.append(compareMsg)
-			
-			end1 = time.time()
-			print(f"# tool Adding Execution time: {end1 - start:.4f} seconds")
+
 
 			##########################
 			# SORT ALL PRISM LOADERS #
@@ -1205,8 +1200,6 @@ class Prism_Fusion_Functions(object):
 				result = "Imported Image without Sorting"
 				doImport = True
 
-			end = time.time()
-			print(f"Execution time: {end - start:.4f} seconds")
 			if updated:
 				return {"result": "updated", "updateMsgList": updateMsgList, "doImport": doImport}
 			else:
@@ -1445,6 +1438,7 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning(f"ERROR:  Could not add wireless nodes:\n{e}")
 
+
 	@err_catcher(name=__name__)
 	def get_all_items(self, tree_widget):
 		def recurse_items(parent):
@@ -1462,6 +1456,7 @@ class Prism_Fusion_Functions(object):
 			all_items.extend(recurse_items(top_item))
 		return all_items
 
+
 	@err_catcher(name=__name__)
 	def getImageStatesIDs(self)->list:
 		sm = self.MP_stateManager
@@ -1475,6 +1470,7 @@ class Prism_Fusion_Functions(object):
 				imageImports.append(stateUID)
 		return imageImports
 	
+
 	@err_catcher(name=__name__)
 	def selectAllStateLoaders(self):
 		#   Get Fusion objects
@@ -1493,11 +1489,12 @@ class Prism_Fusion_Functions(object):
 		for tool in allstatetools:
 			flow.Select(tool)
 
+
 	#	Sort and arrange all Prism Loaders 
 	@err_catcher(name=__name__)
 	def sortLoaders(self, comp, currentStateID=None, getfeedback:bool=False, offset=1.5, flowThresh=100, toolThresh=3, horzGap=1.1, vertGap=1):
 		flow = comp.CurrentFrame.FlowView
-		print("sorting...")
+
 		posRefNode = Fus.findLeftmostUpperTool(comp, toolType="Loader")
 		if not posRefNode:
 			return self.core.popup("Nothing to Sort", severity="info")
@@ -1506,7 +1503,7 @@ class Prism_Fusion_Functions(object):
 		# In case the state object has not been created and can't be listed or queried.
 		if currentStateID and not currentStateID in stateuids:
 			stateuids.append(currentStateID)
-		print("stateuids: ", stateuids)
+
 		#   Get the left-most and bottom-most Loader within a threshold.
 		leftmostpos, bottommostpos = Fus.getToolPosition(comp, posRefNode)
 
@@ -1523,18 +1520,14 @@ class Prism_Fusion_Functions(object):
 						]
 			# We sort top to bottom to get the topmost position among these
 			loaderstop2bot = sorted(loaders, key=lambda ld: Fus.getToolPosition(comp, ld)[1])
-			end = time.time()
-			print(f"# get and sort loaders Execution time: {end - start:.4f} seconds")
 			
 		except:
 			logger.warning("ERROR: Cannot sort loaders - unable to resolve threshold in the flow")
 			return
 
-		#	Gets list of all Media Identifiers in the Comp Database
-		start = time.time()
-
 		# Create a mapping for UID priority
 		uid_index = {uid: index for index, uid in enumerate(stateuids)}
+
 		# Sort first by UID block using the index on the sorted function, then by name
 		# Sort primarily by the UID order (using its numeric rank from uid_index) If multiple entries share the same UID, sort alphabetically by name
 		sortedloaders = sorted(loaders, key=lambda ld: (uid_index[ld.GetData("Prism_ToolData").get("stateUID")], ld.Name.lower()))
@@ -1547,11 +1540,8 @@ class Prism_Fusion_Functions(object):
 		# To check if a node is in a layer or if we've switched layers, we first store a refernce layer
 		# update it and compare it in each iteration.
 		lastLoaderLyr = sortedloaders[0].GetData("Prism_ToolData").get("mediaId")
-		end = time.time()
-		print(f"# get and sort MediaID Execution time: {end - start:.4f} seconds")
 
 		try:
-			start = time.time()
 			new_X = leftmostpos
 			new_Y = Fus.getToolPosition(comp, loaderstop2bot[0])[1]
 
@@ -1614,16 +1604,91 @@ class Prism_Fusion_Functions(object):
 				new_Y += vertGap
 				lastLoaderLyr = lyrNm
 			
-			end = time.time()
-			print(f"# Tools Sorting Execution time: {end - start:.4f} seconds")
 			logger.debug("Sorted Nodes")
 			
 			if getfeedback:
 				self.core.popup("Sorted!", severity="info")
-		
 
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to sort nodes:\n{e}")
+
+
+
+	#	Scans and Creates ImageImport State for Discovered Loaders
+	@err_catcher(name=__name__)
+	def scanCompForNewLoaders(self, stateManager):
+		comp = self.getCurrentComp()
+
+		if self.scanComp not in ["Auto", "Prompt"]:
+			logger.debug("Comp Scan is Disabled")
+			return
+
+		#	Read State Data from Comp
+		stateData_raw = Fus.sm_readStates(comp)
+		stateData_json = self.core.configs.readJson(data=stateData_raw)
+		stateData = stateData_json.get("states", []) if stateData_json else []
+
+		#	Collect existing stateUIDs
+		stateUIDs = {state["stateUID"] for state in stateData if "stateUID" in state}
+
+		#	Get all Prism Loaders
+		prismLoaders = Fus.getAllPrismTools(comp, category="import2d", toolType="Loader")
+
+		#	Group Missing Loaders by State UUID
+		groupedLoaders = defaultdict(list)
+		for tool in prismLoaders:
+			tData = Fus.getToolData(tool)
+			if not tData:
+				continue
+
+			stateUID = tData.get("stateUID")
+			if stateUID and stateUID not in stateUIDs:
+				groupedLoaders[stateUID].append((tool, tData))
+
+		#	Make Dict for Each State UUID
+		for stateUID, toolGroup in groupedLoaders.items():
+			toolItems = []
+			
+			for tool, tData in toolGroup:
+				toolItems.append({
+					"loader": tool,
+					"tData": tData
+				})
+
+			if not toolItems:
+				continue
+
+			#	Make Prism Context from Tool Data
+			orig_tData = toolItems[0]["tData"]
+			pData = Helper.convertToolDataToPrismData(orig_tData)
+
+			#	Make Settings Data
+			settings = {
+				"stateUID": stateUID,
+				"pData": pData,
+				"tools": toolItems
+			}
+
+
+			#	If Prompt Mode ask Question
+			if self.scanComp == "Prompt":
+
+				text = ("Fusion Loader(s) have been detected that are Not\n"
+						"Associated with an Import State in the State Manager.\n\n"
+						"Would you like to add an Import State for:\n\n\n"
+						f"    '{orig_tData['mediaId']}'")
+				
+				title = "Add Import State?"
+
+				result = self.core.popupQuestion(text, title=title)
+
+				#	Abort if not Yes
+				if result != "Yes":
+					return
+
+			#	Call to Add Import State with Settings Data
+			self.addImportState(stateManager, "Image_Import", useUi=False, settings=settings)
+
 
 
 
@@ -3530,12 +3595,13 @@ path = r\"%s\"
 			self.popup = popup
 
 
+	#	Custom Callback from openPrismWindows.py
 	@err_catcher(name=__name__)
 	def onStateManagerCalled(self, popup=None):
 		#Feedback in case it takes time to open
 		comp = self.getCurrentComp()
 		self.sm_checkCorrectComp(comp, displaypopup=False)
-		#Set the comp used when sm was oppened for reference when saving states.
+		#Set the comp used when sm was opened for reference when saving states.
 		self.comp = comp	
 		try:
 			self.popup.close()
@@ -3543,6 +3609,13 @@ path = r\"%s\"
 			pass
 		if popup:
 			self.popup = popup
+
+
+		self.scanCompForNewLoaders(self.MP_stateManager)
+
+
+
+
 
 
 	@err_catcher(name=__name__)
