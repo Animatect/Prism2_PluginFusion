@@ -135,16 +135,17 @@ abc_options = {
     "Meshes": True,
     "UVs": True,
     "Cameras": True,
-    "InvCameras": True
+    "InvCameras": True,
     # "SamplingRate": 24
 }
 
 
-def focusFusionDialog(fusion:Fusion_, msg:str)->int:
+def focusFusionDialog(fusion:Fusion_, msg:str, importFPS:float=24.0)->int:
     ui = fusion.UIManager
     disp = bmd.UIDispatcher(ui)
 
     spinner_value = 0  # Variable to store the spinner value
+    samplingrate_value = 0
 
     tkinter = tk.Tk()
     screen_width = tkinter.winfo_screenwidth()
@@ -157,7 +158,7 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
     dlg = disp.AddWindow({
         'WindowTitle': 'Legacy 3D Focus Window', 
         'ID': 'Legacy3DWin', 
-        'Geometry': [center_x-(width*0.5), center_y, width, 170], 
+        'Geometry': [center_x-(width*0.5), center_y, width, 180], 
         'Spacing': 0,},[
         
         ui.VGroup({
@@ -179,9 +180,16 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
                 ui.VGroup({},[
                     ui.HGroup({'Spacing': 5}, [
                             ui.Label({
+                                'Text': 'SamplingRate: ',
+                                'ToolTip': 'The FPS rate the Alembic should be sampled to.'}),
+                            ui.DoubleSpinBox({'ID': 'SRSpinner', 'Value': importFPS, 'Minimum': 0.0, 'Maximum': 1000.0, 'SingleStep': 0.1, 'FixedSize': [50, 20],}),
+                            ui.Label({'Text': 'secs'}),
+                        ]),
+                    ui.HGroup({'Spacing': 5}, [
+                            ui.Label({
                                 'Text': 'Timeout: ',
                                 'ToolTip': 'The amount of time in seconds the import should wait before failing.'}),
-                            ui.SpinBox({'ID': 'Spinner', 'Value': 60, 'Minimum': 0, 'Maximum': 60,'FixedSize': [50, 20],}),
+                            ui.SpinBox({'ID': 'Spinner', 'Value': 60, 'Minimum': 0, 'Maximum': 600,'FixedSize': [50, 20],}),
                             ui.Label({'Text': 'secs'}),
                         ]),
                     ui.Button({
@@ -200,6 +208,7 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
     # The window was closed
     def _func(ev):
         nonlocal spinner_value
+        nonlocal samplingrate_value
         spinner_value = -1
         disp.ExitLoop()
     dlg.On.Legacy3DWin.Close = _func
@@ -207,7 +216,9 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
     # Add your GUI element based event functions here:
     def _func(ev):
         nonlocal spinner_value
+        nonlocal samplingrate_value
         spinner_value = itm['Spinner'].Value  # Retrieve the spinner value
+        samplingrate_value = itm['SRSpinner'].Value  # Retrieve the spinner value
         disp.ExitLoop()
     dlg.On.B.Clicked = _func
 
@@ -215,7 +226,7 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
     disp.RunLoop()
     dlg.Hide()
 
-    return spinner_value
+    return spinner_value, samplingrate_value
 
 
 def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str, timeoutsecs:int):
@@ -244,9 +255,19 @@ def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str, tim
 
 def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str, filepath:str, global_scale:float, options:dict = None, interval:float = 0.5):
     origin.stateManager.showMinimized()
+    versionInfoPath = origin.core.getVersioninfoPath(
+        origin.core.products.getVersionInfoPathFromProductFilepath(filepath)
+    )
+    impFPS = origin.core.getConfig("fps", configPath=versionInfoPath)
+    print("impFPS: ", impFPS)
     comp:Composition_ = fusion.GetCurrentComp()
     flow:FlowView_ = comp.CurrentFrame.FlowView
     flow.Select(None)
+
+    #Warning
+    fString = "Importing this 3Dformat requires UI automation.\n\nPLEASE DO NOT USE THE MOUSE AFTER CLOSING THIS DIALOG UNTIL IMPORT IS DONE"
+    #   Create a dialog to focus the fusion window and retrieves info from it.
+    timeoutSecs, samplingrateValue = focusFusionDialog(fusion, fString, importFPS=impFPS)
 
     #Set preferences for the alembic import dialog
     if formatCall == "AbcImport" and isinstance(options, dict):
@@ -257,12 +278,12 @@ def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str
                 new[key] = value
             else:
                 print("Invalid option %s:" % key)
+            
+            new["SamplingRate"] = samplingrateValue
+
         fusion.SetPrefs("Global.Alembic.Import", new)
     
-    #Warning
-    fString = "Importing this 3Dformat requires UI automation.\n\nPLEASE DO NOT USE THE MOUSE AFTER CLOSING THIS DIALOG UNTIL IMPORT IS DONE"
-    #   Create a dialog to focus the fusion window and retrieves info from it.
-    timeoutSecs:int = focusFusionDialog(fusion, fString)
+    
     imported:bool = False
 
     if timeoutSecs > 0:
