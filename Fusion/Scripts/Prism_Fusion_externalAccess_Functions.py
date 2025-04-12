@@ -67,34 +67,28 @@ class Prism_Fusion_externalAccess_Functions(object):
 
 		#	Register callbacks
 		try:
-			self.core.registerCallback(
-				"userSettings_saveSettings",
-				self.userSettings_saveSettings,
-				plugin=self.plugin,
-			)
-			self.core.registerCallback(
-				"userSettings_loadSettings",
-				self.userSettings_loadSettings,
-				plugin=self.plugin,
-			)
-			self.core.registerCallback(
-				"getPresetScenes", 
-				self.getPresetScenes, 
-				plugin=self.plugin
-			)
-			ssheetPath = os.path.join(
-				self.pluginDirectory,
-				"UserInterfaces",
-				"FusionStyleSheet"
-			)
-			self.core.registerCallback(
-				"getIconPathForFileType", self.getIconPathForFileType, plugin=self
-				)
+			callbacks = [
+						("userSettings_saveSettings", self.userSettings_saveSettings),
+						("userSettings_loadSettings", self.userSettings_loadSettings),
+						("getPresetScenes", self.getPresetScenes),
+						("getIconPathForFileType", self.getIconPathForFileType),
+						]
+
+			# Iterate through the list to register callbacks
+			for callback_name, method in callbacks:
+				self.core.registerCallback(callback_name, method, plugin=self.plugin)
+
 			logger.debug("Registered callbacks")
 
 		except Exception as e:
 			logger.warning(f"ERROR: Registering callbacks failed:\n {e}")
 		
+		ssheetPath = os.path.join(
+			self.pluginDirectory,
+			"UserInterfaces",
+			"FusionStyleSheet"
+		)
+
 		self.core.registerStyleSheet(ssheetPath)
 		
 
@@ -104,6 +98,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.gb_prismFusionOptions = QGroupBox()
 		lo_prismFusionOptions = QVBoxLayout()
 		origin.gb_prismFusionOptions.setLayout(lo_prismFusionOptions)
+
 
 		####	OPTIONS LAYOUT 1
 		lo_options1 = QHBoxLayout()
@@ -175,7 +170,6 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.cb_updatePopup.addItems(["Enabled", "Disabled"])
 		origin.cb_updatePopup.setCurrentIndex(0)  # Default to Enabled
 
-
 		#	Add Items to Options 3
 		lo_options3.addWidget(origin.l_sorting)
 		lo_options3.addWidget(origin.cb_sorting)
@@ -185,6 +179,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 		lo_options3.addWidget(origin.cb_updatePopup)
 		spacer6 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
 		lo_options3.addItem(spacer6)
+
 
 		####	OPTIONS 4 LAYOUT
 		lo_options4 = QHBoxLayout()
@@ -273,20 +268,11 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.l_scanComp.setToolTip(tip)
 		origin.cb_scanComp.setToolTip(tip)
 
-
-
-
 		# tip = "Install Prism Development menu to Fusion when adding the integration."
 		# origin.l_installDevTools.setToolTip(tip)
 		# origin.chk_installDevTools.setToolTip(tip)
 
 
-
-
-
-
-
-	
 	@err_catcher(name=__name__)
 	def userSettings_saveSettings(self, origin, settings):
 		try:
@@ -317,7 +303,6 @@ class Prism_Fusion_externalAccess_Functions(object):
 			settings["Fusion"]["sorting"] = origin.cb_sorting.currentText()
 			settings["Fusion"]["updatePopup"] = origin.cb_updatePopup.currentText()
 			settings["Fusion"]["scanComp"] = origin.cb_scanComp.currentText()
-			
 
 		except Exception as e:
 			logger.warning(f"ERROR: Could not save user settings:\n{e}")
