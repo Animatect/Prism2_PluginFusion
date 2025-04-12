@@ -469,6 +469,7 @@ def cleanbeforeImport(origin:Legacy3D_ImportClass, stateUID:str):
 def deleteTools(comp:Composition_, stateUID:str):
     # aggregateData = CompDb.loadPrismFileDb(comp)
     stateTools:list[Tool_] = getToolsFromNodeList(comp, getStateNodesList(comp, stateUID))
+    print("stateTools: \n", stateTools)
     for tool in stateTools:
         try:
             tool.Delete()
@@ -492,29 +493,27 @@ def deleteTools(comp:Composition_, stateUID:str):
 def getAllNodes(comp:Composition_) -> dict:
     # cpData = CompDb.loadPrismFileDb(comp)
     # stateTypes:list[str] = getNodeStateTypes(comp)
-    nodes:dict = {
-        l.GetData("Prism_UUID") : l for l in comp.GetToolList(False, "Loader").values()
-            if (
-                l.GetData("Prism_UUID") and
-                isinstance(l.GetData('Prism_ToolData'), dict) and
-                l.GetData('Prism_ToolData').get("stateUID")
-            )
-    }
-    
+    nodes: dict = {}
+    for l in comp.GetToolList(False).values():
+        uuid = l.GetData("Prism_UUID")
+        tool_data = l.GetData("Prism_ToolData")
+
+        if uuid and isinstance(tool_data, dict) and tool_data.get("stateUID"):
+            nodes[uuid] = l
+
     return nodes
 
 
 def getStateNodesList(comp:Composition_, stuid:str) -> list[str]:
     # Get a list of the state nodes UIDS
-    toolls:list[str] = [
-        l.GetData("Prism_UUID") for l in comp.GetToolList(False, "Loader").values()
-        if (
-            l.GetData("Prism_UUID")
-            and l.GetData('Prism_ToolData').get("stateUID") == stuid
-        )
-    ]
-    
-    return toolls
+    tools: list[str] = []
+    for l in comp.GetToolList(False).values():
+        uuid = l.GetData("Prism_UUID")
+        tool_data = l.GetData("Prism_ToolData")
+        if uuid and tool_data and tool_data.get("stateUID") == stuid:
+            tools.append(uuid)
+
+    return tools
 
 
 def getStateNodesOrigNameList(comp:Composition_, nodeUIDlist:list[str]) -> list[str]:
@@ -534,6 +533,7 @@ def getStateNodesOrigNameList(comp:Composition_, nodeUIDlist:list[str]) -> list[
 
 def getToolsFromNodeList(comp:Composition_, nodeUIDlist:list[str]) -> list[Tool_]:
     nodes:dict = getAllNodes(comp)
+    print("allNOdes: \n", nodes)
     tools:list[Tool_] = []
 
     for nodeuid in nodeUIDlist:
@@ -545,21 +545,20 @@ def getToolsFromNodeList(comp:Composition_, nodeUIDlist:list[str]) -> list[Tool_
 
 def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID:str, newtools:list[Tool_], sceneTool:Tool_)->tuple[bool, list[str], list[str]]:
     alldbnodes:dict = getAllNodes(comp)
+    print("alldbnodes: ", alldbnodes)
     statenodesuids:list[str] = getStateNodesList(comp, stateUID)
     stateNodesNames:list[str] = getStateNodesOrigNameList(comp, statenodesuids)
     stateTools:list[Tool_] = getToolsFromNodeList(comp, statenodesuids)
     oldSceneTool:Tool_|None = None
     positionednodes:list[str] = []
     unsuccesfulconnections:list[str] = []
-
     if len(stateTools) < 1:
         return False, [], []
-    
     if (oldSceneTool := alldbnodes.get(stateUID)):
         pass # using the walrus operator to assign the variable that would have been assigned inside the block
+    
     else:
         return False, [], []
-    
     # Match new to old tools.
     for newtool in newtools:
         toolType:str  = newtool.GetAttrs("TOOLS_RegID")
@@ -578,7 +577,6 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                                 oldtool = t
                                 break
         
-
         # If there is a previous version of the same node.
         if oldtool:
             # check if it has valid inputs that are not part of previous import
@@ -607,7 +605,6 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                             
             Fus.matchToolPos(comp, newtool, oldtool)
             positionednodes.append(newtool.Name)
-        
     # Reconnect the 3D Scene.    
     if sceneTool.GetAttrs("TOOLS_RegID") == "Merge3D":
         if oldSceneTool.GetAttrs("TOOLS_RegID") == "Merge3D":
