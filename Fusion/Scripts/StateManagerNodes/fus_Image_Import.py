@@ -282,6 +282,8 @@ class Image_ImportClass(object):
         self.b_focusView.clicked.connect(self.focusView)
         self.b_selectTools.clicked.connect(self.selectTools)
         self.lw_objects.itemPressed.connect(self.onAovItemClicked)                              #   When AOV item clicked
+        self.lw_objects.itemCollapsed.connect(self.onItemCollapsed)                             # Recursivelly Collapse children
+        self.lw_objects.itemCollapsed.connect(self.onItemExpanded)                             # Recursivelly Expand children
         self.b_browse.clicked.connect(self.browse)                                              #   Select Version Button
         self.b_browse.customContextMenuRequested.connect(self.openFolder)                       #   RCL Select Version Button
         self.b_importLatest.clicked.connect(lambda: self.importLatest(refreshUi=True,
@@ -865,6 +867,28 @@ class Image_ImportClass(object):
 
         self._updateParentCheckbox(item)
 
+    #   Adds Shift Collapse/Expand Behabiours
+    @err_catcher(name=__name__)
+    def onItemCollapsed(self, item):
+        if QApplication.keyboardModifiers() == Qt.ShiftModifier:
+            self.recursivelyCollapse(item)
+    @err_catcher(name=__name__)
+    def onItemExpanded(self, item: QTreeWidgetItem):
+        if QApplication.keyboardModifiers() == Qt.ControlModifier:
+            self.recursivelyExpand(item)
+
+    @err_catcher(name=__name__)
+    def recursivelyCollapse(self, item):
+        for i in range(item.childCount()):
+            child = item.child(i)
+            self.lw_objects.collapseItem(child)
+            self.recursivelyCollapse(child)
+    @err_catcher(name=__name__)
+    def recursivelyExpand(self, item):
+        for i in range(item.childCount()):
+            child = item.child(i)
+            self.lw_objects.expandItem(child)
+            self.recursivelyExpand(child)
 
     #   Adds checkbox selection behaviours
     @err_catcher(name=__name__)
