@@ -123,9 +123,15 @@ This allows the user to quickly select all the Tools that are associated with th
 
 <br/>
 
-___
+## **Scanning for Orphaned Prism Loaders:**
 
-    *** Please note that manually adding a Loader into the Comp (or pasteing a Loader) will not have an Import State in the State Manager and not have the same functionality as above.  Though this is planned for the future.
+![Utility](DocsImages/ImageImport-AutoAddState.png)
+
+If enabled in the DCC settings, the plugin has the ability to automatically create new Image Import States for discovered Prism Loaders when opening the State Manager inside Fusion.  This works by scanning the Comp and searching for Prism Loaders (Loaders created by a Prism Import Import Image State) that are not associated with an existing Import Image State.  If any orphaned Loaders are discovered, a new Image Import State will be created based on the preferences in the DCC Settings (see [**Interface**](Interface.md)).  The Loader(s) will be updated with new data for the current project/shot/asset etc.
+
+This can be useful if a user needs to move a Import Image State from one Comp into another.
+
+    *** Please note for the plugin to find Loaders for auto-state creation, the Loader must have been created through the Prism Fusion plugin.  This is because the plugin adds specific metadata to the Loader Tool in the Comp that is used for various Prism functions.  Manually adding a Loader into the Comp (or pasteing a Loader) from outside the Prism plugin will not have an Import State in the State Manager and not have the same functionality as above.
 
 ___
 jump to:

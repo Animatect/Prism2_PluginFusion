@@ -104,6 +104,19 @@ When in Manual mode, Prism will not start when Fusion is opened.  But Prism can 
 
 <br/>
 
+### **Scan Mode**
+
+![Update Popup](DocsImages/Setting_ScanMode.png)
+
+- If enabled,  each time the State Manager is shown (inside Fusion Studio) the plugin will scan the Comp for orphaned Prism Loaders and create new Image Import States (see [**Importing Images**](Importing_2d.md)).
+
+    - **Auto:**     New Import Image States will automatically be created from orphaned Prism Loaders.  This can slighly increase the time it takes to display the State Manager. 
+    - **Prompt:**    The use will be prompted to create new States from discovered orphaned Prism Loaders.  This can slighly increase the time it takes to display the State Manager. 
+    - **Disabled:**   The plugin will not scan the Comp for orphaned Loaders.  This can increase State Manager loading performance slightly.
+
+
+<br/>
+
 ## **Fusion AutoSave:**
 
 ![AutoSave Icon](DocsImages/AutoSave_Icon.png)
