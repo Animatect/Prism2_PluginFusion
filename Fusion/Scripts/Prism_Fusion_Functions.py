@@ -2667,12 +2667,33 @@ path = r\"%s\"
 
 	#	Executes versioninfo creation for each state in dict
 	@err_catcher(name=__name__)
-	def executeGroupVersioninfo(self):
+	def executeGroupVersioninfo(self, rSettings):
 		for state in self.versionData:
 			try:
 				filepath = state[0]
-				stateData = state[1]
+				stateData = state[1].copy()
 
+				#	Overrides messages
+				renderOverrides = []
+				if rSettings.get("renderAsPrevVer"):
+					renderOverrides.append("Render as Prevous Version Enabled")
+				if rSettings.get("frameOvr"):
+					frameStr = f"{rSettings['frame_start']} - {rSettings['frame_end']}"
+					renderOverrides.append(f"Frame Range Override: {frameStr}")
+				if rSettings.get("masterOvr"):
+					renderOverrides.append(f"Update Master Override: {rSettings['handleMaster']}")
+				if rSettings.get("scalingOvr"):
+					renderOverrides.append(f"Scaling Override: {rSettings['render_Scale']}")
+				if rSettings.get("hiQualOvr"):
+					renderOverrides.append(f"Quality Override: {rSettings['render_HQ']}")
+				if rSettings.get("blurOvr"):
+					renderOverrides.append(f"Motion Blur Override: {rSettings['render_Blur']}")
+
+				#	Add Group Override Messages to Version Info Data
+				if len(renderOverrides) > 0:
+					stateData["Render Group Overrides"] = renderOverrides
+
+				#	Create Version Info
 				self.core.saveVersionInfo(filepath, details=stateData)
 				logger.debug(f"Created VersionInfo for: {filepath}")
 
@@ -2877,7 +2898,7 @@ path = r\"%s\"
 
 			stateData["comment"] = self.MP_stateManager.publishComment
 			renderDir = os.path.dirname(self.outputPath)
-			self.saveVersionList(renderDir, stateData)
+			self.saveVersionList(renderDir, outputPathData)
 
 			#	Setup master version execution
 			self.saveMasterData(rSettings, stateData, self.outputPath)
@@ -3100,7 +3121,7 @@ path = r\"%s\"
 			pass
 
 		#	Create versionInfo file for each state
-		versionResult = self.executeGroupVersioninfo()
+		versionResult = self.executeGroupVersioninfo(rSettings)
 
 		#	Execute master version if applicable
 		masterResult = self.executeGroupMaster()
@@ -3246,7 +3267,7 @@ path = r\"%s\"
 		comp.Save(currFile)
 
 		#	Create versionInfo file for each state
-		versionResult = self.executeGroupVersioninfo()
+		versionResult = self.executeGroupVersioninfo(rSettings)
 
 		#	Executes Farm update Master if applicable
 		if submitResult and executeMaster:
