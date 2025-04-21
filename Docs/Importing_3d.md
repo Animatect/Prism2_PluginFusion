@@ -34,7 +34,7 @@ When an image-texture set is selected by the user (through the "Browse" or "Open
 ![USD Mat Selection](DocsImages/USDmat_TexSelection.png)
 
 #### **Configuring**:
-Once the image-texture files have been added to the texture box, the plugin attempts to configure the pass-type based on the file naming. This should work for most industry-standrd naming conventions, but if a user needs to change the pass-type, each texture file has a dropdown on its left side to configure the pass type that will be used for the USD material.  Selecting "NONE" or removing the file from the list (see "Right-Click" below) will not include the file in the import.
+Once the image-texture files have been added to the texture box, the plugin attempts to configure the pass-type based on the file naming. This should work for most industry-standard naming conventions, but if a user needs to change the pass-type, each texture file has a dropdown on its left side to configure the pass type that will be used for the USD material.  Selecting "NONE" or removing the file from the list (see "Right-Click" below) will not include the file in the import.
 
 ![USD Mat Passes](DocsImages/USDmat_PassesCombo.png)
 
@@ -86,7 +86,7 @@ Updating/Changing the version of the Imported 3D scene is done the same way as o
 <br/>
 
 ## **Deleting States:**
-Deleting states is similar to other DCC integrtions where a user right-clicks the State and selects Delete.  If the corrospnding tools exist in the Comp, a popup will be shown asking if the Tools should be removed from the Comp.  If declined, the State will be removed but the Tools will remain in the Comp.
+Deleting states is similar to other DCC integrtions where a user right-clicks the State and selects Delete.  If the corresponding tools exist in the Comp, a popup will be shown asking if the Tools should be removed from the Comp.  If declined, the State will be removed but the Tools will remain in the Comp.
 
 ![Deleting](DocsImages/DeleteToolsPopup.png)
 

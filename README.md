@@ -15,7 +15,7 @@ https://prism-pipeline.com/
 
 - Loader and Saver version management.
 - Rendering through Prism's State Manager.
-- Image loading into Fusion through Prism's Project Browser.
+- Image loading into Fusion through a custom Import State using Prism's State Manager.
 - Multi-layer and Multi-part EXR splitting and sorting.
 - Farm Render submission through Deadline.
 - USD, FBX, and ABC object and scene importing.
@@ -23,7 +23,6 @@ https://prism-pipeline.com/
 - Tested with Fusion Studio versions 18 and 19.
 - Python 3.11 must installed and in the system path for Prism scripting to work with Fusion ([**see Installation**](Docs/Installation.md)).
 - This integration does not work with Resolve Fusion, though it is planned for the future.
-- As of Prism version 2.0.12, the automatic Media Conversion is not able to function.  This is working as of Prism 2.0.13.
 - To aid is use, tooltips are provided throughout.
 
 <br/>

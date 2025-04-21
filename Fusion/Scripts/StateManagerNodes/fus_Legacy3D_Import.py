@@ -57,6 +57,20 @@ current_dir = os.path.dirname(os.path.abspath(__file__))
 scripts_dir = os.path.dirname(current_dir)  # Scripts directory
 sys.path.append(scripts_dir)
 
+import Libs.Prism_Fusion_lib_Fus as Fus
+import Libs.Prism_Fusion_lib_Helper as Helper
+
+from typing import TYPE_CHECKING, Union, Dict, Any, Tuple
+if TYPE_CHECKING:
+    pass
+else:
+    Tool_ = Any
+    Composition_ = Any
+    FlowView_ = Any
+
+scriptDir = os.path.dirname(os.path.dirname(__file__))
+STATE_ICON = os.path.join(scriptDir, "Icons", "Scene.png")
+
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
@@ -313,7 +327,10 @@ class Legacy3D_ImportClass(object):
         except Exception as e:
             name = text
 
+        #   Set the name for the State list
         self.state.setText(0, name)
+        #   Add icon to State name
+        self.state.setIcon(0, QIcon(STATE_ICON))
 
         self.stateManager.saveImports()
         self.stateManager.saveStatesToScene()
@@ -436,7 +453,7 @@ class Legacy3D_ImportClass(object):
     def importObject(self, update=False, path=None, settings=None):
 
         if not update:
-            self.stateUID = self.fuseFuncts.createUUID()
+            self.stateUID = Helper.createUUID()
 
         result = True
         if self.stateManager.standalone:

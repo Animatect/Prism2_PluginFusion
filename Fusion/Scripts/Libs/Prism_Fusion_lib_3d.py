@@ -50,14 +50,14 @@
 ##  THIS IS A LIBRARY FOR 3D FUNCTIONS FOR THE FUSION PRISM PLUGIN  ##
 	
 import pyautogui
-import pyperclip
 import time
-import os
 import tkinter as tk
 import logging
+# import os
+# import pyperclip
 
-from . import Prism_Fusion_lib_CompDb as CompDb
-from . import Prism_Fusion_lib_Fus as Fus
+import Libs.Prism_Fusion_lib_Fus as Fus
+import Libs.Prism_Fusion_lib_Helper as Helper
 
 from PrismUtils.Decorators import err_catcher as err_catcher
 
@@ -83,7 +83,7 @@ def createUsdScene(plugin, origin, UUID):
     flow = comp.CurrentFrame.FlowView
 
     #	Get uLoader node
-    usdTool = plugin.getNodeByUID(UUID)
+    usdTool = Fus.getToolByUID(comp, UUID)
 
     # Add uMerge and uRender nodes
     uMerge = comp.AddTool("uMerge")
@@ -108,7 +108,7 @@ def create3dScene(plugin, origin, UUID):
 
 
     #	Get uLoader node
-    fbxTool = plugin.getNodeByUID(UUID)
+    fbxTool = Fus.getToolByUID(comp, UUID)
 
     # Add uMerge and uRender nodes
     merge3d = comp.AddTool("Merge3D")
@@ -135,16 +135,17 @@ abc_options = {
     "Meshes": True,
     "UVs": True,
     "Cameras": True,
-    "InvCameras": True
+    "InvCameras": True,
     # "SamplingRate": 24
 }
 
 
-def focusFusionDialog(fusion:Fusion_, msg:str)->int:
+def focusFusionDialog(fusion:Fusion_, msg:str, importFPS:float=24.0)->int:
     ui = fusion.UIManager
     disp = bmd.UIDispatcher(ui)
 
     spinner_value = 0  # Variable to store the spinner value
+    samplingrate_value = 0
 
     tkinter = tk.Tk()
     screen_width = tkinter.winfo_screenwidth()
@@ -157,7 +158,7 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
     dlg = disp.AddWindow({
         'WindowTitle': 'Legacy 3D Focus Window', 
         'ID': 'Legacy3DWin', 
-        'Geometry': [center_x-(width*0.5), center_y, width, 170], 
+        'Geometry': [center_x-(width*0.5), center_y, width, 180], 
         'Spacing': 0,},[
         
         ui.VGroup({
@@ -179,9 +180,16 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
                 ui.VGroup({},[
                     ui.HGroup({'Spacing': 5}, [
                             ui.Label({
+                                'Text': 'SamplingRate: ',
+                                'ToolTip': 'The FPS rate the Alembic should be sampled to.'}),
+                            ui.DoubleSpinBox({'ID': 'SRSpinner', 'Value': importFPS, 'Minimum': 0.0, 'Maximum': 1000.0, 'SingleStep': 0.1, 'FixedSize': [50, 20],}),
+                            ui.Label({'Text': 'secs'}),
+                        ]),
+                    ui.HGroup({'Spacing': 5}, [
+                            ui.Label({
                                 'Text': 'Timeout: ',
                                 'ToolTip': 'The amount of time in seconds the import should wait before failing.'}),
-                            ui.SpinBox({'ID': 'Spinner', 'Value': 60, 'Minimum': 0, 'Maximum': 60,'FixedSize': [50, 20],}),
+                            ui.SpinBox({'ID': 'Spinner', 'Value': 60, 'Minimum': 0, 'Maximum': 600,'FixedSize': [50, 20],}),
                             ui.Label({'Text': 'secs'}),
                         ]),
                     ui.Button({
@@ -200,6 +208,7 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
     # The window was closed
     def _func(ev):
         nonlocal spinner_value
+        nonlocal samplingrate_value
         spinner_value = -1
         disp.ExitLoop()
     dlg.On.Legacy3DWin.Close = _func
@@ -207,7 +216,9 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
     # Add your GUI element based event functions here:
     def _func(ev):
         nonlocal spinner_value
+        nonlocal samplingrate_value
         spinner_value = itm['Spinner'].Value  # Retrieve the spinner value
+        samplingrate_value = itm['SRSpinner'].Value  # Retrieve the spinner value
         disp.ExitLoop()
     dlg.On.B.Clicked = _func
 
@@ -215,7 +226,7 @@ def focusFusionDialog(fusion:Fusion_, msg:str)->int:
     disp.RunLoop()
     dlg.Hide()
 
-    return spinner_value
+    return spinner_value, samplingrate_value
 
 
 def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str, timeoutsecs:int):
@@ -244,9 +255,19 @@ def doUiImport(fusion:Fusion_, formatCall:str, interval:float, filepath:str, tim
 
 def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str, filepath:str, global_scale:float, options:dict = None, interval:float = 0.5):
     origin.stateManager.showMinimized()
+    versionInfoPath = origin.core.getVersioninfoPath(
+        origin.core.products.getVersionInfoPathFromProductFilepath(filepath)
+    )
+    impFPS = origin.core.getConfig("fps", configPath=versionInfoPath)
+    print("impFPS: ", impFPS)
     comp:Composition_ = fusion.GetCurrentComp()
     flow:FlowView_ = comp.CurrentFrame.FlowView
     flow.Select(None)
+
+    #Warning
+    fString = "Importing this 3Dformat requires UI automation.\n\nPLEASE DO NOT USE THE MOUSE AFTER CLOSING THIS DIALOG UNTIL IMPORT IS DONE"
+    #   Create a dialog to focus the fusion window and retrieves info from it.
+    timeoutSecs, samplingrateValue = focusFusionDialog(fusion, fString, importFPS=impFPS)
 
     #Set preferences for the alembic import dialog
     if formatCall == "AbcImport" and isinstance(options, dict):
@@ -257,12 +278,12 @@ def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str
                 new[key] = value
             else:
                 print("Invalid option %s:" % key)
+            
+            new["SamplingRate"] = samplingrateValue
+
         fusion.SetPrefs("Global.Alembic.Import", new)
     
-    #Warning
-    fString = "Importing this 3Dformat requires UI automation.\n\nPLEASE DO NOT USE THE MOUSE AFTER CLOSING THIS DIALOG UNTIL IMPORT IS DONE"
-    #   Create a dialog to focus the fusion window and retrieves info from it.
-    timeoutSecs:int = focusFusionDialog(fusion, fString)
+    
     imported:bool = False
 
     if timeoutSecs > 0:
@@ -299,7 +320,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     isUpdate:bool = False
     positionedNodes:list[str] = []
     unsuccesfulConnections:list[str] = []
-    aggregateData = CompDb.loadPrismFileDb(comp)
+    # aggregateData = CompDb.loadPrismFileDb(comp)
 
     product = toolData["product"]
     version = toolData["version"]
@@ -342,7 +363,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
         for tool in impnodes:
             thisToolData:dict = toolData.copy()
             # Give a UUID to every imported node 
-            toolUID = CompDb.createUUID()
+            toolUID = Helper.createUUID()
             if tool.GetData("Prism_UUID"):
                 toolUID = tool.GetData("Prism_UUID")
             else:
@@ -350,7 +371,6 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
             thisToolData["nodeName"] = tool.Name
             thisToolData["toolOrigName"] = tool.Name
             thisToolData["toolUID"] = toolUID
-            thisToolData["nodeUID"] = toolUID
             thisToolData["stateUID"] = stateUUID
             thisToolData["tooltype"] = tool.GetAttrs('TOOLS_RegID')
             thisToolData["entryNode"] = {firstnode.Name : firstnode.GetData("Prism_UUID")}
@@ -360,7 +380,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 connectedNodesDict:dict= {}
                 for t in inputTools:
                     # print(f"Connected node name: {t.GetAttrs('TOOLS_Name')}")
-                    tUID = CompDb.createUUID()
+                    tUID = Helper.createUUID()
                     if t.GetData("Prism_UUID"):
                         tUID = t.GetData("Prism_UUID")
                     else:
@@ -370,7 +390,6 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 
                 thisToolData["connectedNodes"] = connectedNodesDict
             Fus.addToolData(tool, thisToolData)
-            CompDb.addNodeToDB(comp, "import3d", toolUID, thisToolData, saveDB=False, aggregateData=aggregateData)
             if not tool.Name in positionedNodes:
                 x,y  = flow.GetPosTable(tool).values()
                 newx = x+(atx-fstnx)
@@ -378,24 +397,12 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 flow.SetPos(tool, newx-1, newy)
 
     ##########
-    # importedNodes = []
-    # for i in newNodes:
-    #     #   Append sufix to objNames to identify product with unique Name
-    #     node:Tool_ = getObject(comp, i)
-    #     newName:str =  node.GetAttrs("TOOLS_Name") # applyProductSufix(i, origin)
-    #     # node.SetAttrs({"TOOLS_Name":newName, "TOOLB_NameSet": True})
-    #     importedNodes.append(getNode(newName))
-    
-    # add a suffix the name to make sure we don't deduplicate a name on the update by modifying its name making finding matching tools impossible.
-
-    CompDb.savePrismFileDb(comp, aggregateData)
-    
+   
     for t in importedTools:
         newName:str =  f"{t.GetAttrs('TOOLS_Name')}_{toolData.get('product')}_{version}"
         t.SetAttrs({'TOOLS_Name' : newName})
 
     origin.setName = "Import_" + toolData.get("product")
-    # origin.nodes = importedNodes
     
     # Re-center view on the creation coordinates.
     flow.GoToBookmark('3dImportBM')
@@ -407,15 +414,13 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
     #   Deselect All
     flow.Select()
 
-    # Reselect based on the database.
+    # Reselect.
     objs:list[Tool_] = []
-    cpData = aggregateData#CompDb.loadPrismFileDb(comp)
-    for nodeuid in cpData["nodes"]["import3d"]:
-        nodeData:dict = cpData["nodes"]["import3d"][nodeuid]
-        nodeStateUID:str|None = nodeData.get('stateUID')
-        if nodeStateUID and nodeStateUID == stateUUID:
-            tool:Tool_ = CompDb.getNodeByUID(comp, nodeuid)
-            objs.append(tool)
+
+    #REPLACEMENT UP#
+    stateTools:list[Tool_] = getToolsFromNodeList(comp, getStateNodesList(comp, stateUUID))
+    for tool in stateTools:
+        objs.append(tool)
 
     #   Select nodes in comp
     for o in objs:
@@ -483,51 +488,53 @@ def cleanbeforeImport(origin:Legacy3D_ImportClass, stateUID:str):
 
 
 def deleteTools(comp:Composition_, stateUID:str):
-    aggregateData = CompDb.loadPrismFileDb(comp)
+    # aggregateData = CompDb.loadPrismFileDb(comp)
     stateTools:list[Tool_] = getToolsFromNodeList(comp, getStateNodesList(comp, stateUID))
+    print("stateTools: \n", stateTools)
     for tool in stateTools:
         try:
             tool.Delete()
             if tool.GetData("Prism_UUID"):
-                CompDb.removeNodeFromDB(comp, "import3d", tool.GetData("Prism_UUID"), saveDB=False, aggregateData=aggregateData)
+                pass
+                # CompDb.removeNodeFromDB(comp, "import3d", tool.GetData("Prism_UUID"), saveDB=False, aggregateData=aggregateData)
 
         except:
             logger.debug("Could not delete the tool.")
     
-    CompDb.savePrismFileDb(comp, aggregateData)
 
+# def getNodeStateTypes(comp:Composition_) -> list:
+#     # cpData = CompDb.loadPrismFileDb(comp)
+#     stateTypes:list = []
+#     for n in cpData["nodes"]:
+#         stateTypes.append(n)
 
-def getNodeStateTypes(comp:Composition_) -> list:
-    cpData = CompDb.loadPrismFileDb(comp)
-    stateTypes:list = []
-    for n in cpData["nodes"]:
-        stateTypes.append(n)
-
-    return stateTypes
+#     return stateTypes
 
 
 def getAllNodes(comp:Composition_) -> dict:
-    cpData = CompDb.loadPrismFileDb(comp)
-    stateTypes:list[str] = getNodeStateTypes(comp)
-    nodes:dict = {}
-    for stateType  in stateTypes:
-        stateTypeNodes:dict  = cpData["nodes"][stateType]
-        for item in stateTypeNodes.items():
-            nodes.update({item[0]:item[1]})
-    
+    # cpData = CompDb.loadPrismFileDb(comp)
+    # stateTypes:list[str] = getNodeStateTypes(comp)
+    nodes: dict = {}
+    for l in comp.GetToolList(False).values():
+        uuid = l.GetData("Prism_UUID")
+        tool_data = l.GetData("Prism_ToolData")
+
+        if uuid and isinstance(tool_data, dict) and tool_data.get("stateUID"):
+            nodes[uuid] = l
+
     return nodes
 
 
 def getStateNodesList(comp:Composition_, stuid:str) -> list[str]:
-    allnodes = getAllNodes(comp)
-    
-    # Use a list comprehension with robust key checks
-    nodels:list[str] = [
-        stateuid for stateuid, node_data in allnodes.items()
-        if node_data.get("stateUID") == stuid
-    ]
-    
-    return nodels
+    # Get a list of the state nodes UIDS
+    tools: list[str] = []
+    for l in comp.GetToolList(False).values():
+        uuid = l.GetData("Prism_UUID")
+        tool_data = l.GetData("Prism_ToolData")
+        if uuid and tool_data and tool_data.get("stateUID") == stuid:
+            tools.append(uuid)
+
+    return tools
 
 
 def getStateNodesOrigNameList(comp:Composition_, nodeUIDlist:list[str]) -> list[str]:
@@ -535,9 +542,10 @@ def getStateNodesOrigNameList(comp:Composition_, nodeUIDlist:list[str]) -> list[
     nodeNmLs:list[str] = []
 
     for nodeuid in nodeUIDlist:
-        node:dict = nodes.get(nodeuid)
-        if node:
-            toolorignm:str = node.get("toolOrigName")
+        node:Tool_ = nodes.get(nodeuid)
+        nodeData:dict = node.GetData('Prism_ToolData')
+        if nodeData:
+            toolorignm:str = nodeData.get("toolOrigName")
             if toolorignm:
                 nodeNmLs.append(toolorignm)
     
@@ -546,33 +554,32 @@ def getStateNodesOrigNameList(comp:Composition_, nodeUIDlist:list[str]) -> list[
 
 def getToolsFromNodeList(comp:Composition_, nodeUIDlist:list[str]) -> list[Tool_]:
     nodes:dict = getAllNodes(comp)
+    print("allNOdes: \n", nodes)
     tools:list[Tool_] = []
 
     for nodeuid in nodeUIDlist:
-        if nodes.get(nodeuid):
-            tool = CompDb.getNodeByUID(comp, nodeuid)
-        tools.append(tool)
+        if (tool := nodes.get(nodeuid)):
+            tools.append(tool)
 
     return tools
 
 
 def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID:str, newtools:list[Tool_], sceneTool:Tool_)->tuple[bool, list[str], list[str]]:
     alldbnodes:dict = getAllNodes(comp)
+    print("alldbnodes: ", alldbnodes)
     statenodesuids:list[str] = getStateNodesList(comp, stateUID)
     stateNodesNames:list[str] = getStateNodesOrigNameList(comp, statenodesuids)
     stateTools:list[Tool_] = getToolsFromNodeList(comp, statenodesuids)
     oldSceneTool:Tool_|None = None
     positionednodes:list[str] = []
     unsuccesfulconnections:list[str] = []
-
     if len(stateTools) < 1:
         return False, [], []
+    if (oldSceneTool := alldbnodes.get(stateUID)):
+        pass # using the walrus operator to assign the variable that would have been assigned inside the block
     
-    if alldbnodes.get(stateUID):
-        oldSceneTool = CompDb.getNodeByUID(comp, stateUID)
     else:
         return False, [], []
-    
     # Match new to old tools.
     for newtool in newtools:
         toolType:str  = newtool.GetAttrs("TOOLS_RegID")
@@ -582,15 +589,15 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
         oldtool:Tool_ = None
         if newtool.Name in stateNodesNames:
             for nodeuid in statenodesuids:
-                node:dict = alldbnodes.get(nodeuid)
-                if node:
-                    if newtool.Name == node.get("toolOrigName") and toolType == node.get("tooltype"):
+                node:Tool_ = alldbnodes.get(nodeuid)
+                node_data:dict = node.GetData('Prism_ToolData') if node else None
+                if node_data:
+                    if newtool.Name == node_data.get("toolOrigName") and toolType == node_data.get("tooltype"):
                         for t in stateTools:
                             if t.GetData('Prism_UUID') == nodeuid:
                                 oldtool = t
                                 break
         
-
         # If there is a previous version of the same node.
         if oldtool:
             # check if it has valid inputs that are not part of previous import
@@ -619,7 +626,6 @@ def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID
                             
             Fus.matchToolPos(comp, newtool, oldtool)
             positionednodes.append(newtool.Name)
-        
     # Reconnect the 3D Scene.    
     if sceneTool.GetAttrs("TOOLS_RegID") == "Merge3D":
         if oldSceneTool.GetAttrs("TOOLS_RegID") == "Merge3D":

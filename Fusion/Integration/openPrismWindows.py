@@ -266,6 +266,8 @@ def popupNoButton(
 	msg.setStyleSheet("background-color: #31363b;")
 
 	msg.setModal(False)
+
+	msg.setWindowFlags(msg.windowFlags() | QtCore.Qt.WindowStaysOnTopHint)
 	if show:
 		msg.show()
 		qapp.processEvents()

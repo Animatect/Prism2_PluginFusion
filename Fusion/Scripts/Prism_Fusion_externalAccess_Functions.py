@@ -67,34 +67,28 @@ class Prism_Fusion_externalAccess_Functions(object):
 
 		#	Register callbacks
 		try:
-			self.core.registerCallback(
-				"userSettings_saveSettings",
-				self.userSettings_saveSettings,
-				plugin=self.plugin,
-			)
-			self.core.registerCallback(
-				"userSettings_loadSettings",
-				self.userSettings_loadSettings,
-				plugin=self.plugin,
-			)
-			self.core.registerCallback(
-				"getPresetScenes", 
-				self.getPresetScenes, 
-				plugin=self.plugin
-			)
-			ssheetPath = os.path.join(
-				self.pluginDirectory,
-				"UserInterfaces",
-				"FusionStyleSheet"
-			)
-			self.core.registerCallback(
-				"getIconPathForFileType", self.getIconPathForFileType, plugin=self
-				)
+			callbacks = [
+						("userSettings_saveSettings", self.userSettings_saveSettings),
+						("userSettings_loadSettings", self.userSettings_loadSettings),
+						("getPresetScenes", self.getPresetScenes),
+						("getIconPathForFileType", self.getIconPathForFileType),
+						]
+
+			# Iterate through the list to register callbacks
+			for callback_name, method in callbacks:
+				self.core.registerCallback(callback_name, method, plugin=self.plugin)
+
 			logger.debug("Registered callbacks")
 
 		except Exception as e:
 			logger.warning(f"ERROR: Registering callbacks failed:\n {e}")
 		
+		ssheetPath = os.path.join(
+			self.pluginDirectory,
+			"UserInterfaces",
+			"FusionStyleSheet"
+		)
+
 		self.core.registerStyleSheet(ssheetPath)
 		
 
@@ -105,88 +99,120 @@ class Prism_Fusion_externalAccess_Functions(object):
 		lo_prismFusionOptions = QVBoxLayout()
 		origin.gb_prismFusionOptions.setLayout(lo_prismFusionOptions)
 
-		#	Start mode layout
-		lo_prismStartMode = QHBoxLayout()
-		origin.l_prismStartMode = QLabel("Prism Start Mode:       ")
+
+		####	OPTIONS LAYOUT 1
+		lo_options1 = QHBoxLayout()
+
+		##	Start Mode
+		origin.l_prismStartMode = QLabel("Prism Start Mode:        ")
 		origin.cb_prismStartMode = QComboBox()
-		
-		#	Add options to the combo box
 		origin.cb_prismStartMode.addItems(["automatic", "prompt", "manual"])
 		origin.cb_prismStartMode.setCurrentIndex(1)
-		
-		#	Add label and combo box to the horizontal layout
-		lo_prismStartMode.addWidget(origin.l_prismStartMode)
-		lo_prismStartMode.addWidget(origin.cb_prismStartMode)
-		
-		#	Add spacer on the right side
-		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-		lo_prismStartMode.addItem(spacer)
-		
-		#	Add start layout to the groupbox
-		lo_prismFusionOptions.addLayout(lo_prismStartMode)
-
-		#	Add a small vert spacer between start layout and coloring layout
-		vertSpacer1 = QSpacerItem(20, 2, QSizePolicy.Minimum, QSizePolicy.Fixed)
-		lo_prismFusionOptions.addItem(vertSpacer1)
-
-		# Layout for Task Node Coloring
-		lo_taskColoring = QHBoxLayout()
-		origin.l_taskColoring = QLabel("Task Node Coloring:     ")
-		origin.cb_taskColoring = QComboBox()
-
-		# Task Node Coloring combo box
-		origin.cb_taskColoring.addItems(["Disabled", "All Nodes", "Loader Nodes"])
-		origin.cb_taskColoring.setCurrentIndex(1)
-		lo_taskColoring.addWidget(origin.l_taskColoring)
-		lo_taskColoring.addWidget(origin.cb_taskColoring)
+				
+		## AOV Thumbnails
+		origin.l_useAovThumbs = QLabel("AOV/Channel Thumbnails:       ")
+		origin.cb_useAovThumbs = QComboBox()
+		origin.cb_useAovThumbs.addItems(["All", "Simple", "Disabled"])
+		origin.cb_useAovThumbs.setCurrentIndex(0)  # Default to All
 
 		#	Connect to configure UI funct
-		origin.cb_taskColoring.activated.connect(lambda: self.configureBrightnessUi(origin))
+		origin.cb_useAovThumbs.activated.connect(lambda: self.configAovThumbUi(origin))
 
-		# Spacer
-		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-		lo_taskColoring.addItem(spacer)
+		#	Add Items to Options 1
+		lo_options1.addWidget(origin.l_prismStartMode)
+		lo_options1.addWidget(origin.cb_prismStartMode)
+		spacer1 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		lo_options1.addItem(spacer1)
+		lo_options1.addWidget(origin.l_useAovThumbs)
+		lo_options1.addWidget(origin.cb_useAovThumbs)
+		spacer2 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+		lo_options1.addItem(spacer2)
 
-		# Color Brightness
-		origin.l_colorBrightness = QLabel("Color Brightness:       ")
-		origin.cb_colorBrightness = QComboBox()
 
-		# Add options to the Color Brightness combo box (10% to 100% in 10% increments)
-		brightness_levels = [f"{i}%" for i in range(10, 110, 10)]
-		origin.cb_colorBrightness.addItems(brightness_levels)
-		origin.cb_colorBrightness.setCurrentIndex(4)  # Default to "50%"
-		lo_taskColoring.addWidget(origin.l_colorBrightness)
-		lo_taskColoring.addWidget(origin.cb_colorBrightness)
+		####	OPTIONS LAYOUT 2
+		lo_options2 = QHBoxLayout()
 
-		lo_taskColoring.addWidget(origin.cb_colorBrightness)
+		##	Task Coloring
+		origin.l_taskColoring = QLabel("Task Node Coloring:     ")
+		origin.cb_taskColoring = QComboBox()
+		origin.cb_taskColoring.addItems(["Disabled", "All Nodes", "Loader Nodes"])
+		origin.cb_taskColoring.setCurrentIndex(1)
 
-		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-		lo_taskColoring.addItem(spacer)
+		##	Thumbnail Size
+		origin.l_thumbSize = QLabel("Thumbnails size:       ")
+		origin.cb_thumbSize = QComboBox()
+		origin.cb_thumbSize.addItems(["Small (300 px)", "Medium (600 px)", "Large (900 px)"])
+		origin.cb_thumbSize.setCurrentIndex(1)  # Default to Medium
 
-		# Add task coloring layout to the groupbox
-		lo_prismFusionOptions.addLayout(lo_taskColoring)
-		
-		#	Add a small vert spacer between the combo box layout and checkbox layout
-		vertSpacer2 = QSpacerItem(20, 10, QSizePolicy.Minimum, QSizePolicy.Fixed)
-		lo_prismFusionOptions.addItem(vertSpacer2)
-		
-		#	Create a horz layout for the Dev Menu
-		lo_installDevTools = QHBoxLayout()
-		origin.l_installDevTools = QLabel("Install Prism Developer Menu With Plugin:")
-		origin.chk_installDevTools = QCheckBox()
-		
+		#	Add Items to Options 2
+		lo_options2.addWidget(origin.l_taskColoring)
+		lo_options2.addWidget(origin.cb_taskColoring)
+		spacer3 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		lo_options2.addItem(spacer3)
+		lo_options2.addWidget(origin.l_thumbSize)
+		lo_options2.addWidget(origin.cb_thumbSize)
+		spacer4 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+		lo_options2.addItem(spacer4)
+
+
+		####	OPTIONS 3 LAYOUT
+		lo_options3 = QHBoxLayout()
+
+		#	Sorting/Wireless
+		origin.l_sorting = QLabel("Sorting / Wireless:      ")
+		origin.cb_sorting = QComboBox()
+		origin.cb_sorting.addItems(["Sorting & Wireless", "Sorting Only", "Disabled"])
+		origin.cb_sorting.setCurrentIndex(0)  # Default to All
+
+		#	Version Update Popup
+		origin.l_updatePopup = QLabel("Version Update Popup:           ")
+		origin.cb_updatePopup = QComboBox()
+		origin.cb_updatePopup.addItems(["Enabled", "Disabled"])
+		origin.cb_updatePopup.setCurrentIndex(0)  # Default to Enabled
+
+		#	Add Items to Options 3
+		lo_options3.addWidget(origin.l_sorting)
+		lo_options3.addWidget(origin.cb_sorting)
+		spacer5 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		lo_options3.addItem(spacer5)
+		lo_options3.addWidget(origin.l_updatePopup)
+		lo_options3.addWidget(origin.cb_updatePopup)
+		spacer6 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+		lo_options3.addItem(spacer6)
+
+
+		####	OPTIONS 4 LAYOUT
+		lo_options4 = QHBoxLayout()
+
+		#	Sorting/Wireless
+		origin.l_scanComp = QLabel("Scan Mode:                ")
+		origin.cb_scanComp = QComboBox()
+		origin.cb_scanComp.addItems(["Auto", "Prompt", "Disabled"])
+		origin.cb_scanComp.setCurrentIndex(1)  # Default to Prompt
+
+		#	Add Items to Options 4
+		lo_options4.addWidget(origin.l_scanComp)
+		lo_options4.addWidget(origin.cb_scanComp)
+		spacer7 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
+		lo_options4.addItem(spacer7)
+
+
+		####	Add All the Option Layouts to the Main Options Layout
+		lo_prismFusionOptions.addLayout(lo_options1)
+		lo_prismFusionOptions.addLayout(lo_options2)
+		lo_prismFusionOptions.addLayout(lo_options3)
+		lo_prismFusionOptions.addLayout(lo_options4)
+
+
+		#	Install Dev menu
+		# origin.l_installDevTools = QLabel("Install Prism Developer Menu With Plugin:")
+		# origin.chk_installDevTools = QCheckBox()
 		#	Add label and checkbox to the horz layout
-		lo_installDevTools.addWidget(origin.l_installDevTools)
-		lo_installDevTools.addWidget(origin.chk_installDevTools)
+		# lo_bottomLayout.addWidget(origin.l_installDevTools)
+		# lo_bottomLayout.addWidget(origin.chk_installDevTools)
 
-		#	Add spacer on the right side
-		spacer = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
-		lo_installDevTools.addItem(spacer)
-		
-		#	Add the Dev menu layout to the group box layout
-		lo_prismFusionOptions.addLayout(lo_installDevTools)
-		
-		#	Add the Prism Fusion Options group box to the tab layout
+
+		####	Add the Prism Fusion Options group box to the tab layout
 		tab.layout().addWidget(origin.gb_prismFusionOptions)
 
 	
@@ -205,15 +231,48 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.l_taskColoring.setToolTip(tip)
 		origin.cb_taskColoring.setToolTip(tip)
 
-		tip = "Controls the brightness of the Task color in the Media Tab."
-		origin.l_colorBrightness.setToolTip(tip)
-		origin.cb_colorBrightness.setToolTip(tip)
+		tip = ("Enables image thumbnail display when hovering over AOV/Channels in the list.\n\n"
+		 	   "All:           generates thumbnails for all image types.\n"
+		 	   "                        Having this enabled could slow down performance of creating and\n"
+			   "                        and loading states with large image of video files.\n\n"
+			   "Simple:      does not generate separate thumbnails for multi layer/part EXRs.\n"
+			   "                        This will provide good performance.\n\n"
+			   "Disabled:    will only generate thumbnail for the State.")
+		origin.l_useAovThumbs.setToolTip(tip)
+		origin.cb_useAovThumbs.setToolTip(tip)
 
-		tip = "Install Prism Development menu to Fusion when adding the integration."
-		origin.l_installDevTools.setToolTip(tip)
-		origin.chk_installDevTools.setToolTip(tip)
+		tip = ("Selects the size of the thumbnail tooltip for the AOV images.\n\n"
+		 	   "This will be the thumbnail width in pixels.")
+		origin.l_thumbSize.setToolTip(tip)
+		origin.cb_thumbSize.setToolTip(tip)
 
-	
+		tip = ("Sets the Loader Sorting mode:\n\n"
+		 	   "Sorting & Wireless:   Will add a set of Wireless tools to the Loader and sort all Loaders.\n"
+			   "Sorting Only:             Will only add the Loader and sort all Loaders\n"
+			   "Disabled:                    Sorting will be disabled and the added Loader will be placed\n"
+			   "                                    as per the native Fusion functionality")
+		origin.l_sorting.setToolTip(tip)
+		origin.cb_sorting.setToolTip(tip)
+
+		tip = ("Enables the Image Import Version Update Popup Window.\n"
+		 	   "If enabled, this will show which images (and AOV/Channels) were updated.")
+		origin.l_updatePopup.setToolTip(tip)
+		origin.cb_updatePopup.setToolTip(tip)
+
+
+		tip = ("Enables Scanning of the Comp for Orphaned Prism Loaders,\n"
+		 	   "and allows for an Import State to be Created\n\n"
+		 	   "Auto:      Automatically create ImportImage State for each discovered Prism Loader\n"
+			   "Promt:        Prompt User for each State Creation\n"
+			   "Disabled:     Disabled the Scanning and Auto-creation")
+		origin.l_scanComp.setToolTip(tip)
+		origin.cb_scanComp.setToolTip(tip)
+
+		# tip = "Install Prism Development menu to Fusion when adding the integration."
+		# origin.l_installDevTools.setToolTip(tip)
+		# origin.chk_installDevTools.setToolTip(tip)
+
+
 	@err_catcher(name=__name__)
 	def userSettings_saveSettings(self, origin, settings):
 		try:
@@ -239,7 +298,11 @@ class Prism_Fusion_externalAccess_Functions(object):
 			self.setStartmodeConfig(origin.cb_prismStartMode.currentText())
 
 			settings["Fusion"]["taskColorMode"] = origin.cb_taskColoring.currentText()
-			settings["Fusion"]["colorBrightness"] = origin.cb_colorBrightness.currentText()
+			settings["Fusion"]["useAovThumbs"] = origin.cb_useAovThumbs.currentText()
+			settings["Fusion"]["thumbsSize"] = origin.cb_thumbSize.currentText()
+			settings["Fusion"]["sorting"] = origin.cb_sorting.currentText()
+			settings["Fusion"]["updatePopup"] = origin.cb_updatePopup.currentText()
+			settings["Fusion"]["scanComp"] = origin.cb_scanComp.currentText()
 
 		except Exception as e:
 			logger.warning(f"ERROR: Could not save user settings:\n{e}")
@@ -273,32 +336,73 @@ class Prism_Fusion_externalAccess_Functions(object):
 					idx = origin.cb_prismStartMode.findText(settings["Fusion"]["prismStartMode"])
 					if idx != -1:
 						origin.cb_prismStartMode.setCurrentIndex(idx)
-				#	Defaults to Prompt mode
 				else:
-					origin.cb_prismStartMode.setCurrentIndex(1)
+					origin.cb_prismStartMode.setCurrentIndex(1)	#	Defaults to Prompt mode
 
-				#	Loads Task Coloring if exists
+				#	Loads Task Coloring enabled
 				if "taskColorMode" in settings["Fusion"]:
 					idx = origin.cb_taskColoring.findText(settings["Fusion"]["taskColorMode"])
 					if idx != -1:
 						origin.cb_taskColoring.setCurrentIndex(idx)
-				#	Defaults to Prompt mode
 				else:
-					origin.cb_taskColoring.setCurrentIndex(1)
+					origin.cb_taskColoring.setCurrentIndex(1)	#	Defaults to All tools
 
-				#	Loads Task Coloring brightness if exists
-				if "colorBrightness" in settings["Fusion"]:
-					idx = origin.cb_colorBrightness.findText(settings["Fusion"]["colorBrightness"])
+				#	Enables/Disables AOV Thumbnails
+				if "useAovThumbs" in settings["Fusion"]:
+					idx = origin.cb_useAovThumbs.findText(settings["Fusion"]["useAovThumbs"])
 					if idx != -1:
-						origin.cb_colorBrightness.setCurrentIndex(idx)
-				#	Defaults to Prompt mode
-				else:
-					origin.cb_colorBrightness.setCurrentIndex(4)
+						origin.cb_useAovThumbs.setCurrentIndex(idx)
+					else:
+						origin.cb_useAovThumbs.setCurrentIndex(0)	#	Defaults to Enabled
 
-				self.configureBrightnessUi(origin)
+				#	Sets AOV Thumbnail size
+				if "thumbsSize" in settings["Fusion"]:
+					idx = origin.cb_thumbSize.findText(settings["Fusion"]["thumbsSize"])
+					if idx != -1:
+						origin.cb_thumbSize.setCurrentIndex(idx)
+				else:
+					origin.cb_thumbSize.setCurrentIndex(1)		#	Defaults to Medium
+
+				#	Sets Sorting Mode
+				if "sorting" in settings["Fusion"]:
+					idx = origin.cb_sorting.findText(settings["Fusion"]["sorting"])
+					if idx != -1:
+						origin.cb_sorting.setCurrentIndex(idx)
+				else:
+					origin.cb_sorting.setCurrentIndex(0)		#	Defaults to All
+
+				#	Sets Version Popup Enabled
+				if "updatePopup" in settings["Fusion"]:
+					idx = origin.cb_updatePopup.findText(settings["Fusion"]["updatePopup"])
+					if idx != -1:
+						origin.cb_updatePopup.setCurrentIndex(idx)
+				else:
+					origin.cb_updatePopup.setCurrentIndex(0)		#	Defaults to Enabled
+
+				#	Sets Comp Scan Mode
+				if "scanComp" in settings["Fusion"]:
+					idx = origin.cb_scanComp.findText(settings["Fusion"]["scanComp"])
+					if idx != -1:
+						origin.cb_scanComp.setCurrentIndex(idx)
+				else:
+					origin.cb_scanComp.setCurrentIndex(1)		#	Defaults to Prompt
+
+				self.configAovThumbUi(origin)
 
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to load user settings:\n{e}")
+
+
+	#	Sets up Coloring UI
+	@err_catcher(name=__name__)
+	def configAovThumbUi(self, origin):
+		isEnabled = False
+
+		if origin.cb_useAovThumbs.currentText() != "Disabled":
+			isEnabled = True
+		
+		origin.l_thumbSize.setEnabled(isEnabled)
+		origin.cb_thumbSize.setEnabled(isEnabled)
 
 
 	@err_catcher(name=__name__)
@@ -345,18 +449,6 @@ class Prism_Fusion_externalAccess_Functions(object):
 	@err_catcher(name=__name__)
 	def copySceneFile(self, origin, origFile, targetPath, mode="copy"):
 		pass
-
-
-	#	Sets up Coloring UI
-	@err_catcher(name=__name__)
-	def configureBrightnessUi(self, origin):
-		isEnabled = False
-
-		if origin.cb_taskColoring.currentText() in ["All Nodes", "Loader Nodes"]:
-			isEnabled = True
-		
-		origin.l_colorBrightness.setEnabled(isEnabled)
-		origin.cb_colorBrightness.setEnabled(isEnabled)
 
 
 	# Saves the Start mode to the Scripts config file

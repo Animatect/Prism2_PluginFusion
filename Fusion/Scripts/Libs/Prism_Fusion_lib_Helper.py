@@ -52,8 +52,11 @@
 
 import os
 import re
-from typing import Union, Dict, Any
+from typing import Union, Dict, Tuple, Any
 import logging
+from datetime import datetime
+import uuid
+import hashlib
 
 from PrismUtils.Decorators import err_catcher as err_catcher
 
@@ -66,6 +69,33 @@ UUID = str
 Toolname = str
 
 logger = logging.getLogger(__name__)
+
+
+#	Creates UUID
+
+def createUUID(simple:bool=False, length:int=8) -> str:
+    #	Creates simple Date/Time UID
+    if simple:
+        # Get the current date and time
+        now = datetime.now()
+        # Format as MMDDHHMM
+        uid = now.strftime("%m%d%H%M")
+
+        logger.debug(f"Created Simple UID: {uid}")
+    
+        return uid
+    
+    # Generate a 8 charactor UUID string
+    else:
+        uid = uuid.uuid4()
+        # Create a SHA-256 hash of the UUID
+        hashObject = hashlib.sha256(uid.bytes)
+        # Convert the hash to a hex string and truncate it to the desired length
+        shortUID = hashObject.hexdigest()[:length]
+
+        logger.debug(f"Created UID: {shortUID}")
+
+        return shortUID
 
 
 
@@ -286,8 +316,25 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
     return importData
 
 
-#   Return File data based on desired AOV
+#   Converts Data Stored in the tool to a Prism Context Structure
+def convertToolDataToPrismData(toolData):                               #   TODO - See which items are needed
+    pData = toolData.copy()
 
+    if "mediaId" in toolData:
+        pData["identifier"] = toolData["mediaId"]
+    if "itemType" in toolData:
+        pData["type"] = toolData["itemType"]
+
+    delList = ["nodeName", "stateUID", "toolUID", "aov", "channel", "fuseFormat",
+               "filepath", "frame_start", "frame_end", "listType", "mediaId", "extension", "connectedNodes"]
+
+    for delItem in delList:
+        pData.pop(delItem, None)
+
+    return pData
+
+
+#   Return File data based on desired AOV
 def getFileDataFromAOV(fileList:list, aov:str) -> dict:
     #   If list is one item, jut return the item
     if len(fileList) == 1:
@@ -302,8 +349,60 @@ def getFileDataFromAOV(fileList:list, aov:str) -> dict:
     return None
 
 
-#	Returns an average luminance value
+def compareVersions(origVerRecord:dict, updateVerRecord:dict) -> Tuple[bool, str]:
+    try:
+        #   Get original version
+        origVer_str = origVerRecord["version"]
+        # Convert to Int
+        origVer_match = re.search(r'\d+', origVer_str)
+        origVer_int = int(origVer_match.group()) if origVer_match else 0
 
+        #   Get updated version
+        updateVer_str = updateVerRecord["version"]
+        # Convert to Int
+        updateVer_match = re.search(r'\d+', updateVer_str)
+        updateVer_int = int(updateVer_match.group()) if updateVer_match else 0
+
+        #   Get frame ranges
+        origFrameStart_int = int(origVerRecord['frame_start'])
+        origFrameEnd_int = int(origVerRecord['frame_end'])
+        origFramerange = f"{origFrameStart_int} - {origFrameEnd_int}"
+        updateFramerange = f"{updateVerRecord['frame_start']} - {updateVerRecord['frame_end']}"
+
+        #   Make name for update popup
+        compareName = origVerRecord.get("mediaId")
+        if "aov" in origVerRecord:
+            compareName = compareName + f"_{origVerRecord['aov']}"
+        if "channel" in origVerRecord:
+            compareName = compareName + f"_{origVerRecord['channel']}"
+   
+        ## Compare versions - return a list with two items:
+            #   a bool showing if there was an update
+            #   a message as a list with two items:
+                #   the name of the media being compared
+                #   the result of the comparison
+
+        #   If versions are the same
+        if origVer_int == updateVer_int:
+            
+            #   If frame ranges are the same
+            if origFramerange == updateFramerange:
+                return [False, [f"{compareName}:", "  No Changes"]]
+
+            #   If frame ranges different
+            else:
+                return [True, [f"{compareName}:", f"updated {origVer_str} frameRange ({origFramerange}-{updateFramerange})"]]
+
+        #   Versions are different
+        else:
+            return [True, [f"{compareName}:", f"{origVer_str} ({origFramerange})  -->  {updateVer_str} ({updateFramerange})"]]
+
+    except Exception as e:
+        logger.warning(f"ERROR: Unable to make version update message - {e}")
+        return [False, "ERROR"]
+
+
+#	Returns an average luminance value
 def calculateLuminance(color:dict) -> float:
     try:
         r,g,b = color['R'], color['G'], color['B']

@@ -55,25 +55,21 @@ import re
 import math
 import glob
 import shutil
-# import time
 import logging
-# from datetime import datetime
+import time
+from collections import defaultdict
+
 
 import BlackmagicFusion as bmd
 
-# import inspect
-# print(inspect.getmodule('fusionscript'))
 
 package_path = os.path.join(os.path.dirname(__file__), 'thirdparty')
 sys.path.append(package_path)
-
-# import pygetwindow as gw
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
 from qtpy.QtWidgets import *
 
-# import pyautogui
 import pyperclip
 
 from PrismUtils.Decorators import err_catcher as err_catcher
@@ -88,7 +84,6 @@ from StateManagerNodes.fus_Legacy3D_Import import Legacy3D_ImportClass
 #	Import Prism Fusion Libraries
 import Libs.Prism_Fusion_lib_Helper as Helper
 import Libs.Prism_Fusion_lib_Fus as Fus
-import Libs.Prism_Fusion_lib_CompDb as CompDb
 import Libs.Prism_Fusion_lib_3d as Fus3d
 
 logger = logging.getLogger(__name__)
@@ -103,20 +98,14 @@ class Prism_Fusion_Functions(object):
 		self.comp:Composition_ = None # This comp is used by the stateManager to avoid overriding the state data on wrong comps
 		
 		self.MP_stateManager:StateManager = None # Reference to the stateManager to be used on the monkeypatched functions.
-		self.MP_mediaBrowser:MediaBrowser = None # Reference to the mediaBrowser to be used on the monkeypatched functions.
-		self.MP_mediaPlayer:MediaPlayer = None # Reference to the mediaPlayer to be used on the monkeypatched functions.
-		# self.MP_importState = None # Reference to the importState to be used on the monkeypatched functions.
 
 		self.popup = None # Reference of popUp dialog that shows before opening a window when it takes some time.
-
 		self.listener = None
 		
 		self.saveUI = None
 		self.smUI = None
 		self.pbUI = None
 		self.prefUI = None
-
-		# self.core.sceneOpenChecksEnabled = False		#	TESTING Stops Core automatic Sanity Checks
 
 		#	Register Callbacks
 		try:
@@ -131,9 +120,7 @@ class Prism_Fusion_Functions(object):
 						("onStateManagerClose", self.onStateManagerClose),
 						("onStateManagerShow", self.onStateManagerShow),
 						("onStateCreated", self.onStateCreated),
-						("getIconPathForFileType", self.getIconPathForFileType),
-						("openPBListContextMenu", self.openPBListContextMenu),
-						("onMediaBrowserOpen", self.onMediaBrowserOpen),
+						("getIconPathForFileType", self.getIconPathForFileType)
 				]
 
 			# Iterate through the list to register callbacks
@@ -157,7 +144,7 @@ class Prism_Fusion_Functions(object):
 		# 	".blend": {"exportFunction": self.exportBlend},
 		# }
 
-		#	Format dict to differentiate still/movie types
+		#	Format dict for Fusion naming and to differentiate still/movie types
 		self.outputFormats = [
 			{"extension": ".exr", "fuseName": "OpenEXRFormat", "type": "image"},
 			{"extension": ".dpx", "fuseName": "DPXFormat", "type": "image"},
@@ -198,6 +185,7 @@ class Prism_Fusion_Functions(object):
 			# "BMPFormat": "bmp",             # Windows BMP
 			# "YUVFormat": "yuv",             # YUV
 
+		#	Dict for Fusion tool coloring (colors come from native Fusion)
 		self.fusionToolsColorsDict = {
 			'Clear Color': {'R': 0.000011, 'G': 0.000011, 'B': 0.000011 },
 			'Orange': {'R': 0.9215686274509803, 'G': 0.43137254901960786, 'B': 0.0 },
@@ -258,10 +246,30 @@ class Prism_Fusion_Functions(object):
 			logger.warning("ERROR: Linux is not supported at this time")
 			return False
 		
-		#	Gets task color settings from the DCC settings
+		#	Gets config settings from the DCC settings
 		self.taskColorMode = self.core.getConfig("Fusion", "taskColorMode")
-		self.colorBrightness = self.core.getConfig("Fusion", "colorBrightness")
-		
+		self.useAovThumbs = self.core.getConfig("Fusion", "useAovThumbs")
+		self.sortMode = self.core.getConfig("Fusion", "sorting")
+		self.scanComp = self.core.getConfig("Fusion", "scanComp")
+
+		usePopup = self.core.getConfig("Fusion", "updatePopup")
+		if usePopup == "Enabled":
+			self.useUpdatePopup = True
+		else:
+			self.useUpdatePopup = False
+
+
+		#	Sets the AOV thumb size based off user settings
+		match self.core.getConfig("Fusion", "thumbsSize"):
+			case "Small (300 px)":
+				self.aovThumbWidth = 300
+			case "Medium (600 px)":
+				self.aovThumbWidth = 600
+			case "Large (900 px)":
+				self.aovThumbWidth = 900
+			case _:
+				self.aovThumbWidth = 500
+
 		self.core.setActiveStyleSheet("Fusion")
 		appIcon = QIcon(
 			os.path.join(self.core.prismRoot, "Scripts", "UserInterfacesPrism", "p_tray.png")
@@ -306,11 +314,6 @@ class Prism_Fusion_Functions(object):
 	
 
 	@err_catcher(name=__name__)
-	def createUUID(self, simple=False, length=8):
-		return CompDb.createUUID(simple=False, length=8)
-
-
-	@err_catcher(name=__name__)
 	def getFrameRange(self, origin):
 		curComp = self.getCurrentComp()
 		return Fus.getFrameRange(curComp)
@@ -346,67 +349,10 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def getFusLegalName(self, origName, check=False):
-		return Helper.getFusLegalName(origName, check=check)
-
-
-	@err_catcher(name=__name__)
-	def nodeExists(self, nodeUID):
-		comp = self.getCurrentComp()
-		return CompDb.nodeExists(comp, nodeUID)
-	
-
-	##############TODELETE############
-	@err_catcher(name=__name__)
-	def getNodeName(self, origin:Legacy3D_ImportClass, node:str):
-		if Fus3d.isNodeValid(origin, node):
-			try:
-				return node["name"]
-			except:
-				QMessageBox.warning(
-					self.core.messageParent, "Warning", "Cannot get name from %s" % node
-				)
-				return node
-		else:
-			return "invalid"
-	##############TODELETE############
-
-
-	@err_catcher(name=__name__)
-	def getNodeByUID(self, nodeUID):
-		comp = self.getCurrentComp()
-		return CompDb.getNodeByUID(comp, nodeUID)
-	
-
-	@err_catcher(name=__name__)
-	def getNodeNameByUID(self, nodeUID):
-		comp = self.getCurrentComp()
-		return CompDb.getNodeNameByUID(comp, nodeUID)
-	
-
-	@err_catcher(name=__name__)
-	def getNodeInfo(self, type, nodeUID):
-		comp = self.getCurrentComp()
-		return CompDb.getNodeInfo(comp, type, nodeUID)
-	
-
-	@err_catcher(name=__name__)
-	def isPassThrough(self, nodeUID):
-		comp = self.getCurrentComp()
-		return CompDb.isPassThrough(comp, nodeUID)
-
-
-	@err_catcher(name=__name__)
-	def setPassThrough(self, nodeUID=None, node=None, passThrough=False):
-		comp = self.getCurrentComp()
-		CompDb.setPassThrough(comp, nodeUID=nodeUID, node=node, passThrough=passThrough)
-
-
-	@err_catcher(name=__name__)
 	def setDefaultState(self):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			CompDb.setDefaultState(comp)
+			Fus.setDefaultState(comp)
 
 
 	@err_catcher(name=__name__)
@@ -416,7 +362,7 @@ class Prism_Fusion_Functions(object):
 		# here we just do a check,  by doing that we can check again in another function where we can actually interrupt the process
 		# in the other functions if there is a problem but avoid corrupting the comp's states.
 		if self.sm_checkCorrectComp(comp, displaypopup=False, deleteSM=False):
-			CompDb.sm_saveStates(comp, buf)
+			Fus.sm_saveStates(comp, buf)
 
 
 	@err_catcher(name=__name__)
@@ -425,14 +371,14 @@ class Prism_Fusion_Functions(object):
 		# The comp check for the imports should be done also in the import and delete functions for import states.
 		# here we just do a check, but by doing it there we can actually interrupt the process.
 		if self.sm_checkCorrectComp(comp, displaypopup=False, deleteSM=False):
-			CompDb.sm_saveImports(comp, importPaths)
+			Fus.sm_saveImports(comp, importPaths)
 
 
 	@err_catcher(name=__name__)
 	def sm_readStates(self, origin):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			return CompDb.sm_readStates(comp)
+			return Fus.sm_readStates(comp)
 
 	@err_catcher(name=__name__)
 	def sm_createStatePressed(self, origin, stateType):
@@ -450,7 +396,7 @@ class Prism_Fusion_Functions(object):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
 			#	Sets the states datablock to empty default state
-			CompDb.setDefaultState(comp)
+			Fus.setDefaultState(comp)
 			self.core.popup("All States have been removed.\n"
 							"You may have to remove associated Loaders and Savers\n"
 							"from the comp manually.")
@@ -460,7 +406,7 @@ class Prism_Fusion_Functions(object):
 	def getImportPaths(self, origin):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			return CompDb.getImportPaths(comp)
+			return Fus.getImportPaths(comp)
 
 
 #########################################
@@ -536,6 +482,7 @@ class Prism_Fusion_Functions(object):
 	def sm_getExternalFiles(self, origin):
 		extFiles = []
 		return [extFiles, []]
+
 	
 
 	@err_catcher(name=__name__)
@@ -717,7 +664,7 @@ class Prism_Fusion_Functions(object):
 			if renderedThumbs:
 				renderedThumb = renderedThumbs[0]  # Assuming only one matching file
 				os.rename(renderedThumb, thumbPath)
-				logger.debug(f"Created Thumbnail from: {CompDb.getNodeNameByTool(thumbTool)}")
+				logger.debug(f"Created Thumbnail from: {Fus.getToolName(thumbTool)}")
 			
 		except Exception as e:
 			logger.warning(f"ERROR: Filed to create thumbnail:\n{e}")
@@ -750,16 +697,16 @@ class Prism_Fusion_Functions(object):
 		# saverList = self.getSaverList(comp)
 		saverList = Fus.getAllToolsByType(comp, "Saver")
 		for tool in saverList:
-			toolName = CompDb.getNodeNameByTool(tool)
+			toolName = Fus.getToolName(tool)
 
 			if mode == "save":
 				# Save the current pass-through state
-				origSaverList[toolName] = CompDb.isPassThrough(comp, node=tool)
-				CompDb.setPassThrough(comp, node=tool, passThrough=True)
+				origSaverList[toolName] = Fus.isPassThrough(comp, tool=tool)
+				Fus.setPassThrough(comp, tool=tool, passThrough=True)
 			elif mode == "load":
 				# Restore the original pass-through state
 				if toolName in origSaverList:
-					CompDb.setPassThrough(comp, node=tool, passThrough=origSaverList[toolName])
+					Fus.setPassThrough(comp, tool=tool, passThrough=origSaverList[toolName])
 
 		return origSaverList
 
@@ -774,7 +721,7 @@ class Prism_Fusion_Functions(object):
 
 		# 2. Check for any saver that is not pass-through
 		for tool in comp.GetToolList(False).values():
-			if self.isSaver(tool) and not CompDb.isPassThrough(comp, node=tool):
+			if self.isSaver(tool) and not Fus.isPassThrough(comp, tool=tool):
 				return tool
 
 		# 3. Check for any saver, even if pass-through
@@ -813,39 +760,36 @@ class Prism_Fusion_Functions(object):
 	@err_catcher(name=__name__)
 	def getRendernodeName(self, stateName):
 		legalName = Helper.getFusLegalName(stateName)
-		nodeName = f"PrSAVER_{legalName}"
+		toolName = f"PrSAVER_{legalName}"
 
-		return nodeName
+		return toolName
 	
 	
 	#	Creates Saver with UUID associated with ImageRender state
 	@err_catcher(name=__name__)
-	def createRendernode(self, nodeUID, nodeData):
+	def createRendernode(self, toolUID, toolData):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Create Render Node")
 
-		self.wrapped_createRendernode(nodeUID, nodeData, comp=comp)
+		self.wrapped_createRendernode(toolUID, toolData, comp=comp)
 
 		comp.EndUndo()
 		comp.Unlock()		
 	
 
 	@err_catcher(name=__name__)
-	def wrapped_createRendernode(self, nodeUID, nodeData, comp):
+	def wrapped_createRendernode(self, toolUID, toolData, comp):
 		if not comp:
 			comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			if not CompDb.nodeExists(comp, nodeUID):
+			if not Fus.toolExists(comp, toolUID):
 				#	Get selected Tool
 
 				selTools = Fus.getSelectedTools(comp)
 
 				#	Add Saver to Comp
-				sv = Fus.addTool(comp, "Saver", nodeData)
-
-				#	Add node to Comp Database
-				CompDb.addNodeToDB(comp, "render2d", nodeUID, nodeData)
+				sv = Fus.addTool(comp, "Saver", toolData)
 
 				#	Position Saver
 				if selTools:
@@ -854,100 +798,100 @@ class Prism_Fusion_Functions(object):
 						Fus.setToolPosRelative(comp, sv, selTools[0], 3)
 						# Fus.stackToolsByType(comp, sv)
 					except:
-						logger.debug(f"ERROR: Not able to position {nodeData['nodeName']}")
+						logger.debug(f"ERROR: Not able to position {toolData['toolName']}")
 
 			if sv:
-				logger.debug(f"Saver created for: {nodeData['nodeName']} - {nodeUID}")
+				logger.debug(f"Saver created for: {toolData['toolName']} - {toolData}")
 				return sv
 			else:
-				logger.warning(f"ERROR: Unable to create Saver for {nodeData['nodeName']}")
+				logger.warning(f"ERROR: Unable to create Saver for {toolData['toolName']}")
 				return False
 
 
-	#	Updates Saver node name
+	#	Updates Saver tool name
 	@err_catcher(name=__name__)
-	def updateRendernode(self, nodeUID, nodeData):
+	def updateRendernode(self, toolUID, toolData):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Update Render Node")
 
-		self.wrapped_updateRendernode(nodeUID, nodeData, comp)	
+		self.wrapped_updateRendernode(toolUID, toolData, comp)	
 
 		comp.EndUndo()
 		comp.Unlock()
 
 
 	@err_catcher(name=__name__)
-	def wrapped_updateRendernode(self, nodeUID, nodeData, comp):
+	def wrapped_updateRendernode(self, toolUID, toolData, comp):
 		if self.sm_checkCorrectComp(comp):
-			sv = CompDb.getNodeByUID(comp, nodeUID)
+			sv = Fus.getToolByUID(comp, toolUID)
 
 			if sv:
 				#	Update Saver Info
-				Fus.configureTool(sv, nodeData)
-
-				#	Update Node in Comp Database
-				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
-
-				logger.debug(f"Saver updated: {nodeData['nodeName']}")
+				Fus.configureTool(sv, toolData)
+				logger.debug(f"Saver updated: {toolData['toolName']}")
 			else:
-				logger.warning(f"ERROR: Not able to update: {nodeData['nodeName']}")
+				logger.warning(f"ERROR: Not able to update: {toolData['toolName']}")
 
 			return sv
 		
 
 	#	Configures Saver filepath and image format
 	@err_catcher(name=__name__)
-	def configureRenderNode(self, nodeUID, nodeData):
+	def configureRenderNode(self, toolUID, toolData):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			sv = CompDb.getNodeByUID(comp, nodeUID)
+			sv = Fus.getToolByUID(comp, toolUID)
 			if sv:
 				#	Update Saver
-				Fus.configureTool(sv, nodeData)
-				#	Update Comp Database
-				CompDb.updateNodeInfo(comp, "render2d", nodeUID, nodeData)
+				Fus.configureTool(sv, toolData)
 
 				#	Check if Saver is connected to something
 				if Fus.hasConnectedInput(sv):
-					if "nodeName" in nodeData:
-						logger.debug(f"Configured Saver: {nodeData['nodeName']}")
+					if "toolName" in toolUID:
+						logger.debug(f"Configured Saver: {toolData['toolName']}")
 					else:
-						logger.debug(f"Configured Saver: {nodeUID}")
+						logger.debug(f"Configured Saver: {toolData}")
 
 
 				else:
-					logger.debug(f"ERROR: Render Node is not connected: {nodeUID}")
+					logger.debug(f"ERROR: Render Node is not connected: {toolUID}")
 			else:
-				logger.warning(f"ERROR: Render Node does not exist: {nodeUID}")
+				logger.warning(f"ERROR: Render Node does not exist: {toolUID}")
 
 
 	#	Removes Node from Comp
 	@err_catcher(name=__name__)
-	def deleteNode(self, type, nodeUID, delAction):
+	def deleteNode(self, toolUID, delAction):
 		comp = self.getCurrentComp()
 		if self.sm_checkCorrectComp(comp):
-			if delAction and CompDb.nodeExists(comp, nodeUID):
+			if delAction and Fus.toolExists(comp, toolUID):
 				#	Delete the Tool from the Comp
 				try:
-					tool = CompDb.getNodeByUID(comp, nodeUID)
-					toolName = CompDb.getNodeNameByUID(comp, nodeUID)
+					tool = Fus.getToolByUID(comp, toolUID)
+					toolName = Fus.getToolName(tool)
 
 					tool.Delete()
 					logger.debug(f"Removed tool '{toolName}")
 
 				except:
-					logger.warning(f"ERROR:  Unable to remove tool from Comp: {nodeUID}")
+					logger.warning(f"ERROR:  Unable to remove tool from Comp: {toolUID}")
 
-			#	Remove the Tool from the Comp Database
-			CompDb.removeNodeFromDB(comp, type, nodeUID)
 	
+
 
 	################################################
 	#                                              #
 	#                 STATE MANAGER                #
 	#                                              #
 	################################################
+
+
+	#	Gets called from StateManager to get Import State type							#	NEEDED???
+	# @err_catcher(name=__name__)		
+	# def sm_getImportHandlerType(self, extension):
+	# 	return self.imageImportHandlers.get(extension.lower())
+
 
 	@err_catcher(name=__name__)
 	def sm_export_addObjects(self, origin, objects=None):
@@ -1087,360 +1031,214 @@ class Prism_Fusion_Functions(object):
 	#                                              #
 	################################################
 
+
+	#	TODO  TEMP
+
+	# def makeImportData(self, context, aovDict, sourceData):
+	# 	#	Function to aggregate data into importData
+	# 	return Helper.makeImportData(self, context, aovDict, sourceData)
+
+
+
 	@err_catcher(name=__name__)
-	def importImages(self, mediaBrowser):
+	def imageImport(self, state, importData, sortMode):
 		comp = self.getCurrentComp()
 		comp.Lock()
 		comp.StartUndo("Import Media")
 
-		self.wrapped_ImportImages(mediaBrowser, comp)
+		result = self.wrapped_ImageImport(comp, state, importData, sortMode)
 
 		comp.EndUndo()
 		comp.Unlock()
 
+		return result
 
+
+	#	Receives importData and adds the Loaders to the Comp
 	@err_catcher(name=__name__)
-	def wrapped_ImportImages(self, mediaBrowser, comp):
-		try:
-			#	This is to cover that Prism's MediaBrowser.py call to this importImages passes
-			# 	the mediaPlayer object under the name mediaBrowser 
-			self.MP_mediaPlayer = mediaPlayer = mediaBrowser
-
-			#	Add Patched functions
-			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportSource, self.compGetImportSource, self, force=True)
-			self.core.plugins.monkeyPatch(mediaBrowser.compGetImportPasses, self.compGetImportPasses, self, force=True)
-			logger.debug("Patched functions in 'importImages()'")
-
-		except Exception as e:
-			logger.warning(f"ERROR: Unable to load patched functions:\n{e}")
+	def wrapped_ImageImport(self, comp, state, importData, sortMode):
+		"""
+		Example importData:														#	TODO - Make sure this is correct
+			{		
+			'stateUID': '0b67a0f6',
+			'identifier': 'SingleLyr-MultiAOV',
+			'displayName': 'SingleLyr-MultiAOV',
+			'mediaType': '3drenders',
+			'itemType': 'shot',			(or 'asset')
+			'asset': 'monkey',			(based on 'itemType')
+			'sequence': '010_seq',		(based on 'itemType')
+			'shot': '010_shot',			(based on 'itemType')
+			'locations': {
+						'global': 'N:\\...\\3dRender\\SingleLyr-MultiAOV\\v002'
+						}, 
+			'path': 'N:\\...\\3dRender\\SingleLyr-MultiAOV\\v002\\AO',
+			'extension': '.exr',
+			'version': 'v002',
+			'aovs': ['AO', 'Beauty', 'DiffCol'],
+			'channels': ['RGBA],
+			'files': [
+						{
+							'basefile': 'N:\\...\\3dRender\\SingleLyr-MultiAOV\\v002\\AO\\010_MEDIA-010_MEDIA_SingleLyr-MultiAOV_v002_AO.0001.exr',
+							'identifier': 'SingleLyr-MultiAOV',
+							'aov': 'AO',
+							'channel': 'RGBA',
+							'version': 'v002',
+							'frame_start': 1,
+							'frame_end': 20
+						},
+						{
+							'basefile': 'N:\\...\\3dRender\\SingleLyr-MultiAOV\\v002\\Beauty\\010_MEDIA-010_MEDIA_SingleLyr-MultiAOV_v002_Beauty.0001.exr',
+							'identifier': 'SingleLyr-MultiAOV',
+							'aov': 'Beauty',
+							'channel': 'RGBA',
+							'version': 'v002',
+							'frame_start': 1,
+							'frame_end': 20
+						},
+						{
+							'basefile': 'N:\\...\\3dRender\\SingleLyr-MultiAOV\\v002\\DiffCol\\010_MEDIA-010_MEDIA_SingleLyr-MultiAOV_v002_DiffCol.0001.exr',
+							'identifier': 'SingleLyr-MultiAOV',
+							'aov': 'DiffCol',
+							'channel': 'RGBA',
+							'version': 'v002',
+							'frame_start': 1,
+							'frame_end': 20
+						}
+					]
+			}
 		
-		if not comp:
-			comp = self.getCurrentComp()
-		
-		try:
-			#	Get Identifier Context Data
-			contextRaw = mediaPlayer.getSelectedContexts()
+		"""
 
-			#	Seems sometimes context comes as a list
-			if isinstance(contextRaw, list):
-				context = contextRaw[0] if len(contextRaw) > 0 else None
-			else:
-				context = contextRaw
-
-			#	Get AOV Contexts - empty list if 2drender
-			version = self.core.pb.mediaBrowser.getCurrentVersion()
-			aovDict = self.core.mediaProducts.getAOVsFromVersion(version)
-
-		except Exception as e:
-			self.core.popup(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
-			logger.warning(f"ERROR:  Import Failed - Unable to get image context data:\n{e}.")
-			return
-
-		try:
-			#	Get sourceData based on mediaType - used to get framerange
-			if "aov" in context:
-				sourceData = mediaPlayer.compGetImportPasses()
-			else:
-				sourceData = mediaPlayer.compGetImportSource()
-
-
-		###		TODO	Framerange in sourceData does not seem to update until Prism instance restarts		TODO
-						#	This means the framerange will not update using Update Images
-						#	Needs furter investigation
-
-
-		except Exception as e:
-			self.core.popup(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
-			logger.warning(f"ERROR:  Import Failed - Unable to get image source data:\n{e}.")
-			return
-
-		#	Function to aggregate data into importData
-		importData = Helper.makeImportData(self, context, aovDict, sourceData)
-
-		if not importData:
-			self.core.popup(f"ERROR:  Import Failed - Unable to make import data.")
-			logger.warning(f"ERROR:  Import Failed - Unable to make import data.")
-			return
-
-		#	Get "Sorting" checkbox state	
-		sorting = CompDb.sortingEnabled(comp)
-
-		# Setup Dialog
-		fString = "Please select an import option:"	
-
-		#	Checks for AOVs or Channels
-		hasAovs = bool(importData.get("aov") and len(importData.get("aovs", [])) > 1)
-		hasChannels = bool(importData.get("channel") and len(importData.get("channels", [])) > 1)
-
-		#	Adds buttons
-		if hasAovs:
-			buttons = ["Current AOV", "All AOVs"]
-		else:
-			buttons = ["Import Media"]
-
-		if hasAovs or hasChannels:
-			buttons.append("Update Selected")
-		else:
-			buttons.append("Update Version")
-
-		buttons.append("Cancel")
-			
-		#	Execute question popup
-		importType, checkbox_checked = self.importPopup(fString, buttons=buttons, icon=QMessageBox.NoIcon, checked=sorting)
-
-		#	Save "Sorting" checkbox state
-		if checkbox_checked is not None:
-			CompDb.sortingEnabled(comp, save=True, checked=checkbox_checked)
-
-		#	Call the import with options and passing the data
-		if importType in ["Import Media", "Current AOV", "All AOVs"]:
-
-			#	Get any UIDs for the Identifier
-			uids = CompDb.getUIDsFromImportData(comp, "import2d", importData)
-
-			#	If there are already UIDs in the comp
-			if uids and len(uids) > 0:
-				self.importExisting(comp, uids, importData, importType, checkbox_checked)
-
-			#	Import the image(s)
-			else:
-				self.configureImport(comp, importData, importType, hasAovs, sortnodes=not checkbox_checked)
-
-		#	Update Option
-		elif importType in ["Update Selected", "Update Version"]:
-			#	Call the update
-			self.updateImport(comp, importType, importData)
-
-		#	Cancel Option
-		else:
-			logger.debug("Import Canceled")
-			return
-		
-
-	@err_catcher(name=__name__)
-	def importExisting(self, comp, uids, importData, importType, checkbox_checked):
-		#	Get node info
-		versions = []
-		for uid in uids:
-			tData = CompDb. getNodeInfo(comp, "import2d", uid)
-			identifier = tData["mediaId"]
-			versions.append(tData["version"])
-		
-		#	Takes the brackets out if there is only one item
-		if len(versions) == 1:
-			versions = versions[0]
-
-		#	Popup question
-		fString = (f"There is already ({versions}) of ({identifier}) the Comp:\n\n"
-					"Would you like to:\n" 
-					"       Update the version\n"
-					"           or\n"
-					"       Import this version?")
-		buttons = ["Update", "Import", "Cancel"]
-
-		result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
-
-		#	Re-configure import type for update
-		if result == "Update":
-			if importType == "Import Media":
-				importType = "Update Version"
-			elif importType == "Current AOV":
-				importType = "Update Current"
-			elif importType == "All AOVs":
-				importType = "Update All"
-				
-			#	Call update function
-			self.updateImport(comp, importType, importData)
-
-		#	Import as normal
-		elif result == "Import":
-			self.configureImport(comp, importData, importType, sortnodes=not checkbox_checked)
-
-		else:
-			logger.debug("Import Canceled")
-			return
-		
-		
-	@err_catcher(name=__name__)
-	def configureImport(self, comp, importData, importType, hasAovs, sortnodes=True):
 		flow = comp.CurrentFrame.FlowView
+
+		#	Initilizes the Update Message stuff
+		updated = False
+		updateMsgList = []
+
+		#	Setup Sorting/Wireless modes
+		sortNodes = False
+		addWireless = False
+		if sortMode == "Sorting & Wireless":
+			sortNodes = True
+			addWireless = True
+		elif sortMode == "Sorting Only":
+			sortNodes = True
 
 		refNode = None
 
 		#	Finds the left edge of the flow-nodes
-		if sortnodes:
+		if sortNodes:
 			refNode = Fus.findLeftmostLowerTool(comp, 0.5)
 
-		importList = []
-
 		try:
-			#	For Current AOV
-			if importType == "Current AOV":
-				for importItem in importData["files"]:
-					if importItem["aov"] == importData["aov"]:
-						importList.append(importItem)
-						break
-
-			#	For all AOVs or single item
-			else:
-				for importItem in importData["files"]:
-					importList.append(importItem)
-
-		except Exception as e:
-			self.core.popup(f"ERROR: Unable to generate import item list:\n{e}")
-			logger.warning(f"ERROR: Unable to generate import item list:\n{e}")
-			return
-
-		try:
-			#	For each import item
-			for importItem in importList:
-
+				#	For each import item
+			refX, refY = Fus.getToolPosition(comp, refNode)
+			for importItem in importData["files"]:
 				# Deselect all nodes
 				flow.Select()
 
-				#	Make UUID
-				toolUID = CompDb.createUUID()
-
 				#	Make base dict
 				toolData = {"nodeName": Fus.makeLdrName(importItem, importData),
-							"version": importData["version"],
-							"toolUID": toolUID,
+							"toolUID": importItem["fileUID"],
 							"mediaId": importData["identifier"],
-							"displayName": importData["displayName"],
-							"itemType": importData["itemType"],
-							"mediaType": importData["mediaType"],
 							"aov": importItem.get("aov", ""),
+							"channel": importItem.get("channel", ""),
 							"filepath": importItem["basefile"],
-							"extension": importData["extension"],
 							"fuseFormat": self.getFuseFormat(importData["extension"]),
 							"frame_start": importItem["frame_start"],
 							"frame_end": importItem["frame_end"],
 							"listType": "import2d",
 							}
-				
+					
 				#	Add additional items if they exist
-				for key in ["asset", "sequence", "shot"]:
+				for key in ["displayName", "project_name", "project_path", "hierarchy", "mediaType", "stateUID", "asset",
+							"sequence", "shot", "itemType", "version", "extension", "redirect", "path", "paths", "locations"]:
+					
 					if key in importData:
 						toolData[key] = importData[key]
 
-				try:
-					#	Get channels from image file
-					channels = self.core.media.getLayersFromFile(importItem["basefile"])
-				except:
-					logger.warning("ERROR:  Unable to resolve image file channels")
-					return
+				#	Get any Matching Tools already in the Comp
+				orig_toolUID = Fus.getUIDsFromImportData(comp, importItem, category="import2d", toolType="Loader")
 
-				#	If No channels, Single channel, or if there are multiple AOVs
-				if len(channels) <= 1 or (hasAovs and importType == "All AOVs"):
-					leftmostNode = self.addSingleChannel(comp, toolUID, toolData, refNode, sortnodes)
+				#	Add Loader and configure
+				if len(orig_toolUID) == 0:
+					#	Import the image
+					leftmostNode = self.addImage(comp, toolData, sortNodes, addWireless, refX, refY)
 
-				#	If multiple channels exists display popup to split
+					#	Return if failed
+					if not leftmostNode:
+						logger.warning(f"ERROR:  Unable to import Images:\n{e}")
+						self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
+						return False
+
+				#	Update loader if it already exists in the Comp
 				else:
-					fString = "This EXR seems to have multiple channels or parts:\n\n" + "Do you want to split the EXR into individual nodes?"
-					buttons = ["Yes", "No"]
-					result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
+					updated = True
+					doImport = True
+					orig_toolUID = orig_toolUID[0]
+					updateRes, compareMsg = self.updateImport(comp, orig_toolUID, toolData)
 
-					if result == "Yes":
-						#	Call Multi-channel function for all channels
-						leftmostNode = self.addMultiChannel(comp, toolData, importData, refNode, channels, sortnodes=sortnodes)
+					updateMsgList.append(compareMsg)
 
-					if result == "No":
-						#	Get current viewed channel
-						currChannel = importItem["channel"]
 
-						#	Call Multi-channel function for current channel
-						leftmostNode = self.addMultiChannel(comp, toolData, importData, refNode, channels, currChannel, sortnodes=sortnodes)
-
-			#	Return if failed
-			if not leftmostNode:
-				logger.warning(f"ERROR:  Unable to import Images:\n{e}")
-				self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
-				return False
-			
-			#	Return if Not Sorting
-			if not sortnodes:
+			##########################
+			# SORT ALL PRISM LOADERS #
+			##########################
+					
+			#	If Not Sorting
+			if not sortNodes:
 				logger.debug(f"Imported  {importData['identifier']} without sorting")
-				return
+				result = "Imported Image without Sorting"
+				doImport = True
 
-			#	Sort and Arrange Loaders and Wireless tools
-			self.sortLoaders(comp, leftmostNode)
+			#	If Sorting
+			else:
+				#	Sort and Arrange Loaders and Wireless tools
+				self.sortLoaders(comp, currentStateID=importData["stateUID"])
 
-			logger.debug(f"Imported  and sorted {importData['identifier']}")
+				logger.debug(f"Imported  and sorted {importData['identifier']}")
+				result = "Imported Image without Sorting"
+				doImport = True
+
+			if updated:
+				return {"result": "updated", "updateMsgList": updateMsgList, "doImport": doImport}
+			else:
+				return {"result": result, "doImport": doImport}
 
 		except Exception as e:
 			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 			self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
-			logger.warning(f"ERROR:  Unable to import Images:\n{e}")
 
 
 	@err_catcher(name=__name__)
-	def addSingleChannel(self, comp, toolUID, toolData, refNode, sortnodes=True):
+	def addImage(self, comp, toolData, sortNodes, addWireless, refX=0, refY=0):
 		flow = comp.CurrentFrame.FlowView
-
+		toolUID = toolData["toolUID"]
+		
 		try:
-			#	Get Position of Ref Tool
-			refX, refY = Fus.getToolPosition(comp, refNode)
-
-			#	Add and configure Loader to the left so it will not mess up Flow
-			ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX-10 , yPos=refY-10)
+			if sortNodes:
+				#	Add and configure Loader below so it will not mess up Flow
+				ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX , yPos=refY + 0.5)
+			else:
+				#	Add and configure Loader without positiong
+				ldr = Fus.addTool(comp, "Loader", toolData)
 		
 			if not ldr:
 				self.core.popup(f"ERROR: Unable to add Loader to Comp")
 				return False
 
-			#	Add mode to Comp Database
-			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData)
 		except:
-			logger.warning(f"ERROR: Unable to Import Single Channel")
-			return None
+			logger.warning(f"ERROR: Unable to add Loader to Comp")
+			return False
 
-		#	Deselect all
+		# Deselect all
 		flow.Select()
 
-		#	If sorting is enabled
-		if sortnodes:
-			Fus.setToolToLeft(comp, ldr, refNode)
-			self.createWireless(toolUID)
-			
-		return ldr
-
-
-	@err_catcher(name=__name__)
-	def addMultiChannel(self, comp, toolData, importData, refNode, channels, currChannel=None, sortnodes=True):
-		flow = comp.CurrentFrame.FlowView
-
-		#	Get Position of Ref Tool
-		refX, refY = Fus.getToolPosition(comp, refNode)
-
-		if currChannel:
-			#	If not splitting, use currently viewed channel
-			channelList = [currChannel]
-		else:
-			#	Use all channels
-			channelList = channels
-
-		for channel in channelList:
-			#	Deselect all
-			flow.Select()
-
-			#	Make copy to edit for each channel
-			toolData_copy = toolData.copy()
-
-			toolUID = CompDb.createUUID()
-
-			#	Edit dict copy
-			toolData_copy["toolUID"] = toolUID
-			toolData_copy["channel"] = channel
-			toolData_copy["nodeName"] = Fus.makeLdrName(toolData_copy, importData)
-			
-			#	Add Loader with config data
-			ldr = Fus.addTool(comp, "Loader", toolData_copy, refX-10, refY-10)
-
-			#	Add node to Comp Database
-			CompDb.addNodeToDB(comp, "import2d", toolUID, toolData_copy)
-
+		if toolData["extension"] == ".exr":
 			#	Handle Multi-part .exrs
 			try:
+				channel = toolData["channel"]
+
 				#	Check if the file has parts
 				if ldr.Clip1.OpenEXRFormat.Part:
 					#	Get list of parts in file
@@ -1450,194 +1248,94 @@ class Prism_Fusion_Functions(object):
 						ldr.Clip1.OpenEXRFormat.Part = channel
 			except:
 				logger.warning(f"ERROR: Unable to assign multi-part .exr for ({channel})")
-				continue
 
-			try:
+			try:		
 				#	Get available channels from Loader
 				loaderChannels = Fus.getLoaderChannels(ldr)
 				channelData = Fus.getChannelData(loaderChannels)
 
-			except Exception as e:
-				logger.warning(f"ERROR: Unable to get channels from Loader:\n{e}")
-				return None
-			
-			#	Get the channel list for the channel being processed
-			channelDict = channelData[channel]
+				#	Get the channel list for the channel being processed
+				if len(channelData) > 0:
+					channelDict = channelData[toolData["channel"]]
 
-			# Dictionary to map channel types to attribute names
-			channel_attributes = {
-				'r': 'RedName', 'red': 'RedName',
-				'g': 'GreenName', 'green': 'GreenName',
-				'b': 'BlueName', 'blue': 'BlueName',
-				'a': 'AlphaName', 'alpha': 'AlphaName',
-				'x': 'RedName',
-				'y': 'GreenName',
-				'z': 'BlueName',
-				}
+					# Dictionary to map channel types to attribute names
+					channel_attributes = {
+						'r': 'RedName', 'red': 'RedName',
+						'g': 'GreenName', 'green': 'GreenName',
+						'b': 'BlueName', 'blue': 'BlueName',
+						'a': 'AlphaName', 'alpha': 'AlphaName',
+						'x': 'RedName',
+						'y': 'GreenName',
+						'z': 'BlueName',
+						}
 
-			# Check if contains only a Z-channel (for Depth, Mist, etc)
-			try:
-				z_channel = None
-				for channel_str in channelDict:
-					if re.search(r'\.z$', channel_str.lower()):
-						z_channel = channel_str
-
-				#	Assign the Z-channel to the R, G, B, and Z
-				if z_channel and len(channelDict) == 1:
-					ldr.Clip1.OpenEXRFormat.RedName = z_channel
-					ldr.Clip1.OpenEXRFormat.GreenName = z_channel
-					ldr.Clip1.OpenEXRFormat.BlueName = z_channel
-					ldr.Clip1.OpenEXRFormat.ZName = z_channel
-			except:
-				logger.warning("ERROR: Unable to assign image Z-channel to Loader")
-				return None
-
-			else:
-				try:
-					#	Match the attrs based on the dict			#	TODO make sure this works for all DCC channel types
+					# Check if contains only a Z-channel (for Depth, Mist, etc)
+					z_channel = None
 					for channel_str in channelDict:
-						match = re.search(r'\.([a-z])$', channel_str.lower())
+						if re.search(r'\.z$', channel_str.lower()):
+							z_channel = channel_str
 
-						if match:
-							suffix = match.group(1)
-							attribute = channel_attributes.get(suffix)
+					#	Assign the Z-channel to the R, G, B, and Z
+					if z_channel and len(channelDict) == 1:
+						ldr.Clip1.OpenEXRFormat.RedName = z_channel
+						ldr.Clip1.OpenEXRFormat.GreenName = z_channel
+						ldr.Clip1.OpenEXRFormat.BlueName = z_channel
+						ldr.Clip1.OpenEXRFormat.ZName = z_channel
 
-							#	Configure Loader channels based on dict
-							if attribute:
-								setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
-				except:
-					logger.warning("ERROR: Unable to assign image channels to Loader")
-					return None
+					else:
+						#	Match the attrs based on the dict
+						for channel_str in channelDict:
+							match = re.search(r'\.([a-z])$', channel_str.lower())
 
-			#	Deselect all
-			flow.Select()
+							if match:
+								suffix = match.group(1)
+								attribute = channel_attributes.get(suffix)
 
-			#	If sorting is enabled
-			if sortnodes:
-				Fus.setToolToLeft(comp, ldr, refNode)
-				self.createWireless(toolUID)
+								#	Configure Loader channels based on dict
+								if attribute:
+									setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
+			except:
+				logger.warning("ERROR: Unable to assign image channels to Loader")
+				return False
 
+		#	If Add Wireless is enabled
+		if addWireless:
+			self.createWireless(toolUID)
+			
 		return ldr
 			
 
 	@err_catcher(name=__name__)
-	def updateImport(self, comp, importType, importData):
-		#	Just pass the import list as it should just be one file
-		if importType == "Update Version":
-			selUIDs = CompDb.getUIDsFromImportData(comp, "import2d", importData)
-
-		#	Handle selected updates
-		elif importType == "Update Selected":
-			#	Get selected Loaders
-			selTools = Fus.getSelectedTools(comp, "Loader")
-			
-			if len(selTools) < 1:
-				logger.debug("No Loaders selected in the Comp")
-				self.core.popup("No Loaders selected in the Comp")
-				return
-						
-			#	Convert selected Tools list to UUID's
-			selUIDs_all = []
-			for tool in selTools:
-				selUIDs_all.append(CompDb.getNodeUidFromTool(tool))
-
-			#	Get selected Media Identifier
-			selMediaId = importData["identifier"]
-			selUIDs = []
-			#	Iterate through UIDS and match only ones for Media ID
-			for uid in selUIDs_all:
-				tdata = CompDb.getNodeInfo(comp, "import2d", uid)
-				if tdata["mediaId"] == selMediaId:
-					selUIDs.append(uid)
-
-		#	Update all MediaId Loaders (from Import button)
-		elif importType == "Update All":
-			#	Remove keys to force all Loaders
-			if "aov" in importData:
-				del importData["aov"]
-			if "channel" in importData:
-				del importData["channel"]
-			
-			selUIDs = CompDb.getUIDsFromImportData(comp, "import2d", importData)
-
-		#	Update the current AOV/pass (from Import button)
-		elif importType == "Update Current":
-			selUIDs = CompDb.getUIDsFromImportData(comp, "import2d", importData)
-
-		#	Get file list from importData
-		fileList = importData["files"]
-
-		#	If there are no nodes for the Media ID in the comp
-		if not selUIDs or len(selUIDs) < 1:
-			logger.warning(f"ERROR: There are no Loaders for ({importData['identifier']}) in the Comp")
-			self.core.popup(f"There are no Loaders for ({importData['identifier']}) in the Comp")
-			return False
+	def updateImport(self, comp, orig_toolUID, toolData):
+		#	Get original node data from database
+		origTool = Fus.getToolByUID(comp, orig_toolUID)
+		origToolData = Fus.getToolData(origTool)
 		
-		updateMsgList = []
-	
-		#	Iterate through update items
-		for uid in selUIDs:
-			try:
-				#	Get original node data from database
-				origNodeData = CompDb.getNodeInfo(comp, "import2d", uid)
+		#	Make copy of original data
+		updateData = origToolData.copy()
 
-				#	Get matching file data from file list based on AOV
-				updateFileData = Helper.getFileDataFromAOV(fileList, origNodeData["aov"])
+		#	Update data with new values
+		updateData["version"] = toolData["version"]
+		updateData["filepath"] = toolData["filepath"]
+		updateData["frame_start"] = toolData["frame_start"]
+		updateData["frame_end"] = toolData["frame_end"]
+		updateData["nodeName"] = Fus.makeLdrName(updateData, toolData)
 
-				#	Skip to next item if no result
-				if not updateFileData:
-					continue
-				
-				#	Make copy of original data
-				updateData = origNodeData.copy()
-				#	Update data with new values
-				updateData["version"] = updateFileData["version"]
-				updateData["filepath"] = updateFileData["basefile"]
-				updateData["frame_start"] = updateFileData["frame_start"]
-				updateData["frame_end"] = updateFileData["frame_end"]
+		#	Get original Loader
+		ldr = Fus.getToolByUID(comp, orig_toolUID)
+		#	Update Loader config
+		Fus.configureTool(ldr, updateData)
 
-				#	Compare versions and get result and result string
-				compareRes, compareMsg = CompDb.compareVersions(origNodeData, updateData)
+		#	Get version compare message
+		compareRes, compareMsg = Helper.compareVersions(origToolData, toolData)
 
-				#	Add message to message list
-				updateMsgList.append(compareMsg)
-
-				#	If there was a match to the database
-				if compareRes:
-					#	Make dict
-					toolData = {"nodeName": Fus.makeLdrName(updateData, importData),
-								"version": updateData["version"],
-								"filepath": updateData["filepath"],
-								"frame_start": updateData["frame_start"],
-								"frame_end": updateData["frame_end"]
-								}
-
-					#	Get original Loader
-					ldr = CompDb.getNodeByUID(comp, uid)
-					#	Update Loader config
-					Fus.configureTool(ldr, toolData)
-					#	Update Database record
-					CompDb.updateNodeInfo(comp, "import2d", uid, toolData)
-					
-			except Exception as e:
-				logger.warning(f"ERROR: Unable to update {importData['identifier']}")
-				return
-
-		#	Show update feedback
-		if len(updateMsgList) == 0:
-			formattedMsg = [["", f"No Selected Loaders for '{importData['identifier']}'"]]
-		else:
-			#	Sort message items
-			formattedMsg = sorted(updateMsgList)
-
-		#	Show popup
-		self.updateMsgPopup(formattedMsg)
+		return compareRes, compareMsg
 
 
 	#	Creates and adds a Wireless set to the Loader
 	#	This uses an AutoDomain tool for the "IN", and the Wireless for the "OUT"
 	@err_catcher(name=__name__)
-	def createWireless(self, nodeUID):							#	TODO  Look into adding wireless with "addTool"
+	def createWireless(self, toolUID):							#	TODO  Look into adding wireless with "addTool"
 		wirelessCopy = """{
 	Tools = ordered() {
 		neverreferencednameonwirelesslink = Fuse.Wireless {
@@ -1663,10 +1361,11 @@ class Prism_Fusion_Functions(object):
 		flow = comp.CurrentFrame.FlowView
 
 		#	Get Loader tool
-		ldr = CompDb.getNodeByUID(comp, nodeUID)
+		ldr = Fus.getToolByUID(comp, toolUID)
 
 		#	Get Loader data
-		ldrData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
+		ldrData = Fus.getToolData(ldr)
+
 		#	Make base name
 		baseName = Fus.makeWirelessName(ldrData)
 		
@@ -1677,9 +1376,11 @@ class Prism_Fusion_Functions(object):
 
 			#	Sets Wireless tools names
 			wireless_IN = comp.FindTool("neverreferencednameonautodomain")
-			wireless_IN.SetAttrs({'TOOLS_Name': baseName + '_IN'})
+			wireless_IN_name = baseName + '_IN'
+			wireless_IN.SetAttrs({'TOOLS_Name': wireless_IN_name})
 			wireless_OUT = comp.FindTool("neverreferencednameonwirelesslink")
-			wireless_OUT.SetAttrs({'TOOLS_Name': baseName + '_OUT'})
+			wireless_OUT_name = baseName + '_OUT'
+			wireless_OUT.SetAttrs({'TOOLS_Name': wireless_OUT_name})
 
 			#	Temporarily Set Positions of Tools
 			Fus.setToolPosRelative(comp, wireless_IN, ldr, 1.5)
@@ -1689,20 +1390,44 @@ class Prism_Fusion_Functions(object):
 			# wireless_IN.ConnectInput('Input', ldr)
 			Fus.connectTools(ldr, wireless_IN)
 
-			#	Set UUID's to Wireless Nodes
-			wirelessInUID = CompDb.createUUID()
-			wireless_IN.SetData('Prism_UUID', wirelessInUID)
-			wirelessOutUID = CompDb.createUUID()
-			wireless_OUT.SetData('Prism_UUID', wirelessOutUID)
+			#	Get Loader's Original Data
+			lData = Fus.getToolData(ldr)
 
-			#	Add Wireless Nodes to Comp Database
-			nodeData = CompDb.getNodeInfo(comp, "import2d", nodeUID)
+			#	List of Keys that are not needed in the Wireless Tools
+			keysToDelete = ["nodeName",
+							"version",
+							"filepath",
+							"extension",
+							"fuseFormat",
+							"frame_start",
+							"frame_end",
+							"connectedNodes"]
+			
+			#	Make Generic Wireless Data using Loader Data deleting the keys
+			wData = {key: value for key, value in lData.items() if key not in keysToDelete}
 
-			nodeData["connectedNodes"] = {"wireless_IN": wirelessInUID,
-								 		  "wireless_OUT": wirelessOutUID}
+			#	Make Wireless_In data
+			w_inData = wData.copy()
+			#	Make Wireless_In UID and add to its Data
+			wirelessInUID = Helper.createUUID()
+			w_inData["toolUID"] = wirelessInUID
+			w_inData["nodeName"] = wireless_IN_name
+			#	Add Data to the Database
+			Fus.configureTool(wireless_IN, w_inData)
 
-			Fus.configureTool(ldr, nodeData)
-			CompDb.updateNodeInfo(comp, "import2d", nodeUID, nodeData)
+			#	Make Wireless_Out data
+			w_outData = wData.copy()
+			#	Make Wireless_Out UID and add to its Data
+			wirelessOutUID = Helper.createUUID()
+			w_outData["toolUID"] = wirelessOutUID
+			w_outData["nodeName"] = wireless_OUT_name
+			#	Add Data to the Database
+			Fus.configureTool(wireless_OUT, w_outData)
+
+			#	Add Wireless Nodes to Loader's Data
+			lData["connectedNodes"] = {"wireless_IN": wirelessInUID,
+											"wireless_OUT": wirelessOutUID}
+			Fus.configureTool(ldr, lData)
 
 			#	Select the wireless out
 			flow.Select()
@@ -1714,47 +1439,104 @@ class Prism_Fusion_Functions(object):
 			logger.warning(f"ERROR:  Could not add wireless nodes:\n{e}")
 
 
+	@err_catcher(name=__name__)
+	def get_all_items(self, tree_widget):
+		def recurse_items(parent):
+			items = []
+			for i in range(parent.childCount()):
+				child = parent.child(i)
+				items.append(child)
+				items.extend(recurse_items(child))
+			return items
+
+		all_items = []
+		for i in range(tree_widget.topLevelItemCount()):
+			top_item = tree_widget.topLevelItem(i)
+			all_items.append(top_item)
+			all_items.extend(recurse_items(top_item))
+		return all_items
+
+
+	@err_catcher(name=__name__)
+	def getImageStatesIDs(self)->list:
+		sm = self.MP_stateManager
+		items = self.get_all_items(sm.tw_import)
+		imageImports:list = []
+		for item in items:
+			if item.ui.className == "Image_Import":
+				props = item.ui.getStateProps()
+				taskName = props["displayName"]
+				stateUID = item.ui.stateUID
+				imageImports.append(stateUID)
+		return imageImports
+	
+
+	@err_catcher(name=__name__)
+	def selectAllStateLoaders(self):
+		#   Get Fusion objects
+		comp = self.getCurrentComp()
+		flow = comp.CurrentFrame.FlowView
+		#	All State iDs
+		imagestateuids:list = self.getImageStatesIDs()
+		allstatetools:list = []
+		#   All State Tool UIDS
+		for stateUID in imagestateuids:
+			stateTools = Fus.getToolsFromStateUIDs(comp, stateUID)
+			allstatetools += stateTools
+
+		#   Select each Tool
+		flow.Select()
+		for tool in allstatetools:
+			flow.Select(tool)
+
+
 	#	Sort and arrange all Prism Loaders 
 	@err_catcher(name=__name__)
-	def sortLoaders(self, comp, posRefNode, offset=1.5, flowThresh=100, toolThresh=3, horzGap=1.1, vertGap=1):
+	def sortLoaders(self, comp, currentStateID=None, getfeedback:bool=False, offset=1.5, flowThresh=100, toolThresh=3, horzGap=1.1, vertGap=1):
 		flow = comp.CurrentFrame.FlowView
+
+		posRefNode = Fus.findLeftmostUpperTool(comp, toolType="Loader")
+		if not posRefNode:
+			return self.core.popup("Nothing to Sort", severity="info")
+		
+		stateuids:list = self.getImageStatesIDs()
+		# In case the state object has not been created and can't be listed or queried.
+		if currentStateID and not currentStateID in stateuids:
+			stateuids.append(currentStateID)
 
 		#   Get the left-most and bottom-most Loader within a threshold.
 		leftmostpos, bottommostpos = Fus.getToolPosition(comp, posRefNode)
 
 		#   We get only the loaders within a threshold from the leftmost and who were created by prism.
 		try:
+			start=time.time()
 			loaders = [l for l in comp.GetToolList(False, "Loader").values()
 					if (
 						abs(Fus.getToolPosition(comp, l)[0] - leftmostpos) <= flowThresh
 						and l.GetData("Prism_UUID")
 						and l.GetData('Prism_ToolData')
+						and l.GetData('Prism_ToolData').get("stateUID") in stateuids
 						)
 						]
-			
+			# We sort top to bottom to get the topmost position among these
 			loaderstop2bot = sorted(loaders, key=lambda ld: Fus.getToolPosition(comp, ld)[1])
 			
 		except:
 			logger.warning("ERROR: Cannot sort loaders - unable to resolve threshold in the flow")
 			return
 
-		#	Gets list of all Media Identifiers in the Comp Database
-		mediaIDs = CompDb.getMediaIDsForType(comp, "import2d")
+		# Create a mapping for UID priority
+		uid_index = {uid: index for index, uid in enumerate(stateuids)}
 
-		sortedloaders = []
-		for mediaId in mediaIDs:
-
-			lyloaders = [l for l in loaders if l.GetData("Prism_ToolData") and l.GetData("Prism_ToolData").get("mediaId") == mediaId]
-
-			sorted_loader_names = sorted(lyloaders, key=lambda ld: ld.Name.lower())
-			sortedloaders += sorted_loader_names
-			
+		# Sort first by UID block using the index on the sorted function, then by name
+		# Sort primarily by the UID order (using its numeric rank from uid_index) If multiple entries share the same UID, sort alphabetically by name
+		sortedloaders = sorted(loaders, key=lambda ld: (uid_index[ld.GetData("Prism_ToolData").get("stateUID")], ld.Name.lower()))
+					
 		# if refNode is not part of nodes to sort we move the nodes down so they don't overlap it.
 		refInNodes = any(ldr.Name == posRefNode.Name for ldr in sortedloaders)
 
 		if len(sortedloaders) < 1:
 			return
-		
 		# To check if a node is in a layer or if we've switched layers, we first store a refernce layer
 		# update it and compare it in each iteration.
 		lastLoaderLyr = sortedloaders[0].GetData("Prism_ToolData").get("mediaId")
@@ -1769,70 +1551,144 @@ class Prism_Fusion_Functions(object):
 			for ldr in sortedloaders:
 				#   Get Loader data
 				ldrData = Fus.getToolData(ldr)
-				connectedTools = ldrData["connectedNodes"]
 				lyrNm = ldrData['mediaId']
 
-				# We reconnect to solve an issue that creates "Ghost" connections until comp is reopened.
-				inNode =  CompDb.getNodeByUID(comp, connectedTools["wireless_IN"])
-				outNode = CompDb.getNodeByUID(comp, connectedTools["wireless_OUT"])
+				#	Gets the connected tools if any
+				connectedTools = ldrData.get("connectedNodes", None)
 
-				#	Get input object connected Loader
+				if connectedTools:
+					# Gets the wireless nodes if available
+					inNode = Fus.getToolByUID(comp, connectedTools.get("wireless_IN"))
+					outNode = Fus.getToolByUID(comp, connectedTools.get("wireless_OUT"))
+				else:
+					inNode, outNode = None, None
+
+				# Get input object connected to Loader
 				nextToolInput = Fus.getInputsFromOutput(ldr)
+				nextTool = nextToolInput[0].GetTool() if nextToolInput else None
+				nextToolName = nextTool.Name if nextTool else None
 
-				#	Skip arranging if there is nothing connected to Loader
-				if not nextToolInput:
-					continue
-				
-				#	Get tool stuff
-				nextTool = nextToolInput[0].GetTool()
-				nextToolName = nextTool.Name
-				inNodeName = inNode.Name
+				# Get Wireless_IN position before moving (only if inNode exists)
+				inNodeOrigPos = Fus.getToolPosition(comp, inNode) if inNode else None
 
-				#	Skip arranging if there are not Wireless connected
-				if not nextToolName or not inNodeName:
-					continue
-
-				#	Get Wireless_IN position before moving
-				inNodeOrigPos = Fus.getToolPosition(comp, inNode)
-
-				#	Get the vert position of the Loader
+				# Adjust vertical position for the Loader
 				if lyrNm != lastLoaderLyr:
 					new_Y += vertGap
 
-				#	Sets Loader position
+				# Set Loader position
 				Fus.setToolPosition(flow, ldr, new_X, new_Y)
 
-				#	If there is a Tool in between Loader and Wireless_IN
-				if nextToolName != inNodeName:
-					#	Connect Loader to nextTool
-					Fus.connectTools(ldr, nextTool)
-					#	Sets nextTool position to the right of the Loader
-					Fus.setToolPosRelative(comp, nextTool, ldr, horzGap)
-					#	Connect nextTool to _IN
-					Fus.connectTools(nextTool, inNode)
-					#	Sets Wireless_IN position to the right of the Loader
-					Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
+				# Only handle connections if there are connected tools
+				if inNode and nextTool:
+					if nextToolName != inNode.Name:
+						# Connect Loader to nextTool
+						Fus.connectTools(ldr, nextTool)
+						# Position nextTool to the right of the Loader
+						Fus.setToolPosRelative(comp, nextTool, ldr, horzGap)
+						# Connect nextTool to _IN
+						Fus.connectTools(nextTool, inNode)
+						# Position Wireless_IN to the right of the Loader
+						Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
+					else:
+						# Connect Loader to Wireless IN
+						Fus.connectTools(ldr, inNode)
+						# Position Wireless_IN to the right of the Loader
+						Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
 
-				#	Sort Wireless as normal
-				else:
-					#	Connect Loader to Wireless IN
-					Fus.connectTools(ldr, inNode)
-					#	Sets Wireless_IN position to the right of the Loader
-					Fus.setToolPosRelative(comp, inNode, ldr, horzGap * 2)
-
-				if outNode:
-					#	If _OUT and _IN are within toolThresh it will position the _OUT
+				if outNode and inNode:
+					# If _OUT and _IN are within toolThresh, position _OUT
 					if Fus.isToolNearTool(comp, outNode, refPos=inNodeOrigPos, thresh=toolThresh):
 						Fus.setToolPosRelative(comp, outNode, inNode, horzGap)
 
-				#	Increment Vert Position
+				# Increment vertical position for next Loader
 				new_Y += vertGap
 				lastLoaderLyr = lyrNm
-
+			
 			logger.debug("Sorted Nodes")
+			
+			if getfeedback:
+				self.core.popup("Sorted!", severity="info")
 
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to sort nodes:\n{e}")
+
+
+
+	#	Scans and Creates ImageImport State for Discovered Loaders
+	@err_catcher(name=__name__)
+	def scanCompForNewLoaders(self, stateManager):
+		comp = self.getCurrentComp()
+
+		if self.scanComp not in ["Auto", "Prompt"]:
+			logger.debug("Comp Scan is Disabled")
+			return
+
+		#	Read State Data from Comp
+		stateData_raw = Fus.sm_readStates(comp)
+		stateData_json = self.core.configs.readJson(data=stateData_raw)
+		stateData = stateData_json.get("states", []) if stateData_json else []
+
+		#	Collect existing stateUIDs
+		stateUIDs = {state["stateUID"] for state in stateData if "stateUID" in state}
+
+		#	Get all Prism Loaders
+		prismLoaders = Fus.getAllPrismTools(comp, category="import2d", toolType="Loader")
+
+		#	Group Missing Loaders by State UUID
+		groupedLoaders = defaultdict(list)
+		for tool in prismLoaders:
+			tData = Fus.getToolData(tool)
+			if not tData:
+				continue
+
+			stateUID = tData.get("stateUID")
+			if stateUID and stateUID not in stateUIDs:
+				groupedLoaders[stateUID].append((tool, tData))
+
+		#	Make Dict for Each State UUID
+		for stateUID, toolGroup in groupedLoaders.items():
+			toolItems = []
+			
+			for tool, tData in toolGroup:
+				toolItems.append({
+					"loader": tool,
+					"tData": tData
+				})
+
+			if not toolItems:
+				continue
+
+			#	Make Prism Context from Tool Data
+			orig_tData = toolItems[0]["tData"]
+			pData = Helper.convertToolDataToPrismData(orig_tData)
+
+			#	Make Settings Data
+			settings = {
+				"stateUID": stateUID,
+				"pData": pData,
+				"tools": toolItems
+			}
+
+
+			#	If Prompt Mode ask Question
+			if self.scanComp == "Prompt":
+
+				text = ("Fusion Loader(s) have been detected that are Not\n"
+						"Associated with an Import State in the State Manager.\n\n"
+						"Would you like to add an Import State for:\n\n\n"
+						f"    '{orig_tData['mediaId']}'")
+				
+				title = "Add Import State?"
+
+				result = self.core.popupQuestion(text, title=title)
+
+				#	Abort if not Yes
+				if result != "Yes":
+					return
+
+			#	Call to Add Import State with Settings Data
+			self.addImportState(stateManager, "Image_Import", useUi=False, settings=settings)
+
 
 
 
@@ -1845,7 +1701,7 @@ class Prism_Fusion_Functions(object):
 
 	#	Imports or updates USD scene or object
 	@err_catcher(name=__name__)
-	def importUSD(self, origin, UUID, nodeData, update=False):
+	def importUSD(self, origin, UUID, toolData, update=False):
 		comp = self.getCurrentComp()
 		flow:FlowView_ = comp.CurrentFrame.FlowView
 
@@ -1854,7 +1710,7 @@ class Prism_Fusion_Functions(object):
 			comp.StartUndo("Import USD")
 
 			flow.InsertBookmark("USD_Import")
-			result = self.wrapped_importUSD(origin, UUID, nodeData, update)
+			result = self.wrapped_importUSD(origin, UUID, toolData, update)
 
 			
 			bookmarks = flow.GetBookmarkList()
@@ -1872,44 +1728,40 @@ class Prism_Fusion_Functions(object):
 	
 	#	Imports or updates USD scene or object
 	@err_catcher(name=__name__)
-	def wrapped_importUSD(self, origin, UUID, nodeData, update=False):
+	def wrapped_importUSD(self, origin, UUID, toolData, update=False):
 		comp = self.getCurrentComp()
 		importRes = False
 
 		#	Add new uLoader if not update or if the Tool is not in the Comp
-		if not update or not CompDb.nodeExists(comp, UUID):
+		if not update or not Fus.toolExists(comp, UUID):
 			try:
 				#	Add tool
-				uLdr = Fus.addTool(comp, "uLoader", nodeData)
+				uLdr = Fus.addTool(comp, "uLoader", toolData)
 
-				logger.debug(f"Imported USD object: {nodeData['product']}")
+				logger.debug(f"Imported USD object: {toolData['product']}")
 
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to import USD object:\n{e}")
 				return {"result": False, "doImport": False}
 			
 			if uLdr:
-				#	Add to Comp Database
-				addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
 				importRes = True
 		
 		#	Update uLoader
 		else:
 			try:
 				#	Get tool
-				tool = CompDb.getNodeByUID(comp, UUID)
+				tool = Fus.getToolByUID(comp, UUID)
 				#	 Update tool data
-				uLdr = Fus.configureTool(tool, nodeData)
+				uLdr = Fus.configureTool(tool, toolData)
 
-				logger.debug(f"Updated uLoader: {nodeData['nodeName']}")
+				logger.debug(f"Updated uLoader: {toolData['nodeName']}")
 				importRes = True
 
 			except Exception as e:
 				logger.warning(f"ERROR: Failed to update uLoader:\n{e}")
 
 			if uLdr:
-				#	Update Comp DB record
-				CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
 				importRes = True
 
 		return {"result": importRes, "doImport": importRes}
@@ -1972,11 +1824,12 @@ class Prism_Fusion_Functions(object):
 		#	If Update, just toggle Tool bypass
 		if update:
 			try:
-				sData = CompDb.getNodeInfo(comp, "import3d", UUID)
+				tool = Fus.getToolByUID(comp, UUID)
+				sData = Fus.getToolData(tool)
 				groupUID = sData["connectedNodes"]["Group"]
 				comp.Unlock()
-				CompDb.setPassThrough(comp, nodeUID=groupUID, passThrough=True)
-				CompDb.setPassThrough(comp, nodeUID=groupUID, passThrough=False)
+				Fus.setPassThrough(comp, nodeUID=groupUID, passThrough=True)
+				Fus.setPassThrough(comp, nodeUID=groupUID, passThrough=False)
 				comp.Lock()
 
 				return {"result": True, "doImport": True}
@@ -2008,19 +1861,16 @@ class Prism_Fusion_Functions(object):
 			comp.Unlock()
 			return False
 
-		#	Add uShader to Comp Database
-		del shdData["toolName"]
-		CompDb.addNodeToDB(comp, "import3d", texData["nodeUID"], shdData)
-
 		#	Handle textures
 		try:
 			connectedTexs = {}
 			for texture in texData["texFiles"]:
 				#	Create UIDs for each texture
-				toolUID = self.createUUID()
+				toolUID = Helper.createUUID()
 				#	Configure texture data
 				texDict = {}
 				texDict["toolUID"] = toolUID
+				texDict["stateUID"] = texData["stateUID"]
 				texDict["nodeName"] = f"{texData['toolName']}_{texture['map'].upper()}"
 				texDict["shaderName"] = texData["shaderName"]
 				texDict["texMap"] = texture["map"].upper()
@@ -2030,9 +1880,6 @@ class Prism_Fusion_Functions(object):
 				uTexture = Fus.addTool(comp, "uTexture", texDict, temp_x, temp_y)
 
 				if uTexture:
-					#	Add uTexture to Database
-					CompDb.addNodeToDB(comp, "import3d", toolUID, texDict)
-
 					#	Add to Connected Textures Dict
 					connectedTexs[f"Tex_{texture['map'].upper()}"] = toolUID
 
@@ -2041,12 +1888,12 @@ class Prism_Fusion_Functions(object):
 			comp.Unlock()
 			return False
 
-		#	Add connected tools to uShader database record
+		#	Add connected tools to uShader Data
 		updateDict = {"connectedNodes": connectedTexs}
-		CompDb.updateNodeInfo(comp, "import3d", texData["nodeUID"], updateDict)
+		Fus.updateToolData(uShader, updateDict)
 
 		#	Get tool for each UID
-		texTools = [tool for uid in connectedTexs.values() if (tool := CompDb.getNodeByUID(comp, uid))]
+		texTools = [tool for uid in connectedTexs.values() if (tool := Fus.getToolByUID(comp, uid))]
 		#	Stack uTextures and get the average position
 		xPos, yPos = Fus.stackToolsByList(comp, texTools, yoffset=0.6)
 		#	Moves uShader to the right of the stack
@@ -2090,20 +1937,24 @@ class Prism_Fusion_Functions(object):
 													groupTools,
 													outputTool=uShader,
 													pos=lastClicked)
+			
+
 			#	Make Group Data
 			groupData = {"groupName": texData['shaderName'],
+						 "stateUID": texData["stateUID"],
+						 "shaderName": texData["shaderName"],
 						 "connectedNodes": newToolsUIDs}
 
 			#	Get Group Tool
-			groupTool = CompDb.getNodeByUID(comp, groupUID)
+			groupTool = Fus.getToolByUID(comp, groupUID)
+
 
 			#	Uodate Group and add to Database
 			Fus.configureTool(groupTool, groupData)
-			CompDb.addNodeToDB(comp, "import3d", groupUID, groupData)
 
 			#	Add Group UID to uShader database record
 			updateDict["connectedNodes"]["Group"] = groupUID
-			CompDb.updateNodeInfo(comp, "import3d", texData["nodeUID"], updateDict)
+			Fus.updateToolData(uShader, updateDict)
 
 			logger.debug(f"Created shader group: {groupName}")
 
@@ -2117,7 +1968,7 @@ class Prism_Fusion_Functions(object):
 			for uid in newToolsUIDs:
 				try:
 				#	Get tool data
-					tool = CompDb.getNodeByUID(comp, uid)
+					tool = Fus.getToolByUID(comp, uid)
 					toolData = Fus.getToolData(tool)
 
 					#	Get map type from data
@@ -2174,25 +2025,19 @@ class Prism_Fusion_Functions(object):
 				uMaterialX = Fus.addTool(comp, "uMaterialX", matXData)
 			
 				if uMaterialX:
-					#	Add to Comp Database
-					del matXData["toolName"]
-					addResult = CompDb.addNodeToDB(comp, "import3d", UUID, matXData)
-					if addResult:
-						result = True
-						logger.debug(f"Created MaterialX ({matXData['shaderName']})")
+					result = True
+					logger.debug(f"Created MaterialX ({matXData['shaderName']})")
 			except:
 				logger.warning("ERROR:  Failed to create MaterialX material")
 
 		else:
 			try:
-				tool = CompDb.getNodeByUID(comp, UUID)
+				tool = Fus.getToolByUID(comp, UUID)
 				uMaterialX = Fus.configureTool(tool, matXData)
 
 				if uMaterialX:
-					updateResult = CompDb.updateNodeInfo(comp, "import3d", UUID, matXData)
-					if updateResult:
-						result = True
-						logger.debug(f"Updated MaterialX ({matXData['shaderName']})")
+					result = True
+					logger.debug(f"Updated MaterialX ({matXData['shaderName']})")
 			except:
 				logger.warning("ERROR: Failed to update MaterialX material")
 
@@ -2201,7 +2046,7 @@ class Prism_Fusion_Functions(object):
 
 	#	Imports .fbx or .abc object into Comp
 	@err_catcher(name=__name__)
-	def import3dObject(self, origin, UUID, nodeData, update=False):
+	def import3dObject(self, origin, UUID, toolData, update=False):
 		comp = self.getCurrentComp()
 		flow:FlowView_ = comp.CurrentFrame.FlowView
 
@@ -2210,7 +2055,7 @@ class Prism_Fusion_Functions(object):
 			comp.StartUndo("Import 3D Object")
 
 			flow.InsertBookmark("3dObject_Import")
-			result = self.wrapped_import3dObject(origin, UUID, nodeData, comp=comp, update=update)
+			result = self.wrapped_import3dObject(origin, UUID, toolData, comp=comp, update=update)
 
 			comp.EndUndo()
 			comp.Unlock()
@@ -2222,13 +2067,13 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def wrapped_import3dObject(self, origin, UUID, nodeData, comp, update=False):
+	def wrapped_import3dObject(self, origin, UUID, toolData, comp, update=False):
 		importRes = False
 
-		format = nodeData["format"]
+		format = toolData["format"]
 
 		#	Add new 3d Loader if not update or Tool is not in the Comp
-		if not update or not CompDb.nodeExists(comp, UUID):
+		if not update or not Fus.toolExists(comp, UUID):
 			try:
 				#	Add tooltype based on format
 				if format == ".fbx":
@@ -2241,36 +2086,32 @@ class Prism_Fusion_Functions(object):
 					return False
 
 				#	Add 3d Tool
-				ldr3d = Fus.addTool(comp, toolType, nodeData)
+				ldr3d = Fus.addTool(comp, toolType, toolData)
 
-				logger.debug(f"Imported 3d object: {nodeData['product']}")
+				logger.debug(f"Imported 3d object: {toolData['product']}")
 
 			except Exception as e:
 				logger.warning(f"ERROR: Unable to import 3d object:\n{e}")
 				return {"result": False, "doImport": False}
 			
 			if ldr3d:
-				#	Add to Comp Database
-				addResult = CompDb.addNodeToDB(comp, "import3d", UUID, nodeData)
 				importRes = True
 		
 		#	Update 3d Loader
 		else:
 			try:
 				#	Get tool
-				tool = CompDb.getNodeByUID(comp, UUID)
+				tool = Fus.getToolByUID(comp, UUID)
 				#	 Update tool data
-				ldr3d = Fus.configureTool(tool, nodeData)
+				ldr3d = Fus.configureTool(tool, toolData)
 
-				logger.debug(f"Updated Loader3d: {nodeData['nodeName']}")
+				logger.debug(f"Updated Loader3d: {toolData['nodeName']}")
 				importRes = True
 
 			except Exception as e:
 				logger.warning(f"ERROR: Failed to update Loader3d:\n{e}")
 
 			if ldr3d:
-				#	Update Comp DB record
-				CompDb.updateNodeInfo(comp, "import3d", UUID, nodeData)
 				importRes = True
 
 		return {"result": importRes, "doImport": importRes}
@@ -2659,19 +2500,19 @@ class Prism_Fusion_Functions(object):
 
 	#	Gets individual State data from the comp state data based on the UUID
 	@err_catcher(name=__name__)
-	def getMatchingStateDataFromUID(self, nodeUID):
+	def getMatchingStateDataFromUID(self, toolUID):
 		comp = self.getCurrentComp()
 		stateDataRaw = json.loads(self.sm_readStates(self))
 
 		# Iterate through the states to find the matching state dictionary
 		stateDetails = None
 		for stateData in stateDataRaw["states"]:
-			if stateData.get("nodeUID") == nodeUID:
+			if stateData.get("toolUID") == toolUID:
 				stateDetails = stateData
-				logger.debug(f"State data found for: {CompDb.getNodeNameByUID(comp, nodeUID)}")
+				logger.debug(f"State data found for: {Fus.getToolNameByUID(comp, toolUID)}")
 				return stateDetails
 
-		logging.warning(f"ERROR: No state details for:  {nodeUID}")
+		logging.warning(f"ERROR: No state details for:  {toolUID}")
 		return None
 
 
@@ -2826,12 +2667,33 @@ path = r\"%s\"
 
 	#	Executes versioninfo creation for each state in dict
 	@err_catcher(name=__name__)
-	def executeGroupVersioninfo(self):
+	def executeGroupVersioninfo(self, rSettings):
 		for state in self.versionData:
 			try:
 				filepath = state[0]
-				stateData = state[1]
+				stateData = state[1].copy()
 
+				#	Overrides messages
+				renderOverrides = []
+				if rSettings.get("renderAsPrevVer"):
+					renderOverrides.append("Render as Prevous Version Enabled")
+				if rSettings.get("frameOvr"):
+					frameStr = f"{rSettings['frame_start']} - {rSettings['frame_end']}"
+					renderOverrides.append(f"Frame Range Override: {frameStr}")
+				if rSettings.get("masterOvr"):
+					renderOverrides.append(f"Update Master Override: {rSettings['handleMaster']}")
+				if rSettings.get("scalingOvr"):
+					renderOverrides.append(f"Scaling Override: {rSettings['render_Scale']}")
+				if rSettings.get("hiQualOvr"):
+					renderOverrides.append(f"Quality Override: {rSettings['render_HQ']}")
+				if rSettings.get("blurOvr"):
+					renderOverrides.append(f"Motion Blur Override: {rSettings['render_Blur']}")
+
+				#	Add Group Override Messages to Version Info Data
+				if len(renderOverrides) > 0:
+					stateData["Render Group Overrides"] = renderOverrides
+
+				#	Create Version Info
 				self.core.saveVersionInfo(filepath, details=stateData)
 				logger.debug(f"Created VersionInfo for: {filepath}")
 
@@ -2892,9 +2754,9 @@ path = r\"%s\"
 			self.setResolution(renderRezX, renderRezY)
 
 
-	#	Adds a Scale node if the Scale override is used by the RenderGroup
+	#	Adds a Scale tool if the Scale override is used by the RenderGroup
 	@err_catcher(name=__name__)
-	def addScaleNode(self, comp, sv, scaleOvrCode):
+	def addScaletool(self, comp, sv, scaleOvrCode):
 		try:
 			if sv:
 				#	Add a Scale tool
@@ -2913,10 +2775,10 @@ path = r\"%s\"
 					logger.debug(f"No input found connected to {sv.Name}.")
 		
 		except Exception as e:
-			logger.warning(f"ERROR: Could not add Scale node: {e}")
+			logger.warning(f"ERROR: Could not add Scale tool: {e}")
 
 
-	#	Deletes the temp Scale nodes
+	#	Deletes the temp Scale tools
 	@err_catcher(name=__name__)
 	def deleteTempScaleTools(self):
 		for tool in self.tempScaleTools:
@@ -2948,22 +2810,22 @@ path = r\"%s\"
 		#	Configure Comp with overrides from RenderGroup
 		self.setCompOverrides(comp, rSettings)
 
-		for nodeUID in renderStates:
+		for toolUID in renderStates:
 			#	Get State data from Comp
-			stateData = self.getMatchingStateDataFromUID(nodeUID)
-			nodeName = CompDb.getNodeNameByUID(comp, nodeUID)
+			stateData = self.getMatchingStateDataFromUID(toolUID)
+			toolName = Fus.getToolNameByUID(comp, toolUID)
 
 			#	Exits if unable to get state data
 			if not stateData:
-				logger.warning(f"ERROR: Unable to configure RenderComp for {nodeName}")
+				logger.warning(f"ERROR: Unable to configure RenderComp for {toolName}")
 
-			sv = CompDb.getNodeByUID(comp, nodeUID)
-			CompDb.setPassThrough(comp, nodeUID=nodeUID, passThrough=False)
+			sv = Fus.getToolByUID(comp, toolUID)
+			Fus.setPassThrough(comp, toolUID=toolUID, passThrough=False)
 
 			#	Add Scale tool if scale override is above 100%
 			scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
 			if scaleOvrType == "scale":
-				self.addScaleNode(comp, sv, scaleOvrCode)
+				self.addScaletool(comp, sv, scaleOvrCode)
 
 			#	Set frame padding format for Fusion
 			extension = stateData["outputFormat"]
@@ -3027,16 +2889,16 @@ path = r\"%s\"
 			self.outputPath = outputPathData["path"]
 
 			#	Configure Saver with new filepath						#	TODO
-			nodeData = {"nodeName": nodeName,
+			toolData = {"toolName": toolName,
 						"filepath": self.outputPath,
 			   			"format": extension,
 						"fuseFormat": self.getFuseFormat(extension)}
 
-			self.configureRenderNode(nodeUID, nodeData)
+			self.configureRenderNode(toolUID, toolData)
 
 			stateData["comment"] = self.MP_stateManager.publishComment
 			renderDir = os.path.dirname(self.outputPath)
-			self.saveVersionList(renderDir, stateData)
+			self.saveVersionList(renderDir, outputPathData)
 
 			#	Setup master version execution
 			self.saveMasterData(rSettings, stateData, self.outputPath)
@@ -3152,18 +3014,18 @@ path = r\"%s\"
 			self.tempScaleTools = []
 			origCompSettings = self.saveOrigCompSettings(comp)
 
-			nodeUID = rSettings["nodeUID"]
+			toolUID = rSettings["toolUID"]
 
-			sv = CompDb.getNodeByUID(comp, nodeUID)
+			sv = Fus.getToolByUID(comp, toolUID)
 
 			if sv:
-				nodeData = {"filepath": outputName,
+				toolData = {"filepath": outputName,
 							"version": rSettings["version"],
 			   				"format": rSettings["format"],
 							"fuseFormat": rSettings["fuseFormat"]
 							}
 				
-				self.configureRenderNode(nodeUID, nodeData)
+				self.configureRenderNode(toolUID, toolData)
 				# sv.Clip = outputName
 
 				if not Fus.hasConnectedInput(sv):
@@ -3180,19 +3042,25 @@ path = r\"%s\"
 				#	Add Scale tool if scale override is above 100%
 				scaleOvrType, scaleOvrCode = self.getScaleOverride(rSettings)
 				if scaleOvrType == "scale":
-					self.addScaleNode(comp, sv, scaleOvrCode)
+					self.addScaletool(comp, sv, scaleOvrCode)
 
 				#	Gets render args from override settings
 				renderCmd = self.makeRenderCmd(comp, rSettings)
 
+				#	Minimize the State Manager
+				origin.stateManager.showMinimized()	
+
 				#	Renders with override args
 				comp.Render({**renderCmd, 'Tool': sv, "Wait": True})
 
-				#	Remove any temp Scale nodes
+				#	Remove any temp Scale tools
 				self.deleteTempScaleTools()
 
 				#	Reset Comp settings to Original
 				self.loadOrigCompSettings(comp, origCompSettings)
+
+				#	Un-Minimize the State Manager
+				# self.stateManager.showNormal()	
 
 				if len(os.listdir(os.path.dirname(outputName))) > 0:
 					return "Result=Success"
@@ -3227,10 +3095,13 @@ path = r\"%s\"
 			#	Gets render args from override settings
 			renderCmd = self.makeRenderCmd(comp, rSettings, group=True)
 
+			#	Minimize the State Manager
+			origin.stateManager.showMinimized()	
+
 			#	Renders with override args
 			comp.Render({**renderCmd, "Wait": True})
 
-			#	Remove any temp Scale nodes
+			#	Remove any temp Scale tools
 			self.deleteTempScaleTools()
 
 			#	Reset Comp settings to Original
@@ -3238,6 +3109,9 @@ path = r\"%s\"
 
 			#	Reconfigure pass-through of Savers
 			self.origSaverStates("load", comp, self.origSaverList)
+
+			#	Un-Minimize the State Manager
+			# self.stateManager.showNormal()	
 
 			renderResult = True
 
@@ -3247,7 +3121,7 @@ path = r\"%s\"
 			pass
 
 		#	Create versionInfo file for each state
-		versionResult = self.executeGroupVersioninfo()
+		versionResult = self.executeGroupVersioninfo(rSettings)
 
 		#	Execute master version if applicable
 		masterResult = self.executeGroupMaster()
@@ -3300,7 +3174,7 @@ path = r\"%s\"
 		if "extension" in details:
 			del details["extension"]
 
-		details["version"] = CompDb.createUUID(simple=True)
+		details["version"] = Helper.createUUID(simple=True)
 		details["sourceScene"] = self.tempFilePath
 		details["identifier"] = rSettings["groupName"]
 		details["comment"] = self.MP_stateManager.publishComment
@@ -3380,7 +3254,7 @@ path = r\"%s\"
 		except:
 			logger.warning(f"Unable to remove temp directory:  {tempDir}")
 
-		#	Remove any temp Scale nodes
+		#	Remove any temp Scale tools
 		self.deleteTempScaleTools()
 
 		#	Reset Comp settings to Original
@@ -3393,7 +3267,7 @@ path = r\"%s\"
 		comp.Save(currFile)
 
 		#	Create versionInfo file for each state
-		versionResult = self.executeGroupVersioninfo()
+		versionResult = self.executeGroupVersioninfo(rSettings)
 
 		#	Executes Farm update Master if applicable
 		if submitResult and executeMaster:
@@ -3433,7 +3307,7 @@ path = r\"%s\"
 		comp:Composition_ = self.getCurrentComp()
 		flow:FlowView_ = comp.CurrentFrame.FlowView
 		try:
-			scenetool = CompDb.getNodeByUID(comp, stateUID)
+			scenetool = Fus.getToolByUID(comp, stateUID)
 			if scenetool:
 				x:float = 0.0
 				y:float = 0.0
@@ -3463,7 +3337,7 @@ path = r\"%s\"
 	@err_catcher(name=__name__)
 	def sm_view_FocusStateTool(self, stateUID):
 		comp:Composition_ = self.getCurrentComp()
-		focustool = CompDb.getNodeByUID(comp, stateUID)
+		focustool = Fus.getToolByUID(comp, stateUID)
 
 		if focustool:
 			Fus.focusOnTool(comp, focustool)
@@ -3640,7 +3514,7 @@ path = r\"%s\"
 		# deselect all nodes
 		flow.Select()
 
-		toolsToSelectUID = CompDb.getAllConnectedNodes(comp, "import2d", nodeUIDs)
+		toolsToSelectUID = Fus.getConnectedNodes(comp, nodeUIDs)
 		
 		if not toolsToSelectUID:
 			logger.debug("There are not Loaders associated with this task.")
@@ -3650,8 +3524,8 @@ path = r\"%s\"
 		#	Select all tools
 		for toolUID in toolsToSelectUID:
 			try:
-				if CompDb.nodeExists(comp, toolUID):
-					tool = CompDb.getNodeByUID(comp, toolUID)
+				if Fus.toolExists(comp, toolUID):
+					tool = Fus.getToolByUID(comp, toolUID)
 					flow.Select(tool, True)
 			except:
 				pass
@@ -3675,86 +3549,29 @@ path = r\"%s\"
 				logger.warning(f"ERROR: Cannot set color of tool: {tool.Name}.")
 
 
-	#	Colors tools in Comp based on Color mode in DCC settings
+	#	Colors tools in Comp
 	@err_catcher(name=__name__)
-	def colorTaskNodes(self, nodeUIDs, type, color, item=None, category=None):
+	def colorTools(self, toolsToColor, color):
 		comp = self.getCurrentComp()
 
-		#	Colors the Loaders and wireless nodes
-		if self.taskColorMode == "All Nodes":
-			toolsToColorUID = CompDb.getAllConnectedNodes(comp, type, nodeUIDs)
+		#	Handle if Passed Single Tool
+		if not isinstance(toolsToColor, list):
+			toolsToColor = [toolsToColor]
 
-		#	Only colors the Loader nodes
-		elif self.taskColorMode == "Loader Nodes":
-        #   Handle single or multiple nodeUIDs
-			toolsToColorUID = nodeUIDs if isinstance(nodeUIDs, list) else [nodeUIDs]
-
-		#	Coloring is disabled
-		else:
-			return
-		
-		#	Color the Project Browser Task
-		if item:
-			self.colorItem(item, color)
-			CompDb.addPrismDbIdentifier(comp, category, item.text(0), color)
-		
-		if not toolsToColorUID:
-			logger.debug("There are not Loaders associated with this task.")
-			self.core.popup("There are no loaders for this task.", severity="info")
-			return
-				
-		#	If the RGB is the Clear Color code
-		if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
-			for toolUID in toolsToColorUID:
+		for tool in toolsToColor:
+			#	If the RGB is the Clear Color code
+			if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
 				try:
-					tool = CompDb.getNodeByUID(comp, toolUID)
-					if tool:
-						tool.TileColor = None
+					tool.TileColor = None
 				except:
-					logger.warning(f"ERROR: Unable to clear the color of the Loader: {toolUID}.")
-
-		#	Set the color for each tool
-		else:
-			for toolUID in toolsToColorUID:
+					logger.warning(f"ERROR: Unable to clear the color of the Loader: {tool}.")
+			else:
 				try:
-					if CompDb.nodeExists(comp, toolUID):
-						tool = CompDb.getNodeByUID(comp, toolUID)
-						if tool:
-							tool.TileColor = color
-							logger.debug(f"Set color of tool: {CompDb.getNodeNameByUID(comp, toolUID)}")
+					tool.TileColor = color
+					logger.debug(f"Set color of tool: {tool}")
 				except:
-					logger.warning(f"ERROR: Cannot set color of tool: {toolUID}")
+					logger.warning(f"ERROR: Cannot set color of tool: {tool}")
 
-
-
-	#	Colors Media Task based on Color mode in DCC settings
-	@err_catcher(name=__name__)
-	def colorItem(self, item, color):
-		#	Check if R, G, and B are all 0.000011 to clear the color
-		if color['R'] == 0.000011 and color['G'] == 0.000011 and color['B'] == 0.000011:
-			item.setBackground(0, QBrush())
-			item.setForeground(0, QBrush())
-			return
-		
-		#	Convert brightness percent (e.g., "75%") to an integer alpha value (0–255)
-		try:
-			percentage = int(self.colorBrightness.strip('%'))
-			alpha = int((percentage / 100) * 255)
-		except ValueError:
-			alpha = 75  # Default alpha if conversion fails
-
-		qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
-
-		#	Adding Alpha to mute task coloring
-		qcolor.setAlpha(alpha)
-
-		item.setBackground(0, qcolor)
-		item.setForeground(0, QColor(230, 230, 230))
-
-		#	If brightness is high, use luminance checker
-		if alpha > 124:
-			if Helper.isBgBright(color):
-				item.setForeground(0, QColor(30, 30, 30))
 
 
 
@@ -3764,84 +3581,6 @@ path = r\"%s\"
 	#                                              #
 	################################################
 	
-
-	@err_catcher(name=__name__)
-	def onMediaBrowserTaskUpdate(self, origin):
-		#	If DCC 'Task Node Coloring' is disabled
-		if self.taskColorMode == "Disabled":
-			return
-		
-		comp = self.getCurrentComp()
-		lw = origin.tw_identifier #listwidget
-		entity = origin.getCurrentEntity()
-		if lw == origin.tw_identifier:
-			category = entity.get("type")
-			if category in ["asset", "shot"]:
-				for i in range(lw.topLevelItemCount()):
-					item = lw.topLevelItem(i)
-					color = CompDb.getPrismDbIdentifierColor(comp, category, item.text(0))
-					if color:
-						self.colorItem(item, color)
-
-
-	@err_catcher(name=__name__)
-	def openPBListContextMenu(self, origin, rcmenu, lw, item, path):
-		#	If DCC 'Task Node Coloring' is disabled
-		if self.taskColorMode == "Disabled":
-			return
-		
-		entity = origin.getCurrentEntity()
-		
-		if lw == origin.tw_identifier:
-			category = entity.get("type")
-			if category in ["asset", "shot"]:
-				comp = self.getCurrentComp()
-
-				#	Get Display Name from Item
-				displayName = item.text(0)
-
-				#	Get NodeUID based on Media Identifier
-				mediaNodeUIDs = CompDb.getNodeUidFromMediaDisplayname(comp, "import2d", displayName)
-				
-				#	Setup rcl "Select Nodes" items
-				depAct = QAction("Select Task Nodes....", origin)
-				depAct.triggered.connect(lambda: self.selecttasknodes(mediaNodeUIDs))
-				rcmenu.addAction(depAct)
-
-				#	Setup rcl "Color Nodes" items
-				menuSelTaskC = QMenu("Select Task Color", origin)
-				menuSelTaskC.setStyleSheet("""
-					QMenu::item {
-						padding-left: 5px;  /* Reduce left padding of item text */
-						padding-right: 5px; /* Optional, adjust to control space around icon */
-					}
-					QMenu::icon {
-						margin-right: -5px; /* Bring icon closer to text */
-					}
-				""")
-				for key in self.fusionToolsColorsDict.keys():
-					name = key
-					color = self.fusionToolsColorsDict[key]
-
-					qcolor = QColor.fromRgbF(color['R'], color['G'], color['B'])
-					depAct = QAction(name, origin)
-
-					# we can pass name as a default argument in the lambda to "freeze" its value for each iteration
-					# even if the action isn't checkable, the triggered signal passes checked as an argument by default.
-					depAct.triggered.connect(lambda checked=False, color=color: self.colorTaskNodes(mediaNodeUIDs, "import2d", color, item, category))
-					icon = self.create_color_icon(qcolor)
-					depAct.setIcon(icon)
-					menuSelTaskC.addAction(depAct)
-
-				rcmenu.addMenu(menuSelTaskC)
-
-
-	#	This is to be able to call task coloring
-	@err_catcher(name=__name__)
-	def onMediaBrowserOpen(self, origin):
-		self.MP_mediaBrowser = origin
-		self.core.plugins.monkeyPatch(origin.updateTasks, self.updateTasks, self, force=True)
-
 
 	@err_catcher(name=__name__)
 	def onUserSettingsOpen(self, origin):
@@ -3877,12 +3616,13 @@ path = r\"%s\"
 			self.popup = popup
 
 
+	#	Custom Callback from openPrismWindows.py
 	@err_catcher(name=__name__)
 	def onStateManagerCalled(self, popup=None):
 		#Feedback in case it takes time to open
 		comp = self.getCurrentComp()
 		self.sm_checkCorrectComp(comp, displaypopup=False)
-		#Set the comp used when sm was oppened for reference when saving states.
+		#Set the comp used when sm was opened for reference when saving states.
 		self.comp = comp	
 		try:
 			self.popup.close()
@@ -3890,6 +3630,13 @@ path = r\"%s\"
 			pass
 		if popup:
 			self.popup = popup
+
+
+		self.scanCompForNewLoaders(self.MP_stateManager)
+
+
+
+
 
 
 	@err_catcher(name=__name__)
@@ -3954,10 +3701,29 @@ path = r\"%s\"
 		self.comp = comp
 
 		#Set State Manager Data on first open.
-		if CompDb.sm_readStates(comp) is None:
+		if Fus.sm_readStates(comp) is None:
 			self.setDefaultState()
 
 		self.MP_stateManager = origin
+
+		
+		# Add MenuItems
+		origin.actionSortImageLoaders = QAction(origin)
+		origin.actionSortImageLoaders.setObjectName(u"actionSortImageLoaders")
+		origin.actionSortImageLoaders.setText(QCoreApplication.translate("mw_StateManager", u"Sort Image Loaders", None))
+		origin.actionSortImageLoaders.triggered.connect(lambda: self.sortLoaders(comp, getfeedback=True))
+		#.
+		origin.actionSelectImageLoaders = QAction(origin)
+		origin.actionSelectImageLoaders.setObjectName(u"actionSelectImageLoaders")
+		origin.actionSelectImageLoaders.setText(QCoreApplication.translate("mw_StateManager", u"Select Image Loaders", None))
+		origin.actionSelectImageLoaders.triggered.connect(self.selectAllStateLoaders)
+		#.
+		origin.menuAbout.addSeparator()
+		origin.menuAbout.addAction(origin.actionSortImageLoaders)
+		origin.menuAbout.addAction(origin.actionSelectImageLoaders)
+		origin.menuAbout.addSeparator()
+		##
+
 		try:
 			self.core.plugins.monkeyPatch(origin.rclTree, self.rclTree, self, force=True)
 			self.core.plugins.monkeyPatch(self.core.mediaProducts.getVersionStackContextFromPath,
@@ -3971,21 +3737,19 @@ path = r\"%s\"
 			logger.warning(f"ERROR: Failed to load patched functions:\n{e}")
 
 		#origin.gb_import.setStyleSheet("margin-top: 20px;")
+	
 
 
 	@err_catcher(name=__name__)
 	def onStateManagerShow(self, origin):
 		self.smUI = origin
-		# Reintegrate Nodes that are not in the DB
-		comp = self.getCurrentComp()	
-		if self.sm_checkCorrectComp(comp):
-			CompDb.updatePrismFileDB(comp)
 
 		##	Resizes the StateManager Window
 		# 	Check if SM has a resize method and resize it
 		if hasattr(self.smUI, 'resize'):
 			try:
-				self.smUI.resize(800, self.smUI.size().height())
+				self.smUI.resize(900, self.smUI.size().height())
+				self.smUI.resize(800, self.smUI.size().width())
 			except:
 				pass
 
@@ -4036,68 +3800,75 @@ path = r\"%s\"
 					curState.setCheckState(0, Qt.Checked)
 				else:
 					curState.setCheckState(0, Qt.Unchecked)
+		
 
-
-	# @err_catcher(name=__name__)
-	# def onStateDeleted(self, origin, stateui):
-	# 	comp = self.getCurrentComp()
-	# 	if stateui.className == "ImageRender":
-	# 		try:
-	# 			node = CompDb.get
-	# 			node = comp.FindTool(stateui.b_setRendernode.text())
-	# 			if node:
-	# 				fString = "Do you want to also delete the Saver node\nassociated with this render:"
-	# 				buttons = ["Yes", "No"]
-	# 				result = self.core.popupQuestion(fString, buttons=buttons, icon=QMessageBox.NoIcon)
-	# 				if result == "Yes":
-	# 					node.Delete()
-	# 					CompDb.removeNodeFromDB(comp, "render2d", )
-	# 		except:
-	# 			logger.warning(f"ERROR: Unable to remove Saver: {node.Name}")
-	# 	# elif stateui.className == "ImportFile":
-			
-
-	#	This is called from the import buttons in the SM (Import Image and Import 3D)
+	#	This is called from the import buttons in the SM (Import Image and Import 3D) or called from outside code
 	@err_catcher(name=__name__)
-	def addImportState(self, origin, stateType, filepath=None):				#	TODO IMPLEMENT ADDING IMAGE IMPORT STATE TO SM WITH FILEPATH
+	def addImportState(self, origin, stateType, useUi=True, settings=None):
+		"""
+		for Image_Import settings could be a qt item data or Prism Identifier context, but must be a dict and contain:
+		
+		{'displayName',			(including '2d' or 'external' if applicable)
+		'hierarchy',
+		'identifier',
+		'itemType',				('shot' or 'asset')
+		'mediaType',			('3drenders' etc)
+		'path',
+		'project_name',
+		'project_path',
+		'sequence',				(if tiemType is 'shot')
+		'shot',					(if tiemType is 'shot')
+		'asset',				(if tiemType is 'asset')
+		'type'					('shot' or 'asset')
+		}
+		
+		"""
+
+
 		comp = self.getCurrentComp()	
 		if self.sm_checkCorrectComp(comp):
-			importStates = []
+			#	Not for passed settings
+			if useUi:
+				importStates = []
+				#	Gets selected item from the StateManager list - to allow for adding to folder
+				curSel = origin.getCurrentItem(origin.activeList)
+				if (origin.activeList == origin.tw_import
+					and curSel is not None
+					and curSel.ui.className == "Folder"
+					):
+					parent = curSel
+				else:
+					parent = None
+				#	Get types of States available
+				states = origin.stateTypes
+				#	Gets all available State of a given type
+				for state in states:
+					importStates += getattr(origin.stateTypes[state], "stateCategories", {}).get(stateType, [])
+				#	 If there is only one State, call it immediatly
+				if len(importStates) == 1:
+					origin.createState(importStates[0]["stateType"], parent=parent, setActive=True)
+				#	If there is more than one, create a submenu for the States
+				else:
+					menu = QMenu(origin)
+					for importState in importStates:
+						actSet = QAction(importState["label"], origin)
+						actSet.triggered.connect(lambda x=None,
+									st=importState: origin.createState(st["stateType"],
+									parent=parent,
+									setActive=True,
+									**st.get("kwargs",{}))
+							)
 
-			curSel = origin.getCurrentItem(origin.activeList)
-			if (origin.activeList == origin.tw_import
-				and curSel is not None
-				and curSel.ui.className == "Folder"
-				):
-				parent = curSel
+						menu.addAction(actSet)
+
+					if not menu.isEmpty():
+						menu.exec_(QCursor.pos())
+
+				origin.activeList.setFocus()
+
+			#	If passed settings just call the State directly ('Image_Import')
 			else:
-				parent = None
-
-			states = origin.stateTypes
-			for state in states:
-				importStates += getattr(origin.stateTypes[state], "stateCategories", {}).get(stateType, [])
-
-			if len(importStates) == 1:
-				origin.createState(importStates[0]["stateType"], parent=parent, setActive=True)
-			else:
-				menu = QMenu(origin)
-				for importState in importStates:
-					actSet = QAction(importState["label"], origin)
-					actSet.triggered.connect(lambda x=None,
-								st=importState: origin.createState(st["stateType"],
-								parent=parent,
-								setActive=True,
-								**st.get("kwargs",{}))
-						)
-
-
-
-					menu.addAction(actSet)
-
-				if not menu.isEmpty():
-					menu.exec_(QCursor.pos())
-
-			origin.activeList.setFocus()
+				origin.createState(stateType, parent=None, setActive=False, settings=settings)
 
 
 	@err_catcher(name=__name__)
@@ -4113,31 +3884,31 @@ path = r\"%s\"
 	#                                        #
 	##########################################	
 		
-	@err_catcher(name=__name__)
-	def importPopup(self, text, title=None, buttons=None, icon=None, parent=None, checked=False):
-		title = title or "Prism"
-		buttons = buttons or ["Yes", "No"]
-		parent = parent or getattr(self.core, "messageParent", None)
+	# @err_catcher(name=__name__)
+	# def importPopup(self, text, title=None, buttons=None, icon=None, parent=None, checked=False):
+	# 	title = title or "Prism"
+	# 	buttons = buttons or ["Yes", "No"]
+	# 	parent = parent or getattr(self.core, "messageParent", None)
 
-		dialog = ImageImportDialogue(text, title, buttons, parent)
-		dialog.checkbox.setChecked(checked)
-		result = dialog.exec_()
+	# 	dialog = ImageImportDialogue(text, title, buttons, parent)
+	# 	dialog.checkbox.setChecked(checked)
+	# 	result = dialog.exec_()
 
-		# Check if dialog was accepted or rejected
-		if result == QDialog.Accepted:
-			# Return the clicked button text and the checkbox state
-			return dialog.clicked_button_text, dialog.checkbox_checked
-		else:
-			# Handle the "X" case: Return None or default values
-			return None, dialog.checkbox.isChecked()
+	# 	# Check if dialog was accepted or rejected
+	# 	if result == QDialog.Accepted:
+	# 		# Return the clicked button text and the checkbox state
+	# 		return dialog.clicked_button_text, dialog.checkbox_checked
+	# 	else:
+	# 		# Handle the "X" case: Return None or default values
+	# 		return None, dialog.checkbox.isChecked()
 		
 
-	@err_catcher(name=__name__)
-	def updateMsgPopup(self, updateMsgList, parent=None):
-		parent = parent or getattr(self.core, "messageParent", None)
+	# @err_catcher(name=__name__)
+	# def updateMsgPopup(self, updateMsgList, parent=None):
+	# 	parent = parent or getattr(self.core, "messageParent", None)
 
-		dialog = UpdateDialog(updateMsgList, parent)
-		dialog.exec_()
+	# 	dialog = UpdateDialog(updateMsgList, parent)
+	# 	dialog.exec_()
 
 
 		
@@ -4472,14 +4243,14 @@ path = r\"%s\"
 
 
 	#	This intercepts the mediaBrowser object and adds a custom internal callback
-	@err_catcher(name=__name__)
-	def updateTasks(self, *args, **kwargs):
-		logger.debug("Loading patched function: 'mediaBrowser.updateTasks'")
+	# @err_catcher(name=__name__)
+	# def updateTasks(self, *args, **kwargs):
+	# 	logger.debug("Loading patched function: 'mediaBrowser.updateTasks'")
 
-		mediabrowser = self.MP_mediaBrowser
+	# 	mediabrowser = self.MP_mediaBrowser
 
-		self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
-		self.onMediaBrowserTaskUpdate(mediabrowser)
+	# 	self.core.plugins.callUnpatchedFunction(mediabrowser.updateTasks, *args, **kwargs)
+	# 	self.onMediaBrowserTaskUpdate(mediabrowser)
 
 
 	#	This imports shotcams as a legacy
@@ -4594,82 +4365,82 @@ class ImageImportDialogue(QDialog):
 		self.accept()  # Close the dialog
 
 
-#	Popup for update message
-class UpdateDialog(QDialog):
-    def __init__(self, updateMsgList, parent=None):
-        super().__init__(parent)
-        self.setWindowTitle("Update Information")
+# #	Popup for update message
+# class UpdateDialog(QDialog):
+#     def __init__(self, updateMsgList, parent=None):
+#         super().__init__(parent)
+#         self.setWindowTitle("Update Information")
 
-        layout = QVBoxLayout()
+#         layout = QVBoxLayout()
 
-        #	Add the "Updates" header at the top
-        header_label = QLabel("Updates:")
-        header_font = QFont()
-        header_font.setBold(True)
-        header_label.setFont(header_font)
-        layout.addWidget(header_label)
+#         #	Add the "Updates" header at the top
+#         header_label = QLabel("Updates:")
+#         header_font = QFont()
+#         header_font.setBold(True)
+#         header_label.setFont(header_font)
+#         layout.addWidget(header_label)
 
-        #	Create the table
-        self.table = QTableWidget()
-        self.table.setRowCount(len(updateMsgList))
-        self.table.setColumnCount(2)
+#         #	Create the table
+#         self.table = QTableWidget()
+#         self.table.setRowCount(len(updateMsgList))
+#         self.table.setColumnCount(2)
 
-        #	Hide table lines and numbers
-        self.table.verticalHeader().setVisible(False)
-        self.table.horizontalHeader().setVisible(False)
-        self.table.setShowGrid(False)
+#         #	Hide table lines and numbers
+#         self.table.verticalHeader().setVisible(False)
+#         self.table.horizontalHeader().setVisible(False)
+#         self.table.setShowGrid(False)
 
-        #	Reduce the space between cells
-        self.table.setContentsMargins(0, 0, 0, 0)
-        self.table.setStyleSheet("QTableWidget::item { padding: 0px; }")
+#         #	Reduce the space between cells
+#         self.table.setContentsMargins(0, 0, 0, 0)
+#         self.table.setStyleSheet("QTableWidget::item { padding: 0px; }")
 
-        #	Get the width of the longest text in the first column
-        font_metrics = QFontMetrics(self.font())
-        maxWidth_firstCol = 0
-        maxWidth_secondCol = 0
+#         #	Get the width of the longest text in the first column
+#         font_metrics = QFontMetrics(self.font())
+#         maxWidth_firstCol = 0
+#         maxWidth_secondCol = 0
 
-        for rowData in updateMsgList:
-            #	First column
-            textFirst = str(rowData[0])
-            textWidth_first = font_metrics.horizontalAdvance(textFirst)
-            if textWidth_first > maxWidth_firstCol:
-                maxWidth_firstCol = textWidth_first
+#         for rowData in updateMsgList:
+#             #	First column
+#             textFirst = str(rowData[0])
+#             textWidth_first = font_metrics.horizontalAdvance(textFirst)
+#             if textWidth_first > maxWidth_firstCol:
+#                 maxWidth_firstCol = textWidth_first
 
-            #	Second column
-            textSecond = str(rowData[1])
-            textWidth_second = font_metrics.horizontalAdvance(textSecond)
-            if textWidth_second > maxWidth_secondCol:
-                maxWidth_secondCol = textWidth_second
+#             #	Second column
+#             textSecond = str(rowData[1])
+#             textWidth_second = font_metrics.horizontalAdvance(textSecond)
+#             if textWidth_second > maxWidth_secondCol:
+#                 maxWidth_secondCol = textWidth_second
 
-        #	Add margin for both columns
-        firstColumn_width = maxWidth_firstCol + 20
-        secondColumn_width = maxWidth_secondCol + 20
+#         #	Add margin for both columns
+#         firstColumn_width = maxWidth_firstCol + 20
+#         secondColumn_width = maxWidth_secondCol + 20
 
-        #	Populate the table with data
-        for rowIndex, rowData in enumerate(updateMsgList):
-            for colIndex, cellData in enumerate(rowData):
-                item = QTableWidgetItem(str(cellData))
-                item.setFlags(Qt.NoItemFlags)
-                self.table.setItem(rowIndex, colIndex, item)
+#         #	Populate the table with data
+#         for rowIndex, rowData in enumerate(updateMsgList):
+#             for colIndex, cellData in enumerate(rowData):
+#                 item = QTableWidgetItem(str(cellData))
+#                 item.setFlags(Qt.NoItemFlags)
+#                 self.table.setItem(rowIndex, colIndex, item)
 
-        #	Set column widths
-        self.table.setColumnWidth(0, firstColumn_width)
-        self.table.setColumnWidth(1, secondColumn_width)
+#         #	Set column widths
+#         self.table.setColumnWidth(0, firstColumn_width)
+#         self.table.setColumnWidth(1, secondColumn_width)
 
-        #	Last column stretches
-        self.table.horizontalHeader().setStretchLastSection(False)
+#         #	Last column stretches
+#         self.table.horizontalHeader().setStretchLastSection(False)
 
-        #	Add the table
-        layout.addWidget(self.table)
+#         #	Add the table
+#         layout.addWidget(self.table)
 
-        # Add a close button
-        b_close = QPushButton("Close")
-        b_close.clicked.connect(self.close)
-        layout.addWidget(b_close)
+#         # Add a close button
+#         b_close = QPushButton("Close")
+#         b_close.clicked.connect(self.close)
+#         layout.addWidget(b_close)
 
-        # Set the dialog layout
-        self.setLayout(layout)
+#         # Set the dialog layout
+#         self.setLayout(layout)
 
-        # Adjust the window width to match the table content
-        totalTable_width = firstColumn_width + secondColumn_width + 50
-        self.resize(totalTable_width, self.table.verticalHeader().length() + 100)
+#         # Adjust the window width to match the table content
+#         totalTable_width = firstColumn_width + secondColumn_width + 50
+#         self.resize(totalTable_width, self.table.verticalHeader().length() + 100)
