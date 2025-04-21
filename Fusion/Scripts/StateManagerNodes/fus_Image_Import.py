@@ -201,24 +201,31 @@ class Image_ImportClass(object):
             #   Create State UUID
             self.stateUID = Helper.createUUID()
 
-            #   Get ImportData from Settings
-            self.importData = settings["pData"]
+            #   Check if there is Prism Data passed (from Orphaned Loaders)
+            if "pData" in settings:
+                #   Get ImportData from Settings
+                self.importData = settings["pData"]
 
-            #   Update State UUID
-            updateData = {"stateUID": self.stateUID}
+                #   Update State UUID
+                updateData = {"stateUID": self.stateUID}
 
-            for tool in settings["tools"]:
-                #   Update Loader
-                Fus.updateToolData(tool["loader"], updateData)
+                for tool in settings["tools"]:
+                    #   Update Loader
+                    Fus.updateToolData(tool["loader"], updateData)
 
-                #   Get Connected Tools
-                connectedUIDs = Fus.getConnectedNodes(comp, tool["loader"])
-                for uid in connectedUIDs:
-                    tool = Fus.getToolByUID(comp, uid)
-                    Fus.updateToolData(tool, updateData)
+                    #   Get Connected Tools
+                    connectedUIDs = Fus.getConnectedNodes(comp, tool["loader"])
+                    for uid in connectedUIDs:
+                        tool = Fus.getToolByUID(comp, uid)
+                        Fus.updateToolData(tool, updateData)
 
-            #   Make State Data
-            self.makeImportData(self.importData)
+                #   Make State Data
+                self.makeImportData(self.importData)
+
+            #   Just get the Prism Context Data
+            else:
+                self.importData = settings
+                self.importLatest(refreshUi=False, selectedStates=False, setChecked=True)
         
             self.nameChanged()
             self.refresh()
