@@ -897,7 +897,6 @@ class Image_ImportClass(object):
                         #   Store fileData in tree item
                         self.setItemData(channel_item, correct_fileData)
 
-
                     #   Add checkbox actions to item
                     self.setupAovActions(channel_item)
 
@@ -916,7 +915,7 @@ class Image_ImportClass(object):
     @err_catcher(name=__name__)
     def setupAovActions(self, item):
         # Make item checkable
-        item.setFlags(Qt.ItemIsUserCheckable | Qt.ItemIsEnabled)
+        item.setFlags(Qt.ItemIsEnabled | Qt.ItemIsSelectable)
 
         matchingData = self.getMatchingDataFromItem(item)
         if matchingData:
@@ -943,12 +942,14 @@ class Image_ImportClass(object):
         if QApplication.keyboardModifiers() == Qt.ControlModifier:
             self.recursivelyExpand(item)
 
+
     @err_catcher(name=__name__)
     def recursivelyCollapse(self, item):
         for i in range(item.childCount()):
             child = item.child(i)
             self.lw_objects.collapseItem(child)
             self.recursivelyCollapse(child)
+
 
     @err_catcher(name=__name__)
     def recursivelyExpand(self, item):
@@ -961,15 +962,16 @@ class Image_ImportClass(object):
     #   Adds checkbox selection behaviours
     @err_catcher(name=__name__)
     def onAovItemClicked(self, item, column):
-        if item.flags() & Qt.ItemIsUserCheckable:
-            #   Get current checked state
-            current_checked = self.getItemChecked(item)
-            #   Reverse the checked state
-            new_checked = "unchecked" if current_checked == "checked" else "checked"
-            #   Set the checkbox with new state
-            self.setItemChecked(item, new_checked)
-            #   Sets tree checkboxes based on selection
-            self.onCheckboxStateChanged(item, column)
+        #   Get current checked state
+        current_checked = self.getItemChecked(item)
+        #   Reverse the checked state
+        new_checked = "unchecked" if current_checked == "checked" else "checked"
+
+        #   Set the checkbox with new state
+        self.setItemChecked(item, new_checked)
+
+        #   Sets tree checkboxes based on selection
+        self.onCheckboxStateChanged(item, column)
 
         #   Call the AOV coloring after toggling
         self.updateAovStatus()
