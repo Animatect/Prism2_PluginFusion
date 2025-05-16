@@ -1596,8 +1596,8 @@ class ImageRenderClass(object):
 
 					response = self.core.popupQuestion(message, buttons=buttons, icon=QMessageBox.NoIcon)
 					delAction = buttonToBool.get(response, False)
-				
-				self.fuseFuncs.deleteNode("render2d", toolUID, delAction=delAction)
+
+				self.fuseFuncs.deleteNode(toolUID, delAction=delAction)
 
 		except:
 			logger.warning("ERROR: Unable to remove Saver from Comp")
