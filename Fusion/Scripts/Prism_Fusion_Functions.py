@@ -251,6 +251,7 @@ class Prism_Fusion_Functions(object):
 		self.useAovThumbs = self.core.getConfig("Fusion", "useAovThumbs")
 		self.sortMode = self.core.getConfig("Fusion", "sorting")
 		self.scanComp = self.core.getConfig("Fusion", "scanComp")
+		self.combineCrypto = self.core.getConfig("Fusion", "combineCrypto")
 
 		usePopup = self.core.getConfig("Fusion", "updatePopup")
 		if usePopup == "Enabled":

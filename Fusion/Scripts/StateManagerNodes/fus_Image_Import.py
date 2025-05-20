@@ -49,6 +49,7 @@
 
 import os
 import logging
+import re
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -1975,7 +1976,6 @@ class Image_ImportClass(object):
             self.showUpdatePopup(updateMsgList)
 
         return doImport
-    
 
 
     @err_catcher(name=__name__)
@@ -1986,11 +1986,64 @@ class Image_ImportClass(object):
         dialog.exec_()
 
 
-
     @err_catcher(name=__name__)
     def importAll(self, refreshUi=False):
-        #   Import all images
-        self.imageImport(self.importData)
+        #   Make Copy of Import Data
+        importData = self.importData.copy()
+        #   Get File List
+        files = importData["files"]
+
+        #   Get Combine Setting from DCC Settings
+        combineSetting = self.fuseFuncts.combineCrypto
+
+        #   Default to False
+        combineCrypto = False
+
+        if combineSetting in ["Auto", "Prompt"]:
+            crypto_seen = False
+            filtered = []
+
+            #   Itterate through Files
+            for file in files:
+                #   Get Channel
+                channel = file["channel"]
+
+                #   Find Crypto in Channels
+                if re.search(r"crypto", channel, re.IGNORECASE):
+                    if not crypto_seen:
+                        filtered.append(file)
+                        crypto_seen = True
+                    else:
+                        continue 
+
+                #   Add Pass
+                else:
+                    filtered.append(file)
+
+            #   If there are any Crypto Passes
+            if crypto_seen:
+                #   Show Popup Question for Combine
+                if combineSetting == "Prompt":
+                    text = ("CryptoMatte Passes Detected.\n\n"
+                            "Would you like to Combine the CryptoMatte\n"
+                            "passes into a Single Loader?")
+                    title = "Combine CryptoMatte"
+                    buttons = ["Yes", "No"]
+
+                    result = self.core.popupQuestion(text, title=title, buttons=buttons)
+                    if result == "Yes":
+                        combineCrypto = True
+
+                #   Automatically Combine
+                elif combineSetting == "Auto":
+                    combineCrypto = True
+
+                #   If Combine, change to Modified List
+                if combineCrypto:
+                    importData["files"] = filtered
+
+        #   Import all images (using Modified Channel data if combineCrypto)
+        self.imageImport(importData)
 
         if refreshUi:
             self.updateAovChnlTree()
@@ -2001,9 +2054,28 @@ class Image_ImportClass(object):
         #   Get all items in the AOV list
         allItems = self.getAllItems()
 
+        #   Only Check Imported Items
+        if combineCrypto:
+            #   Get Imported Channels
+            imported_channels = set(f["channel"] for f in importData["files"])
+
+            #   Itterate through Items
+            for item in allItems:
+                #   Get Item Data
+                iData = self.getItemData(item)
+                #   Get Matching Channel
+                if iData and "channel" in iData:
+                    channel_name = iData["channel"]
+                    #   Set Checked
+                    if channel_name in imported_channels:
+                        self.setItemChecked(item, "checked")
+                    else:
+                        self.setItemChecked(item, "unchecked")
+
         #   Check all items
-        for item in allItems:
-            self.setItemChecked(item, "checked")
+        else:
+            for item in allItems:
+                self.setItemChecked(item, "checked")
 
         #   Call the AOV coloring after toggling
         self.updateAovStatus()

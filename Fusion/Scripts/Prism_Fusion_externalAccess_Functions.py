@@ -110,7 +110,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.cb_prismStartMode.setCurrentIndex(1)
 				
 		## AOV Thumbnails
-		origin.l_useAovThumbs = QLabel("AOV/Channel Thumbnails:       ")
+		origin.l_useAovThumbs = QLabel("AOV/Channel Thumbnails:     ")
 		origin.cb_useAovThumbs = QComboBox()
 		origin.cb_useAovThumbs.addItems(["All", "Simple", "Disabled"])
 		origin.cb_useAovThumbs.setCurrentIndex(0)  # Default to All
@@ -165,7 +165,7 @@ class Prism_Fusion_externalAccess_Functions(object):
 		origin.cb_sorting.setCurrentIndex(0)  # Default to All
 
 		#	Version Update Popup
-		origin.l_updatePopup = QLabel("Version Update Popup:           ")
+		origin.l_updatePopup = QLabel("Version Update Popup:         ")
 		origin.cb_updatePopup = QComboBox()
 		origin.cb_updatePopup.addItems(["Enabled", "Disabled"])
 		origin.cb_updatePopup.setCurrentIndex(0)  # Default to Enabled
@@ -184,17 +184,27 @@ class Prism_Fusion_externalAccess_Functions(object):
 		####	OPTIONS 4 LAYOUT
 		lo_options4 = QHBoxLayout()
 
-		#	Sorting/Wireless
+		#	Scan for Orphan Loaders
 		origin.l_scanComp = QLabel("Scan Mode:                ")
 		origin.cb_scanComp = QComboBox()
 		origin.cb_scanComp.addItems(["Auto", "Prompt", "Disabled"])
 		origin.cb_scanComp.setCurrentIndex(1)  # Default to Prompt
+
+		#	Combine Crypto
+		origin.l_combineCrypto = QLabel("Combine CryptoMatte:         ")
+		origin.cb_combineCrypto = QComboBox()
+		origin.cb_combineCrypto.addItems(["Auto", "Prompt", "Disabled"])
+		origin.cb_combineCrypto.setCurrentIndex(1)  # Default to Prompt
 
 		#	Add Items to Options 4
 		lo_options4.addWidget(origin.l_scanComp)
 		lo_options4.addWidget(origin.cb_scanComp)
 		spacer7 = QSpacerItem(40, 20, QSizePolicy.Expanding, QSizePolicy.Minimum)
 		lo_options4.addItem(spacer7)
+		lo_options4.addWidget(origin.l_combineCrypto)
+		lo_options4.addWidget(origin.cb_combineCrypto)
+		spacer8 = QSpacerItem(40, 20, QSizePolicy.Fixed, QSizePolicy.Minimum)
+		lo_options4.addItem(spacer8)
 
 
 		####	Add All the Option Layouts to the Main Options Layout
@@ -263,10 +273,19 @@ class Prism_Fusion_externalAccess_Functions(object):
 		tip = ("Enables Scanning of the Comp for Orphaned Prism Loaders,\n"
 		 	   "and allows for an Import State to be Created\n\n"
 		 	   "Auto:      Automatically create ImportImage State for each discovered Prism Loader\n"
-			   "Promt:        Prompt User for each State Creation\n"
+			   "Prompt:        Prompt User for each State Creation\n"
 			   "Disabled:     Disabled the Scanning and Auto-creation")
 		origin.l_scanComp.setToolTip(tip)
 		origin.cb_scanComp.setToolTip(tip)
+
+
+		tip = ("Enables Importing only one Loader for CryptoMatte passes.\n\n"
+		 	   "Auto:      Automatically combines CryptoMatte passes\n"
+			   "Prompt:        Prompt User for CryptoMatte combining\n"
+			   "Disabled:     Loads Each Crypto Pass as a Seprate Loader")
+		origin.l_combineCrypto.setToolTip(tip)
+		origin.cb_combineCrypto.setToolTip(tip)
+
 
 		# tip = "Install Prism Development menu to Fusion when adding the integration."
 		# origin.l_installDevTools.setToolTip(tip)
@@ -303,6 +322,8 @@ class Prism_Fusion_externalAccess_Functions(object):
 			settings["Fusion"]["sorting"] = origin.cb_sorting.currentText()
 			settings["Fusion"]["updatePopup"] = origin.cb_updatePopup.currentText()
 			settings["Fusion"]["scanComp"] = origin.cb_scanComp.currentText()
+			settings["Fusion"]["combineCrypto"] = origin.cb_combineCrypto.currentText()
+
 
 		except Exception as e:
 			logger.warning(f"ERROR: Could not save user settings:\n{e}")
@@ -386,6 +407,14 @@ class Prism_Fusion_externalAccess_Functions(object):
 						origin.cb_scanComp.setCurrentIndex(idx)
 				else:
 					origin.cb_scanComp.setCurrentIndex(1)		#	Defaults to Prompt
+
+				#	Sets Combine Crypto Mpde
+				if "combineCrypto" in settings["Fusion"]:
+					idx = origin.cb_combineCrypto.findText(settings["Fusion"]["combineCrypto"])
+					if idx != -1:
+						origin.cb_combineCrypto.setCurrentIndex(idx)
+				else:
+					origin.cb_combineCrypto.setCurrentIndex(1)		#	Defaults to Prompt
 
 				self.configAovThumbUi(origin)
 
