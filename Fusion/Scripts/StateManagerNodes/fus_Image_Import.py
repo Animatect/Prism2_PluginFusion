@@ -294,7 +294,7 @@ class Image_ImportClass(object):
         self.b_browse.clicked.connect(self.browse)                                              #   Select Version Button
         self.b_browse.customContextMenuRequested.connect(self.openFolder)                       #   RCL Select Version Button
         self.b_importLatest.clicked.connect(lambda: self.importLatest(refreshUi=True,
-                                                                      selectedStates=False,
+                                                                      selectedStates=True,
                                                                       setChecked=True))         #   Import Latest Button
         self.chb_autoUpdate.stateChanged.connect(self.autoUpdateChanged)                        #   Latest Checkbox
         self.b_importAll.clicked.connect(lambda: self.importAll(refreshUi=True))                #   Import All Button
@@ -972,7 +972,7 @@ class Image_ImportClass(object):
         self.setItemChecked(item, new_checked)
 
         #   Sets tree checkboxes based on selection
-        self.onCheckboxStateChanged(item, column)
+        self.onCheckboxStateChanged(item)
 
         #   Call the AOV coloring after toggling
         self.updateAovStatus()
@@ -984,7 +984,7 @@ class Image_ImportClass(object):
 
     #   Handles checkbox selection of the children and parents
     @err_catcher(name=__name__)
-    def onCheckboxStateChanged(self, item, column):
+    def onCheckboxStateChanged(self, item):
         checked = self.getItemChecked(item)
         item.setData(0, ITEM_ROLE_CHECKBOX, checked)
 
@@ -1791,6 +1791,19 @@ class Image_ImportClass(object):
     
 
     @err_catcher(name=__name__)
+    def getCheckedItemsData(self):
+        selItemData = []
+        selItems = self.getAllItems(useChecked=True, aovs=True)
+        if selItems:
+            for item in selItems:
+                iData = self.getItemData(item)
+                if iData:
+                    selItemData.append(iData)
+
+        return selItemData
+
+
+    @err_catcher(name=__name__)
     def getMatchingDataFromItem(self, item):
         itemData = self.getItemData(item)
         if not itemData:
@@ -1805,6 +1818,30 @@ class Image_ImportClass(object):
                 return fileData
         else:
             return None
+        
+
+    @err_catcher(name=__name__)
+    def getMatchingItemFromData(self, Data):
+        keys = ["aov", "channel", "identifier", "itemType", 
+                "mediaType", "project_name", "sequence", "shot", "asset", "type"]
+
+        items = self.getAllItems(aovs=True)
+        for item in items:
+            iData = self.getItemData(item)
+
+            match = True
+            for key in keys:
+                if key in Data and iData.get(key) != Data[key]:
+                    match = False
+                    break
+
+            if match:
+                return item  # return the first matching item
+
+        return None  # no match found
+
+
+
 
 
     @err_catcher(name=__name__)
@@ -1999,48 +2036,51 @@ class Image_ImportClass(object):
         #   Default to False
         combineCrypto = False
 
-        if combineSetting in ["Auto", "Prompt"]:
-            crypto_seen = False
-            filtered = []
+        try:
+            if combineSetting in ["Auto", "Prompt"]:
+                crypto_seen = False
+                filtered = []
 
-            #   Itterate through Files
-            for file in files:
-                #   Get Channel
-                channel = file["channel"]
+                #   Itterate through Files
+                for file in files:
+                    #   Get Channel
+                    channel = file["channel"]
 
-                #   Find Crypto in Channels
-                if re.search(r"crypto", channel, re.IGNORECASE):
-                    if not crypto_seen:
-                        filtered.append(file)
-                        crypto_seen = True
+                    #   Find Crypto in Channels
+                    if re.search(r"crypto", channel, re.IGNORECASE):
+                        if not crypto_seen:
+                            filtered.append(file)
+                            crypto_seen = True
+                        else:
+                            continue 
+
+                    #   Add Pass
                     else:
-                        continue 
+                        filtered.append(file)
 
-                #   Add Pass
-                else:
-                    filtered.append(file)
+                #   If there are any Crypto Passes
+                if crypto_seen:
+                    #   Show Popup Question for Combine
+                    if combineSetting == "Prompt":
+                        text = ("CryptoMatte Passes Detected.\n\n"
+                                "Would you like to Combine the CryptoMatte\n"
+                                "passes into a Single Loader?")
+                        title = "Combine CryptoMatte"
+                        buttons = ["Yes", "No"]
 
-            #   If there are any Crypto Passes
-            if crypto_seen:
-                #   Show Popup Question for Combine
-                if combineSetting == "Prompt":
-                    text = ("CryptoMatte Passes Detected.\n\n"
-                            "Would you like to Combine the CryptoMatte\n"
-                            "passes into a Single Loader?")
-                    title = "Combine CryptoMatte"
-                    buttons = ["Yes", "No"]
+                        result = self.core.popupQuestion(text, title=title, buttons=buttons)
+                        if result == "Yes":
+                            combineCrypto = True
 
-                    result = self.core.popupQuestion(text, title=title, buttons=buttons)
-                    if result == "Yes":
+                    #   Automatically Combine
+                    elif combineSetting == "Auto":
                         combineCrypto = True
 
-                #   Automatically Combine
-                elif combineSetting == "Auto":
-                    combineCrypto = True
-
-                #   If Combine, change to Modified List
-                if combineCrypto:
-                    importData["files"] = filtered
+                    #   If Combine, change to Modified List
+                    if combineCrypto:
+                        importData["files"] = filtered
+        except:
+            combineCrypto = False
 
         #   Import all images (using Modified Channel data if combineCrypto)
         self.imageImport(importData)
@@ -2152,6 +2192,9 @@ class Image_ImportClass(object):
     def importLatest(self, refreshUi=True, selectedStates=True, setChecked=False):
         importIdentifier = self.importData.copy()
 
+        if setChecked:
+            selItemData = self.getCheckedItemsData()
+
         keys_to_remove = [
             'stateUID', 'locations', 'extension', 'version', 'aovs', 'channels', 
             'files', 'statename', 'statemode', 'filepath', 'autoUpdate', 'taskname',
@@ -2172,13 +2215,26 @@ class Image_ImportClass(object):
         if result == "Empty":
             return result
         
-        if not selectedStates:
+        if selectedStates:
+            self.importSelected(refreshUi=False)
+        else:
             self.importAll(refreshUi=False)
 
+        if setChecked:
+            for iData in selItemData:
+                newItem = self.getMatchingItemFromData(iData)
+                if newItem:
+                    self.setItemChecked(newItem, "checked")
+                    self.onCheckboxStateChanged(newItem)
+
         if refreshUi:
+            self.updateAovStatus()
             self.updateUi()
             self.createAovThumbs()
             self.createStateThumbnail()
+
+        
+        self.setStateColor()
 
         return True
 
