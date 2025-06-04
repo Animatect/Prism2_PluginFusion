@@ -290,8 +290,8 @@ class Image_ImportClass(object):
         self.b_selectTools.clicked.connect(self.selectTools)
         self.lw_objects.itemPressed.connect(self.onAovItemClicked)                              #   When AOV item clicked
         self.lw_objects.itemCollapsed.connect(self.onItemCollapsed)                             # Recursivelly Collapse children
-        self.lw_objects.itemCollapsed.connect(self.onItemExpanded)                             # Recursivelly Expand children
-        self.b_browse.clicked.connect(self.browse)                                              #   Select Version Button
+        self.lw_objects.itemCollapsed.connect(self.onItemExpanded)                              # Recursivelly Expand children
+        self.b_browse.clicked.connect(lambda: self.browse(setChecked=True))                     #   Select Version Button
         self.b_browse.customContextMenuRequested.connect(self.openFolder)                       #   RCL Select Version Button
         self.b_importLatest.clicked.connect(lambda: self.importLatest(refreshUi=True,
                                                                       selectedStates=True,
@@ -445,7 +445,11 @@ class Image_ImportClass(object):
 
     #   Opens Media Chooser to select version
     @err_catcher(name=__name__)
-    def browse(self):
+    def browse(self, setChecked=False):
+        if setChecked:
+            #   Get Currently Selected Item Data
+            selItemData = self.getCheckedItemsData()
+
         #   Get the AOV items
         aovItems = self.getAllItems(useChecked=False, aovs=True)
         if aovItems:
@@ -459,6 +463,15 @@ class Image_ImportClass(object):
             self.callMediaWindow()
 
         self.refresh()
+
+        if setChecked:
+            #   Search for Matching New Items to Set Checked
+            for iData in selItemData:
+                newItem = self.getMatchingItemFromData(iData)
+                if newItem:
+                    self.setItemChecked(newItem, "checked")
+                    self.onCheckboxStateChanged(newItem)
+
 
 
     @err_catcher(name=__name__)                     #   TODO
@@ -666,6 +679,12 @@ class Image_ImportClass(object):
             return result
         else:
             return True
+        
+
+    #   Sets the Selected Result from the MediaChooser
+    @err_catcher(name=__name__)
+    def setSelectedMedia(self, selResult):        
+        self.selResult = selResult  # Save the selected media
         
 
     #   Refreshes UI, Thumbnails, and Tooltips
@@ -1688,11 +1707,6 @@ class Image_ImportClass(object):
             return None
 
 
-    @err_catcher(name=__name__)                         #   TODO NEEDED???
-    def setSelectedMedia(self, selResult):
-        self.selResult = selResult  # Save the selected media
-
-
     @err_catcher(name=__name__)
     def setItemData(self, item, data):
         item.setData(0, ITEM_ROLE_DATA, data)
@@ -2131,6 +2145,7 @@ class Image_ImportClass(object):
 
         selItemData = []
         selItems = self.getAllItems(useChecked=True, aovs=True)
+
         if selItems:
             for item in selItems:
                 iData = self.getItemData(item)
@@ -2142,7 +2157,7 @@ class Image_ImportClass(object):
         else:
             self.core.popup("No items selected.")
             return False
-
+        
         self.imageImport(importData)
 
         self.updateAovChnlTree()
@@ -2215,10 +2230,7 @@ class Image_ImportClass(object):
         if result == "Empty":
             return result
         
-        if selectedStates:
-            self.importSelected(refreshUi=False)
-        else:
-            self.importAll(refreshUi=False)
+        self.updateAovChnlTree()
 
         if setChecked:
             for iData in selItemData:
@@ -2226,15 +2238,17 @@ class Image_ImportClass(object):
                 if newItem:
                     self.setItemChecked(newItem, "checked")
                     self.onCheckboxStateChanged(newItem)
+                
+        if selectedStates:
+            self.importSelected(refreshUi=False)
+        else:
+            self.importAll(refreshUi=False)
 
         if refreshUi:
             self.updateAovStatus()
             self.updateUi()
             self.createAovThumbs()
             self.createStateThumbnail()
-
-        
-        # self.setStateColor()                  #   Disabled to fix import error.  I see no side-affects of not having it.
 
         return True
 
