@@ -48,8 +48,11 @@
 
 
 import os
+import sys
 import logging
 import re
+import subprocess
+import inspect
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -398,13 +401,107 @@ class Image_ImportClass(object):
             logger.warning(f"ERROR:  Unable to get Layers from Prism Functions:\n\n{e}")
 
 
-    #   Returns the numver of frames for a given video filepath
+
+    #################################################################
+    ########        THIS USES NATIVE PRISM METHOD           #########
+    ########        which is slow as of 2.0.17              #########
+    ########        if Prism changes to faster method       #########
+    ########        we should go back to using Native       #########
+    ########        vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv      #########
+
+    #   Returns the Number of frames for a given video filepath
+    # @err_catcher(name=__name__)
+    # def getVideoDuration(self, filepath:str) -> int:
+    #     try:
+    #         return self.fuseFuncts.core.media.getVideoDuration(filepath)
+    #     except Exception as e:
+    #         logger.warning(f"ERROR:  Unable to get Video Duration from Prism Functions:\n\n{e}")
+
+    ########      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^     ##########
+    ##################################################################
+
+
+
+    #################################################################
+    ########        THIS USES FFprobe METHOD                #########
+    ########        which is much faster than               #########
+    ########        Native Prism method                     #########
+    ########                                                #########
+    ########        if not, we should move to               #########
+    ########        Fusion Functs                           #########
+    ########        vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv      #########
+
+    #   Returns the Number of frames for a given video filepath
     @err_catcher(name=__name__)
     def getVideoDuration(self, filepath:str) -> int:
         try:
-            return self.fuseFuncts.core.media.getVideoDuration(filepath)
+            return self.getVideoDuration(filepath)
         except Exception as e:
-            logger.warning(f"ERROR:  Unable to get Video Duration from Prism Functions:\n\n{e}")
+            logger.warning(f"ERROR:  Unable to get Video Duration from FFprobe:\n\n{e}")
+
+
+    #   Returns FFprobe Path
+    @err_catcher(name=__name__)
+    def getFFprobePath(self):
+        module_file = inspect.getfile(self.fuseFuncts.__class__)
+        pluginDir = os.path.dirname(os.path.abspath(module_file))       
+
+        return os.path.join(pluginDir, "thirdparty", "ffmpeg", "ffprobe.exe")
+
+
+    @err_catcher(name=__name__)
+    def getVideoDuration(self, filePath):
+        ffprobePath = os.path.normpath(self.getFFprobePath())
+
+        kwargs = {
+            "stdout": subprocess.PIPE,
+            "stderr": subprocess.PIPE,
+            "text":   True,
+        }
+
+        if sys.platform == "win32":
+            kwargs["creationflags"] = subprocess.CREATE_NO_WINDOW
+
+        #   Execute Quick Method
+        result = subprocess.run(
+            [
+                ffprobePath,
+                "-v", "error",
+                "-select_streams", "v:0",
+                "-show_entries", "stream=nb_frames",
+                "-of", "default=nokey=1:noprint_wrappers=1",
+                filePath
+            ],
+            **kwargs
+        )
+
+        #   Get Frames from Output
+        frames = result.stdout.strip()
+
+        #   If Quick Method didnt work, try Slower Fallback Method
+        if frames == 'N/A' or not frames.isdigit():
+            result = subprocess.run(
+                [
+                    ffprobePath,
+                    "-v", "error",
+                    "-select_streams", "v:0",
+                    "-count_frames",
+                    "-show_entries", "stream=nb_read_frames",
+                    "-of", "default=nokey=1:noprint_wrappers=1",
+                    filePath
+                ],
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+                text=True
+            )
+
+            frames = result.stdout.strip() 
+
+
+        return int(frames)
+    
+    ########      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^     ##########
+    ##################################################################
 
 
 
