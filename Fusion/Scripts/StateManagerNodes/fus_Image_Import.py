@@ -2449,6 +2449,13 @@ class ReadMediaDialog(QDialog):
     #   Sends data back to the main code to import the latest version
     @err_catcher(name=__name__)
     def ident_dblClk(self, item, column=None):
+        #   Get Item Data
+        data = item.data(0, Qt.UserRole)
+
+        #   Return if No Data or is a Group (folder)
+        if not data or data.get("isGroup") is True:
+            return
+
         selResult = ["identifier", item.data(0, Qt.UserRole)]
 
         self.mediaSelected.emit(selResult)
