@@ -221,7 +221,7 @@ class Image_ImportClass(object):
                         Fus.updateToolData(tool, updateData)
 
                 #   Make State Data
-                self.makeImportData(self.importData)
+                result = self.makeImportData(self.importData)
 
             #   Just get the Prism Context Data
             else:
@@ -2085,11 +2085,7 @@ class Image_ImportClass(object):
         #   Import all images (using Modified Channel data if combineCrypto)
         self.imageImport(importData)
 
-        if refreshUi:
-            self.updateAovChnlTree()
-            self.updateUi()
-        else:
-            self.updateAovChnlTree()
+        self.updateAovChnlTree()
 
         #   Get all items in the AOV list
         allItems = self.getAllItems()
@@ -2116,6 +2112,11 @@ class Image_ImportClass(object):
         else:
             for item in allItems:
                 self.setItemChecked(item, "checked")
+
+        self.updateAovChnlTree()
+
+        if refreshUi:
+            self.updateUi()
 
         #   Call the AOV coloring after toggling
         self.updateAovStatus()
@@ -2144,11 +2145,10 @@ class Image_ImportClass(object):
 
         self.imageImport(importData)
 
+        self.updateAovChnlTree()
+
         if refreshUi:
-            self.updateAovChnlTree()
             self.updateUi()
-        else:
-            self.updateAovChnlTree()
 
         #   Call the AOV coloring after toggling
         self.updateAovStatus()
@@ -2234,7 +2234,7 @@ class Image_ImportClass(object):
             self.createStateThumbnail()
 
         
-        self.setStateColor()
+        # self.setStateColor()                  #   Disabled to fix import error.  I see no side-affects of not having it.
 
         return True
 
