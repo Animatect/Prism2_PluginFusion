@@ -1491,8 +1491,9 @@ class ImageRenderClass(object):
 
 			if "Result=Success" in result:
 
-				#	Restore StateManager
-				# self.stateManager.showNormal()
+				#	Restore StateManager (needs short pause)
+				time.sleep(.5)
+				self.stateManager.showNormal()
 
 				return [self.state.text(0) + " - success"]
 			
