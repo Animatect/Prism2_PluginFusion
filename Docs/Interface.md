@@ -114,6 +114,17 @@ When in Manual mode, Prism will not start when Fusion is opened.  But Prism can 
     - **Prompt:**    The use will be prompted to create new States from discovered orphaned Prism Loaders.  This can slighly increase the time it takes to display the State Manager. 
     - **Disabled:**   The plugin will not scan the Comp for orphaned Loaders.  This can increase State Manager loading performance slightly.
 
+<br/>
+
+### **Combine CryptoMatte**
+
+![Combine Crypto](DocsImages/Setting_Crypto.png)
+
+- Fusion's built-in CryptoMatte tool only needs a single image input (containing Crypto data), while other DCC's may render many separate Crypto passes.  The Fusion plugin has the ability to recognize CryptoMatte AOV/Layer/Channels in an Image Import and create only one Loader (for Crypto passes).  Other AOV/Channels/Layers will still be imported as separate Loaders.
+
+    - **Auto:**     Recognized CryptoMatte passes will be automatically combined into a single Loader.  Additional Loaders can always be added in the AOV list. 
+    - **Prompt:**    The user will be prompted to combine the recognized Crypto passes into a single Loader, or create separate Loaders. 
+    - **Disabled:**   All AOVs/Layers/Channels will be imported using separate Loaders per AOV.
 
 <br/>
 
