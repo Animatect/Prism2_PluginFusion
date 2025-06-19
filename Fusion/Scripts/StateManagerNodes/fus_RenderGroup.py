@@ -234,10 +234,6 @@ class RenderGroupClass(object):
 		self.chb_renderAsPrevVer.setToolTip(tip)
 		self.l_renderVersion.setToolTip(tip)
 
-		tip = "Override Framerange."
-		self.chb_overrideFrameRange.setToolTip(tip)
-		self.label_3.setToolTip(tip)
-
 		tip = "Override Master Version setting."
 		self.chb_overrideMaster.setToolTip(tip)
 		self.l_master.setToolTip(tip)
@@ -1086,6 +1082,12 @@ class RenderGroupClass(object):
 			for element in uiElements:
 				element.setHidden(True)
 
+			start, end = self.fuseFuncs.getFrameRange(self)
+			tip = ("Defaults to the current Comp's Render Range:\n\n"
+		  		   f"     current:   {int(start)}  -  {int(end)}")
+			self.chb_overrideFrameRange.setToolTip(tip)
+			self.label_3.setToolTip(tip)
+
 		#	If override is checked, handle UI elements
 		else:
 			self.cb_rangeType.setVisible(True)
@@ -1105,6 +1107,10 @@ class RenderGroupClass(object):
 				end = str(int(frange[1])) if frange[1] is not None else "-"
 				self.l_rangeStart.setText(start)
 				self.l_rangeEnd.setText(end)
+
+			tip = "Will render the Selected Render Range Type."
+			self.chb_overrideFrameRange.setToolTip(tip)
+			self.label_3.setToolTip(tip)
 
 
 	@err_catcher(name=__name__)
