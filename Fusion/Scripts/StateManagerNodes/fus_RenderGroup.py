@@ -1271,19 +1271,21 @@ class RenderGroupClass(object):
 
 		self.updateUi()
 
+		#	Get RenderGroup Name
+		stateName = self.state.text(0)
+
+		#	Renderer (Farm Name or Local)
+		if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
+			rendererString = self.cb_manager.currentText()
+		else:
+			rendererString = "Local Machine"
+
 		#	If there are no states in group
 		if self.tw_renderStates.count() == 0:
 			warnings.append(["RenderGroup does not contain any Render States", "", 3])
+			renderStatesString = "         NONE"
 
 		else:
-			#	Render Machine
-			if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
-				renderString = self.cb_manager.currentText()
-			else:
-				renderString = "Local Machine"
-			warnings.append([f"Renderer:   {renderString}", "", 2])
-
-
 		#	Group Messages
 			#	Gets group stateNames from UID's
 			renderStatesNames = []
@@ -1294,10 +1296,10 @@ class RenderGroupClass(object):
 				#	If the associated Saver does not exist
 				if not Fus.toolExists(comp, toolUID):
 					missingSaverList.append(self.getStateNameFromUID(toolUID))
-
+			
 			#	Makes the warning string for Group states
-			renderStatesString = "\n    ".join(renderStatesNames)
-			warnings.append([f"The following States will be rendered:\n    {renderStatesString}", "", 2])
+			if len(renderStatesNames) > 0:
+				renderStatesString = "\n".join(f"         {name}" for name in renderStatesNames)
 
 			#	Makes warning string if any Savers are missing.
 			if len(missingSaverList) > 0:
@@ -1305,16 +1307,24 @@ class RenderGroupClass(object):
 				warnings.append([f"The following Savers are missing from the Comp:\n  {missingSaverString}", "", 3])
 
 		#	Range Messages
-		rangeType = self.cb_rangeType.currentText()
+		if not self.chb_overrideFrameRange.isChecked():
+			#	If Range Override Not Checked use "Comp" name and Scene Range
+			rangeTypeStr = "Comp"
+			rangeType = "Scene"
+
+		else:
+			#	Get Range from Type
+			rangeTypeStr = rangeType = self.cb_rangeType.currentText()
+
 		frames = self.getFrameRange(rangeType)
 		if rangeType != "Expression":
-			framesStr = f"{frames[0]} - {frames[1]}"
+			framesStr = f"{int(frames[0])} - {int(frames[1])}"
 			frames = frames[0]
 		else:
 			framesStr = f"Expression {self.le_frameExpression.text()}"
 
 		if frames is None or frames == []:
-			warnings.append(["Framerange is invalid.", "", 3])
+			framesStr = "Framerange is invalid."
 
 		#	Overrides messages
 		renderOverrides = []
@@ -1338,8 +1348,11 @@ class RenderGroupClass(object):
 			overrideStr = ""
 			for override in renderOverrides:
 				overrideStr = overrideStr + f"{override}\n"
-
 			warnings.append([f"Overrides:\n{overrideStr}", "", 2])
+
+		else:
+			#	Return Empty Warning if No Other Warings
+			warnings.append(["", "", 1])
 
 		#	 Checks Farm plugin
 		if not self.gb_submit.isHidden() and self.gb_submit.isChecked():
@@ -1349,8 +1362,15 @@ class RenderGroupClass(object):
 		#	Gets DCC render warnings
 		warnings += self.fuseFuncs.sm_render_preExecute(self)
 
-		#	Returns warnings for Core to display
-		return [self.state.text(0), warnings]
+		#	Make  the Header Formtting
+		header = (f"{stateName}\n\n"
+				  f"    - The following States will be rendered:\n{renderStatesString}\n\n"
+				  f"    - Renderer:  {rendererString}\n"
+				  f"    - Range:     '{rangeTypeStr}'  ({framesStr})"
+				  )
+
+		#	Returns warnings for State Manager to display
+		return [header, warnings]
 	
 
 	@err_catcher(name=__name__)
