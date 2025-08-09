@@ -1168,8 +1168,8 @@ class Prism_Fusion_Functions(object):
 
 					#	Return if failed
 					if not leftmostNode:
-						logger.warning(f"ERROR:  Unable to import Images:\n{e}")
-						self.core.popup(f"ERROR:  Unable to import Images:\n{e}")
+						logger.warning(f"ERROR:  Unable to import Images - Unable to resolve Left-most Node")
+						self.core.popup(f"ERROR:  Unable to import Images - Unable to resolve Left-most Node")
 						return False
 
 				#	Update loader if it already exists in the Comp
@@ -1756,7 +1756,7 @@ class Prism_Fusion_Functions(object):
 				#	 Update tool data
 				uLdr = Fus.configureTool(tool, toolData)
 
-				logger.debug(f"Updated uLoader: {toolData['nodeName']}")
+				logger.debug(f"Updated uLoader: {toolData['toolName']}")
 				importRes = True
 
 			except Exception as e:
@@ -1872,7 +1872,7 @@ class Prism_Fusion_Functions(object):
 				texDict = {}
 				texDict["toolUID"] = toolUID
 				texDict["stateUID"] = texData["stateUID"]
-				texDict["nodeName"] = f"{texData['toolName']}_{texture['map'].upper()}"
+				texDict["toolName"] = f"{texData['toolName']}_{texture['map'].upper()}"
 				texDict["shaderName"] = texData["shaderName"]
 				texDict["texMap"] = texture["map"].upper()
 				texDict["uTexFilepath"] = texture["path"]				
@@ -2106,7 +2106,7 @@ class Prism_Fusion_Functions(object):
 				#	 Update tool data
 				ldr3d = Fus.configureTool(tool, toolData)
 
-				logger.debug(f"Updated Loader3d: {toolData['nodeName']}")
+				logger.debug(f"Updated Loader3d: {toolData['toolName']}")
 				importRes = True
 
 			except Exception as e:

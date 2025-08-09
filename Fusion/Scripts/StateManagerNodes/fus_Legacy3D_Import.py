@@ -498,9 +498,9 @@ class Legacy3D_ImportClass(object):
 		#	Set node name
         productName = cacheData["product"]
         productVersion = cacheData["version"]
-        nodeName = f"{productName}_{productVersion}"
+        toolName = f"{productName}_{productVersion}"
 
-        nodeData = {"nodeName": nodeName,
+        nodeData = {"toolName": toolName,
                     "nodeUID": self.stateUID,
                     "version": productVersion,
                     "Filepath": impFileName,

@@ -368,7 +368,7 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
                 toolUID = tool.GetData("Prism_UUID")
             else:
                 tool.SetData("Prism_UUID", toolUID)
-            thisToolData["nodeName"] = tool.Name
+            thisToolData["toolName"] = tool.Name
             thisToolData["toolOrigName"] = tool.Name
             thisToolData["toolUID"] = toolUID
             thisToolData["stateUID"] = stateUUID

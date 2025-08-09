@@ -325,7 +325,7 @@ def convertToolDataToPrismData(toolData):                               #   TODO
     if "itemType" in toolData:
         pData["type"] = toolData["itemType"]
 
-    delList = ["nodeName", "stateUID", "toolUID", "aov", "channel", "fuseFormat",
+    delList = ["toolName", "nodeName", "stateUID", "toolUID", "aov", "channel", "fuseFormat",
                "filepath", "frame_start", "frame_end", "listType", "mediaId", "extension", "connectedNodes"]
 
     for delItem in delList:
