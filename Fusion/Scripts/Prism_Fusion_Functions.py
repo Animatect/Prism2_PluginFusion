@@ -3048,20 +3048,14 @@ path = r\"%s\"
 				#	Gets render args from override settings
 				renderCmd = self.makeRenderCmd(comp, rSettings)
 
-				#	Minimize the State Manager
-				origin.stateManager.showMinimized()	
-
-				#	Renders with override args
-				comp.Render({**renderCmd, 'Tool': sv, "Wait": True})
-
+				#	Renders with override args (and suppress Fusion Render Finished Popup)
+				comp.Render({**renderCmd, 'RenderFlags': 524288, 'Tool': sv, "Wait": True})
+				
 				#	Remove any temp Scale tools
 				self.deleteTempScaleTools()
 
 				#	Reset Comp settings to Original
 				self.loadOrigCompSettings(comp, origCompSettings)
-
-				#	Un-Minimize the State Manager
-				# self.stateManager.showNormal()	
 
 				if len(os.listdir(os.path.dirname(outputName))) > 0:
 					return "Result=Success"
@@ -3096,11 +3090,8 @@ path = r\"%s\"
 			#	Gets render args from override settings
 			renderCmd = self.makeRenderCmd(comp, rSettings, group=True)
 
-			#	Minimize the State Manager
-			origin.stateManager.showMinimized()	
-
-			#	Renders with override args
-			comp.Render({**renderCmd, "Wait": True})
+			#	Renders with override args (and suppress Fusion Render Finished Popup)
+			comp.Render({**renderCmd, 'RenderFlags': 524288, "Wait": True})
 
 			#	Remove any temp Scale tools
 			self.deleteTempScaleTools()
@@ -3110,9 +3101,6 @@ path = r\"%s\"
 
 			#	Reconfigure pass-through of Savers
 			self.origSaverStates("load", comp, self.origSaverList)
-
-			#	Un-Minimize the State Manager
-			# self.stateManager.showNormal()	
 
 			renderResult = True
 
