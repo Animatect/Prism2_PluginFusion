@@ -3806,7 +3806,7 @@ path = r\"%s\"
 								 			self.getVersionStackContextFromPath,
 											self,
 											force=True)
-			self.core.plugins.monkeyPatch(origin.shotCam, self.shotCam, self, force=True)								#	TODO - Look at this.
+			self.core.plugins.monkeyPatch(origin.importShotCam, self.importShotCam, self, force=True)
 			self.core.plugins.monkeyPatch(origin.showStateMenu, self.showStateMenu, self, force=True)
 			self.core.plugins.monkeyPatch(origin.pasteStates, self.pasteStates, self, force=True)
 		except Exception as e:
@@ -4331,8 +4331,8 @@ path = r\"%s\"
 
 	#	This imports shotcams as a legacy
 	@err_catcher(name=__name__)
-	def shotCam(self):
-		logger.debug("Loading state manager patched function: 'shotCam'")
+	def importShotCam(self):
+		logger.debug("Loading state manager patched function: 'importShotCam'")
 		if self.sm_checkCorrectComp(self.getCurrentComp()):
 			sm = self.MP_stateManager
 
