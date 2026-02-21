@@ -53,6 +53,10 @@ import logging
 import re
 import subprocess
 import inspect
+import traceback
+import platform
+import ctypes
+
 
 from qtpy.QtCore import *
 from qtpy.QtGui import *
@@ -141,7 +145,7 @@ class Image_ImportClass(object):
         self.stateMode = "Image_Import"
         self.taskName = ""
         self.setName = ""
-        self.stateStaus = None
+        self.stateStatus = None
         self.aovStatus = None
 
         #   Gets color mode from DCC settings
@@ -292,8 +296,8 @@ class Image_ImportClass(object):
         self.b_focusView.clicked.connect(self.focusView)
         self.b_selectTools.clicked.connect(self.selectTools)
         self.lw_objects.itemPressed.connect(self.onAovItemClicked)                              #   When AOV item clicked
-        self.lw_objects.itemCollapsed.connect(self.onItemCollapsed)                             # Recursivelly Collapse children
-        self.lw_objects.itemCollapsed.connect(self.onItemExpanded)                              # Recursivelly Expand children
+        self.lw_objects.itemCollapsed.connect(self.onItemCollapsed)                             #   Recursively Collapse children
+        self.lw_objects.itemCollapsed.connect(self.onItemExpanded)                              #   Recursively Expand children
         self.b_browse.clicked.connect(lambda: self.browse(setChecked=True))                     #   Select Version Button
         self.b_browse.customContextMenuRequested.connect(self.openFolder)                       #   RCL Select Version Button
         self.b_importLatest.clicked.connect(lambda: self.importLatest(refreshUi=True,
@@ -303,6 +307,7 @@ class Image_ImportClass(object):
         self.b_importAll.clicked.connect(lambda: self.importAll(refreshUi=True))                #   Import All Button
         self.b_importSel.clicked.connect(self.importSelected)                                   #   Import Selected button
         self.b_refresh.clicked.connect(self.refresh)                                            #   Refresh Button
+
 
 
     #########################
@@ -333,34 +338,49 @@ class Image_ImportClass(object):
         return mediaProducts.getLatestVersionFromIdentifier(context, includeMaster=includeMaster)
     
 
-    #   Returns a pixmap from an exr image filepath (can specify channel/aov)
+    #   Returns QImage from EXR Image
     @err_catcher(name=__name__)
-    def getPixmapFromExrPath(self, filePath:str, width:int, height:int, channel:str, allowThumb:bool) -> PixMap:
-        try:
-            pxmap = self.core.media.getPixmapFromExrPath(filePath,
-                                                        width=width,
-                                                        height=height,
-                                                        channel=channel,
-                                                        allowThumb=allowThumb
-                                                        )
-            return pxmap
+    def getQImageFromExrPath(self,
+                             path: str,
+                             width: int = None,
+                             height: int = None,
+                             channel: str = None,
+                             allowThumb: bool = True,
+                             regenerateThumb: bool = False
+                             ) -> QImage:
+
+        print(f"*** path: {path}\n"
+              f"width: {width}\n"
+              f"height: {height}\n"
+              f"channel: {channel}\n"
+              f"allowThumb: {allowThumb}\n"
+              f"regenerateThumb: {regenerateThumb}")                                              #    TESTING
         
-        except Exception as e:
-            logger.warning(f"ERROR:  Unable to get PixMap from Prism Funcions")
-            return None
+        qimg = self.core.media.getQImageFromExrPath(path, width, height, channel, allowThumb, regenerateThumb)
+
+        print(f"*** qimg from Prism: {qimg}")                                              #    TESTING
+        return qimg
+
+        # return self.core.media.getQImageFromExrPath(path, width, height, channel, allowThumb, regenerateThumb)
 
 
-    #   Returns a pixmap from a generic media image filepath
+    #   Returns QImage from Other Image Type
     @err_catcher(name=__name__)
-    def getPixmapFromPath(self, filePath:str, width:int, height:int) -> PixMap:
-        try:
-            pxmap = self.core.media.getPixmapFromPath(filePath, width=width, height=height)
-            return pxmap
+    def getQImageFromPath(self,
+                          path: str,
+                          width: int = None,
+                          height: int = None,
+                          colorAdjust: bool = False
+                          ) -> QImage:
         
-        except Exception as e:
-            logger.warning(f"ERROR:  Unable to get PixMap from Prism Funcions:\n\n{e}")
-            return None
-    
+        return self.core.media.getQImageFromPath(path, width, height, colorAdjust)
+        
+
+    #   Return Fallback QImage from Core
+    @err_catcher(name=__name__)
+    def getFallbackQImage(self, big: bool=False) -> QImage:
+        return self.core.media.getFallbackQImage(big=big)
+
 
     #   Returns a context from the currently selected version
     @err_catcher(name=__name__)
@@ -392,65 +412,29 @@ class Image_ImportClass(object):
             logger.warning(f"ERROR:  Unable to get Files from Prism Context Functions:\n\n{e}")
 
 
-    #   Returns a list of channels/AOVs for a given filepth
-    @err_catcher(name=__name__)
-    def getLayersFromFile(self, filepath:str) -> list:
-        try:
-            return self.fuseFuncts.core.media.getLayersFromFile(filepath)
-        except Exception as e:
-            logger.warning(f"ERROR:  Unable to get Layers from Prism Functions:\n\n{e}")
-
-
-
-    #################################################################
-    ########        THIS USES NATIVE PRISM METHOD           #########
-    ########        which is slow as of 2.0.17              #########
-    ########        if Prism changes to faster method       #########
-    ########        we should go back to using Native       #########
-    ########        vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv      #########
-
-    #   Returns the Number of frames for a given video filepath
-    # @err_catcher(name=__name__)
-    # def getVideoDuration(self, filepath:str) -> int:
-    #     try:
-    #         return self.fuseFuncts.core.media.getVideoDuration(filepath)
-    #     except Exception as e:
-    #         logger.warning(f"ERROR:  Unable to get Video Duration from Prism Functions:\n\n{e}")
-
-    ########      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^     ##########
-    ##################################################################
-
-
-
-    #################################################################
-    ########        THIS USES FFprobe METHOD                #########
-    ########        which is much faster than               #########
-    ########        Native Prism method                     #########
-    ########                                                #########
-    ########        if not, we should move to               #########
-    ########        Fusion Functs                           #########
-    ########        vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv      #########
-
     #   Returns the Number of frames for a given video filepath
     @err_catcher(name=__name__)
     def getVideoDuration(self, filepath:str) -> int:
         try:
-            return self.getVideoDuration(filepath)
+            return self.getVideoDuration_Fast(filepath)
+        
         except Exception as e:
-            logger.warning(f"ERROR:  Unable to get Video Duration from FFprobe:\n\n{e}")
+            logger.warning(f"ERROR:  Unable to get Video Duration from FFprobe, using Prism method:\n\n{e}")
+            return self.getVideoDuration_Prism(filepath)
 
 
-    #   Returns FFprobe Path
+    #   Slower Prism native method
     @err_catcher(name=__name__)
-    def getFFprobePath(self):
-        module_file = inspect.getfile(self.fuseFuncts.__class__)
-        pluginDir = os.path.dirname(os.path.abspath(module_file))       
+    def getVideoDuration_Prism(self, filepath:str) -> int:
+        try:
+            return self.fuseFuncts.core.media.getVideoDuration(filepath)
+        except Exception as e:
+            logger.warning(f"ERROR:  Unable to get Video Duration from Prism Functions:\n\n{e}")
 
-        return os.path.join(pluginDir, "thirdparty", "ffmpeg", "ffprobe.exe")
 
-
+    #   Faster FFprobe Method
     @err_catcher(name=__name__)
-    def getVideoDuration(self, filePath):
+    def getVideoDuration_Fast(self, filePath):
         ffprobePath = os.path.normpath(self.getFFprobePath())
 
         kwargs = {
@@ -478,7 +462,7 @@ class Image_ImportClass(object):
         #   Get Frames from Output
         frames = result.stdout.strip()
 
-        #   If Quick Method didnt work, try Slower Fallback Method
+        #   If Quick Method didn't work, try Slower Fallback Method
         if frames == 'N/A' or not frames.isdigit():
             result = subprocess.run(
                 [
@@ -499,9 +483,15 @@ class Image_ImportClass(object):
 
 
         return int(frames)
-    
-    ########      ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^     ##########
-    ##################################################################
+
+
+    #   Returns FFprobe Path
+    @err_catcher(name=__name__)
+    def getFFprobePath(self):
+        module_file = inspect.getfile(self.fuseFuncts.__class__)
+        pluginDir = os.path.dirname(os.path.abspath(module_file))       
+
+        return os.path.join(pluginDir, "thirdparty", "ffmpeg", "ffprobe.exe")
 
 
 
@@ -683,7 +673,7 @@ class Image_ImportClass(object):
         tip = "Selects all the State tools in the Comp"
         self.b_selectTools.setToolTip(tip)
 
-        tip = "Opens the Media Browser to select a specfic version"
+        tip = "Opens the Media Browser to select a specific version"
         self.b_browse.setToolTip(tip)
 
         tip = ("Will import the latest version of the media.\n"
@@ -726,7 +716,7 @@ class Image_ImportClass(object):
         #   If passed itemData, navigate to the Media Item
         if itemData:
             try:
-                #   Navigate to the coorect tab/table
+                #   Navigate to the correct tab/table
                 self.mediaBrowser.navigateToEntity(itemData)
                 #   Get the item title
                 mediaId = (itemData.get("displayName")
@@ -928,7 +918,8 @@ class Image_ImportClass(object):
         
         # Create a root item
         root_item = QTreeWidgetItem(self.lw_objects)
-        root_item.setText(0, f"{self.importData['identifier']}_{self.importData['version']}")
+        mediaID = self.importData.get('identifier') or self.importData.get("mediaId")
+        root_item.setText(0, f"{mediaID}_{self.importData['version']}")
         root_item.setExpanded(True)  # Expand the root item
 
         #   Add checkbox actions to item
@@ -969,7 +960,7 @@ class Image_ImportClass(object):
                 if data["aov_items"]:
                     #   Set if has AOVs
                     hasAOVs = True
-                    #   Itterate through each AOV
+                    #   Iterate through each AOV
                     for aov, channels in data["aov_items"].items():
                         aov_item = QTreeWidgetItem(root_item)
                         aov_item.setText(0, f"{aov}    (aov)    ({data['frameRange']})")
@@ -1028,7 +1019,7 @@ class Image_ImportClass(object):
         self.updateAovStatus()
 
 
-    #   Adds checkbox and checkbox selection behaviour
+    #   Adds Checkbox and Checkbox Selection Behavior
     @err_catcher(name=__name__)
     def setupAovActions(self, item):
         # Make item checkable
@@ -1047,7 +1038,7 @@ class Image_ImportClass(object):
         self._updateParentCheckbox(item)
 
 
-    #   Adds Shift Collapse/Expand Behabiours
+    #   Adds Shift Collapse/Expand Behavior
     @err_catcher(name=__name__)
     def onItemCollapsed(self, item):
         if QApplication.keyboardModifiers() == Qt.ShiftModifier:
@@ -1290,36 +1281,42 @@ class Image_ImportClass(object):
     #                       #
     #########################
 
-    #   Get PixMap from Filepath or Fallback image
+
+        #   Get QImage from Filepath or Fallback image
     @err_catcher(name=__name__)
-    def getPixMap(self, filePath, width=None, height=None, channel=None, allowThumb=True):
-        fallbackPmap = self.core.media.getFallbackPixmap()
+    def getThumbImage(self, filePath, width=None, height=None, channel=None, allowThumb=True):
+        fallbackImg = self.getFallbackQImage()
 
-        try:
-            if os.path.exists(filePath):
-                ext = os.path.splitext(filePath)[1]
+        # try:
 
-                if ext.lower() == ".exr":
-                    pixMap = self.getPixmapFromExrPath(filePath,
-                                                       width=width,
-                                                       height=height,
-                                                       channel=channel,
-                                                       allowThumb=allowThumb
-                                                       )
-                else:
-                    pixMap = self.getPixmapFromPath(filePath, width=width, height=height)
+        if os.path.exists(filePath):
+            ext = os.path.splitext(filePath)[1]
+
+            if ext.lower() == ".exr":
+                thumbImage = self.getQImageFromExrPath(filePath,
+                                                        width=width,
+                                                        height=height,
+                                                        channel=channel,
+                                                        allowThumb=allowThumb
+                                                        )
 
             else:
-                logger.warning("ERROR:  Unable to create pixmap - filepath does not exist")
-                raise Exception
-        except:
-            logger.warning("ERROR:  Unable to create thumbnail from filepath.  Using fallback.")
-            pixMap = fallbackPmap
+                thumbImage = self.getQImageFromPath(filePath, width=width, height=height)
 
-        return pixMap
-    
+            print(f"*** thumbImage: {thumbImage}")                                              #    TESTING
 
-    #   Gets Prism fallback image and scales pixmap
+        else:
+            logger.warning("ERROR:  Unable to create pixmap - filepath does not exist")
+            raise Exception
+        
+    # except:
+        # logger.warning("ERROR:  Unable to create thumbnail from filepath.  Using fallback.")
+        # thumbImage = fallbackImg
+
+        return thumbImage
+
+
+    #   Gets Prism Fallback Image and Scales Pixmap
     @err_catcher(name=__name__)
     def getFallbackThumb(self, width):
         try:
@@ -1368,15 +1365,17 @@ class Image_ImportClass(object):
             # Add a border
             self.l_thumb.setStyleSheet("border: 1px solid gray;")
         except:
-            logger.warning("ERROR:  Unable to set State Thumbnail")
+            logger.warning("ERROR:  Unable to set Temp State Thumbnail")
             return
-
+    
         #   Get state thumb width constant
         thumb_width = STATE_THUMB_WIDTH
 
         try:
             #   Get child AOV items
             aovItems = self.getAllItems(aovs=True)
+
+            print(f"*** aovItems: {aovItems}\n\n")                                              #    TESTING
 
             #   Default to use Prism thumbnails
             beautyFilepath = None
@@ -1397,6 +1396,9 @@ class Image_ImportClass(object):
 
                     break
 
+            print(f"*** beautyFilepath 1: {beautyFilepath}\n\n")                                              #    TESTING
+
+
             if not beautyFilepath:
             # If no AOV match, try and find beauty/color channel
                 for item in aovItems:
@@ -1411,6 +1413,9 @@ class Image_ImportClass(object):
 
                         break
 
+            print(f"*** beautyFilepath 2: {beautyFilepath}\n\n")                                              #    TESTING
+
+
             # If still no match, use the first available file
             if not beautyFilepath:
                 beautyFilepath = self.importData["files"][0]["basefile"]
@@ -1418,7 +1423,7 @@ class Image_ImportClass(object):
         except:
             logger.warning("ERROR:  Unable to set State Thumbnail")
             return
-
+        
         # Create thumb thread
         self.createThumb_thread = ThumbnailThread(self.l_thumb,
                                                   beautyFilepath,
@@ -1426,12 +1431,21 @@ class Image_ImportClass(object):
                                                   temp_height,
                                                   channel,
                                                   allowThumb,
-                                                  self.getPixMap)
-        
-        # Connect the signal to update the QLabel when the thumbnail is ready
+                                                  self.getThumbImage)
+
+        #   Connect the signal to update the QLabel when the thumbnail is ready
         self.createThumb_thread.thumbnail_ready.connect(self.updateThumbnail)
-        # Start the thread
+
+        #   Start the thread
         self.createThumb_thread.start()
+
+
+
+        qimg = self.getThumbImage(beautyFilepath, thumb_width, temp_height, channel, allowThumb)
+
+        print(f"*** qimg: {qimg}")                                              #    TESTING
+
+        self.updateThumbnail(self.l_thumb, qimg, temp_height, thumb_width)
 
 
     #   Generates pixmap for each AOV item with threading
@@ -1499,7 +1513,7 @@ class Image_ImportClass(object):
                                            height,
                                            channel,
                                            allowThumb,
-                                           self.getPixMap)
+                                           self.getThumbImage)
             #   Store thread
             self.thumb_threads.append(thumb_thread)
             #   Connect thread finish
@@ -1532,20 +1546,21 @@ class Image_ImportClass(object):
             logger.warning("ERROR:  Unable to set AOV thumb tooltip")
 
 
-    #   Replace placeholder thumb with generated pixmap
+    #   Replace Placeholder Thumb with Generated Thumb
     @err_catcher(name=__name__)
-    def updateThumbnail(self, item, pixMap, new_height, new_width):
-        # This will be called when the thumbnail is ready in the thread
-        try:
-            # Update QLabel with new pixmap and size
-            item.setPixmap(pixMap)
-            item.setFixedHeight(new_height)
-            item.setFixedWidth(new_width)
+    def updateThumbnail(self, item, thumbImage, new_height, new_width):
 
-            # Adjust the size to the pixmap
-            item.adjustSize()
-        except:
-            logger.warning("ERROR:  Unable to set State thumbnail")
+        # try:
+
+        #   Update QLabel with New Image and Resize
+        pixMap = QPixmap.fromImage(thumbImage)
+        item.setPixmap(pixMap)
+        item.setFixedHeight(new_height)
+        item.setFixedWidth(new_width)
+        item.adjustSize()
+
+        # except:
+        #     logger.warning("ERROR:  Unable to Update Thumbnail")
 
 
 
@@ -1593,9 +1608,17 @@ class Image_ImportClass(object):
             logger.warning(f"ERROR: There are no Versions for this Media Identifier")
             self.core.popup("There are no Versions for this Media Identifier")
             return "Empty"
+        
+        comp = self.fuseFuncts.getCurrentComp()
 
         #   Get data from various sources
         aovDict = self.getAOVsFromVersion(context)
+
+        # Remove '_thumbs' Directory from AOV List if it exists
+        aovDict = [
+            item for item in aovDict
+            if item.get("aov") != "_thumbs"
+            ]
        
         #	Get sourceData based on passes - used to get framerange
         versionDir = context["path"]
@@ -1649,7 +1672,7 @@ class Image_ImportClass(object):
             extension = self.getImageExtension(importData, basefile)
 
             # Get channels list
-            channels = self.getLayersFromFile(basefile)
+            channels = Fus.getEXRLayers(comp, basefile)
 
             if len(channels) == 0:
                 channels = ["Color"]
@@ -1690,7 +1713,9 @@ class Image_ImportClass(object):
             if "channel" in context:
                 importData["channel"] = context["channel"]
 
-            channels = self.getLayersFromFile(basefile)
+            # channels = self.getLayersFromFile(basefile)
+
+            channels = Fus.getEXRLayers(comp, basefile)
             importData["channels"] = channels
 
         except Exception as e:
@@ -1947,12 +1972,9 @@ class Image_ImportClass(object):
                     break
 
             if match:
-                return item  # return the first matching item
+                return item  #  Return First Matching Item
 
-        return None  # no match found
-
-
-
+        return None
 
 
     @err_catcher(name=__name__)
@@ -2138,6 +2160,7 @@ class Image_ImportClass(object):
     def importAll(self, refreshUi=False):
         #   Make Copy of Import Data
         importData = self.importData.copy()
+
         #   Get File List
         files = importData["files"]
 
@@ -2344,7 +2367,7 @@ class Image_ImportClass(object):
         if refreshUi:
             self.updateAovStatus()
             self.updateUi()
-            self.createAovThumbs()
+            # self.createAovThumbs()           
             self.createStateThumbnail()
 
         return True
@@ -2630,11 +2653,11 @@ class statusColorDelegate(QStyledItemDelegate):
 
 
 
-#   Generates thumbnails in separate threads
+#   Generates Thumbnails in Threads
 class ThumbnailThread(QThread):
-    thumbnail_ready = Signal(QWidget, QPixmap, int, int)
+    thumbnail_ready = Signal(QWidget, QImage, int, int)
 
-    def __init__(self, item, filepath, width, height, channel, allowThumb, funct_getPixMap):
+    def __init__(self, item, filepath, width, height, channel, allowThumb, funct_getImage):
         super().__init__()
         self.item = item
         self.filepath = filepath
@@ -2642,21 +2665,28 @@ class ThumbnailThread(QThread):
         self.height = height
         self.channel = channel
         self.allowThumb = allowThumb
-        self.getPixMap = funct_getPixMap
+        self.getThumbImage = funct_getImage
+
 
     def run(self):
-        # Get PixMap
-        pixMap = self.getPixMap(self.filepath, self.width, self.height, self.channel, self.allowThumb)
+        try:
+            img = self.getThumbImage(self.filepath, self.width, self.height, self.channel, self.allowThumb)
 
-        # Maintain aspect ratio: Calculate new height
-        aspectRatio = pixMap.height() / pixMap.width()
-        new_height = int(self.width * aspectRatio)
+            if img is None or img.isNull():
+                return None
 
-        # Scale the pixmap to fill the QLabel's width while maintaining aspect ratio
-        scaledPixmap = pixMap.scaled(self.width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+            #   Maintain aspect ratio: Calculate new height
+            aspectRatio = img.height() / img.width()
+            new_height = int(self.width * aspectRatio)
 
-        # Emit signal to update the UI with the pixmap
-        self.thumbnail_ready.emit(self.item, scaledPixmap, new_height, self.width)
+            #   Scale the pixmap to fill the QLabel's width while maintaining aspect ratio
+            scaledImg = img.scaled(self.width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+            #   Emit signal to update the UI with the pixmap
+            self.thumbnail_ready.emit(self.item, scaledImg, new_height, self.width)
+        
+        except:
+            return None
 
 
 #	Popup for update message

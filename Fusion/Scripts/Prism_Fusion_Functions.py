@@ -57,7 +57,9 @@ import glob
 import shutil
 import logging
 import time
+from ctypes import WinDLL
 from collections import defaultdict
+
 
 
 import BlackmagicFusion as bmd
@@ -106,6 +108,9 @@ class Prism_Fusion_Functions(object):
 		self.smUI = None
 		self.pbUI = None
 		self.prefUI = None
+
+		#	Fixes OIIO DLL Error in Fusion Prism
+		self.forcePrismOiioDlls()
 
 		#	Register Callbacks
 		try:
@@ -221,6 +226,73 @@ class Prism_Fusion_Functions(object):
 							"ior": {"input": "ior", "colorspace": "linear"},
 							"specColor": {"input": "specColor", "colorspace": "sRGB"}
 								}
+
+
+	#	Fixes the DLL Issue with OpenImageIO in Fusion.
+	# 	It seems there is a conflict with Fusion's Libs and Prism's.
+	# 	This Force-loads the Prism OIIO DLL's into the Fusion Prism process before OIIO is Loaded.
+	@err_catcher(name=__name__)
+	def forcePrismOiioDlls(self):
+		#	Path to the OpenImageIO Bin dir
+		prismRoot = self.core.prismRoot
+		prismPythonDir = self.getLatestPrismPythonDir(prismRoot)
+
+		if not prismPythonDir:
+			logger.warning(f"ERROR: Aborting Force-load of OIIO DLL's.")
+			return
+		
+		bin_dir = os.path.join(prismPythonDir, "OpenImageIO", "bin")
+
+		#	Preload all DLLs in the Bin dir
+		for f in os.listdir(bin_dir):
+			if f.lower().endswith(".dll"):
+				dll_path = os.path.join(bin_dir, f)
+				try:
+					WinDLL(dll_path)
+					logger.debug(f"Force-loaded DLL: {dll_path}")
+				except OSError as e:
+					logger.warning(f"ERROR: Failed to Force-load DLL: {dll_path}")
+
+		#	Test Import OIIO
+		try:
+			import OpenImageIO as oiio
+			logger.debug(f"Force-load OIIO was successful")
+		except Exception as e:
+			logger.warning(f"ERROR: Failed to Force-load OIIO: {e}")
+
+
+	#	Returns Highest Prism Python Path
+	@err_catcher(name=__name__)
+	def getLatestPrismPythonDir(self, prism_root):
+		pythonlibs_dir = os.path.join(prism_root, "PythonLibs")
+
+		if not os.path.isdir(pythonlibs_dir):
+			logger.warning(f"ERROR:  PythonLibs directory not found: {pythonlibs_dir}")
+			return None
+		
+		version_dirs = []
+
+		for name in os.listdir(pythonlibs_dir):
+			fullPath = os.path.join(pythonlibs_dir, name)
+
+			if not os.path.isdir(fullPath):
+				continue
+
+			#	Match folders like Python39, Python310, Python313, etc.
+			match = re.match(r"Python(\d+)", name)
+			if match:
+				version_number = int(match.group(1))
+				version_dirs.append((version_number, fullPath))
+
+		if not version_dirs:
+			logger.warning("ERROR:  No PythonXXX folders found in Prism PythonLibs.")
+			return None
+		
+		#	Sort by Highest Version
+		version_dirs.sort(key=lambda x: x[0], reverse=True)
+
+		#	Return Highest Ver Path
+		return version_dirs[0][1]
 
 
 	@err_catcher(name=__name__)
@@ -1216,88 +1288,103 @@ class Prism_Fusion_Functions(object):
 		flow = comp.CurrentFrame.FlowView
 		toolUID = toolData["toolUID"]
 		
-		try:
-			if sortNodes:
-				#	Add and configure Loader below so it will not mess up Flow
-				ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX , yPos=refY + 0.5)
-			else:
-				#	Add and configure Loader without positiong
-				ldr = Fus.addTool(comp, "Loader", toolData)
-		
-			if not ldr:
-				self.core.popup(f"ERROR: Unable to add Loader to Comp")
-				return False
+		# try:
 
-		except:
-			logger.warning(f"ERROR: Unable to add Loader to Comp")
+		if sortNodes:
+			#	Add and configure Loader below so it will not mess up Flow
+			ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX , yPos=refY + 0.5)
+		else:
+			#	Add and configure Loader without positiong
+			ldr = Fus.addTool(comp, "Loader", toolData)
+	
+		if not ldr:
+			self.core.popup(f"ERROR: Unable to add Loader to Comp")
 			return False
+
+		# except:
+		# 	logger.warning(f"ERROR: Unable to add Loader to Comp")
+		# 	return False
 
 		# Deselect all
 		flow.Select()
 
 		if toolData["extension"] == ".exr":
 			#	Handle Multi-part .exrs
-			try:
-				channel = toolData["channel"]
 
-				#	Check if the file has parts
-				if ldr.Clip1.OpenEXRFormat.Part:
-					#	Get list of parts in file
-					parts = ldr.Clip1.OpenEXRFormat.Part.GetAttrs('INPIDT_ComboControl_ID')
-					#	Match and assign part
-					if channel in parts.values():
-						ldr.Clip1.OpenEXRFormat.Part = channel
-			except:
-				logger.warning(f"ERROR: Unable to assign multi-part .exr for ({channel})")
 
-			try:		
-				#	Get available channels from Loader
-				loaderChannels = Fus.getLoaderChannels(ldr)
-				channelData = Fus.getChannelData(loaderChannels)
+			# try:
+			channel = toolData["channel"]
 
-				#	Get the channel list for the channel being processed
-				if len(channelData) > 0:
-					channelDict = channelData[toolData["channel"]]
+			#	Check if the file has parts
+			if ldr.Clip1.OpenEXRFormat.Part:
+				#	Get list of parts in file
+				parts = ldr.Clip1.OpenEXRFormat.Part.GetAttrs('INPIDT_ComboControl_ID')
+				#	Match and assign part
+				if channel in parts.values():
+					ldr.Clip1.OpenEXRFormat.Part = channel
+			# except:
+			# 	logger.warning(f"ERROR: Unable to assign multi-part .exr for ({channel})")
 
-					# Dictionary to map channel types to attribute names
-					channel_attributes = {
-						'r': 'RedName', 'red': 'RedName',
-						'g': 'GreenName', 'green': 'GreenName',
-						'b': 'BlueName', 'blue': 'BlueName',
-						'a': 'AlphaName', 'alpha': 'AlphaName',
-						'x': 'RedName',
-						'y': 'GreenName',
-						'z': 'BlueName',
-						}
 
-					# Check if contains only a Z-channel (for Depth, Mist, etc)
-					z_channel = None
+
+
+			# try:
+			# 		
+			#	Get available channels from Loader
+			loaderChannels = Fus.getLoaderChannels(ldr)
+			channelData = Fus.getChannelData(loaderChannels)
+
+			# print(f"***\n\n")                                              					#    TESTING
+			# print(f"*** toolData:  {toolData}\n\n")                                         #    TESTING
+			# print(f"*** loaderChannels:  {loaderChannels}\n\n")                             #    TESTING
+			# print(f"*** channelData:  {channelData}\n\n")                                   #    TESTING
+
+			#	Get the channel list for the channel being processed
+			if len(channelData) > 0:
+				channelDict = channelData[toolData["channel"]]
+
+				# Dictionary to map channel types to attribute names
+				channel_attributes = {
+					'r': 'RedName', 'red': 'RedName',
+					'g': 'GreenName', 'green': 'GreenName',
+					'b': 'BlueName', 'blue': 'BlueName',
+					'a': 'AlphaName', 'alpha': 'AlphaName',
+					'x': 'RedName',
+					'y': 'GreenName',
+					'z': 'BlueName',
+					}
+
+				# Check if contains only a Z-channel (for Depth, Mist, etc)
+				z_channel = None
+				for channel_str in channelDict:
+					if re.search(r'\.z$', channel_str.lower()):
+						z_channel = channel_str
+
+				#	Assign the Z-channel to the R, G, B, and Z
+				if z_channel and len(channelDict) == 1:
+					ldr.Clip1.OpenEXRFormat.RedName = z_channel
+					ldr.Clip1.OpenEXRFormat.GreenName = z_channel
+					ldr.Clip1.OpenEXRFormat.BlueName = z_channel
+					ldr.Clip1.OpenEXRFormat.ZName = z_channel
+
+				else:
+					#	Match the attrs based on the dict
 					for channel_str in channelDict:
-						if re.search(r'\.z$', channel_str.lower()):
-							z_channel = channel_str
+						match = re.search(r'\.([a-z])$', channel_str.lower())
 
-					#	Assign the Z-channel to the R, G, B, and Z
-					if z_channel and len(channelDict) == 1:
-						ldr.Clip1.OpenEXRFormat.RedName = z_channel
-						ldr.Clip1.OpenEXRFormat.GreenName = z_channel
-						ldr.Clip1.OpenEXRFormat.BlueName = z_channel
-						ldr.Clip1.OpenEXRFormat.ZName = z_channel
+						if match:
+							suffix = match.group(1)
+							attribute = channel_attributes.get(suffix)
 
-					else:
-						#	Match the attrs based on the dict
-						for channel_str in channelDict:
-							match = re.search(r'\.([a-z])$', channel_str.lower())
+							#	Configure Loader channels based on dict
+							if attribute:
+								setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
 
-							if match:
-								suffix = match.group(1)
-								attribute = channel_attributes.get(suffix)
+			# except:
+			# 	logger.warning("ERROR: Unable to assign image channels to Loader")
+			# 	return False
 
-								#	Configure Loader channels based on dict
-								if attribute:
-									setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
-			except:
-				logger.warning("ERROR: Unable to assign image channels to Loader")
-				return False
+
 
 		#	If Add Wireless is enabled
 		if addWireless:
@@ -3719,7 +3806,7 @@ path = r\"%s\"
 								 			self.getVersionStackContextFromPath,
 											self,
 											force=True)
-			self.core.plugins.monkeyPatch(origin.shotCam, self.shotCam, self, force=True)
+			self.core.plugins.monkeyPatch(origin.shotCam, self.shotCam, self, force=True)								#	TODO - Look at this.
 			self.core.plugins.monkeyPatch(origin.showStateMenu, self.showStateMenu, self, force=True)
 			self.core.plugins.monkeyPatch(origin.pasteStates, self.pasteStates, self, force=True)
 		except Exception as e:
