@@ -51,12 +51,15 @@
 	
 
 import os
+import sys
 import re
 from typing import Union, Dict, Tuple, Any
 import logging
 from datetime import datetime
 import uuid
 import hashlib
+from ctypes import WinDLL
+
 
 from PrismUtils.Decorators import err_catcher as err_catcher
 
@@ -72,7 +75,6 @@ logger = logging.getLogger(__name__)
 
 
 #	Creates UUID
-
 def createUUID(simple:bool=False, length:int=8) -> str:
     #	Creates simple Date/Time UID
     if simple:
@@ -98,9 +100,81 @@ def createUUID(simple:bool=False, length:int=8) -> str:
         return shortUID
 
 
+	#	Returns Highest Prism Python Path
+def getLatestPrismPythonDir(prism_root:str) -> str:
+    pythonlibs_dir = os.path.join(prism_root, "PythonLibs")
+
+    if not os.path.isdir(pythonlibs_dir):
+        logger.warning(f"ERROR:  PythonLibs directory not found: {pythonlibs_dir}")
+        return None
+    
+    version_dirs = []
+
+    for name in os.listdir(pythonlibs_dir):
+        fullPath = os.path.join(pythonlibs_dir, name)
+
+        if not os.path.isdir(fullPath):
+            continue
+
+        #	Match folders like Python39, Python310, Python313, etc.
+        match = re.match(r"Python(\d+)", name)
+        if match:
+            version_number = int(match.group(1))
+            version_dirs.append((version_number, fullPath))
+
+    if not version_dirs:
+        logger.warning("ERROR:  No PythonXXX folders found in Prism PythonLibs.")
+        return None
+    
+    #	Sort by Highest Version
+    version_dirs.sort(key=lambda x: x[0], reverse=True)
+
+    #	Return Highest Ver Path
+    return version_dirs[0][1]
+
+
+#	Fixes the DLL Issue with OpenImageIO in Fusion.
+# 	It seems there is a conflict with Fusion's Libs and Prism's.
+# 	This Force-loads the Prism OIIO DLL's into the Fusion Prism process before OIIO is Loaded.
+def forcePrismOiioDlls(prismRoot:str):
+    #	Path to the OpenImageIO Bin dir
+    prismPythonDir = getLatestPrismPythonDir(prismRoot)
+
+    if not prismPythonDir:
+        logger.warning("ERROR: Aborting Force-load of OIIO DLL's.")
+        return
+    
+    #	Build Paths and Insert Prism OIIO to System Path
+    oiio_dir = os.path.join(prismPythonDir, "OpenImageIO",)
+    bin_dir = os.path.join(oiio_dir, "bin")
+
+    if oiio_dir not in sys.path:
+        sys.path.insert(0, oiio_dir)
+
+    #	Preload all DLLs in the Bin dir
+    for f in os.listdir(bin_dir):
+        if f.lower().endswith(".dll"):
+
+            dll_path = os.path.join(bin_dir, f)
+
+            try:
+                WinDLL(dll_path)
+                logger.debug(f"Force-loaded DLL: {dll_path}")
+
+            except OSError as e:
+                logger.warning(f"ERROR: Failed to Force-load DLL: {dll_path}")
+
+    #	Test Import OIIO
+    try:
+        import OpenImageIO as oiio
+        logger.debug("Force-load OIIO was successful")
+    except Exception as e:
+        logger.warning(f"ERROR: Failed to Force-load OIIO: {e}")
+
+
+
 
 #   Gets list of AOV's from Prism
-
 def getAovNamesFromAovDict(aovDict:list) -> list:
     try:
         aovNames = []
@@ -114,7 +188,6 @@ def getAovNamesFromAovDict(aovDict:list) -> list:
 
 
 #	Configures name to conform with Fusion Restrictions
-
 def getFusLegalName(origName:str, check:bool=False) -> str:			#	TODO  Restructure and logging
     """
         Fusion has strict naming for nodes.  You can only use:
@@ -150,7 +223,6 @@ def getFusLegalName(origName:str, check:bool=False) -> str:			#	TODO  Restructur
 
 
 #   Makes import data dict from various Prism data sources
-
 def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
     #   Get mediaType from Context
     mediaType = context["mediaType"]

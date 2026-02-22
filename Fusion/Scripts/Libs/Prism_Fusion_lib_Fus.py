@@ -1267,6 +1267,47 @@ def getRefPosition(comp:Composition_, flow:FlowView_) -> tuple[float,float]:
     return atx, aty
 
 
+def getEXRLayers(comp: Composition_, filepath: str) -> list:
+    if not filepath or not filepath.lower().endswith(".exr"):
+        return []
+
+    tempLoader = None
+    layers = set()
+
+    try:
+        #   Create Temp Loader 
+        comp.Lock()
+        tempLoader = addTool(comp, "Loader", xPos=0, yPos=0)
+        comp.Unlock()
+
+        if not tempLoader:
+            return []
+
+        #   Assign the EXR file
+        tempLoader.Clip[1] = filepath
+
+        #   Get All Layers from Loader
+        channels  = getLoaderChannels(tempLoader)
+
+        for chan in channels:
+            layer = ".".join(chan.split(".")[:-1]) if "." in chan else chan
+            layers.add(layer)
+
+    except Exception as e:
+        logger.warning(f"ERROR: Unable to Create Temp Loader: {e}")
+        return []
+
+    finally:
+        #   Remove Temp Loader
+        if tempLoader:
+            try:
+                tempLoader.Delete()
+            except:
+                logger.warning("ERROR: Unable to Delete Temporary Loader")
+
+    return sorted(layers)
+
+
 def getLoaderChannels(tool) -> list[str]:
     # Get all loader channels and filter out the ones to skip
     skip = {			
@@ -1386,22 +1427,25 @@ def setDefaultState(comp):
     except:
         logger.warning(f"ERROR: Unable to save default State Data to comp: {comp}")
 
+    return defaultState
+
 
 
 def sm_saveStates(comp, buf:str):
     try:
         comp.SetData("prismStates", buf + "_..._")
-        logger.debug(f"Saved the state data to the comp.")
+        logger.debug("Saved the state data to the comp.")
     except:
         logger.warning(f"ERROR: Unable to save State Data to comp: {comp}")
 
 
-
-def sm_saveImports(comp, importPaths:str):
+def sm_saveImports(comp, importPaths: str):
     prismdata = comp.GetData("prismStates")
+    if not prismdata:
+        prismdata = setDefaultState(comp)
+
     prismdata += importPaths.replace("\\\\", "\\")
     comp.SetData("prismStates", prismdata)
-
 
 
 def sm_readStates(comp) -> str:
@@ -1409,21 +1453,32 @@ def sm_readStates(comp) -> str:
         prismdata = comp.GetData("prismStates")
         if not prismdata:
             logger.debug("Prism State Data does not exist.")
-        else:
-            return prismdata.split("_..._")[0]
+            prismdata = setDefaultState(comp)
+
+        return prismdata.split("_..._")[0]
+    
     except:
         logger.warning(f"ERROR:  Unable to read State Data from comp: {comp}")
-        logger.warning(f"ERROR:  Resetting Prism State Data")
-        setDefaultState()
+        defaultData = setDefaultState(comp)
+        return defaultData.split("_..._")[0]
 
 
 #	Gets called from SM to remove all States
-
 def sm_deleteStates(comp):
     #	Sets the states datablock to empty default state
-    setDefaultState()
+    setDefaultState(comp)
 
 
-def getImportPaths(comp) -> str:
+#   Called from Media Ingest and Dependencies
+def getImportPaths(comp):
     prismdata = comp.GetData("prismStates")
-    return prismdata.split("_..._")[1]
+    if not prismdata:
+        return False
+
+    parts = prismdata.split("_..._")
+    if len(parts) < 2:
+        return False
+
+    importData = parts[1]
+
+    return importData

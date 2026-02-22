@@ -57,9 +57,8 @@ import glob
 import shutil
 import logging
 import time
-from ctypes import WinDLL
+# from ctypes import WinDLL
 from collections import defaultdict
-
 
 
 import BlackmagicFusion as bmd
@@ -95,6 +94,7 @@ logger = logging.getLogger(__name__)
 class Prism_Fusion_Functions(object):
 	def __init__(self, core, plugin):
 		self.core:PrismCore = core
+		self.prismRoot = self.core.prismRoot
 		self.plugin = plugin
 		self.fusion:Fusion_ = bmd.scriptapp("Fusion")
 		self.comp:Composition_ = None # This comp is used by the stateManager to avoid overriding the state data on wrong comps
@@ -110,7 +110,7 @@ class Prism_Fusion_Functions(object):
 		self.prefUI = None
 
 		#	Fixes OIIO DLL Error in Fusion Prism
-		self.forcePrismOiioDlls()
+		Helper.forcePrismOiioDlls(self.prismRoot)
 
 		#	Register Callbacks
 		try:
@@ -226,73 +226,6 @@ class Prism_Fusion_Functions(object):
 							"ior": {"input": "ior", "colorspace": "linear"},
 							"specColor": {"input": "specColor", "colorspace": "sRGB"}
 								}
-
-
-	#	Fixes the DLL Issue with OpenImageIO in Fusion.
-	# 	It seems there is a conflict with Fusion's Libs and Prism's.
-	# 	This Force-loads the Prism OIIO DLL's into the Fusion Prism process before OIIO is Loaded.
-	@err_catcher(name=__name__)
-	def forcePrismOiioDlls(self):
-		#	Path to the OpenImageIO Bin dir
-		prismRoot = self.core.prismRoot
-		prismPythonDir = self.getLatestPrismPythonDir(prismRoot)
-
-		if not prismPythonDir:
-			logger.warning(f"ERROR: Aborting Force-load of OIIO DLL's.")
-			return
-		
-		bin_dir = os.path.join(prismPythonDir, "OpenImageIO", "bin")
-
-		#	Preload all DLLs in the Bin dir
-		for f in os.listdir(bin_dir):
-			if f.lower().endswith(".dll"):
-				dll_path = os.path.join(bin_dir, f)
-				try:
-					WinDLL(dll_path)
-					logger.debug(f"Force-loaded DLL: {dll_path}")
-				except OSError as e:
-					logger.warning(f"ERROR: Failed to Force-load DLL: {dll_path}")
-
-		#	Test Import OIIO
-		try:
-			import OpenImageIO as oiio
-			logger.debug(f"Force-load OIIO was successful")
-		except Exception as e:
-			logger.warning(f"ERROR: Failed to Force-load OIIO: {e}")
-
-
-	#	Returns Highest Prism Python Path
-	@err_catcher(name=__name__)
-	def getLatestPrismPythonDir(self, prism_root):
-		pythonlibs_dir = os.path.join(prism_root, "PythonLibs")
-
-		if not os.path.isdir(pythonlibs_dir):
-			logger.warning(f"ERROR:  PythonLibs directory not found: {pythonlibs_dir}")
-			return None
-		
-		version_dirs = []
-
-		for name in os.listdir(pythonlibs_dir):
-			fullPath = os.path.join(pythonlibs_dir, name)
-
-			if not os.path.isdir(fullPath):
-				continue
-
-			#	Match folders like Python39, Python310, Python313, etc.
-			match = re.match(r"Python(\d+)", name)
-			if match:
-				version_number = int(match.group(1))
-				version_dirs.append((version_number, fullPath))
-
-		if not version_dirs:
-			logger.warning("ERROR:  No PythonXXX folders found in Prism PythonLibs.")
-			return None
-		
-		#	Sort by Highest Version
-		version_dirs.sort(key=lambda x: x[0], reverse=True)
-
-		#	Return Highest Ver Path
-		return version_dirs[0][1]
 
 
 	@err_catcher(name=__name__)
@@ -459,7 +392,7 @@ class Prism_Fusion_Functions(object):
 		if self.sm_checkCorrectComp(comp):
 			return []
 		
-		logger.warning(f"ERROR: Unable to to create state")
+		logger.warning("ERROR: Unable to to create state")
 		return None
 
 
@@ -620,7 +553,7 @@ class Prism_Fusion_Functions(object):
 				return fuseFormat
 
 
-	# @err_catcher(name=__name__)
+	# @err_catcher(name=__name__)							#	TODO - NEEDED???
 	# def updateReadNodes(self):
 	# 	updatedNodes = []
 	# 	comp = self.getCurrentComp()
@@ -1240,8 +1173,8 @@ class Prism_Fusion_Functions(object):
 
 					#	Return if failed
 					if not leftmostNode:
-						logger.warning(f"ERROR:  Unable to import Images - Unable to resolve Left-most Node")
-						self.core.popup(f"ERROR:  Unable to import Images - Unable to resolve Left-most Node")
+						logger.warning("ERROR:  Unable to import Images - Unable to resolve Left-most Node")
+						self.core.popup("ERROR:  Unable to import Images - Unable to resolve Left-most Node")
 						return False
 
 				#	Update loader if it already exists in the Comp
@@ -1298,7 +1231,7 @@ class Prism_Fusion_Functions(object):
 			ldr = Fus.addTool(comp, "Loader", toolData)
 	
 		if not ldr:
-			self.core.popup(f"ERROR: Unable to add Loader to Comp")
+			self.core.popup("ERROR: Unable to add Loader to Comp")
 			return False
 
 		# except:
@@ -1808,7 +1741,7 @@ class Prism_Fusion_Functions(object):
 			comp.EndUndo()
 			comp.Unlock()
 		else:
-			logger.warning(f"ERROR: Unable to import USD")
+			logger.warning("ERROR: Unable to import USD")
 			return {"result": False, "doImport": False}
 
 		return result
@@ -1868,7 +1801,7 @@ class Prism_Fusion_Functions(object):
 			comp.EndUndo()
 			comp.Unlock()
 		else:
-			logger.warning(f"ERROR: Unable to create USD scene")
+			logger.warning("ERROR: Unable to create USD scene")
 
 
 	@err_catcher(name=__name__)
@@ -2148,7 +2081,7 @@ class Prism_Fusion_Functions(object):
 			comp.EndUndo()
 			comp.Unlock()
 		else:
-			logger.warning(f"ERROR: Unable to import 3d object")
+			logger.warning("ERROR: Unable to import 3d object")
 			return {"result": False, "doImport": False}
 
 		return result
@@ -2218,7 +2151,7 @@ class Prism_Fusion_Functions(object):
 			comp.EndUndo()
 			comp.Unlock()
 		else:
-			logger.warning(f"ERROR: Unable to create 3d scene")
+			logger.warning("ERROR: Unable to create 3d scene")
 
 	
 	#	Creates simple 3d scene - adds merge3d and render3d
@@ -2249,7 +2182,7 @@ class Prism_Fusion_Functions(object):
 			comp.EndUndo()
 			comp.Unlock()
 		else:
-			logger.warning(f"ERROR: Unable to import 3D Scene")
+			logger.warning("ERROR: Unable to import 3D Scene")
 			return {"result": False, "doImport": False}
 
 		return result
@@ -4135,7 +4068,7 @@ path = r\"%s\"
 			# self.core.plugins.callUnpatchedFunction(sm.showStateMenu, listType=listType, useSelection=useSelection)
 
 		else:
-			logger.warning(f"ERROR: Unable to to create state")
+			logger.warning("ERROR: Unable to to create state")
 
 	@err_catcher(name=__name__)
 	def pasteStates(self):

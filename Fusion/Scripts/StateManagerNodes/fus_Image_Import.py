@@ -53,9 +53,6 @@ import logging
 import re
 import subprocess
 import inspect
-import traceback
-import platform
-import ctypes
 
 
 from qtpy.QtCore import *
@@ -133,7 +130,7 @@ class Image_ImportClass(object):
         settings=None,
     ):
 
-        #   Checks if the attr already exists and assigns if not
+        #   Checks if the ATTR Already Exists and Assigns if Not
         self.core = getattr(self, "core", core)
         self.state = getattr(self, "state", state)
         self.stateManager = getattr(self, "stateManager", stateManager)
@@ -349,19 +346,7 @@ class Image_ImportClass(object):
                              regenerateThumb: bool = False
                              ) -> QImage:
 
-        print(f"*** path: {path}\n"
-              f"width: {width}\n"
-              f"height: {height}\n"
-              f"channel: {channel}\n"
-              f"allowThumb: {allowThumb}\n"
-              f"regenerateThumb: {regenerateThumb}")                                              #    TESTING
-        
-        qimg = self.core.media.getQImageFromExrPath(path, width, height, channel, allowThumb, regenerateThumb)
-
-        print(f"*** qimg from Prism: {qimg}")                                              #    TESTING
-        return qimg
-
-        # return self.core.media.getQImageFromExrPath(path, width, height, channel, allowThumb, regenerateThumb)
+        return self.core.media.getQImageFromExrPath(path, width, height, channel, allowThumb, regenerateThumb)
 
 
     #   Returns QImage from Other Image Type
@@ -374,7 +359,7 @@ class Image_ImportClass(object):
                           ) -> QImage:
         
         return self.core.media.getQImageFromPath(path, width, height, colorAdjust)
-        
+    
 
     #   Return Fallback QImage from Core
     @err_catcher(name=__name__)
@@ -480,7 +465,6 @@ class Image_ImportClass(object):
             )
 
             frames = result.stdout.strip() 
-
 
         return int(frames)
 
@@ -779,7 +763,7 @@ class Image_ImportClass(object):
     def refresh(self):
         self.updateAovChnlTree()
         self.updateUi()
-        self.createAovThumbs()
+        # self.createAovThumbs()                #   DISABLED WHILE THREADING NOT WORKING
         self.createStateThumbnail()
         self.refreshTips()
 
@@ -1287,62 +1271,59 @@ class Image_ImportClass(object):
     def getThumbImage(self, filePath, width=None, height=None, channel=None, allowThumb=True):
         fallbackImg = self.getFallbackQImage()
 
-        # try:
+        try:
+            if os.path.exists(filePath):
+                ext = os.path.splitext(filePath)[1]
 
-        if os.path.exists(filePath):
-            ext = os.path.splitext(filePath)[1]
+                if ext.lower() == ".exr":
+                    thumbImage = self.getQImageFromExrPath(filePath,
+                                                            width=width,
+                                                            height=height,
+                                                            channel=channel,
+                                                            allowThumb=allowThumb
+                                                            )
 
-            if ext.lower() == ".exr":
-                thumbImage = self.getQImageFromExrPath(filePath,
-                                                        width=width,
-                                                        height=height,
-                                                        channel=channel,
-                                                        allowThumb=allowThumb
-                                                        )
+                else:
+                    thumbImage = self.getQImageFromPath(filePath, width=width, height=height)
 
             else:
-                thumbImage = self.getQImageFromPath(filePath, width=width, height=height)
-
-            print(f"*** thumbImage: {thumbImage}")                                              #    TESTING
-
-        else:
-            logger.warning("ERROR:  Unable to create pixmap - filepath does not exist")
-            raise Exception
+                logger.warning("ERROR:  Unable to create QImage - filepath does not exist")
+                raise Exception
         
-    # except:
-        # logger.warning("ERROR:  Unable to create thumbnail from filepath.  Using fallback.")
-        # thumbImage = fallbackImg
+        except:
+            logger.warning("ERROR:  Unable to create thumbnail from filepath.  Using fallback.")
+            thumbImage = fallbackImg
 
         return thumbImage
 
 
-    #   Gets Prism Fallback Image and Scales Pixmap
+    #   Gets Prism Fallback Image and Scales QImage
     @err_catcher(name=__name__)
     def getFallbackThumb(self, width):
         try:
-            fallbackPixMap = self.core.media.getFallbackPixmap()
+            fallbackQimage = self.getFallbackQImage()
         except:
             logger.warning("ERROR:  Unable to get Prism Fallback Thumbnail")
             return ""
 
         try:
             # Maintain aspect ratio: Calculate new height
-            aspectRatio = fallbackPixMap.height() / fallbackPixMap.width()
+            aspectRatio = fallbackQimage.height() / fallbackQimage.width()
             new_height = int(width * aspectRatio)
 
-            # Scale the pixmap to fill the QLabel's width while maintaining aspect ratio
-            scaledPixmap = fallbackPixMap.scaled(STATE_THUMB_WIDTH,
+            # Scale the QImage to fill the QLabel's width while maintaining aspect ratio
+            scaledQimg = fallbackQimage.scaled(STATE_THUMB_WIDTH,
                                                  new_height,
                                                  Qt.KeepAspectRatio,
                                                  Qt.SmoothTransformation
                                                  )
 
             logger.debug("Created scaled fallback thumbnail")
-            return scaledPixmap, width, new_height
+            return scaledQimg, width, new_height
         
         except:
             logger.warning("ERROR:  Unable to create Fallback Thumbnail")
-            return fallbackPixMap, width, width
+            return fallbackQimage, width, width
 
     
     #   Creates State Thumbnail using threading
@@ -1352,17 +1333,18 @@ class Image_ImportClass(object):
             logger.warning("ERROR: QLabel 'l_thumb' not found in UI")
             return
         
-        #   Get temp fallback thumbnail pixmap
-        temp_pixmap, temp_width, temp_height = self.getFallbackThumb(STATE_THUMB_WIDTH)
+        #   Get Temp Fallback Thumbnail QImage
+        temp_qImage, temp_width, temp_height = self.getFallbackThumb(STATE_THUMB_WIDTH)
 
         try:
-            # Apply the scaled pixmap
-            self.l_thumb.setPixmap(temp_pixmap)
+            #   Apply the Scaled Pixmap
+            pixMap = QPixmap.fromImage(temp_qImage)
+            self.l_thumb.setPixmap(pixMap)
             self.l_thumb.adjustSize()
             self.l_thumb.setFixedHeight(temp_height)
             self.l_thumb.setFixedWidth(temp_width)
             self.l_thumb.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Expanding)
-            # Add a border
+            #   Add a Border
             self.l_thumb.setStyleSheet("border: 1px solid gray;")
         except:
             logger.warning("ERROR:  Unable to set Temp State Thumbnail")
@@ -1374,8 +1356,6 @@ class Image_ImportClass(object):
         try:
             #   Get child AOV items
             aovItems = self.getAllItems(aovs=True)
-
-            print(f"*** aovItems: {aovItems}\n\n")                                              #    TESTING
 
             #   Default to use Prism thumbnails
             beautyFilepath = None
@@ -1396,9 +1376,6 @@ class Image_ImportClass(object):
 
                     break
 
-            print(f"*** beautyFilepath 1: {beautyFilepath}\n\n")                                              #    TESTING
-
-
             if not beautyFilepath:
             # If no AOV match, try and find beauty/color channel
                 for item in aovItems:
@@ -1413,154 +1390,196 @@ class Image_ImportClass(object):
 
                         break
 
-            print(f"*** beautyFilepath 2: {beautyFilepath}\n\n")                                              #    TESTING
-
 
             # If still no match, use the first available file
             if not beautyFilepath:
                 beautyFilepath = self.importData["files"][0]["basefile"]
 
+            if channel == "Color":
+                channel = "RGB"
+
         except:
             logger.warning("ERROR:  Unable to set State Thumbnail")
             return
         
-        # Create thumb thread
-        self.createThumb_thread = ThumbnailThread(self.l_thumb,
-                                                  beautyFilepath,
-                                                  thumb_width,
-                                                  temp_height,
-                                                  channel,
-                                                  allowThumb,
-                                                  self.getThumbImage)
 
-        #   Connect the signal to update the QLabel when the thumbnail is ready
-        self.createThumb_thread.thumbnail_ready.connect(self.updateThumbnail)
+        #####################################################################
+        #   Threaded Call
+        #
+        #   Threading does not seem to work with
+        #   Fusion and Python 3.13 right now.
+        #   More testing needed.
+        #
+        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
-        #   Start the thread
-        self.createThumb_thread.start()
+        # # Create thumb thread
+        # self.createThumb_thread = ThumbnailThread(beautyFilepath,
+        #                                           thumb_width,
+        #                                           temp_height,
+        #                                           channel,
+        #                                           allowThumb,
+        #                                           self.getThumbImage)
+
+        # #   Connect the signal to update the QLabel when the thumbnail is ready
+        # self.createThumb_thread.thumbnail_ready.connect(
+        #         lambda img, h, w: self.updateThumbnail(self.l_thumb, img, h, w)
+        #         )
+
+        # print("STARTING THREAD")
+        # print("Thread object:", self.createThumb_thread)
+        # print("Is running before start:", self.createThumb_thread.isRunning())
 
 
+        # #   Start the thread
+        # self.createThumb_thread.start()
+
+        # print("Is running after start:", self.createThumb_thread.isRunning())
+
+        #   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        #########################################################################
+
+
+        ##########################################################################
+        #
+        #   Direct Call
+        # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
         qimg = self.getThumbImage(beautyFilepath, thumb_width, temp_height, channel, allowThumb)
-
-        print(f"*** qimg: {qimg}")                                              #    TESTING
-
         self.updateThumbnail(self.l_thumb, qimg, temp_height, thumb_width)
 
+        #   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+        #########################################################################
 
-    #   Generates pixmap for each AOV item with threading
-    @err_catcher(name=__name__)
-    def createAovThumbs(self):
-        if self.fuseFuncts.useAovThumbs == "Disabled":
-            return
 
-        #   Store list of active threads
-        self.thumb_threads = []
 
-        #   Get all child items from AOV list
-        imageItems = self.getAllItems(aovs=True)
 
-        for item in imageItems:
-            #   Get data from item
-            itemData = self.getItemData(item)
+    ########################################################################
+    ########################################################################
+    #
+    #   DISABLED WHILE THREADING IS NOT WORKING
+    #
+    # vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
 
-            #   Skip item if no data
-            if not itemData:
-                continue
+    #   Generates Thumbs for Each AOV Item with Threading
+    # @err_catcher(name=__name__)
+    # def createAovThumbs(self):
+    #     if self.fuseFuncts.useAovThumbs == "Disabled":
+    #         return
 
-            #   Get data items
-            origFilePath = itemData.get("basefile")
-            channel = itemData.get("channel")
+    #     #   Store list of active threads
+    #     self.thumb_threads = []
 
-            #   Get source file for thumb generation
-            try:
-                #   Use Prism thumbnail
-                if self.core.media.getUseThumbnailForFile(origFilePath):
-                    thumbPath = self.core.media.getThumbnailPath(origFilePath)
-                else:
-                    raise FileNotFoundError("Thumbnail not available")
-            except FileNotFoundError:
-                #   Use original thumbnail
-                thumbPath = origFilePath
+    #     #   Get all child items from AOV list
+    #     imageItems = self.getAllItems(aovs=True)
 
-            #   Get width based on DCC settings
-            width = self.aovThumbWidth
+    #     for item in imageItems:
+    #         #   Get data from item
+    #         itemData = self.getItemData(item)
 
-            # Load the original image to get its size
-            orig_pixmap = QPixmap(thumbPath)
-            if orig_pixmap.isNull():
-                continue
+    #         #   Skip item if no data
+    #         if not itemData:
+    #             continue
 
-            #   Get sizes
-            orig_width = orig_pixmap.width()
-            orig_height = orig_pixmap.height()
-            height = int((width / orig_width) * orig_height) if orig_width else width
+    #         #   Get data items
+    #         origFilePath = itemData.get("basefile")
+    #         channel = itemData.get("channel")
 
-            #   Default to using Prism thumbnail
-            path = thumbPath
-            allowThumb = True
+    #         #   Get source file for thumb generation
+    #         try:
+    #             #   Use Prism thumbnail
+    #             if self.core.media.getUseThumbnailForFile(origFilePath):
+    #                 thumbPath = self.core.media.getThumbnailPath(origFilePath)
+    #             else:
+    #                 raise FileNotFoundError("Thumbnail not available")
+    #         except FileNotFoundError:
+    #             #   Use original thumbnail
+    #             thumbPath = origFilePath
 
-            #   If user selects All in DCC settings, use original image
-            if self.fuseFuncts.useAovThumbs == "All":
-                if channel and channel.lower() not in COLORNAMES:
-                    path = origFilePath
-                    allowThumb = False
+    #         #   Get width based on DCC settings
+    #         width = self.aovThumbWidth
 
-            # Create thumbnail thread
-            thumb_thread = ThumbnailThread(item,
-                                           path,
-                                           width,
-                                           height,
-                                           channel,
-                                           allowThumb,
-                                           self.getThumbImage)
-            #   Store thread
-            self.thumb_threads.append(thumb_thread)
-            #   Connect thread finish
-            thumb_thread.thumbnail_ready.connect(self.setThumbToolTip)
-            #   Launch thread
-            thumb_thread.start()
+    #         # Load the original image to get its size
+    #         orig_pixmap = QPixmap(thumbPath)
+    #         if orig_pixmap.isNull():
+    #             continue
+
+    #         #   Get sizes
+    #         orig_width = orig_pixmap.width()
+    #         orig_height = orig_pixmap.height()
+    #         height = int((width / orig_width) * orig_height) if orig_width else width
+
+    #         #   Default to using Prism thumbnail
+    #         path = thumbPath
+    #         allowThumb = True
+
+    #         #   If user selects All in DCC settings, use original image
+    #         if self.fuseFuncts.useAovThumbs == "All":
+    #             if channel and channel.lower() not in COLORNAMES:
+    #                 path = origFilePath
+    #                 allowThumb = False
+
+    #         # Create thumbnail thread
+    #         thumb_thread = ThumbnailThread(path,
+    #                                        width,
+    #                                        height,
+    #                                        channel,
+    #                                        allowThumb,
+    #                                        self.getThumbImage)
+    #         #   Store thread
+    #         self.thumb_threads.append(thumb_thread)
+    #         #   Connect thread finish
+    #         thumb_thread.thumbnail_ready.connect(
+    #                 lambda img, h, w: self.setThumbToolTip(self.l_thumb, img, h, w)
+    #                 )
+
+    #         #   Launch thread
+    #         thumb_thread.start()
     
 
     #   Create html pixmap for AOV items
-    @err_catcher(name=__name__)
-    def setThumbToolTip(self, item, pixMap, new_height, new_width):
-        try:
-            if not item:
-                logger.warning("ERROR: No AOV Item")
-                return
+    # @err_catcher(name=__name__)
+    # def setThumbToolTip(self, item, pixMap, new_height, new_width):
+    #     try:
+    #         if not item:
+    #             logger.warning("ERROR: No AOV Item")
+    #             return
 
-            # Convert QPixmap to Base64
-            byte_array = QByteArray()
-            buffer = QBuffer(byte_array)
-            buffer.open(QIODevice.WriteOnly)
-            pixMap.save(buffer, "PNG")
+    #         # Convert QPixmap to Base64
+    #         byte_array = QByteArray()
+    #         buffer = QBuffer(byte_array)
+    #         buffer.open(QIODevice.WriteOnly)
+    #         pixMap.save(buffer, "PNG")
 
-            base64_data = byte_array.toBase64().data().decode()
-            thumbTip = f'<img src="data:image/png;base64,{base64_data}" width="{new_width}"/>'
+    #         base64_data = byte_array.toBase64().data().decode()
+    #         thumbTip = f'<img src="data:image/png;base64,{base64_data}" width="{new_width}"/>'
 
-            #   Set Tool Tip
-            item.setToolTip(0, thumbTip)
+    #         #   Set Tool Tip
+    #         item.setToolTip(0, thumbTip)
 
-        except:
-            logger.warning("ERROR:  Unable to set AOV thumb tooltip")
+    #     except:
+    #         logger.warning("ERROR:  Unable to set AOV thumb tooltip")
+
+    #   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    #########################################################################
+    #########################################################################
+
 
 
     #   Replace Placeholder Thumb with Generated Thumb
     @err_catcher(name=__name__)
     def updateThumbnail(self, item, thumbImage, new_height, new_width):
 
-        # try:
+        try:
+            #   Update QLabel with New Image and Resize
+            pixMap = QPixmap.fromImage(thumbImage)
+            item.setPixmap(pixMap)
+            item.setFixedHeight(new_height)
+            item.setFixedWidth(new_width)
+            item.adjustSize()
 
-        #   Update QLabel with New Image and Resize
-        pixMap = QPixmap.fromImage(thumbImage)
-        item.setPixmap(pixMap)
-        item.setFixedHeight(new_height)
-        item.setFixedWidth(new_width)
-        item.adjustSize()
+        except:
+            logger.warning("ERROR:  Unable to Update Thumbnail")
 
-        # except:
-        #     logger.warning("ERROR:  Unable to Update Thumbnail")
 
 
 
@@ -1605,7 +1624,7 @@ class Image_ImportClass(object):
     @err_catcher(name=__name__)
     def makeImportData(self, context):
         if not context:
-            logger.warning(f"ERROR: There are no Versions for this Media Identifier")
+            logger.warning("ERROR: There are no Versions for this Media Identifier")
             self.core.popup("There are no Versions for this Media Identifier")
             return "Empty"
         
@@ -2367,7 +2386,7 @@ class Image_ImportClass(object):
         if refreshUi:
             self.updateAovStatus()
             self.updateUi()
-            # self.createAovThumbs()           
+            # self.createAovThumbs()            #   DISABLED WHILE THREADING NOT WORKING   
             self.createStateThumbnail()
 
         return True
@@ -2393,7 +2412,6 @@ class Image_ImportClass(object):
             #   Delete each tool
             for uid in uids:
                 self.fuseFuncts.deleteNode(uid, delAction=True)
-
                
 
     @err_catcher(name=__name__)
@@ -2653,40 +2671,65 @@ class statusColorDelegate(QStyledItemDelegate):
 
 
 
+
+########################################################################
+#
+#   DISABLED WHILE THREADING IS NOT WORKING
+#
+# vvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvvv
+
+
 #   Generates Thumbnails in Threads
-class ThumbnailThread(QThread):
-    thumbnail_ready = Signal(QWidget, QImage, int, int)
+# class ThumbnailThread(QThread):
+#     thumbnail_ready = Signal(QImage, int, int)
 
-    def __init__(self, item, filepath, width, height, channel, allowThumb, funct_getImage):
-        super().__init__()
-        self.item = item
-        self.filepath = filepath
-        self.width = width
-        self.height = height
-        self.channel = channel
-        self.allowThumb = allowThumb
-        self.getThumbImage = funct_getImage
+#     def __init__(self, filepath, width, height, channel, allowThumb, funct_getImage):
+#         super().__init__()
+#         self.filepath = filepath
+#         self.width = width
+#         self.height = height
+#         self.channel = channel
+#         self.allowThumb = allowThumb
+#         self.getThumbImage = funct_getImage
 
 
-    def run(self):
-        try:
-            img = self.getThumbImage(self.filepath, self.width, self.height, self.channel, self.allowThumb)
+#     def thread_log(self, msg):
+#         import os
+#         from datetime import datetime
 
-            if img is None or img.isNull():
-                return None
+#         log_path = r"c:\Users\Joshua Breckeen\Desktop\LOG-FU.txt"
 
-            #   Maintain aspect ratio: Calculate new height
-            aspectRatio = img.height() / img.width()
-            new_height = int(self.width * aspectRatio)
 
-            #   Scale the pixmap to fill the QLabel's width while maintaining aspect ratio
-            scaledImg = img.scaled(self.width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+#         with open(log_path, "a", encoding="utf-8") as f:
+#             f.write(f"{datetime.now()} | {msg}\n")
+#             f.flush()
+#             os.fsync(f.fileno())  # force write to disk
 
-            #   Emit signal to update the UI with the pixmap
-            self.thumbnail_ready.emit(self.item, scaledImg, new_height, self.width)
-        
-        except:
-            return None
+
+#     def run(self):
+#         try:
+#             img = self.getThumbImage(self.filepath, self.width, self.height, self.channel, self.allowThumb)
+
+#             if img is None or img.isNull():
+#                 return None
+
+#             #   Maintain aspect ratio: Calculate new height
+#             aspectRatio = img.height() / img.width()
+#             new_height = int(self.width * aspectRatio)
+
+#             #   Scale the QImage to fill the QLabel's width while maintaining aspect ratio
+#             scaledImg = img.scaled(self.width, new_height, Qt.KeepAspectRatio, Qt.SmoothTransformation)
+
+#             #   Emit signal to update the UI with the pixmap
+#             self.thumbnail_ready.emit(scaledImg, new_height, self.width)
+
+#         except:
+#             return None
+
+#   ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+#########################################################################
+
+
 
 
 #	Popup for update message
