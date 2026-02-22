@@ -1395,9 +1395,6 @@ class Image_ImportClass(object):
             if not beautyFilepath:
                 beautyFilepath = self.importData["files"][0]["basefile"]
 
-            if channel == "Color":
-                channel = "RGB"
-
         except:
             logger.warning("ERROR:  Unable to set State Thumbnail")
             return
@@ -1647,7 +1644,6 @@ class Image_ImportClass(object):
             usePasses = False   #   No AOVs
 
         sourceData = self.getImportSource(versionDir, usePasses)
-
         mediaType = context["mediaType"]
 
         try:
@@ -1687,14 +1683,21 @@ class Image_ImportClass(object):
 
             basefile = filesList[0]
 
-            # Get file extension
+            # Get File Extension
             extension = self.getImageExtension(importData, basefile)
 
-            # Get channels list
-            channels = Fus.getEXRLayers(comp, basefile)
+            # Get Channels Names List
+            channels = self.core.media.getLayersFromFile(basefile)  # Try Prism
 
+            if not channels:
+                channels = Fus.getEXRLayers(comp, basefile) #   Fallback to Fusion
+
+            #   Filter Out Alpha Passes
+            channels = [ch for ch in channels if not (ch.endswith(".A") or ch == "A")]
+            
+            #   Assign Single Channel Images to RGB
             if len(channels) == 0:
-                channels = ["Color"]
+                channels = ["RGB"]
 
             for channel in channels:
                 # Create file dictionary
@@ -1732,8 +1735,6 @@ class Image_ImportClass(object):
             if "channel" in context:
                 importData["channel"] = context["channel"]
 
-            # channels = self.getLayersFromFile(basefile)
-
             channels = Fus.getEXRLayers(comp, basefile)
             importData["channels"] = channels
 
@@ -1746,11 +1747,11 @@ class Image_ImportClass(object):
         if "redirect" in context:
             importData["redirect"] = context["redirect"]
 
-        #   Set global data object
+        #   Set Global Data Object
         self.importData = importData
 
         return True
-    
+
 
     #    Modified and combined version of Prism compGetImportSource() & compImportPasses()
     @err_catcher(name=__name__)
@@ -1764,7 +1765,7 @@ class Image_ImportClass(object):
                 for x in os.listdir(versionDir)
                 if x[-5:] not in ["(mp4)", "(jpg)", "(png)"]
                 and os.path.isdir(os.path.join(versionDir, x))
-            ]
+                ]
 
         else:
             #   Get souce
@@ -1829,9 +1830,7 @@ class Image_ImportClass(object):
         if os.path.exists(redirectFile):
             with open(redirectFile, "r") as rdFile:
                 files = [rdFile.read()]
-
             return files
-        
         else:
             return None
 

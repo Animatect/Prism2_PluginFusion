@@ -380,8 +380,6 @@ def getMediaIDsForType(comp, listType:str) -> list[str]:                    #   
 
         for tool in tools:
             tData = getToolData(tool)
-
-
             if tData["listType"] == listType:
                 mediaIDs.add(tData["mediaId"])
         
@@ -544,7 +542,7 @@ def getAllPrismTools(comp, selected:bool=False, category:str=None, toolType:str=
 
     for tool in allTools:
         tData = getToolData(tool)
-        # if not tData or not tool.GetData("Prism_UUID"):               #   Removed check for tData (to handle groups)
+        # if not tData or not tool.GetData("Prism_UUID"):          #   Removed check for tData (to handle groups)
         if not tool.GetData("Prism_UUID"):
             continue
         if category is not None and tData.get("listType") != category:
@@ -606,7 +604,6 @@ def getToolByName(comp, toolName:str) -> Tool:
 
 
 #   Returns type of tool
-
 def getToolType(tool:Tool) -> str:
     try:
         return tool.GetAttrs("TOOLS_RegID")
@@ -616,7 +613,6 @@ def getToolType(tool:Tool) -> str:
 
 
 #   Returns all tools of specified type
-
 def getAllToolsByType(comp, toolType:str) -> list[Tool]:
     try:
         toolList = []
@@ -628,9 +624,9 @@ def getAllToolsByType(comp, toolType:str) -> list[Tool]:
     except:
         logger.warning(f"ERROR: Unable to get all {toolType} tools from the Comp")
         return None
-    #   Return list of Tool UIDs for a given State UID
 
 
+#   Return list of Tool UIDs for a given State UID
 def getToolsFromStateUIDs(comp, stateUID:str) -> list:
     toolList = []
 
@@ -681,7 +677,6 @@ def getUIDsFromImportData(comp, importData:dict, category:str=None, toolType:str
         if not prismTools:
             logger.debug(f"No Tools in the Comp")
             return []
-        
 
         #   List of items to compare
         compareKeys = ["mediaId", "mediaType", "extension", "aov", "channel", "itemType", "asset", "sequence", "shot"]
@@ -691,7 +686,7 @@ def getUIDsFromImportData(comp, importData:dict, category:str=None, toolType:str
             match = True  # Assume match unless proven otherwise
             tData = getToolData(tool)
             
-            #   Itterate through keys and compare if exist in both dicts
+            #   Iterate through keys and compare if exist in both dicts
             for key in compareKeys:
                 if key in importData_copy and key in tData:
                     import_value = importData_copy.get(key, None)
@@ -872,7 +867,6 @@ def getMatchingInputSocket(tool, inputName:str) -> ToolOption:
 
 
 #   Finds if tool has an input connected
-
 def getToolBefore(tool) -> Tool:
     try:
         return tool.FindMainInput(1).GetConnectedOutput()
@@ -882,7 +876,6 @@ def getToolBefore(tool) -> Tool:
 
 
 #	Sets up the name based on avail data
-
 def makeLdrName(importItem:dict, importData:dict) -> str:
     try:
         #   Use Asset name or Seq/Shot Name as prefix
@@ -917,7 +910,6 @@ def makeLdrName(importItem:dict, importData:dict) -> str:
     
 
 #	Sets up the name based on avail data
-
 def makeWirelessName(importData:dict) -> str:
     try:
         wirelessName = (importData.get('identifier')

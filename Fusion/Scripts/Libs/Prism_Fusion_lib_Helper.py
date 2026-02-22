@@ -172,8 +172,6 @@ def forcePrismOiioDlls(prismRoot:str):
         logger.warning(f"ERROR: Failed to Force-load OIIO: {e}")
 
 
-
-
 #   Gets list of AOV's from Prism
 def getAovNamesFromAovDict(aovDict:list) -> list:
     try:
