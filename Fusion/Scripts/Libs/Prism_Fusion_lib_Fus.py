@@ -492,10 +492,11 @@ def groupTools(comp,
             #   Get the new output socket object
             output = getToolOutputSocket(tool)
 
-            #   Itterate throught the input list since there can be multiple tools connected
+            #   Iterate through the input list since there can be multiple tools connected
             for inputDict in toolDict["inputs"]:
                 #   Get the pasted tool from the saved Tool Name
                 inputTool = getToolByName(comp, inputDict["inputToolName"])
+
                 #   Get the input socket object by matching saved name
                 input = getMatchingInputSocket(inputTool, inputDict["inputName"])
 
@@ -505,7 +506,13 @@ def groupTools(comp,
         if result:
             #   Add UUID to Group Tool
             groupUID = Helper.createUUID()
-            groupTool = getToolByName(comp, groupName)
+
+            #   Find Group Tool
+            for tool in getAllTools(comp):
+                if tool.Name == groupName:
+                    groupTool = tool
+
+            #   Add Prism UUID to Group Tool
             groupTool.SetData('Prism_UUID', groupUID)
 
             #   Sets Group Tool Position if passed
@@ -530,7 +537,6 @@ def getAllTools(comp, selected:bool=False, cache:dict=None) -> list:
             return list(cache)
     return list(comp.GetToolList(selected).values())
 
-
     
 def getAllPrismTools(comp, selected:bool=False, category:str=None, toolType:str=None, cache:dict=None) -> list:
     allTools = getAllTools(comp, selected=selected, cache=cache)
@@ -538,7 +544,8 @@ def getAllPrismTools(comp, selected:bool=False, category:str=None, toolType:str=
 
     for tool in allTools:
         tData = getToolData(tool)
-        if not tData or not tool.GetData("Prism_UUID"):
+        # if not tData or not tool.GetData("Prism_UUID"):               #   Removed check for tData (to handle groups)
+        if not tool.GetData("Prism_UUID"):
             continue
         if category is not None and tData.get("listType") != category:
             continue
@@ -554,6 +561,7 @@ def getToolByUID(comp, toolUID:str, cache:dict=None) -> Tool:
         for tool in getAllPrismTools(comp, cache=cache):
             if toolUID == tool.GetData('Prism_UUID'):
                 return tool
+            
         return None
     
     except Exception as e:
@@ -775,7 +783,6 @@ def hasConnectedOutputs(tool) -> bool:
 
 
 #   Finds if tool has an input connected
-
 def hasConnectedInput(tool) -> bool:
     if not tool:
         return False
@@ -793,7 +800,6 @@ def hasConnectedInput(tool) -> bool:
 
 
 #   Connects two tools
-
 def connectTools(toolFrom:Tool, toolTo:Tool) -> bool:
     try:
         #   Connect MainOutput to 1st MainInput (works for most situations)
@@ -806,7 +812,6 @@ def connectTools(toolFrom:Tool, toolTo:Tool) -> bool:
 
 
 #   Takes Fusion input and output objects and makes connection
-
 def connectInputToOutput(input:ToolOption, output:ToolOption) -> bool:
     try:
         #   Connects input socket object to output socket object
@@ -819,7 +824,6 @@ def connectInputToOutput(input:ToolOption, output:ToolOption) -> bool:
 
 
 #   Returns output socket object
-
 def getToolOutputSocket(tool) -> ToolOption:
     try:
         return tool.FindMainOutput(1)
@@ -829,7 +833,6 @@ def getToolOutputSocket(tool) -> ToolOption:
     
 
 #   Returns list of input sockets that are connected to the tool's output
-
 def getInputsFromOutput(tool) -> list[ToolOption]:
     try:
         #   Gets the Fusion table of inputs
@@ -848,7 +851,6 @@ def getInputsFromOutput(tool) -> list[ToolOption]:
 
 
 #   Returns matching input socket from Input name
-
 def getMatchingInputSocket(tool, inputName:str) -> ToolOption:
     try:
         #   Gets the Fusion table of inputs

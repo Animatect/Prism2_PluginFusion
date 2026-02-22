@@ -1948,27 +1948,27 @@ class Prism_Fusion_Functions(object):
 			#	Make list of tools to add to group
 			groupTools = texTools
 			groupTools.append(uShader)
+			
 			#	Make group name
-			groupName = texData['shaderName']
+			groupName = f"MAT_{texData['shaderName']}"
 
 			#	Create group
 			groupUID, newToolsUIDs = Fus.groupTools(comp,
-										   			self,
+													self,
 													groupName,
 													groupTools,
 													outputTool=uShader,
 													pos=lastClicked)
 			
-
 			#	Make Group Data
 			groupData = {"groupName": texData['shaderName'],
-						 "stateUID": texData["stateUID"],
-						 "shaderName": texData["shaderName"],
-						 "connectedNodes": newToolsUIDs}
+							"stateUID": texData["stateUID"],
+							"shaderName": texData["shaderName"],
+							"connectedNodes": newToolsUIDs}
+			
 
 			#	Get Group Tool
 			groupTool = Fus.getToolByUID(comp, groupUID)
-
 
 			#	Uodate Group and add to Database
 			Fus.configureTool(groupTool, groupData)
@@ -1982,6 +1982,7 @@ class Prism_Fusion_Functions(object):
 		except Exception as e:
 			logger.warning("ERROR: Failed to create group")
 			comp.Unlock()
+
 
 		#	Set the colorspace for textures
 		#	(have to do it at the end since it gets reset in the group creation)
