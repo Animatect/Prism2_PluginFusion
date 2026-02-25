@@ -1569,6 +1569,14 @@ class Image_ImportClass(object):
         try:
             #   Update QLabel with New Image and Resize
             pixMap = QPixmap.fromImage(thumbImage)
+
+            pixMap = pixMap.scaled(
+                new_width,
+                new_height,
+                Qt.KeepAspectRatio,
+                Qt.SmoothTransformation
+            )
+
             item.setPixmap(pixMap)
             item.setFixedHeight(new_height)
             item.setFixedWidth(new_width)
