@@ -2141,6 +2141,9 @@ class Image_ImportClass(object):
         result = self.runSanityChecks(impFileName)
         if not result:
             return
+        
+        #   Add State Color to Data
+        importData["toolColor"] = self.cb_taskColor.currentText()
 
         #   Execute import
         importResult = self.fuseFuncts.imageImport(self, importData, self.sortMode)

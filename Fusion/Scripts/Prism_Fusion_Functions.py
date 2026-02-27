@@ -1154,6 +1154,7 @@ class Prism_Fusion_Functions(object):
 							"frame_start": importItem["frame_start"],
 							"frame_end": importItem["frame_end"],
 							"listType": "import2d",
+							"toolColor": importData["toolColor"]
 							}
 					
 				#	Add additional items if they exist
@@ -1220,7 +1221,8 @@ class Prism_Fusion_Functions(object):
 	def addImage(self, comp, toolData, sortNodes, addWireless, refX=0, refY=0):
 		flow = comp.CurrentFrame.FlowView
 		toolUID = toolData["toolUID"]
-		
+		toolsToColor = []
+
 		try:
 			if sortNodes:
 				#	Add and configure Loader below so it will not mess up Flow
@@ -1232,6 +1234,8 @@ class Prism_Fusion_Functions(object):
 			if not ldr:
 				self.core.popup("ERROR: Unable to add Loader to Comp")
 				return False
+			
+			toolsToColor.append(ldr)
 
 		except:
 			logger.warning(f"ERROR: Unable to add Loader to Comp")
@@ -1306,7 +1310,15 @@ class Prism_Fusion_Functions(object):
 
 		#	If Add Wireless is enabled
 		if addWireless:
-			self.createWireless(toolUID)
+			wireless_IN, wireless_OUT = self.createWireless(toolUID)
+			toolsToColor.extend([wireless_IN, wireless_OUT])
+
+		#	Color Tools if Color Selected
+		if toolData['toolColor'] != "Clear Color":
+			#   Get rgb color from dict
+			colorRGB = self.fusionToolsColorsDict[toolData['toolColor']]
+            #   Color tool
+			self.colorTools(toolsToColor, colorRGB)
 			
 		return ldr
 			
@@ -1440,6 +1452,7 @@ class Prism_Fusion_Functions(object):
 			comp.SetActiveTool(wireless_OUT)
 
 			logger.debug(f"Created Wireless nodes for: {ldr.Name}")
+			return wireless_IN, wireless_OUT
 
 		except Exception as e:
 			logger.warning(f"ERROR:  Could not add wireless nodes:\n{e}")
