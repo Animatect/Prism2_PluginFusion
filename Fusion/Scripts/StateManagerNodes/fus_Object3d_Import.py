@@ -490,7 +490,8 @@ class Object3d_ImportClass(object):
                     "object3dFilepath": impFileName,
                     "product": productName,
                     "listType": "import3d",
-                    "format": extension.lower()}
+                    "format": extension.lower(),
+                    "toolColor": self.cb_taskColor.currentText()}
         
         #   Call import function
         importResult = self.fuseFuncts.import3dObject(self,

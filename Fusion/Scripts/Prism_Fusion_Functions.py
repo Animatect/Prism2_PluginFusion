@@ -2139,6 +2139,13 @@ class Prism_Fusion_Functions(object):
 			
 			if ldr3d:
 				importRes = True
+
+				#	Color Tools if Color Selected
+				if toolData['toolColor'] != "Clear Color":
+					#   Get rgb color from dict
+					colorRGB = self.fusionToolsColorsDict[toolData['toolColor']]
+					#   Color tool
+					self.colorTools([ldr3d], colorRGB)
 		
 		#	Update 3d Loader
 		else:
