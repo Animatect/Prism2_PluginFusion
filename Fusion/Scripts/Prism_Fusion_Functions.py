@@ -1947,6 +1947,8 @@ class Prism_Fusion_Functions(object):
 			except:
 				logger.warning(f"ERROR: Failed to connect {tool.Name} to uShader.")
 
+		toolToColor = []
+
 		#	Make Group
 		try:
 			#	Make list of tools to add to group
@@ -1973,6 +1975,7 @@ class Prism_Fusion_Functions(object):
 
 			#	Get Group Tool
 			groupTool = Fus.getToolByUID(comp, groupUID)
+			toolToColor.append(groupTool)
 
 			#	Uodate Group and add to Database
 			Fus.configureTool(groupTool, groupData)
@@ -1987,7 +1990,6 @@ class Prism_Fusion_Functions(object):
 			logger.warning("ERROR: Failed to create group")
 			comp.Unlock()
 
-
 		#	Set the colorspace for textures
 		#	(have to do it at the end since it gets reset in the group creation)
 		if newToolsUIDs:
@@ -1996,6 +1998,7 @@ class Prism_Fusion_Functions(object):
 				#	Get tool data
 					tool = Fus.getToolByUID(comp, uid)
 					toolData = Fus.getToolData(tool)
+					toolToColor.append(tool)
 
 					#	Get map type from data
 					mapType = toolData.get("Prism_TexMap", None)
@@ -2019,6 +2022,13 @@ class Prism_Fusion_Functions(object):
 				except:
 					logger.warning(f"ERROR: Not able to set Source ColorSpace for {tool.Name}.")
 					comp.Unlock()
+
+			#	Color Tools if Color Selected
+			if texData['toolColor'] != "Clear Color":
+				#   Get rgb color from dict
+				colorRGB = self.fusionToolsColorsDict[texData['toolColor']]
+				#   Color tool
+				self.colorTools(toolToColor, colorRGB)
 
 
 	#	Creates MaterialX tool
@@ -2066,6 +2076,13 @@ class Prism_Fusion_Functions(object):
 					logger.debug(f"Updated MaterialX ({matXData['shaderName']})")
 			except:
 				logger.warning("ERROR: Failed to update MaterialX material")
+
+		#	Color Tools if Color Selected
+		if matXData['toolColor'] != "Clear Color":
+			#   Get rgb color from dict
+			colorRGB = self.fusionToolsColorsDict[matXData['toolColor']]
+            #   Color tool
+			self.colorTools([uMaterialX], colorRGB)
 
 		return {"result": result, "doImport": result}
 

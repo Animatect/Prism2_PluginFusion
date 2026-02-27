@@ -582,7 +582,8 @@ class USD_MaterialClass(object):
                     "shaderName": self.matxName,
                     "shaderType": "MaterialX",
                     "listType": "import3d",
-                    "matXfilePath": importPath}
+                    "matXfilePath": importPath,
+                    "toolColor": self.cb_taskColor.currentText()}
         
         #   Updates existing tool if it exists
         update = Fus.toolExists(comp, self.stateUID)
@@ -957,7 +958,8 @@ class USD_MaterialClass(object):
                    "shaderName": self.usdMatName,
                    "shaderType": "uShader",
                    "toolUID": self.stateUID,
-                   "texFiles": sendTexFiles}
+                   "texFiles": sendTexFiles,
+                   "toolColor": self.cb_taskColor.currentText()}
 
         #   Call function to import
         importResult = self.fuseFuncts.createUsdMaterial(self,
