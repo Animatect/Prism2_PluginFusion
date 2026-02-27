@@ -1221,103 +1221,88 @@ class Prism_Fusion_Functions(object):
 		flow = comp.CurrentFrame.FlowView
 		toolUID = toolData["toolUID"]
 		
-		# try:
+		try:
+			if sortNodes:
+				#	Add and configure Loader below so it will not mess up Flow
+				ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX , yPos=refY + 0.5)
+			else:
+				#	Add and configure Loader without positiong
+				ldr = Fus.addTool(comp, "Loader", toolData)
+		
+			if not ldr:
+				self.core.popup("ERROR: Unable to add Loader to Comp")
+				return False
 
-		if sortNodes:
-			#	Add and configure Loader below so it will not mess up Flow
-			ldr = Fus.addTool(comp, "Loader", toolData, xPos=refX , yPos=refY + 0.5)
-		else:
-			#	Add and configure Loader without positiong
-			ldr = Fus.addTool(comp, "Loader", toolData)
-	
-		if not ldr:
-			self.core.popup("ERROR: Unable to add Loader to Comp")
+		except:
+			logger.warning(f"ERROR: Unable to add Loader to Comp")
 			return False
-
-		# except:
-		# 	logger.warning(f"ERROR: Unable to add Loader to Comp")
-		# 	return False
 
 		# Deselect all
 		flow.Select()
 
 		if toolData["extension"] == ".exr":
 			#	Handle Multi-part .exrs
+			try:
+				channel = toolData["channel"]
 
+				#	Check if the file has parts
+				if ldr.Clip1.OpenEXRFormat.Part:
+					#	Get list of parts in file
+					parts = ldr.Clip1.OpenEXRFormat.Part.GetAttrs('INPIDT_ComboControl_ID')
+					#	Match and assign part
+					if channel in parts.values():
+						ldr.Clip1.OpenEXRFormat.Part = channel
+			except:
+				logger.warning(f"ERROR: Unable to assign multi-part .exr for ({channel})")
 
-			# try:
-			channel = toolData["channel"]
+			try:
+				#	Get available channels from Loader
+				loaderChannels = Fus.getLoaderChannels(ldr)
+				channelData = Fus.getChannelData(loaderChannels)
 
-			#	Check if the file has parts
-			if ldr.Clip1.OpenEXRFormat.Part:
-				#	Get list of parts in file
-				parts = ldr.Clip1.OpenEXRFormat.Part.GetAttrs('INPIDT_ComboControl_ID')
-				#	Match and assign part
-				if channel in parts.values():
-					ldr.Clip1.OpenEXRFormat.Part = channel
-			# except:
-			# 	logger.warning(f"ERROR: Unable to assign multi-part .exr for ({channel})")
+				#	Get the channel list for the channel being processed
+				if len(channelData) > 0:
+					channelDict = channelData[toolData["channel"]]
 
+					# Dictionary to map channel types to attribute names
+					channel_attributes = {
+						'r': 'RedName', 'red': 'RedName',
+						'g': 'GreenName', 'green': 'GreenName',
+						'b': 'BlueName', 'blue': 'BlueName',
+						'a': 'AlphaName', 'alpha': 'AlphaName',
+						'x': 'RedName',
+						'y': 'GreenName',
+						'z': 'BlueName',
+						}
 
-
-
-			# try:
-			# 		
-			#	Get available channels from Loader
-			loaderChannels = Fus.getLoaderChannels(ldr)
-			channelData = Fus.getChannelData(loaderChannels)
-
-			# print(f"***\n\n")                                              					#    TESTING
-			# print(f"*** toolData:  {toolData}\n\n")                                         #    TESTING
-			# print(f"*** loaderChannels:  {loaderChannels}\n\n")                             #    TESTING
-			# print(f"*** channelData:  {channelData}\n\n")                                   #    TESTING
-
-			#	Get the channel list for the channel being processed
-			if len(channelData) > 0:
-				channelDict = channelData[toolData["channel"]]
-
-				# Dictionary to map channel types to attribute names
-				channel_attributes = {
-					'r': 'RedName', 'red': 'RedName',
-					'g': 'GreenName', 'green': 'GreenName',
-					'b': 'BlueName', 'blue': 'BlueName',
-					'a': 'AlphaName', 'alpha': 'AlphaName',
-					'x': 'RedName',
-					'y': 'GreenName',
-					'z': 'BlueName',
-					}
-
-				# Check if contains only a Z-channel (for Depth, Mist, etc)
-				z_channel = None
-				for channel_str in channelDict:
-					if re.search(r'\.z$', channel_str.lower()):
-						z_channel = channel_str
-
-				#	Assign the Z-channel to the R, G, B, and Z
-				if z_channel and len(channelDict) == 1:
-					ldr.Clip1.OpenEXRFormat.RedName = z_channel
-					ldr.Clip1.OpenEXRFormat.GreenName = z_channel
-					ldr.Clip1.OpenEXRFormat.BlueName = z_channel
-					ldr.Clip1.OpenEXRFormat.ZName = z_channel
-
-				else:
-					#	Match the attrs based on the dict
+					# Check if contains only a Z-channel (for Depth, Mist, etc)
+					z_channel = None
 					for channel_str in channelDict:
-						match = re.search(r'\.([a-z])$', channel_str.lower())
+						if re.search(r'\.z$', channel_str.lower()):
+							z_channel = channel_str
 
-						if match:
-							suffix = match.group(1)
-							attribute = channel_attributes.get(suffix)
+					#	Assign the Z-channel to the R, G, B, and Z
+					if z_channel and len(channelDict) == 1:
+						ldr.Clip1.OpenEXRFormat.RedName = z_channel
+						ldr.Clip1.OpenEXRFormat.GreenName = z_channel
+						ldr.Clip1.OpenEXRFormat.BlueName = z_channel
+						ldr.Clip1.OpenEXRFormat.ZName = z_channel
 
-							#	Configure Loader channels based on dict
-							if attribute:
-								setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
+					else:
+						#	Match the attrs based on the dict
+						for channel_str in channelDict:
+							match = re.search(r'\.([a-z])$', channel_str.lower())
 
-			# except:
-			# 	logger.warning("ERROR: Unable to assign image channels to Loader")
-			# 	return False
+							if match:
+								suffix = match.group(1)
+								attribute = channel_attributes.get(suffix)
 
-
+								#	Configure Loader channels based on dict
+								if attribute:
+									setattr(ldr.Clip1.OpenEXRFormat, attribute, channel_str)
+			except:
+				logger.warning("ERROR: Unable to assign image channels to Loader")
+				return False
 
 		#	If Add Wireless is enabled
 		if addWireless:
@@ -1632,7 +1617,6 @@ class Prism_Fusion_Functions(object):
 
 		except Exception as e:
 			logger.warning(f"ERROR: Failed to sort nodes:\n{e}")
-
 
 
 	#	Scans and Creates ImageImport State for Discovered Loaders
@@ -3645,10 +3629,6 @@ path = r\"%s\"
 		self.scanCompForNewLoaders(self.MP_stateManager)
 
 
-
-
-
-
 	@err_catcher(name=__name__)
 	def onStateManagerOpen(self, origin):
 		origin.setWindowIcon(QIcon(self.prismAppIcon))
@@ -4043,6 +4023,7 @@ path = r\"%s\"
 
 					rcmenu.exec_(sm.activeList.mapToGlobal(pos))
 
+
 	@err_catcher(name=__name__)
 	def showStateMenu (self, listType=None, useSelection=False):
 		logger.debug("Loading patched function: 'showStateMenu'")
@@ -4071,6 +4052,7 @@ path = r\"%s\"
 		else:
 			logger.warning("ERROR: Unable to to create state")
 
+
 	@err_catcher(name=__name__)
 	def pasteStates(self):
 		logger.debug("Loading patched function: 'showStateMenu'")
@@ -4095,6 +4077,7 @@ path = r\"%s\"
 			sm.showState()
 			sm.activeList.clearFocus()
 			sm.activeList.setFocus()
+
 
 	@err_catcher(name=__name__)
 	def getVersionStackContextFromPath(self, filepath, mediaType=None):
