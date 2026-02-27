@@ -1764,6 +1764,13 @@ class Prism_Fusion_Functions(object):
 			
 			if uLdr:
 				importRes = True
+
+			#	Color Tool if Color Selected
+			if toolData['toolColor'] != "Clear Color":
+				#   Get rgb color from dict
+				colorRGB = self.fusionToolsColorsDict[toolData['toolColor']]
+				#   Color tool
+				self.colorTools([uLdr], colorRGB)
 		
 		#	Update uLoader
 		else:

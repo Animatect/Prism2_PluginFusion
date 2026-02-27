@@ -486,7 +486,8 @@ class USD_ImportClass(object):
                     "usdFilepath": impFileName,
                     "product": productName,
                     "listType": "import3d",
-                    "format": "USD"}
+                    "format": "USD",
+                    "toolColor": self.cb_taskColor.currentText()}
 
         #   Call import function
         importResult = self.fuseFuncts.importUSD(self,
