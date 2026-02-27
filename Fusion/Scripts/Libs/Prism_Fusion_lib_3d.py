@@ -259,7 +259,6 @@ def importFormatByUI(fusion:Fusion_, origin:Legacy3D_ImportClass, formatCall:str
         origin.core.products.getVersionInfoPathFromProductFilepath(filepath)
     )
     impFPS = origin.core.getConfig("fps", configPath=versionInfoPath)
-    print("impFPS: ", impFPS)
     comp:Composition_ = fusion.GetCurrentComp()
     flow:FlowView_ = comp.CurrentFrame.FlowView
     flow.Select(None)
@@ -379,13 +378,13 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
             if len(inputTools)>0:
                 connectedNodesDict:dict= {}
                 for t in inputTools:
-                    # print(f"Connected node name: {t.GetAttrs('TOOLS_Name')}")
                     tUID = Helper.createUUID()
+
                     if t.GetData("Prism_UUID"):
                         tUID = t.GetData("Prism_UUID")
                     else:
                         t.SetData("Prism_UUID", tUID)
-                    # print(f"{tool.Name} connections: {t.Name}")
+
                     connectedNodesDict[t.GetAttrs('TOOLS_Name')]=tUID
                 
                 thisToolData["connectedNodes"] = connectedNodesDict
@@ -437,7 +436,10 @@ def createLegacy3DScene(origin:Legacy3D_ImportClass, comp:Composition_, flow:Flo
         msg += "\n if possible reconnect manually."
         origin.core.popup(msg, severity="info")
 
-    return result
+    if result:
+        return impnodes
+    else:
+        return result
 
 
 def getNode(obj:str|dict|Tool_)->dict:
@@ -490,7 +492,6 @@ def cleanbeforeImport(origin:Legacy3D_ImportClass, stateUID:str):
 def deleteTools(comp:Composition_, stateUID:str):
     # aggregateData = CompDb.loadPrismFileDb(comp)
     stateTools:list[Tool_] = getToolsFromNodeList(comp, getStateNodesList(comp, stateUID))
-    print("stateTools: \n", stateTools)
     for tool in stateTools:
         try:
             tool.Delete()
@@ -554,7 +555,6 @@ def getStateNodesOrigNameList(comp:Composition_, nodeUIDlist:list[str]) -> list[
 
 def getToolsFromNodeList(comp:Composition_, nodeUIDlist:list[str]) -> list[Tool_]:
     nodes:dict = getAllNodes(comp)
-    print("allNOdes: \n", nodes)
     tools:list[Tool_] = []
 
     for nodeuid in nodeUIDlist:
@@ -566,7 +566,6 @@ def getToolsFromNodeList(comp:Composition_, nodeUIDlist:list[str]) -> list[Tool_
 
 def ReplaceBeforeImport(origin:Legacy3D_ImportClass, comp:Composition_, stateUID:str, newtools:list[Tool_], sceneTool:Tool_)->tuple[bool, list[str], list[str]]:
     alldbnodes:dict = getAllNodes(comp)
-    print("alldbnodes: ", alldbnodes)
     statenodesuids:list[str] = getStateNodesList(comp, stateUID)
     stateNodesNames:list[str] = getStateNodesOrigNameList(comp, statenodesuids)
     stateTools:list[Tool_] = getToolsFromNodeList(comp, statenodesuids)

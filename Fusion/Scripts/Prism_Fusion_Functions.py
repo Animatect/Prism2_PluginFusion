@@ -2259,8 +2259,15 @@ class Prism_Fusion_Functions(object):
 			# After import update the stateManager interface
 			if result:
 				initcoords:tuple = (atx, aty)
-				result = Fus3d.createLegacy3DScene(origin, comp, flow, fileName, nodeData, UUID, initcoords)
-				
+				tools = Fus3d.createLegacy3DScene(origin, comp, flow, fileName, nodeData, UUID, initcoords)
+
+				#	Color Tools if Color Selected
+				if nodeData['toolColor'] != "Clear Color":
+					#   Get rgb color from dict
+					colorRGB = self.fusionToolsColorsDict[nodeData['toolColor']]
+					#   Color tool
+					self.colorTools(tools, colorRGB)
+
 				logger.debug(f"Imported Legacy3D Scene: {nodeData['product']}")
 
 			return {"result": result, "doImport": doImport}

@@ -506,7 +506,9 @@ class Legacy3D_ImportClass(object):
                     "Filepath": impFileName,
                     "product": productName,
                     "listType": "import3d",
-                    "format": extension.lower()}
+                    "format": extension.lower(),
+                    "toolColor": self.cb_taskColor.currentText()}
+
 
         #   Call import function
         importResult = self.core.appPlugin.importLegacy3D(self,
