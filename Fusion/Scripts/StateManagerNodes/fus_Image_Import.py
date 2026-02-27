@@ -1657,7 +1657,6 @@ class Image_ImportClass(object):
         try:
             #   Make base dict
             importData = context
-
             importData["stateUID"] = self.stateUID
             importData["aovs"] = []
             importData["channels"] = []
@@ -2006,13 +2005,15 @@ class Image_ImportClass(object):
     @err_catcher(name=__name__)
     def getImageExtension(self, context=None, basefile=None):
         try:
-            if context and "extension" in context:
-                extension = context["extension"]
-            elif basefile:
+            if basefile:
                 _, extension = os.path.splitext(basefile)
+
+            elif context and "extension" in context:
+                extension = context["extension"]
+
             else:
                 raise Exception
-            
+                        
             return extension.lower()
             
         except:
