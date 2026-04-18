@@ -59,6 +59,7 @@ import logging
 import time
 # from ctypes import WinDLL
 from collections import defaultdict
+from typing import TYPE_CHECKING
 
 
 import BlackmagicFusion as bmd
@@ -75,11 +76,13 @@ import pyperclip
 
 from PrismUtils.Decorators import err_catcher as err_catcher
 
-from typing import TYPE_CHECKING
+
 if TYPE_CHECKING:
 	from PrismCore import PrismCore
 	from ProjectScripts.StateManager import StateManager
 	from ProjectScripts.MediaBrowser import MediaBrowser, MediaPlayer
+
+	
 from StateManagerNodes.fus_Legacy3D_Import import Legacy3D_ImportClass
 	
 #	Import Prism Fusion Libraries
@@ -92,7 +95,7 @@ logger = logging.getLogger(__name__)
 
 
 class Prism_Fusion_Functions(object):
-	def __init__(self, core, plugin):
+	def __init__(self, core:"PrismCore", plugin):
 		self.core:PrismCore = core
 		self.prismRoot = self.core.prismRoot
 		self.plugin = plugin
@@ -110,7 +113,7 @@ class Prism_Fusion_Functions(object):
 		self.prefUI = None
 
 		#	Fixes OIIO DLL Error in Fusion Prism
-		Helper.forcePrismOiioDlls(self.prismRoot)
+		Helper.forcePrismOiioDlls(self.core, self.prismRoot)
 
 		#	Register Callbacks
 		try:
@@ -264,7 +267,6 @@ class Prism_Fusion_Functions(object):
 		else:
 			self.useUpdatePopup = False
 
-
 		#	Sets the AOV thumb size based off user settings
 		match self.core.getConfig("Fusion", "thumbsSize"):
 			case "Small (300 px)":
@@ -277,6 +279,7 @@ class Prism_Fusion_Functions(object):
 				self.aovThumbWidth = 500
 
 		self.core.setActiveStyleSheet("Fusion")
+		
 		appIcon = QIcon(
 			os.path.join(self.core.prismRoot, "Scripts", "UserInterfacesPrism", "p_tray.png")
 		)
@@ -859,7 +862,6 @@ class Prism_Fusion_Functions(object):
 					else:
 						logger.debug(f"Configured Saver: {toolData}")
 
-
 				else:
 					logger.debug(f"ERROR: Render Node is not connected: {toolUID}")
 			else:
@@ -900,7 +902,7 @@ class Prism_Fusion_Functions(object):
 
 
 	@err_catcher(name=__name__)
-	def sm_export_addObjects(self, origin, objects=None):
+	def sm_export_addObjects(self, origin:"PrismCore", objects=None):
 		if not objects:
 			objects = []  # get selected objects from scene
 

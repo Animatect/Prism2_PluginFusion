@@ -59,6 +59,10 @@ from datetime import datetime
 import uuid
 import hashlib
 from ctypes import WinDLL
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+	from PrismCore import PrismCore
 
 
 from PrismUtils.Decorators import err_catcher as err_catcher
@@ -87,12 +91,12 @@ def createUUID(simple:bool=False, length:int=8) -> str:
     
         return uid
     
-    # Generate a 8 charactor UUID string
+    #   Generate a 8 character UUID string
     else:
         uid = uuid.uuid4()
-        # Create a SHA-256 hash of the UUID
+        #   Create a SHA-256 hash of the UUID
         hashObject = hashlib.sha256(uid.bytes)
-        # Convert the hash to a hex string and truncate it to the desired length
+        #   Convert the hash to a hex string and truncate it to the desired length
         shortUID = hashObject.hexdigest()[:length]
 
         logger.debug(f"Created UID: {shortUID}")
@@ -101,44 +105,59 @@ def createUUID(simple:bool=False, length:int=8) -> str:
 
 
 	#	Returns Highest Prism Python Path
-def getLatestPrismPythonDir(prism_root:str) -> str:
+def getLatestPrismPythonDir(core:"PrismCore", prism_root:str) -> str:
+    #   Get Prism Version and Convert to Int Tuple
+    pVer_str = core.version.lstrip("v")
+    pVer_int = tuple(map(int, pVer_str.split(".")))
+
     pythonlibs_dir = os.path.join(prism_root, "PythonLibs")
 
     if not os.path.isdir(pythonlibs_dir):
         logger.warning(f"ERROR:  PythonLibs directory not found: {pythonlibs_dir}")
         return None
     
-    version_dirs = []
+    #   Prism Versions before 2.1.2
+    if pVer_int <= (2, 1, 1):
+        logger.debug("Resolving OIIO dir from Prism Ver < 2.1.2")
 
-    for name in os.listdir(pythonlibs_dir):
-        fullPath = os.path.join(pythonlibs_dir, name)
+        version_dirs = []
 
-        if not os.path.isdir(fullPath):
-            continue
+        #   Walk PythonLibs Subdirs to Find Python Version Dir
+        for name in os.listdir(pythonlibs_dir):
+            fullPath = os.path.join(pythonlibs_dir, name)
 
-        #	Match folders like Python39, Python310, Python313, etc.
-        match = re.match(r"Python(\d+)", name)
-        if match:
-            version_number = int(match.group(1))
-            version_dirs.append((version_number, fullPath))
+            if not os.path.isdir(fullPath):
+                continue
 
-    if not version_dirs:
-        logger.warning("ERROR:  No PythonXXX folders found in Prism PythonLibs.")
-        return None
-    
-    #	Sort by Highest Version
-    version_dirs.sort(key=lambda x: x[0], reverse=True)
+            #	Match folders like Python39, Python310, Python313, etc.
+            match = re.match(r"Python(\d+)", name)
+            if match:
+                version_number = int(match.group(1))
+                version_dirs.append((version_number, fullPath))
 
-    #	Return Highest Ver Path
-    return version_dirs[0][1]
+        if not version_dirs:
+            logger.warning("ERROR:  No PythonXXX folders found in Prism PythonLibs.")
+            return None
+        
+        #	Sort by Highest Version
+        version_dirs.sort(key=lambda x: x[0], reverse=True)
+
+        #	Return Highest Ver Path
+        return version_dirs[0][1]
+
+    #   Prism Versions After 2.1.1
+    else:
+        logger.debug("Resolving OIIO dir from Prism Ver > 2.1.1")
+
+        return os.path.join(pythonlibs_dir, "Python3")
 
 
 #	Fixes the DLL Issue with OpenImageIO in Fusion.
 # 	It seems there is a conflict with Fusion's Libs and Prism's.
 # 	This Force-loads the Prism OIIO DLL's into the Fusion Prism process before OIIO is Loaded.
-def forcePrismOiioDlls(prismRoot:str):
+def forcePrismOiioDlls(core:"PrismCore", prismRoot:str) -> None:
     #	Path to the OpenImageIO Bin dir
-    prismPythonDir = getLatestPrismPythonDir(prismRoot)
+    prismPythonDir = getLatestPrismPythonDir(core, prismRoot)
 
     if not prismPythonDir:
         logger.warning("ERROR: Aborting Force-load of OIIO DLL's.")
@@ -168,6 +187,7 @@ def forcePrismOiioDlls(prismRoot:str):
     try:
         import OpenImageIO as oiio
         logger.debug("Force-load OIIO was successful")
+
     except Exception as e:
         logger.warning(f"ERROR: Failed to Force-load OIIO: {e}")
 
@@ -182,11 +202,10 @@ def getAovNamesFromAovDict(aovDict:list) -> list:
     except:
         logger.warning(f"ERROR:  Unable to get AOV names from : {aovDict}")
         return None
-		
 
 
 #	Configures name to conform with Fusion Restrictions
-def getFusLegalName(origName:str, check:bool=False) -> str:			#	TODO  Restructure and logging
+def getFusLegalName(origName:str, check:bool=False) -> str:
     """
         Fusion has strict naming for nodes.  You can only use:
         - Alphanumeric characters:  a-z, A-Z, 0-9,
@@ -222,6 +241,8 @@ def getFusLegalName(origName:str, check:bool=False) -> str:			#	TODO  Restructur
 
 #   Makes import data dict from various Prism data sources
 def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
+    core:"PrismCore" = plugin.core
+
     #   Get mediaType from Context
     mediaType = context["mediaType"]
 
@@ -264,7 +285,7 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
                 #   Add mediaType to each aovItem
                 aovItem["mediaType"] = mediaType
                 #   Get file list for each aov, and get first file
-                filesList = plugin.core.mediaProducts.getFilesFromContext(aovItem)
+                filesList = core.mediaProducts.getFilesFromContext(aovItem)
                 basefile = filesList[0]
 
                 #   Get file extension
@@ -279,8 +300,8 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
                     frame_end = sourceItem[2]
 
                 #   Use video duration for video formats
-                elif extension in plugin.core.media.videoFormats:
-                        duration = plugin.core.media.getVideoDuration(basefile)
+                elif extension in core.media.videoFormats:
+                        duration = core.media.getVideoDuration(basefile)
                         frame_start = 1
                         frame_end = duration
 
@@ -309,13 +330,13 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
             logger.warning(f"ERROR: Unable to generate file list for {mediaType}:\n{e}")
             return None
 
-    #   For "2drenders:
+    #   For 2drenders:
     else:
         try:
             sourceData = sourceData[0]
             
             #   Get file list and get first file
-            filesList = plugin.core.mediaProducts.getFilesFromContext(context)
+            filesList = core.mediaProducts.getFilesFromContext(context)
             basefile = filesList[0]
 
             #   Get file extension
@@ -330,8 +351,8 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
                 frame_end = sourceData[2]
 
             #   Use video duration for video formats
-            elif extension in plugin.core.media.videoFormats:
-                    duration = plugin.core.media.getVideoDuration(basefile)
+            elif extension in core.media.videoFormats:
+                    duration = core.media.getVideoDuration(basefile)
                     frame_start = 1
                     frame_end = duration
 
@@ -365,7 +386,7 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
     importData["extension"] = extension
 
     try:
-        channels = plugin.core.media.getLayersFromFile(basefile)
+        channels = core.media.getLayersFromFile(basefile)
         importData["channels"] = channels
 
     except Exception as e:
@@ -387,7 +408,7 @@ def makeImportData(plugin, context:dict, aovDict:dict, sourceData:dict) -> dict:
 
 
 #   Converts Data Stored in the tool to a Prism Context Structure
-def convertToolDataToPrismData(toolData):                               #   TODO - See which items are needed
+def convertToolDataToPrismData(toolData:dict) -> dict:
     pData = toolData.copy()
 
     if "mediaId" in toolData:
@@ -485,7 +506,6 @@ def calculateLuminance(color:dict) -> float:
     
 
 #	Determines if color is bighter than threshold
-
 def isBgBright(color:dict, threshold=0.5) -> bool:
     luminance = calculateLuminance(color)
     return luminance > threshold
