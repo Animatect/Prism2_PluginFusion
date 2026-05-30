@@ -2577,8 +2577,7 @@ class Prism_Fusion_Functions(object):
 
 	@err_catcher(name=__name__)
 	def isUsingMasterVersion(self):
-		useMaster = self.core.mediaProducts.getUseMaster()
-		if not useMaster:
+		if not self.core.mediaProducts.getUseMaster():
 			return False
 
 		try:
@@ -3190,22 +3189,39 @@ path = r\"%s\"
 				return "Error (Failed to update Master)", False
 
 
+	#######	  TEMPORILIY DISABLED TO USE ORIG FILENAME FOR FARM SUBMISSION   
+	#	Generates a temp file and dir for farm submission
+	# @err_catcher(name=__name__)
+	# def getFarmTempFilepath(self, origFilepath):
+	# 	dirPath, fileName = os.path.split(origFilepath)
+	# 	baseName, ext = os.path.splitext(fileName)
+		
+	# 	# Modify the basename by adding "--TEMP"
+	# 	new_baseName = f"{baseName}--TEMP_FARM_FILE{ext}"
+
+	# 	# Add the "TEMP" child directory to the path
+	# 	new_dirPath = os.path.join(dirPath, "TEMP_FARM")
+	# 	if not os.path.exists(new_dirPath):
+	# 		os.mkdir(new_dirPath)
+
+	# 	# Combine the new directory path with the modified filename
+	# 	new_filePath = os.path.join(new_dirPath, new_baseName)
+
+	# 	return new_filePath, new_dirPath
+	
+
 	#	Generates a temp file and dir for farm submission
 	@err_catcher(name=__name__)
 	def getFarmTempFilepath(self, origFilepath):
 		dirPath, fileName = os.path.split(origFilepath)
-		baseName, ext = os.path.splitext(fileName)
 
-		# Modify the basename by adding "--TEMP"
-		new_baseName = f"{baseName}--TEMP_FARM_FILE{ext}"
-
-		# Add the "TEMP" child directory to the path
+		#	Add the "TEMP" child directory to the path
 		new_dirPath = os.path.join(dirPath, "TEMP_FARM")
 		if not os.path.exists(new_dirPath):
 			os.mkdir(new_dirPath)
 
-		# Combine the new directory path with the modified filename
-		new_filePath = os.path.join(new_dirPath, new_baseName)
+		#	Combine the new directory path with the modified filename
+		new_filePath = os.path.join(new_dirPath, fileName)
 
 		return new_filePath, new_dirPath
 	
@@ -3254,7 +3270,6 @@ path = r\"%s\"
 			return False
 		
 		try:
-
 			#	Setup comp settings and filepaths for render
 			self.configureRenderComp(origin, comp, rSettings)
 
@@ -3276,9 +3291,13 @@ path = r\"%s\"
 
 			farmDetails = self.setupFarmDetails(origin, rSettings)
 
-			#	Checks if there are states that use update Master
-			if len(self.masterData) > 0:
-				executeMaster = True
+			if self.isUsingMasterVersion():
+				#	Checks if there are states that use update Master
+				if len(self.masterData) > 0:
+					executeMaster = True
+				else:
+					executeMaster = False
+				
 			else:
 				executeMaster = False
 

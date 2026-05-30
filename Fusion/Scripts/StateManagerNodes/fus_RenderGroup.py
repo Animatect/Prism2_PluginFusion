@@ -934,6 +934,8 @@ class RenderGroupClass(object):
 		self.refreshContext()
 
 		if not self.core.mediaProducts.getUseMaster():
+			self.chb_overrideMaster.setChecked(False)
+			self.chb_overrideMaster.setVisible(False)
 			self.w_master.setVisible(False)
 		else:
 			self.updateMasterOvr()
@@ -996,6 +998,9 @@ class RenderGroupClass(object):
 
 	@err_catcher(name=__name__)
 	def updateMasterOvr(self):
+		if not self.core.mediaProducts.getUseMaster():
+			self.chb_overrideMaster.setChecked(False)
+
 		isEnabled = self.chb_overrideMaster.isChecked()
 
 		# UI elements to update
@@ -1387,11 +1392,11 @@ class RenderGroupClass(object):
 	def executeState(self, parent, useVersion="next", outOnly=False):
 		# Checks if Render Manager plugins were detected.
 		if self.cb_manager.count() > 0:
-			hasRenderManger = True
+			hasRenderManager = True
 
 		sumbitToFarm = self.gb_submit.isChecked()
 
-		if sumbitToFarm and not hasRenderManger:
+		if sumbitToFarm and not hasRenderManager:
 			return [self.state.text(0) + " - error - There are no Render Manager plugins installed"]
 		else:
 			farmPlugin = self.core.plugins.getRenderfarmPlugin(self.cb_manager.currentText())
