@@ -52,7 +52,6 @@ import os
 class Prism_Fusion_Variables(object):
     def __init__(self, core, plugin):
         self.version = "v2.2.3"
-        self.version = "v2.2.2"
         self.pluginName = "Fusion"
         self.pluginType = "App"
         self.appShortName = "Fus"
